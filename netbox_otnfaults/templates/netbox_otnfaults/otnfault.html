@@ -55,7 +55,17 @@
     </div>
     <div class="col col-md-6">
       <div class="card">
-        <h5 class="card-header">影响业务</h5>
+        <h5 class="card-header">
+          影响业务
+          {% if perms.netbox_otnfaults.add_otnfaultimpact %}
+          <div class="card-actions">
+            <a href="{% url 'plugins:netbox_otnfaults:otnfaultimpact_add' %}?otn_fault={{ object.pk }}" class="btn btn-ghost-primary btn-sm">
+              <i class="mdi mdi-plus-thick" aria-hidden="true"></i>
+              增加一个影响的业务
+            </a>
+          </div>
+          {% endif %}
+        </h5>
         <div class="card-body">
             {% render_table impacts_table %}
         </div>
