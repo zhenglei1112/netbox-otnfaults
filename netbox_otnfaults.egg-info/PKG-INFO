@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: netbox-otnfaults
+Version: 0.1
+Summary: A NetBox plugin for OTN fault registration
+Dynamic: summary

@@ -1,0 +1,65 @@
+{% extends 'generic/object.html' %}
+{% load render_table from django_tables2 %}
+{% load i18n %}
+
+{% block content %}
+  <div class="row mb-3">
+    <div class="col col-md-6">
+      <div class="card">
+        <h5 class="card-header">故障详情</h5>
+        <div class="card-body">
+          <table class="table table-hover attr-table">
+            <tr>
+              <th scope="row">故障编号</th>
+              <td>{{ object.fault_number }}</td>
+            </tr>
+            <tr>
+              <th scope="row">值守人员</th>
+              <td>{{ object.duty_officer }}</td>
+            </tr>
+            <tr>
+              <th scope="row">中断位置</th>
+              <td>
+                {% for site in object.interruption_location.all %}
+                  <a href="{{ site.get_absolute_url }}">{{ site }}</a>{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">故障中断时间</th>
+              <td>{{ object.fault_occurrence_time|date:"Y-m-d H:i:s" }}</td>
+            </tr>
+            <tr>
+              <th scope="row">故障恢复时间</th>
+              <td>{{ object.fault_recovery_time|date:"Y-m-d H:i:s"|default:"-" }}</td>
+            </tr>
+            <tr>
+              <th scope="row">中断历时</th>
+              <td>{{ object.fault_duration|default:"-" }}</td>
+            </tr>
+            <tr>
+              <th scope="row">故障分类</th>
+              <td>{% badge object.get_fault_category_display bg_color=object.get_fault_category_color %}</td>
+            </tr>
+            <tr>
+              <th scope="row">中断原因</th>
+              <td>{{ object.get_interruption_reason_display }}</td>
+            </tr>
+            <tr>
+              <th scope="row">故障详细情况</th>
+              <td>{{ object.fault_details|linebreaks }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col col-md-6">
+      <div class="card">
+        <h5 class="card-header">影响业务</h5>
+        <div class="card-body">
+            {% render_table impacts_table %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
