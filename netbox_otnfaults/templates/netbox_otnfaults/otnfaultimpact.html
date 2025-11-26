@@ -6,32 +6,48 @@
     <div class="col col-md-6">
         <div class="card">
             <h5 class="card-header">影响业务详情</h5>
-            <div class="card-body">
                 <table class="table table-hover attr-table">
                     <tr>
                         <th scope="row">关联故障</th>
-                        <td><a href="{{ object.otn_fault.get_absolute_url }}">{{ object.otn_fault }}</a></td>
+                        <td>
+                            {% if object.otn_fault %}
+                                <a href="{{ object.otn_fault.get_absolute_url }}">{{ object.otn_fault }}</a>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
                     </tr>
                     <tr>
                         <th scope="row">影响业务</th>
-                        <td><a href="{{ object.impacted_service.get_absolute_url }}">{{ object.impacted_service }}</a>
+                        <td>
+                            {% if object.impacted_service %}
+                                <a href="{{ object.impacted_service.get_absolute_url }}">{{ object.impacted_service }}</a>
+                            {% else %}
+                                —
+                            {% endif %}
                         </td>
                     </tr>
                     <tr>
                         <th scope="row">业务中断时间</th>
-                        <td>{{ object.service_interruption_time|date:"Y-m-d H:i:s" }}</td>
+                        <td>{{ object.service_interruption_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
                     </tr>
                     <tr>
                         <th scope="row">业务恢复时间</th>
-                        <td>{{ object.service_recovery_time|date:"Y-m-d H:i:s"|default:"-" }}</td>
+                        <td>{{ object.service_recovery_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
                     </tr>
                     <tr>
                         <th scope="row">中断历时</th>
-                        <td>{{ object.service_duration|default:"-" }}</td>
+                        <td>{{ object.service_duration|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">备注</th>
+                        <td>{{ object.comments|default:"—" }}</td>
                     </tr>
                 </table>
-            </div>
         </div>
+        {% include 'inc/panels/tags.html' %}
+        {% include 'inc/panels/custom_fields.html' %}
+        {% include 'inc/panels/comments.html' %}
     </div>
 </div>
 {% endblock %}

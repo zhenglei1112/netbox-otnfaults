@@ -46,7 +46,8 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'id', 'url', 'display', 'fault_number', 'duty_officer', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration',
             'fault_category', 'interruption_reason', 'fault_details',
-            'tags', 'custom_fields', 'created', 'last_updated',
+            'interruption_longitude', 'interruption_latitude',
+            'tags', 'comments', 'custom_fields', 'created', 'last_updated',
         )
         brief_fields = (
             'id', 'url', 'display', 'fault_number', 'duty_officer', 'fault_occurrence_time',
@@ -63,7 +64,7 @@ class OtnFaultImpactSerializer(NetBoxModelSerializer):
         fields = (
             'id', 'url', 'display', 'otn_fault', 'impacted_service',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
-            'tags', 'custom_fields', 'created', 'last_updated',
+            'tags', 'comments', 'custom_fields', 'created', 'last_updated',
         )
         brief_fields = (
             'id', 'url', 'display', 'otn_fault', 'impacted_service',
