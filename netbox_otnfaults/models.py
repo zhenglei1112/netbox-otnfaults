@@ -6,6 +6,7 @@ from netbox.models import NetBoxModel
 from dcim.models import Site
 from tenancy.models import Tenant
 from utilities.choices import ChoiceSet
+import taggit.managers
 
 
 class FaultCategoryChoices(ChoiceSet):
@@ -56,7 +57,9 @@ class OtnFault(NetBoxModel):
     fault_category = models.CharField(
         max_length=20,
         choices=FaultCategoryChoices,
-        verbose_name='故障分类'
+        verbose_name='故障分类',
+        blank=True,
+        null=True
     )
     
     INTERRUPTION_REASON_CHOICES = (
@@ -72,11 +75,37 @@ class OtnFault(NetBoxModel):
     interruption_reason = models.CharField(
         max_length=30,
         choices=INTERRUPTION_REASON_CHOICES,
-        verbose_name='中断原因'
+        verbose_name='中断原因',
+        blank=True,
+        null=True
     )
     fault_details = models.TextField(
-        verbose_name='故障详细情况'
+        verbose_name='故障详细情况',
+        blank=True,
+        null=True
     )
+    interruption_longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        verbose_name='中断位置经度',
+        help_text='GPS坐标（十进制格式, xx.yyyyyy）'
+    )
+    interruption_latitude = models.DecimalField(
+        max_digits=8,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        verbose_name='中断位置纬度',
+        help_text='GPS坐标（十进制格式, xx.yyyyyy）'
+    )
+    tags = taggit.managers.TaggableManager(
+        through='extras.TaggedItem',
+        to='extras.Tag',
+        blank=True
+    )
+    comments = models.TextField(blank=True, verbose_name='备注')
 
     class Meta:
         ordering = ('-fault_occurrence_time',)
@@ -138,6 +167,12 @@ class OtnFaultImpact(NetBoxModel):
         blank=True,
         verbose_name='业务恢复时间'
     )
+    tags = taggit.managers.TaggableManager(
+        through='extras.TaggedItem',
+        to='extras.Tag',
+        blank=True
+    )
+    comments = models.TextField(blank=True, verbose_name='备注')
 
     class Meta:
         ordering = ('-service_interruption_time',)

@@ -3,7 +3,7 @@ from . import views
 from netbox.views.generic import ObjectChangeLogView
 
 urlpatterns = [
-    # OtnFault
+    # OTN故障相关路由
     path('faults/', views.OtnFaultListView.as_view(), name='otnfault_list'),
     path('faults/add/', views.OtnFaultEditView.as_view(), name='otnfault_add'),
     path('faults/<int:pk>/', views.OtnFaultView.as_view(), name='otnfault'),
@@ -11,7 +11,7 @@ urlpatterns = [
     path('faults/<int:pk>/delete/', views.OtnFaultDeleteView.as_view(), name='otnfault_delete'),
     path('faults/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='otnfault_changelog', kwargs={'model': views.OtnFault}),
 
-    # OtnFaultImpact
+    # 故障影响业务相关路由
     path('impacts/', views.OtnFaultImpactListView.as_view(), name='otnfaultimpact_list'),
     path('impacts/add/', views.OtnFaultImpactEditView.as_view(), name='otnfaultimpact_add'),
     path('impacts/<int:pk>/', views.OtnFaultImpactView.as_view(), name='otnfaultimpact'),
