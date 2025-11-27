@@ -7,6 +7,7 @@ from dcim.models import Site
 from tenancy.models import Tenant
 from utilities.choices import ChoiceSet
 import taggit.managers
+from django.core.exceptions import ValidationError
 
 
 class FaultCategoryChoices(ChoiceSet):
@@ -100,12 +101,186 @@ class OtnFault(NetBoxModel):
         verbose_name='中断位置纬度',
         help_text='GPS坐标（十进制格式, xx.yyyyyy）'
     )
+    
+    # 新增字段
+    # 1) 省份，引用netbox组织机构中的地区
+    province = models.ForeignKey(
+        to='dcim.Region',
+        on_delete=models.PROTECT,
+        related_name='otn_faults',
+        verbose_name='省份',
+        blank=True,
+        null=True
+    )
+    
+    # 2) 紧急程度，为选择型字段，分为高、中、低，按照颜色显示，高为红色，中为橙色，低为黄色，默认值为低，必填
+    URGENCY_CHOICES = (
+        ('high', '高'),
+        ('medium', '中'),
+        ('low', '低'),
+    )
+    urgency = models.CharField(
+        max_length=10,
+        choices=URGENCY_CHOICES,
+        default='low',
+        verbose_name='紧急程度'
+    )
+    
+    # 3) 第一报障来源，为选择性字段，分为国干网网管、未来网络网管、客户保障、其他，必填
+    FIRST_REPORT_SOURCE_CHOICES = (
+        ('national_backbone', '国干网网管'),
+        ('future_network', '未来网络网管'),
+        ('customer_support', '客户保障'),
+        ('other', '其他'),
+    )
+    first_report_source = models.CharField(
+        max_length=20,
+        choices=FIRST_REPORT_SOURCE_CHOICES,
+        verbose_name='第一报障来源'
+    )
+    
+    # 4) 计划内，布尔类型，默认值为否
+    planned = models.BooleanField(
+        default=False,
+        verbose_name='计划内'
+    )
+    
+    # 5) 线路主管，为选择性字段，选择系统用户
+    line_manager = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='managed_otn_faults',
+        verbose_name='线路主管',
+        blank=True,
+        null=True
+    )
+    
+    # 6) 维护方式，为选择型字段，分为代维、协调、自维
+    MAINTENANCE_MODE_CHOICES = (
+        ('outsourced', '代维'),
+        ('coordinated', '协调'),
+        ('self_maintained', '自维'),
+    )
+    maintenance_mode = models.CharField(
+        max_length=20,
+        choices=MAINTENANCE_MODE_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='维护方式'
+    )
+    
+    # 7) 处理单位，引用netbox-contract中的服务提供商
+    handling_unit = models.ForeignKey(
+        to='netbox_contract.ServiceProvider',
+        on_delete=models.PROTECT,
+        related_name='handled_otn_faults',
+        verbose_name='处理单位',
+        blank=True,
+        null=True
+    )
+    
+    # 8) 处理派发时间，格式为2024/11/17  10:23:34，包括列表，详细信息，编辑页
+    dispatch_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='处理派发时间'
+    )
+    
+    # 9) 维修出发时间，格式为2024/11/17  10:23:34，包括列表，详细信息，编辑页
+    departure_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='维修出发时间'
+    )
+    
+    # 10) 到达现场时间，格式为2024/11/17  10:23:34，包括列表，详细信息，编辑页
+    arrival_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='到达现场时间'
+    )
+    
+    # 11) 故障修复时间，格式为2024/11/17  10:23:34，包括列表，详细信息，编辑页
+    repair_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='故障修复时间'
+    )
+    
+    # 12) 修复用时，自动计算字段，使用故障修复时间-处理派发时间，格式为9.65小时
+    # 这是一个计算属性，不在数据库中存储
+    
+    # 13) 是否超时，布尔型字段
+    timeout = models.BooleanField(
+        default=False,
+        verbose_name='是否超时'
+    )
+    
+    # 14) 超时原因，文本型字段
+    timeout_reason = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='超时原因'
+    )
+    
+    # 15) 资源类型，为选择性字段，分为自建光缆、协调资源、租赁纤芯三类
+    RESOURCE_TYPE_CHOICES = (
+        ('self_built', '自建光缆'),
+        ('coordinated', '协调资源'),
+        ('leased', '租赁纤芯'),
+    )
+    resource_type = models.CharField(
+        max_length=20,
+        choices=RESOURCE_TYPE_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='资源类型'
+    )
+    
+    # 16) 光缆路由属性，为选择性字段，分为高速公路、非高速两类，默认值为高速公路
+    CABLE_ROUTE_CHOICES = (
+        ('highway', '高速公路'),
+        ('non_highway', '非高速'),
+    )
+    cable_route = models.CharField(
+        max_length=20,
+        choices=CABLE_ROUTE_CHOICES,
+        default='highway',
+        verbose_name='光缆路由属性'
+    )
+    
+    # 17) 故障处理人，文本字段
+    handler = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='故障处理人'
+    )
+    
+    # 18) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
+    RECOVERY_MODE_CHOICES = (
+        ('fusion_splicing', '熔接恢复'),
+        ('tail_fiber_replacement', '更换尾纤恢复'),
+        ('processing', '处理恢复'),
+        ('fiber_adjustment', '调纤恢复'),
+        ('automatic', '自动恢复'),
+        ('unknown', '无法查明'),
+        ('not_provided', '未提供'),
+    )
+    recovery_mode = models.CharField(
+        max_length=30,
+        choices=RECOVERY_MODE_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='恢复方式'
+    )
+    
     tags = taggit.managers.TaggableManager(
         through='extras.TaggedItem',
         to='extras.Tag',
         blank=True
     )
-    comments = models.TextField(blank=True, verbose_name='备注')
+    comments = models.TextField(blank=True, verbose_name='评论')
 
     class Meta:
         ordering = ('-fault_occurrence_time',)
@@ -132,6 +307,63 @@ class OtnFault(NetBoxModel):
             seconds = seconds % 60
             return f"{days}天{hours}小时{minutes}分{seconds}秒"
         return None
+
+    @property
+    def repair_duration(self):
+        """修复用时，自动计算字段，使用故障修复时间-处理派发时间，格式为9.65小时"""
+        if self.dispatch_time and self.repair_time:
+            duration = self.repair_time - self.dispatch_time
+            total_hours = duration.total_seconds() / 3600
+            return f"{total_hours:.2f}小时"
+        return None
+
+    def get_urgency_color(self):
+        """获取紧急程度的颜色"""
+        urgency_colors = {
+            'high': 'red',
+            'medium': 'orange', 
+            'low': 'yellow'
+        }
+        return urgency_colors.get(self.urgency, 'gray')
+
+    def get_maintenance_mode_color(self):
+        """获取维护方式的颜色"""
+        maintenance_mode_colors = {
+            'outsourced': 'blue',
+            'coordinated': 'green',
+            'self_maintained': 'purple'
+        }
+        return maintenance_mode_colors.get(self.maintenance_mode, 'gray')
+
+    def get_recovery_mode_color(self):
+        """获取恢复方式的颜色"""
+        recovery_mode_colors = {
+            'fusion_splicing': 'red',
+            'tail_fiber_replacement': 'orange',
+            'processing': 'yellow',
+            'fiber_adjustment': 'green',
+            'automatic': 'blue',
+            'unknown': 'gray',
+            'not_provided': 'light-gray'
+        }
+        return recovery_mode_colors.get(self.recovery_mode, 'gray')
+
+    def get_resource_type_color(self):
+        """获取资源类型的颜色"""
+        resource_type_colors = {
+            'self_built': 'green',
+            'coordinated': 'blue',
+            'leased': 'purple'
+        }
+        return resource_type_colors.get(self.resource_type, 'gray')
+
+    def get_cable_route_color(self):
+        """获取光缆路由属性的颜色"""
+        cable_route_colors = {
+            'highway': 'green',
+            'non_highway': 'orange'
+        }
+        return cable_route_colors.get(self.cable_route, 'gray')
 
     def save(self, *args, **kwargs):
         if not self.fault_number:
@@ -172,7 +404,7 @@ class OtnFaultImpact(NetBoxModel):
         to='extras.Tag',
         blank=True
     )
-    comments = models.TextField(blank=True, verbose_name='备注')
+    comments = models.TextField(blank=True, verbose_name='评论')
 
     class Meta:
         ordering = ('-service_interruption_time',)

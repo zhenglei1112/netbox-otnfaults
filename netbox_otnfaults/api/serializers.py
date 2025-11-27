@@ -2,8 +2,10 @@ from rest_framework import serializers
 from netbox.api.serializers import NetBoxModelSerializer, WritableNestedSerializer
 from ..models import OtnFault, OtnFaultImpact
 from django.contrib.auth import get_user_model
-from dcim.models import Site
+from dcim.models import Site, Region
 from tenancy.models import Tenant
+from netbox_contract.models import ServiceProvider
+from extras.models import JournalEntry
 
 # Custom nested serializers
 class NestedSiteSerializer(WritableNestedSerializer):
@@ -36,9 +38,40 @@ class NestedUserSerializer(WritableNestedSerializer):
         fields = ('id', 'url', 'display', 'username', 'email')
         brief_fields = ('id', 'url', 'display', 'username')
 
+class NestedRegionSerializer(WritableNestedSerializer):
+    url = serializers.HyperlinkedIdentityField(
+        view_name='dcim-api:region-detail'
+    )
+
+    class Meta:
+        model = Region
+        fields = ('id', 'url', 'display', 'name', 'slug')
+        brief_fields = ('id', 'url', 'display', 'name')
+
+class NestedServiceProviderSerializer(WritableNestedSerializer):
+    # 简化处理，避免URL解析问题
+    class Meta:
+        model = ServiceProvider
+        fields = ('id', 'display', 'name')
+        brief_fields = ('id', 'display', 'name')
+
+class NestedJournalEntrySerializer(WritableNestedSerializer):
+    url = serializers.HyperlinkedIdentityField(
+        view_name='extras-api:journalentry-detail'
+    )
+    
+    class Meta:
+        model = JournalEntry
+        fields = ('id', 'url', 'display', 'created', 'created_by', 'kind', 'comments')
+        brief_fields = ('id', 'url', 'display', 'created', 'kind')
+
 class OtnFaultSerializer(NetBoxModelSerializer):
     duty_officer = NestedUserSerializer()
     interruption_location = NestedSiteSerializer(many=True, required=False)
+    province = NestedRegionSerializer(required=False)
+    line_manager = NestedUserSerializer(required=False)
+    handling_unit = NestedServiceProviderSerializer(required=False)
+    journal_entries = NestedJournalEntrySerializer(many=True, read_only=True)
     
     class Meta:
         model = OtnFault
@@ -47,17 +80,24 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration',
             'fault_category', 'interruption_reason', 'fault_details',
             'interruption_longitude', 'interruption_latitude',
+            'province', 'urgency', 'first_report_source', 'planned',
+            'line_manager', 'resource_type', 'cable_route',
+            'maintenance_mode', 'dispatch_time', 'departure_time',
+            'arrival_time', 'repair_time', 'repair_duration', 'timeout', 'timeout_reason',
+            'handler', 'recovery_mode', 'handling_unit',
             'tags', 'comments', 'custom_fields', 'created', 'last_updated',
+            'journal_entries',
         )
         brief_fields = (
             'id', 'url', 'display', 'fault_number', 'duty_officer', 'fault_occurrence_time',
-            'fault_category', 'interruption_reason',
+            'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
         )
-        read_only_fields = ('fault_number', 'fault_duration')
+        read_only_fields = ('fault_number', 'fault_duration', 'repair_duration', 'journal_entries')
 
 class OtnFaultImpactSerializer(NetBoxModelSerializer):
     otn_fault = serializers.PrimaryKeyRelatedField(queryset=OtnFault.objects.all())
     impacted_service = NestedTenantSerializer()
+    journal_entries = NestedJournalEntrySerializer(many=True, read_only=True)
 
     class Meta:
         model = OtnFaultImpact
@@ -65,9 +105,10 @@ class OtnFaultImpactSerializer(NetBoxModelSerializer):
             'id', 'url', 'display', 'otn_fault', 'impacted_service',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
             'tags', 'comments', 'custom_fields', 'created', 'last_updated',
+            'journal_entries',
         )
         brief_fields = (
             'id', 'url', 'display', 'otn_fault', 'impacted_service',
             'service_interruption_time', 'service_recovery_time',
         )
-        read_only_fields = ('service_duration',)
+        read_only_fields = ('service_duration', 'journal_entries')

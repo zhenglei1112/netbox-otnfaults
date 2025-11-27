@@ -34,6 +34,27 @@ class OtnFaultTable(NetBoxTable):
         verbose_name='中断历时',
         orderable=False
     )
+    urgency = columns.ChoiceFieldColumn(
+        verbose_name='紧急程度'
+    )
+    first_report_source = columns.ChoiceFieldColumn(
+        verbose_name='第一报障来源'
+    )
+    planned = columns.BooleanColumn(
+        verbose_name='计划内'
+    )
+    maintenance_mode = columns.ChoiceFieldColumn(
+        verbose_name='维护方式'
+    )
+    recovery_mode = columns.ChoiceFieldColumn(
+        verbose_name='恢复方式'
+    )
+    resource_type = columns.ChoiceFieldColumn(
+        verbose_name='资源类型'
+    )
+    cable_route = columns.ChoiceFieldColumn(
+        verbose_name='光缆路由属性'
+    )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:otnfault_list'
     )
@@ -43,11 +64,15 @@ class OtnFaultTable(NetBoxTable):
         fields = (
             'pk', 'fault_number', 'duty_officer', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration',
-            'fault_category', 'interruption_reason', 'comments', 'tags', 'actions',
+            'fault_category', 'interruption_reason', 'urgency', 'first_report_source', 'planned',
+            'province', 'line_manager', 'resource_type', 'cable_route',
+            'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time', 'repair_time',
+            'repair_duration', 'timeout', 'handler', 'recovery_mode', 'handling_unit',
+            'comments', 'tags', 'actions',
         )
         default_columns = (
             'fault_number', 'duty_officer', 'interruption_location',
-            'fault_occurrence_time', 'fault_duration', 'fault_category', 'tags',
+            'fault_occurrence_time', 'fault_duration', 'fault_category', 'urgency', 'tags',
         )
 
 class OtnFaultImpactTable(NetBoxTable):
