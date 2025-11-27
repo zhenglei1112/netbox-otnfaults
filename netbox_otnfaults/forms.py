@@ -2,9 +2,11 @@ from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm
 from .models import OtnFault, OtnFaultImpact, FaultCategoryChoices
 from django import forms
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField
-from dcim.models import Site
+from utilities.forms.widgets import DateTimePicker
+from dcim.models import Site, Region
 from tenancy.models import Tenant
 from django.contrib.auth import get_user_model
+from netbox_contract.models import ServiceProvider
 
 class OtnFaultForm(NetBoxModelForm):
     duty_officer = DynamicModelChoiceField(
@@ -15,23 +17,46 @@ class OtnFaultForm(NetBoxModelForm):
         queryset=Site.objects.all(),
         label='中断位置'
     )
+    province = DynamicModelChoiceField(
+        queryset=Region.objects.all(),
+        required=False,
+        label='省份'
+    )
+    line_manager = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='线路主管'
+    )
+    handling_unit = DynamicModelChoiceField(
+        queryset=ServiceProvider.objects.all(),
+        required=False,
+        label='处理单位'
+    )
     comments = CommentField(
-        label='备注',
+        label='评论',
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
     )
     
     class Meta:
         model = OtnFault
         fields = (
-            'duty_officer', 'interruption_location',
-            'fault_occurrence_time', 'fault_recovery_time',
-            'fault_category', 'interruption_reason', 'fault_details',
-            'interruption_longitude', 'interruption_latitude',
+            'fault_number', 'urgency', 'province', 'interruption_location',
+            'interruption_longitude', 'interruption_latitude', 'fault_category',
+            'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
+            'first_report_source', 'planned', 'resource_type',
+            'cable_route', 'line_manager', 'duty_officer', 'fault_details',
+            'maintenance_mode', 'dispatch_time', 'departure_time',
+            'arrival_time', 'repair_time', 'timeout', 'timeout_reason',
+            'handler', 'recovery_mode', 'handling_unit',
             'comments', 'tags',
         )
         widgets = {
-            'fault_occurrence_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            'fault_recovery_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'fault_occurrence_time': DateTimePicker(),
+            'fault_recovery_time': DateTimePicker(),
+            'dispatch_time': DateTimePicker(),
+            'departure_time': DateTimePicker(),
+            'arrival_time': DateTimePicker(),
+            'repair_time': DateTimePicker(),
         }
 
 
@@ -45,7 +70,7 @@ class OtnFaultImpactForm(NetBoxModelForm):
         label='影响业务'
     )
     comments = CommentField(
-        label='备注',
+        label='评论',
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
     )
 
@@ -57,8 +82,8 @@ class OtnFaultImpactForm(NetBoxModelForm):
             'comments', 'tags',
         )
         widgets = {
-            'service_interruption_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            'service_recovery_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'service_interruption_time': DateTimePicker(),
+            'service_recovery_time': DateTimePicker(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -70,12 +95,11 @@ class OtnFaultImpactForm(NetBoxModelForm):
                 fault_id = kwargs['initial']['otn_fault']
                 fault = OtnFault.objects.get(pk=fault_id)
                 
-                # 设置默认时间值，确保格式正确
+                # 设置默认时间值
                 if fault.fault_occurrence_time:
-                    # 转换为datetime-local输入格式
-                    self.fields['service_interruption_time'].initial = fault.fault_occurrence_time.strftime('%Y-%m-%dT%H:%M')
+                    self.fields['service_interruption_time'].initial = fault.fault_occurrence_time
                 if fault.fault_recovery_time:
-                    self.fields['service_recovery_time'].initial = fault.fault_recovery_time.strftime('%Y-%m-%dT%H:%M')
+                    self.fields['service_recovery_time'].initial = fault.fault_recovery_time
                     
             except (OtnFault.DoesNotExist, ValueError):
                 pass

@@ -39,10 +39,6 @@
                         <th scope="row">中断历时</th>
                         <td>{{ object.service_duration|default:"—" }}</td>
                     </tr>
-                    <tr>
-                        <th scope="row">备注</th>
-                        <td>{{ object.comments|default:"—" }}</td>
-                    </tr>
                 </table>
         </div>
         {% include 'inc/panels/tags.html' %}

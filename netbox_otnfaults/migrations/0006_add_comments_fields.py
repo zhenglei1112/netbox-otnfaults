@@ -12,11 +12,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='otnfault',
             name='comments',
-            field=models.TextField(blank=True, verbose_name='备注'),
+            field=models.TextField(blank=True, verbose_name='评论'),
         ),
         migrations.AddField(
             model_name='otnfaultimpact',
             name='comments',
-            field=models.TextField(blank=True, verbose_name='备注'),
+            field=models.TextField(blank=True, verbose_name='评论'),
         ),
     ]
