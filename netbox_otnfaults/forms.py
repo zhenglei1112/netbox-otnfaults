@@ -46,7 +46,7 @@ class OtnFaultForm(NetBoxModelForm):
             'first_report_source', 'planned', 'resource_type',
             'cable_route', 'line_manager', 'duty_officer', 'fault_details',
             'maintenance_mode', 'dispatch_time', 'departure_time',
-            'arrival_time', 'repair_time', 'timeout', 'timeout_reason',
+            'arrival_time', 'timeout', 'timeout_reason',
             'handler', 'recovery_mode', 'handling_unit',
             'comments', 'tags',
         )

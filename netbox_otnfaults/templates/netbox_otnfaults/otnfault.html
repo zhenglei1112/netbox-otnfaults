@@ -211,14 +211,6 @@
               <td>{{ object.arrival_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
             </tr>
             <tr>
-              <th scope="row">故障修复时间</th>
-              <td>{{ object.repair_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">修复用时</th>
-              <td>{{ object.repair_duration|default:"—" }}</td>
-            </tr>
-            <tr>
               <th scope="row">是否超时</th>
               <td>
                 {% if object.timeout %}

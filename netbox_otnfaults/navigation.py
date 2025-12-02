@@ -3,7 +3,7 @@ from netbox.plugins import PluginMenuItem, PluginMenuButton
 menu_items = (
     PluginMenuItem(
         link='plugins:netbox_otnfaults:otnfault_list',
-        link_text='OTN故障登记',
+        link_text='故障登记',
         buttons=(
             PluginMenuButton(
                 link='plugins:netbox_otnfaults:otnfault_add',

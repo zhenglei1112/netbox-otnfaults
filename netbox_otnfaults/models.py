@@ -285,8 +285,8 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
 
     class Meta:
         ordering = ('-fault_occurrence_time',)
-        verbose_name = 'OTN故障'
-        verbose_name_plural = 'OTN故障'
+        verbose_name = '故障'
+        verbose_name_plural = '故障'
 
     def __str__(self):
         return self.fault_number

@@ -2,8 +2,8 @@ from netbox.plugins import PluginConfig
 
 class OtnFaultsConfig(PluginConfig):
     name = 'netbox_otnfaults'
-    verbose_name = 'OTN故障管理'
-    description = 'OTN网络故障登记系统'
+    verbose_name = '故障管理'
+    description = '网络故障登记系统'
     version = '0.1'
     base_url = 'otnfaults'
     author = '您的姓名'
