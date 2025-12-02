@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
 from netbox.models import NetBoxModel
+from netbox.models.features import ImageAttachmentsMixin
 from dcim.models import Site
 from tenancy.models import Tenant
 from utilities.choices import ChoiceSet
@@ -28,7 +29,7 @@ class FaultCategoryChoices(ChoiceSet):
     ]
 
 
-class OtnFault(NetBoxModel):
+class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     fault_number = models.CharField(
         max_length=20,
         unique=True,
@@ -378,7 +379,7 @@ class OtnFault(NetBoxModel):
             self.fault_number = f'{prefix}{new_number:03d}'
         super().save(*args, **kwargs)
 
-class OtnFaultImpact(NetBoxModel):
+class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
     otn_fault = models.ForeignKey(
         to=OtnFault,
         on_delete=models.CASCADE,

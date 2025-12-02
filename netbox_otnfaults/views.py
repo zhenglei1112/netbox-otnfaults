@@ -1,5 +1,6 @@
 from netbox.views import generic
 from django.shortcuts import render
+from utilities.views import register_model_view
 from .models import OtnFault, OtnFaultImpact
 from .forms import OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm
 from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet
@@ -12,6 +13,7 @@ class OtnFaultListView(generic.ObjectListView):
     filterset = OtnFaultFilterSet
     filterset_form = OtnFaultFilterForm
 
+@register_model_view(OtnFault)
 class OtnFaultView(generic.ObjectView):
     """OTN故障详情视图"""
     queryset = OtnFault.objects.all()
@@ -71,6 +73,7 @@ class OtnFaultImpactListView(generic.ObjectListView):
     filterset = OtnFaultImpactFilterSet
     filterset_form = OtnFaultImpactFilterForm
 
+@register_model_view(OtnFaultImpact)
 class OtnFaultImpactView(generic.ObjectView):
     """故障影响业务详情视图"""
     queryset = OtnFaultImpact.objects.all()
