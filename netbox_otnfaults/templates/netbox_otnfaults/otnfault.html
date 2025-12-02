@@ -1,4 +1,5 @@
 {% extends 'generic/object.html' %}
+{% load plugins %} 
 {% load render_table from django_tables2 %}
 {% load i18n %}
 {% load l10n %}
@@ -169,6 +170,7 @@
       <!-- 标签和评论 -->
       {% include 'inc/panels/tags.html' %}
       {% include 'inc/panels/comments.html' %}
+      {% plugin_right_page object %}  
     </div>
   </div>
 
