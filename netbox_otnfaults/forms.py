@@ -40,7 +40,7 @@ class OtnFaultForm(NetBoxModelForm):
     class Meta:
         model = OtnFault
         fields = (
-            'fault_number', 'urgency', 'province', 'interruption_location',
+            'urgency', 'province', 'interruption_location',
             'interruption_longitude', 'interruption_latitude', 'fault_category',
             'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
             'first_report_source', 'planned', 'resource_type',
@@ -58,6 +58,22 @@ class OtnFaultForm(NetBoxModelForm):
             'arrival_time': DateTimePicker(),
             'repair_time': DateTimePicker(),
         }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 对于现有故障，添加只读的故障编号显示字段
+        if self.instance.pk:
+            # 添加一个只读字段来显示故障编号
+            self.fields['fault_number_display'] = forms.CharField(
+                initial=self.instance.fault_number,
+                label='故障编号',
+                disabled=True,
+                help_text='故障编号创建后不可修改'
+            )
+            # 重新排序字段，将显示字段放在最前面
+            field_order = list(self.fields.keys())
+            field_order.insert(0, 'fault_number_display')
+            self.order_fields(field_order)
 
 
 class OtnFaultImpactForm(NetBoxModelForm):
@@ -120,6 +136,21 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='中断位置'
     )
+    province = DynamicModelChoiceField(
+        queryset=Region.objects.all(),
+        required=False,
+        label='省份'
+    )
+    line_manager = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='线路主管'
+    )
+    handling_unit = DynamicModelChoiceField(
+        queryset=ServiceProvider.objects.all(),
+        required=False,
+        label='处理单位'
+    )
     fault_category = forms.ChoiceField(
         choices=add_blank_choice(FaultCategoryChoices),
         required=False,
@@ -129,6 +160,102 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         choices=add_blank_choice(OtnFault.INTERRUPTION_REASON_CHOICES),
         required=False,
         label='中断原因'
+    )
+    urgency = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.URGENCY_CHOICES),
+        required=False,
+        label='紧急程度'
+    )
+    first_report_source = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.FIRST_REPORT_SOURCE_CHOICES),
+        required=False,
+        label='第一报障来源'
+    )
+    planned = forms.BooleanField(
+        required=False,
+        label='计划内'
+    )
+    maintenance_mode = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.MAINTENANCE_MODE_CHOICES),
+        required=False,
+        label='维护方式'
+    )
+    resource_type = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.RESOURCE_TYPE_CHOICES),
+        required=False,
+        label='资源类型'
+    )
+    cable_route = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.CABLE_ROUTE_CHOICES),
+        required=False,
+        label='光缆路由属性'
+    )
+    recovery_mode = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.RECOVERY_MODE_CHOICES),
+        required=False,
+        label='恢复方式'
+    )
+    timeout = forms.BooleanField(
+        required=False,
+        label='是否超时'
+    )
+    fault_occurrence_time = forms.DateTimeField(
+        required=False,
+        label='故障中断时间',
+        widget=DateTimePicker()
+    )
+    fault_recovery_time = forms.DateTimeField(
+        required=False,
+        label='故障恢复时间',
+        widget=DateTimePicker()
+    )
+    dispatch_time = forms.DateTimeField(
+        required=False,
+        label='处理派发时间',
+        widget=DateTimePicker()
+    )
+    departure_time = forms.DateTimeField(
+        required=False,
+        label='维修出发时间',
+        widget=DateTimePicker()
+    )
+    arrival_time = forms.DateTimeField(
+        required=False,
+        label='到达现场时间',
+        widget=DateTimePicker()
+    )
+    repair_time = forms.DateTimeField(
+        required=False,
+        label='故障修复时间',
+        widget=DateTimePicker()
+    )
+    fault_details = forms.CharField(
+        required=False,
+        label='故障详细情况'
+    )
+    timeout_reason = forms.CharField(
+        required=False,
+        label='超时原因'
+    )
+    handler = forms.CharField(
+        required=False,
+        label='故障处理人'
+    )
+    interruption_longitude = forms.DecimalField(
+        required=False,
+        label='中断位置经度',
+        max_digits=9,
+        decimal_places=6
+    )
+    interruption_latitude = forms.DecimalField(
+        required=False,
+        label='中断位置纬度',
+        max_digits=8,
+        decimal_places=6
+    )
+    comments = forms.CharField(
+        required=False,
+        label='评论'
     )
 
 class OtnFaultImpactFilterForm(NetBoxModelFilterSetForm):
