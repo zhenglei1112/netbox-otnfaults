@@ -306,7 +306,12 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             hours = seconds // 3600
             minutes = (seconds % 3600) // 60
             seconds = seconds % 60
-            return f"{days}天{hours}小时{minutes}分{seconds}秒"
+            
+            # 计算总小时数（包括天数转换的小时数）
+            total_seconds = duration.total_seconds()
+            total_hours = total_seconds / 3600
+            
+            return f"{days}天{hours}小时{minutes}分{seconds}秒（{total_hours:.2f}小时）"
         return None
 
     @property
@@ -427,5 +432,10 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
             hours = seconds // 3600
             minutes = (seconds % 3600) // 60
             seconds = seconds % 60
-            return f"{days}天{hours}小时{minutes}分{seconds}秒"
+            
+            # 计算总小时数（包括天数转换的小时数）
+            total_seconds = duration.total_seconds()
+            total_hours = total_seconds / 3600
+            
+            return f"{days}天{hours}小时{minutes}分{seconds}秒（{total_hours:.2f}小时）"
         return None
