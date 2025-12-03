@@ -1,3 +1,5 @@
 .clinerules/otnfaults.md
 图像.md
 netbox_otnfaults/__pycache__/__init__.cpython-314.pyc
+netbox_otnfaults/__pycache__/forms.cpython-314.pyc
+netbox_otnfaults/__pycache__/views.cpython-314.pyc

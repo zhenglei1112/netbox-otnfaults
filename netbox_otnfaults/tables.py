@@ -14,7 +14,7 @@ class OtnFaultTable(NetBoxTable):
     )
     interruption_location = columns.ManyToManyColumn(
         linkify_item=True,
-        verbose_name='中断位置'
+        verbose_name='中断位置AZ端机房'
     )
     fault_occurrence_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',

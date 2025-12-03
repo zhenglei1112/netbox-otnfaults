@@ -47,7 +47,7 @@
               </td>
             </tr>
             <tr>
-              <th scope="row">中断位置</th>
+              <th scope="row">中断位置AZ端机房</th>
               <td>
                 {% if object.interruption_location.all %}
                   {% for site in object.interruption_location.all %}
@@ -213,12 +213,12 @@
               <td>{{ object.arrival_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
             </tr>
             <tr>
-              <th scope="row">是否超时</th>
+              <th scope="row">规定时间内完成修复</th>
               <td>
                 {% if object.timeout %}
-                  <span class="text-danger"><i class="mdi mdi-close-thick"></i></span>
-                {% else %}
                   <span class="text-success"><i class="mdi mdi-check-bold"></i></span>
+                {% else %}
+                  <span class="text-danger"><i class="mdi mdi-close-thick"></i></span>
                 {% endif %}
               </td>
             </tr>

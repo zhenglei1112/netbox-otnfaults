@@ -89,11 +89,11 @@ class Migration(migrations.Migration):
             field=models.DateTimeField(blank=True, null=True, verbose_name='故障修复时间'),
         ),
         
-        # 13) 是否超时
+        # 13) 规定时间内完成修复
         migrations.AddField(
             model_name='otnfault',
             name='timeout',
-            field=models.BooleanField(default=False, verbose_name='是否超时'),
+            field=models.BooleanField(default=False, verbose_name='规定时间内完成修复'),
         ),
         
         # 14) 超时原因

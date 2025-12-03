@@ -29,6 +29,7 @@ class OtnFaultEditView(generic.ObjectEditView):
     """OTN故障编辑视图"""
     queryset = OtnFault.objects.all()
     form = OtnFaultForm
+    template_name = 'netbox_otnfaults/otnfault_edit.html'
 
     def get(self, request, *args, **kwargs):
         """

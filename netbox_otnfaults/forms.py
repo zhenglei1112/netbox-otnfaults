@@ -15,7 +15,7 @@ class OtnFaultForm(NetBoxModelForm):
     )
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
-        label='中断位置'
+        label='中断位置AZ端机房'
     )
     province = DynamicModelChoiceField(
         queryset=Region.objects.all(),
@@ -40,15 +40,35 @@ class OtnFaultForm(NetBoxModelForm):
     class Meta:
         model = OtnFault
         fields = (
+            # 故障信息组字段
             'urgency', 'province', 'interruption_location',
             'interruption_longitude', 'interruption_latitude', 'fault_category',
             'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
             'first_report_source', 'planned', 'resource_type',
             'cable_route', 'line_manager', 'duty_officer', 'fault_details',
-            'maintenance_mode', 'dispatch_time', 'departure_time',
-            'arrival_time', 'timeout', 'timeout_reason',
-            'handler', 'recovery_mode', 'handling_unit',
+            # 处理信息组字段
+            'maintenance_mode', 'handling_unit', 'dispatch_time',
+            'departure_time', 'arrival_time', 'repair_time', 'timeout',
+            'timeout_reason', 'handler', 'recovery_mode',
+            # 其他字段
             'comments', 'tags',
+        )
+        fieldsets = (
+            ('故障信息', (
+                'urgency', 'province', 'interruption_location',
+                'interruption_longitude', 'interruption_latitude', 'fault_category',
+                'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
+                'first_report_source', 'planned', 'resource_type',
+                'cable_route', 'line_manager', 'duty_officer', 'fault_details',
+            )),
+            ('处理信息', (
+                'maintenance_mode', 'handling_unit', 'dispatch_time',
+                'departure_time', 'arrival_time', 'repair_time', 'timeout',
+                'timeout_reason', 'handler', 'recovery_mode',
+            )),
+            (None, (
+                'comments', 'tags',
+            )),
         )
         widgets = {
             'fault_occurrence_time': DateTimePicker(),
@@ -134,7 +154,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
         required=False,
-        label='中断位置'
+        label='中断位置AZ端机房'
     )
     province = DynamicModelChoiceField(
         queryset=Region.objects.all(),
@@ -197,7 +217,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     )
     timeout = forms.BooleanField(
         required=False,
-        label='是否超时'
+        label='规定时间内完成修复'
     )
     fault_occurrence_time = forms.DateTimeField(
         required=False,

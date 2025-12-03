@@ -45,7 +45,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     interruption_location = models.ManyToManyField(
         to=Site,
         related_name='otn_faults',
-        verbose_name='中断位置'
+        verbose_name='中断位置AZ端机房'
     )
     fault_occurrence_time = models.DateTimeField(
         verbose_name='故障中断时间'
@@ -211,10 +211,10 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     # 12) 修复用时，自动计算字段，使用故障修复时间-处理派发时间，格式为9.65小时
     # 这是一个计算属性，不在数据库中存储
     
-    # 13) 是否超时，布尔型字段
+    # 13) 规定时间内完成修复，布尔型字段
     timeout = models.BooleanField(
         default=False,
-        verbose_name='是否超时'
+        verbose_name='规定时间内完成修复'
     )
     
     # 14) 超时原因，文本型字段
