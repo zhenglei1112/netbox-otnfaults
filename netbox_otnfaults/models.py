@@ -371,6 +371,41 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         }
         return cable_route_colors.get(self.cable_route, 'gray')
 
+    def clean(self):
+        super().clean()
+        
+        # 时间字段顺序验证
+        time_fields = [
+            ('fault_occurrence_time', '故障中断时间'),
+            ('dispatch_time', '处理派发时间'),
+            ('departure_time', '维修出发时间'),
+            ('arrival_time', '到达现场时间'),
+            ('fault_recovery_time', '故障恢复时间')
+        ]
+        
+        # 收集所有非空时间字段
+        times = []
+        for field_name, field_label in time_fields:
+            time_value = getattr(self, field_name)
+            if time_value:
+                times.append((field_name, field_label, time_value))
+        
+        # 检查时间顺序：后续时间不应早于前面的任何时间
+        errors = {}
+        for i in range(len(times)):
+            for j in range(i + 1, len(times)):
+                field_name_i, field_label_i, time_i = times[i]
+                field_name_j, field_label_j, time_j = times[j]
+                
+                if time_j < time_i:
+                    if field_name_j not in errors:
+                        errors[field_name_j] = []
+                    errors[field_name_j].append(f'{field_label_j}需晚于{field_label_i}')
+        
+        # 如果有错误，抛出 ValidationError 但将错误关联到具体字段
+        if errors:
+            raise ValidationError(errors)
+
     def save(self, *args, **kwargs):
         if not self.fault_number:
             today = timezone.now().strftime('%Y%m%d')
