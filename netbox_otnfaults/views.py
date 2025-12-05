@@ -2,7 +2,7 @@ from netbox.views import generic
 from django.shortcuts import render
 from utilities.views import register_model_view
 from .models import OtnFault, OtnFaultImpact
-from .forms import OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, OtnFaultBulkEditForm
+from .forms import OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm
 from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet
 from .tables import OtnFaultTable, OtnFaultImpactTable
 
@@ -187,6 +187,29 @@ class OtnFaultImpactEditView(generic.ObjectEditView):
                     response['Location'] = self.object.otn_fault.get_absolute_url()
                 
         return response
+
+class OtnFaultImpactBulkDeleteView(generic.BulkDeleteView):
+    """故障影响业务批量删除视图"""
+    queryset = OtnFaultImpact.objects.all()
+    table = OtnFaultImpactTable
+
+@register_model_view(OtnFaultImpact, 'bulk_edit', path='edit', detail=False)
+class OtnFaultImpactBulkEditView(generic.BulkEditView):
+    """故障影响业务批量编辑视图"""
+    queryset = OtnFaultImpact.objects.all()
+    filterset = OtnFaultImpactFilterSet
+    table = OtnFaultImpactTable
+    form = OtnFaultImpactBulkEditForm
+    
+    def get_required_permission(self):
+        return 'netbox_otnfaults.change_otnfaultimpact'
+    
+    def get_object(self, **kwargs):
+        return None
+    
+    def get_return_url(self, request, obj=None):
+        from django.urls import reverse
+        return reverse('plugins:netbox_otnfaults:otnfaultimpact_list')
 
 class OtnFaultImpactDeleteView(generic.ObjectDeleteView):
     """故障影响业务删除视图"""

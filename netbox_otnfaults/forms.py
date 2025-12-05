@@ -288,6 +288,41 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     #     )),
     # )
 
+class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
+    otn_fault = DynamicModelChoiceField(
+        queryset=OtnFault.objects.all(),
+        required=False,
+        label='关联故障'
+    )
+    impacted_service = DynamicModelChoiceField(
+        queryset=Tenant.objects.all(),
+        required=False,
+        label='影响业务'
+    )
+    service_interruption_time = forms.DateTimeField(
+        required=False,
+        label='业务中断时间',
+        widget=DateTimePicker()
+    )
+    service_recovery_time = forms.DateTimeField(
+        required=False,
+        label='业务恢复时间',
+        widget=DateTimePicker()
+    )
+    comments = CommentField(
+        label='评论'
+    )
+
+    model = OtnFaultImpact
+    fieldsets = (
+        ('故障影响业务', (
+            'otn_fault', 'impacted_service', 'service_interruption_time', 'service_recovery_time', 'comments',
+        )),
+    )
+    nullable_fields = (
+        'service_interruption_time', 'service_recovery_time', 'comments',
+    )
+
 class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     tag = TagFilterField(OtnFault)
     model = OtnFault

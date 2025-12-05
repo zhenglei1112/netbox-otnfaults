@@ -16,6 +16,8 @@ urlpatterns = [
     # 故障影响业务相关路由
     path('impacts/', views.OtnFaultImpactListView.as_view(), name='otnfaultimpact_list'),
     path('impacts/add/', views.OtnFaultImpactEditView.as_view(), name='otnfaultimpact_add'),
+    path('impacts/edit/', views.OtnFaultImpactBulkEditView.as_view(), name='otnfaultimpact_bulk_edit'),
+    path('impacts/bulk-delete/', views.OtnFaultImpactBulkDeleteView.as_view(), name='otnfaultimpact_bulk_delete'),
     path('impacts/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'otnfaultimpact'))),
     path('impacts/<int:pk>/edit/', views.OtnFaultImpactEditView.as_view(), name='otnfaultimpact_edit'),
     path('impacts/<int:pk>/delete/', views.OtnFaultImpactDeleteView.as_view(), name='otnfaultimpact_delete'),

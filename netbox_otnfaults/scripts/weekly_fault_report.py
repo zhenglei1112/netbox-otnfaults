@@ -63,11 +63,6 @@ class WeeklyFaultReport(Script):
     
     def __init__(self):
         super().__init__()
-        self.last_week_start = None
-        self.last_week_end = None
-        self.faults_in_period = []
-        self.unresolved_faults = []
-        self.resolved_faults = []
         
         # 字段显示名称映射
         self.field_display_names = {
@@ -125,26 +120,45 @@ class WeeklyFaultReport(Script):
         last_week_end = datetime.datetime.combine(last_saturday, datetime.time.max)
         
         return last_week_start, last_week_end
-    
-    def get_faults_in_period(self):
-        """获取时间范围内的故障记录"""
-        self.log_info(f"正在查询 {self.last_week_start.date()} 至 {self.last_week_end.date()} 期间的故障记录...")
+
+    def calculate_last_month_range(self, base_date):
+        """计算上个月的日期范围"""
+        # 获取本月第一天
+        this_month_start = base_date.replace(day=1)
         
-        # 查询故障发生时间在上一周内的所有故障记录
+        # 获取上个月最后一天
+        last_month_end_date = this_month_start - datetime.timedelta(days=1)
+        
+        # 获取上个月第一天
+        last_month_start_date = last_month_end_date.replace(day=1)
+        
+        # 设置时间范围
+        last_month_start = datetime.datetime.combine(last_month_start_date, datetime.time.min)
+        last_month_end = datetime.datetime.combine(last_month_end_date, datetime.time.max)
+        
+        return last_month_start, last_month_end
+    
+    def query_faults(self, start_time, end_time):
+        """查询时间范围内的故障记录"""
+        self.log_info(f"正在查询 {start_time.date()} 至 {end_time.date()} 期间的故障记录...")
+        
+        # 查询故障发生时间在指定范围内的所有故障记录
         faults = OtnFault.objects.filter(
-            fault_occurrence_time__gte=self.last_week_start,
-            fault_occurrence_time__lte=self.last_week_end
+            fault_occurrence_time__gte=start_time,
+            fault_occurrence_time__lte=end_time
         ).select_related('province').prefetch_related('impacts')
         
-        self.faults_in_period = list(faults)
+        all_faults = list(faults)
         
         # 分离已恢复和未恢复的故障
-        self.unresolved_faults = [f for f in self.faults_in_period if not f.fault_recovery_time]
-        self.resolved_faults = [f for f in self.faults_in_period if f.fault_recovery_time]
+        unresolved_faults = [f for f in all_faults if not f.fault_recovery_time]
+        resolved_faults = [f for f in all_faults if f.fault_recovery_time]
         
-        self.log_success(f"查询完成：共 {len(self.faults_in_period)} 条故障记录")
-        self.log_info(f"• 已恢复故障：{len(self.resolved_faults)} 条")
-        self.log_info(f"• 未恢复故障：{len(self.unresolved_faults)} 条")
+        self.log_success(f"查询完成：共 {len(all_faults)} 条故障记录")
+        self.log_info(f"• 已恢复故障：{len(resolved_faults)} 条")
+        self.log_info(f"• 未恢复故障：{len(unresolved_faults)} 条")
+        
+        return all_faults, resolved_faults, unresolved_faults
     
     def calculate_fault_duration_hours(self, fault):
         """计算故障历时（小时）"""
@@ -160,15 +174,15 @@ class WeeklyFaultReport(Script):
             return "未设置"
         return self.field_display_names.get(value, str(value))
     
-    def calculate_overall_statistics(self):
+    def calculate_overall_statistics(self, all_faults, resolved_faults, unresolved_faults):
         """计算总体统计信息"""
-        total_faults = len(self.faults_in_period)
+        total_faults = len(all_faults)
         
         # 计算总历时（根据参数决定是否包含未恢复故障）
         if self.include_unresolved:
-            faults_for_duration = self.faults_in_period
+            faults_for_duration = all_faults
         else:
-            faults_for_duration = self.resolved_faults
+            faults_for_duration = resolved_faults
         
         total_duration = Decimal('0.00')
         for fault in faults_for_duration:
@@ -183,15 +197,15 @@ class WeeklyFaultReport(Script):
             'total_faults': total_faults,
             'total_duration': total_duration,
             'avg_duration': avg_duration,
-            'resolved_faults': len(self.resolved_faults),
-            'unresolved_faults': len(self.unresolved_faults),
+            'resolved_faults': len(resolved_faults),
+            'unresolved_faults': len(unresolved_faults),
         }
     
-    def group_statistics_by_field(self, field_name, field_getter):
+    def group_statistics_by_field(self, resolved_faults, field_getter):
         """按指定字段分组统计"""
         groups = {}
         
-        for fault in self.resolved_faults:
+        for fault in resolved_faults:
             # 获取字段值
             field_value = field_getter(fault)
             
@@ -218,63 +232,63 @@ class WeeklyFaultReport(Script):
         
         return groups
     
-    def group_statistics_by_province(self):
+    def group_statistics_by_province(self, resolved_faults):
         """按省份分组统计"""
         return self.group_statistics_by_field(
-            'province',
+            resolved_faults,
             lambda fault: fault.province.name if fault.province else None
         )
     
-    def group_statistics_by_category(self):
+    def group_statistics_by_category(self, resolved_faults):
         """按故障分类分组统计"""
         return self.group_statistics_by_field(
-            'fault_category',
+            resolved_faults,
             lambda fault: fault.fault_category
         )
     
-    def group_statistics_by_reason(self):
+    def group_statistics_by_reason(self, resolved_faults):
         """按中断原因分组统计"""
         return self.group_statistics_by_field(
-            'interruption_reason',
+            resolved_faults,
             lambda fault: fault.interruption_reason
         )
     
-    def group_statistics_by_report_source(self):
+    def group_statistics_by_report_source(self, resolved_faults):
         """按第一报障来源分组统计"""
         return self.group_statistics_by_field(
-            'first_report_source',
+            resolved_faults,
             lambda fault: fault.first_report_source
         )
     
-    def group_statistics_by_planned(self):
+    def group_statistics_by_planned(self, resolved_faults):
         """按计划内分组统计"""
         return self.group_statistics_by_field(
-            'planned',
+            resolved_faults,
             lambda fault: fault.planned
         )
     
-    def group_statistics_by_resource_type(self):
+    def group_statistics_by_resource_type(self, resolved_faults):
         """按资源类型分组统计"""
         return self.group_statistics_by_field(
-            'resource_type',
+            resolved_faults,
             lambda fault: fault.resource_type
         )
     
-    def group_statistics_by_cable_route(self):
+    def group_statistics_by_cable_route(self, resolved_faults):
         """按光缆路由属性分组统计"""
         return self.group_statistics_by_field(
-            'cable_route',
+            resolved_faults,
             lambda fault: fault.cable_route
         )
     
-    def group_statistics_by_service(self):
+    def group_statistics_by_service(self, resolved_faults, period_duration_hours=None):
         """按涉及业务分组统计"""
         service_groups = {}
         
         # 遍历所有故障记录
-        for fault in self.resolved_faults:
+        for fault in resolved_faults:
             # 获取故障历时
-            duration = self.calculate_fault_duration_hours(fault)
+            fault_duration = self.calculate_fault_duration_hours(fault)
             
             # 遍历故障影响的业务
             for impact in fault.impacts.all():
@@ -287,15 +301,66 @@ class WeeklyFaultReport(Script):
                         'total_duration': Decimal('0.00'),
                     }
                 
+                # 计算业务中断时长
+                # 优先使用业务恢复时间 - 业务中断时间
+                if impact.service_recovery_time and impact.service_interruption_time:
+                    service_duration_seconds = (impact.service_recovery_time - impact.service_interruption_time).total_seconds()
+                    service_duration = Decimal(str(round(service_duration_seconds / 3600, 2)))
+                else:
+                    # 如果未设置业务时间，回退到故障历时
+                    service_duration = fault_duration
+                
                 # 累加统计（每个故障对每个业务只计一次）
                 service_groups[service_name]['count'] += 1
-                service_groups[service_name]['total_duration'] += duration
+                service_groups[service_name]['total_duration'] += service_duration
+        
+        # 计算 SLA
+        if period_duration_hours:
+            for service_name, stats in service_groups.items():
+                total_duration = stats['total_duration']
+                # SLA = 1 - (中断时长 / 总时长)
+                if period_duration_hours > 0:
+                    sla = (Decimal('1') - (total_duration / Decimal(str(period_duration_hours)))) * 100
+                    # 确保 SLA 不小于 0
+                    stats['sla'] = max(Decimal('0.00'), sla)
+                else:
+                    stats['sla'] = Decimal('0.00')
         
         return service_groups
+
+    def calculate_stats_for_period(self, start_time, end_time):
+        """计算指定时间段内的所有统计信息"""
+        # 计算周期总时长（小时）
+        period_duration = end_time - start_time
+        period_duration_hours = period_duration.total_seconds() / 3600
+        
+        # 查询数据
+        all_faults, resolved_faults, unresolved_faults = self.query_faults(start_time, end_time)
+        
+        if not all_faults:
+            return None
+            
+        # 计算统计信息
+        stats = {
+            'period_start': start_time,
+            'period_end': end_time,
+            'overall': self.calculate_overall_statistics(all_faults, resolved_faults, unresolved_faults),
+            'by_province': self.group_statistics_by_province(resolved_faults),
+            'by_category': self.group_statistics_by_category(resolved_faults),
+            'by_reason': self.group_statistics_by_reason(resolved_faults),
+            'by_report_source': self.group_statistics_by_report_source(resolved_faults),
+            'by_planned': self.group_statistics_by_planned(resolved_faults),
+            'by_resource_type': self.group_statistics_by_resource_type(resolved_faults),
+            'by_cable_route': self.group_statistics_by_cable_route(resolved_faults),
+            'by_service': self.group_statistics_by_service(resolved_faults, period_duration_hours),
+            'unresolved_faults': unresolved_faults
+        }
+        
+        return stats
     
     def generate_markdown_table(self, title, headers, rows):
         """生成Markdown表格"""
-        table = f"## {title}\n\n"
+        table = f"### {title}\n\n"
         table += "| " + " | ".join(headers) + " |\n"
         table += "| " + " | ".join(["---"] * len(headers)) + " |\n"
         
@@ -304,9 +369,9 @@ class WeeklyFaultReport(Script):
         
         return table + "\n"
     
-    def generate_markdown_report(self, stats):
-        """生成Markdown格式的报告"""
-        report = f"# 上周故障统计报告（{self.last_week_start.date()} 至 {self.last_week_end.date()}）\n\n"
+    def generate_markdown_report_section(self, title, stats):
+        """生成Markdown格式的报告章节"""
+        report = f"## {title}（{stats['period_start'].date()} 至 {stats['period_end'].date()}）\n\n"
         
         # 总体统计
         overall = stats['overall']
@@ -323,16 +388,16 @@ class WeeklyFaultReport(Script):
         )
         
         # 未恢复故障列表
-        if self.unresolved_faults:
-            report += "## 未恢复故障列表\n\n"
-            for fault in self.unresolved_faults:
+        if stats['unresolved_faults']:
+            report += "### 未恢复故障列表\n\n"
+            for fault in stats['unresolved_faults']:
                 report += f"- {fault.fault_number}\n"
             report += "\n"
         
         # 按省份统计
         if stats['by_province']:
             rows = []
-            for province_name, province_stats in sorted(stats['by_province'].items()):
+            for province_name, province_stats in sorted(stats['by_province'].items(), key=lambda x: x[1]['count'], reverse=True):
                 rows.append([
                     province_name,
                     province_stats['count'],
@@ -348,7 +413,7 @@ class WeeklyFaultReport(Script):
         # 按故障分类统计
         if stats['by_category']:
             rows = []
-            for category_name, category_stats in sorted(stats['by_category'].items()):
+            for category_name, category_stats in sorted(stats['by_category'].items(), key=lambda x: x[1]['count'], reverse=True):
                 rows.append([
                     category_name,
                     category_stats['count'],
@@ -364,7 +429,7 @@ class WeeklyFaultReport(Script):
         # 按中断原因统计
         if stats['by_reason']:
             rows = []
-            for reason_name, reason_stats in sorted(stats['by_reason'].items()):
+            for reason_name, reason_stats in sorted(stats['by_reason'].items(), key=lambda x: x[1]['count'], reverse=True):
                 rows.append([
                     reason_name,
                     reason_stats['count'],
@@ -380,7 +445,7 @@ class WeeklyFaultReport(Script):
         # 按第一报障来源统计
         if stats['by_report_source']:
             rows = []
-            for source_name, source_stats in sorted(stats['by_report_source'].items()):
+            for source_name, source_stats in sorted(stats['by_report_source'].items(), key=lambda x: x[1]['count'], reverse=True):
                 rows.append([
                     source_name,
                     source_stats['count'],
@@ -396,7 +461,7 @@ class WeeklyFaultReport(Script):
         # 按计划内统计
         if stats['by_planned']:
             rows = []
-            for planned_name, planned_stats in sorted(stats['by_planned'].items()):
+            for planned_name, planned_stats in sorted(stats['by_planned'].items(), key=lambda x: x[1]['count'], reverse=True):
                 rows.append([
                     planned_name,
                     planned_stats['count'],
@@ -412,7 +477,7 @@ class WeeklyFaultReport(Script):
         # 按资源类型统计
         if stats['by_resource_type']:
             rows = []
-            for resource_name, resource_stats in sorted(stats['by_resource_type'].items()):
+            for resource_name, resource_stats in sorted(stats['by_resource_type'].items(), key=lambda x: x[1]['count'], reverse=True):
                 rows.append([
                     resource_name,
                     resource_stats['count'],
@@ -428,7 +493,7 @@ class WeeklyFaultReport(Script):
         # 按光缆路由属性统计
         if stats['by_cable_route']:
             rows = []
-            for route_name, route_stats in sorted(stats['by_cable_route'].items()):
+            for route_name, route_stats in sorted(stats['by_cable_route'].items(), key=lambda x: x[1]['count'], reverse=True):
                 rows.append([
                     route_name,
                     route_stats['count'],
@@ -444,15 +509,27 @@ class WeeklyFaultReport(Script):
         # 按涉及业务统计
         if stats['by_service']:
             rows = []
-            for service_name, service_stats in sorted(stats['by_service'].items()):
-                rows.append([
+            headers = ["业务名称", "故障数量", "总历时(小时)"]
+            
+            # 检查是否有 SLA 数据
+            has_sla = any('sla' in s for s in stats['by_service'].values())
+            if has_sla:
+                headers.append("SLA (%)")
+            
+            for service_name, service_stats in sorted(stats['by_service'].items(), key=lambda x: x[1]['count'], reverse=True):
+                row = [
                     service_name,
                     service_stats['count'],
                     f"{service_stats['total_duration']:.2f}",
-                ])
+                ]
+                if has_sla:
+                    sla_value = service_stats.get('sla')
+                    row.append(f"{sla_value:.4f}" if sla_value is not None else "-")
+                rows.append(row)
+                
             report += self.generate_markdown_table(
                 "按涉及业务统计",
-                ["业务名称", "故障数量", "总历时(小时)"],
+                headers,
                 rows
             )
         
@@ -467,53 +544,55 @@ class WeeklyFaultReport(Script):
         else:
             base_date = timezone.now().date()
         
-        # 计算上一周日期范围
-        self.last_week_start, self.last_week_end = self.calculate_last_week_range(base_date)
-        self.log_info(f"统计时间范围：{self.last_week_start.date()}（周日）至 {self.last_week_end.date()}（周六）")
-        
-        # 获取时间范围内的故障记录
-        self.get_faults_in_period()
-        
-        if not self.faults_in_period:
-            return f"在 {self.last_week_start.date()} 至 {self.last_week_end.date()} 期间没有故障记录"
-        
         # 获取脚本参数
         self.include_unresolved = data['include_unresolved']
         output_format = data['output_format']
         
-        # 计算所有统计信息
-        self.log_info("正在计算统计信息...")
+        report_parts = []
+        report_parts.append(f"# 故障统计报告")
+        report_parts.append(f"统计基准日期：{base_date}\n")
         
-        stats = {
-            'overall': self.calculate_overall_statistics(),
-            'by_province': self.group_statistics_by_province(),
-            'by_category': self.group_statistics_by_category(),
-            'by_reason': self.group_statistics_by_reason(),
-            'by_report_source': self.group_statistics_by_report_source(),
-            'by_planned': self.group_statistics_by_planned(),
-            'by_resource_type': self.group_statistics_by_resource_type(),
-            'by_cable_route': self.group_statistics_by_cable_route(),
-            'by_service': self.group_statistics_by_service(),
-        }
+        # 1. 计算上一周统计
+        last_week_start, last_week_end = self.calculate_last_week_range(base_date)
+        self.log_info(f"正在计算上周统计（{last_week_start.date()} 至 {last_week_end.date()}）...")
         
-        self.log_success("统计信息计算完成")
+        week_stats = self.calculate_stats_for_period(last_week_start, last_week_end)
         
-        # 生成报告
-        if output_format == 'markdown':
-            report = self.generate_markdown_report(stats)
+        if week_stats:
+            if output_format == 'markdown':
+                report_parts.append(self.generate_markdown_report_section("上周统计", week_stats))
+            else:
+                report_parts.append(self.generate_text_report_section("上周统计", week_stats))
         else:
-            # 纯文本格式（简化版）
-            report = self.generate_text_report(stats)
+            msg = f"上周（{last_week_start.date()} 至 {last_week_end.date()}）没有故障记录"
+            self.log_warning(msg)
+            report_parts.append(f"## 上周统计\n\n{msg}\n")
+
+        # 2. 计算上个月统计
+        last_month_start, last_month_end = self.calculate_last_month_range(base_date)
+        self.log_info(f"正在计算上月统计（{last_month_start.date()} 至 {last_month_end.date()}）...")
         
-        return report
+        month_stats = self.calculate_stats_for_period(last_month_start, last_month_end)
+        
+        if month_stats:
+            if output_format == 'markdown':
+                report_parts.append(self.generate_markdown_report_section("上月统计", month_stats))
+            else:
+                report_parts.append(self.generate_text_report_section("上月统计", month_stats))
+        else:
+            msg = f"上月（{last_month_start.date()} 至 {last_month_end.date()}）没有故障记录"
+            self.log_warning(msg)
+            report_parts.append(f"## 上月统计\n\n{msg}\n")
+            
+        return "\n".join(report_parts)
     
-    def generate_text_report(self, stats):
-        """生成纯文本格式的报告"""
+    def generate_text_report_section(self, title, stats):
+        """生成纯文本格式的报告章节"""
         overall = stats['overall']
         
         report_lines = []
-        report_lines.append(f"上周故障统计报告（{self.last_week_start.date()} 至 {self.last_week_end.date()}）")
-        report_lines.append("=" * 60)
+        report_lines.append(f"{title}（{stats['period_start'].date()} 至 {stats['period_end'].date()}）")
+        report_lines.append("-" * 60)
         report_lines.append("")
         
         # 总体统计
@@ -526,16 +605,16 @@ class WeeklyFaultReport(Script):
         report_lines.append("")
         
         # 未恢复故障列表
-        if self.unresolved_faults:
+        if stats['unresolved_faults']:
             report_lines.append("未恢复故障列表：")
-            for fault in self.unresolved_faults:
+            for fault in stats['unresolved_faults']:
                 report_lines.append(f"  - {fault.fault_number}")
             report_lines.append("")
         
         # 按省份统计
         if stats['by_province']:
             report_lines.append("按省份统计：")
-            for province_name, province_stats in sorted(stats['by_province'].items()):
+            for province_name, province_stats in sorted(stats['by_province'].items(), key=lambda x: x[1]['count'], reverse=True):
                 report_lines.append(f"  {province_name}: {province_stats['count']}次, "
                                   f"总历时{province_stats['total_duration']:.2f}小时, "
                                   f"平均{province_stats['avg_duration']:.2f}小时")
@@ -544,7 +623,7 @@ class WeeklyFaultReport(Script):
         # 按故障分类统计
         if stats['by_category']:
             report_lines.append("按故障分类统计：")
-            for category_name, category_stats in sorted(stats['by_category'].items()):
+            for category_name, category_stats in sorted(stats['by_category'].items(), key=lambda x: x[1]['count'], reverse=True):
                 report_lines.append(f"  {category_name}: {category_stats['count']}次, "
                                   f"总历时{category_stats['total_duration']:.2f}小时, "
                                   f"平均{category_stats['avg_duration']:.2f}小时")
@@ -553,7 +632,7 @@ class WeeklyFaultReport(Script):
         # 按中断原因统计
         if stats['by_reason']:
             report_lines.append("按中断原因统计：")
-            for reason_name, reason_stats in sorted(stats['by_reason'].items()):
+            for reason_name, reason_stats in sorted(stats['by_reason'].items(), key=lambda x: x[1]['count'], reverse=True):
                 report_lines.append(f"  {reason_name}: {reason_stats['count']}次, "
                                   f"总历时{reason_stats['total_duration']:.2f}小时, "
                                   f"平均{reason_stats['avg_duration']:.2f}小时")
@@ -562,7 +641,7 @@ class WeeklyFaultReport(Script):
         # 按第一报障来源统计
         if stats['by_report_source']:
             report_lines.append("按第一报障来源统计：")
-            for source_name, source_stats in sorted(stats['by_report_source'].items()):
+            for source_name, source_stats in sorted(stats['by_report_source'].items(), key=lambda x: x[1]['count'], reverse=True):
                 report_lines.append(f"  {source_name}: {source_stats['count']}次, "
                                   f"总历时{source_stats['total_duration']:.2f}小时, "
                                   f"平均{source_stats['avg_duration']:.2f}小时")
@@ -571,7 +650,7 @@ class WeeklyFaultReport(Script):
         # 按计划内统计
         if stats['by_planned']:
             report_lines.append("按计划内统计：")
-            for planned_name, planned_stats in sorted(stats['by_planned'].items()):
+            for planned_name, planned_stats in sorted(stats['by_planned'].items(), key=lambda x: x[1]['count'], reverse=True):
                 report_lines.append(f"  {planned_name}: {planned_stats['count']}次, "
                                   f"总历时{planned_stats['total_duration']:.2f}小时, "
                                   f"平均{planned_stats['avg_duration']:.2f}小时")
@@ -580,7 +659,7 @@ class WeeklyFaultReport(Script):
         # 按资源类型统计
         if stats['by_resource_type']:
             report_lines.append("按资源类型统计：")
-            for resource_name, resource_stats in sorted(stats['by_resource_type'].items()):
+            for resource_name, resource_stats in sorted(stats['by_resource_type'].items(), key=lambda x: x[1]['count'], reverse=True):
                 report_lines.append(f"  {resource_name}: {resource_stats['count']}次, "
                                   f"总历时{resource_stats['total_duration']:.2f}小时, "
                                   f"平均{resource_stats['avg_duration']:.2f}小时")
@@ -589,7 +668,7 @@ class WeeklyFaultReport(Script):
         # 按光缆路由属性统计
         if stats['by_cable_route']:
             report_lines.append("按光缆路由属性统计：")
-            for route_name, route_stats in sorted(stats['by_cable_route'].items()):
+            for route_name, route_stats in sorted(stats['by_cable_route'].items(), key=lambda x: x[1]['count'], reverse=True):
                 report_lines.append(f"  {route_name}: {route_stats['count']}次, "
                                   f"总历时{route_stats['total_duration']:.2f}小时, "
                                   f"平均{route_stats['avg_duration']:.2f}小时")
@@ -598,9 +677,11 @@ class WeeklyFaultReport(Script):
         # 按涉及业务统计
         if stats['by_service']:
             report_lines.append("按涉及业务统计：")
-            for service_name, service_stats in sorted(stats['by_service'].items()):
-                report_lines.append(f"  {service_name}: {service_stats['count']}次, "
-                                  f"总历时{service_stats['total_duration']:.2f}小时")
+            for service_name, service_stats in sorted(stats['by_service'].items(), key=lambda x: x[1]['count'], reverse=True):
+                line = f"  {service_name}: {service_stats['count']}次, 总历时{service_stats['total_duration']:.2f}小时"
+                if 'sla' in service_stats:
+                    line += f", SLA {service_stats['sla']:.4f}%"
+                report_lines.append(line)
             report_lines.append("")
         
         return "\n".join(report_lines)
