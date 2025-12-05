@@ -37,6 +37,24 @@ class OtnFaultForm(NetBoxModelForm):
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
     )
     
+    fieldsets = (
+        ('故障信息', (
+            'urgency', 'province', 'interruption_location',
+            'interruption_longitude', 'interruption_latitude', 'fault_category',
+            'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
+            'first_report_source', 'planned', 'resource_type',
+            'cable_route', 'line_manager', 'duty_officer', 'fault_details',
+        )),
+        ('处理信息', (
+            'maintenance_mode', 'handling_unit', 'dispatch_time',
+            'departure_time', 'arrival_time', 'repair_time', 'timeout',
+            'timeout_reason', 'handler', 'recovery_mode',
+        )),
+        (None, (
+            'comments', 'tags',
+        )),
+    )
+
     class Meta:
         model = OtnFault
         fields = (
@@ -52,23 +70,6 @@ class OtnFaultForm(NetBoxModelForm):
             'timeout_reason', 'handler', 'recovery_mode',
             # 其他字段
             'comments', 'tags',
-        )
-        fieldsets = (
-            ('故障信息', (
-                'urgency', 'province', 'interruption_location',
-                'interruption_longitude', 'interruption_latitude', 'fault_category',
-                'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
-                'first_report_source', 'planned', 'resource_type',
-                'cable_route', 'line_manager', 'duty_officer', 'fault_details',
-            )),
-            ('处理信息', (
-                'maintenance_mode', 'handling_unit', 'dispatch_time',
-                'departure_time', 'arrival_time', 'repair_time', 'timeout',
-                'timeout_reason', 'handler', 'recovery_mode',
-            )),
-            (None, (
-                'comments', 'tags',
-            )),
         )
         widgets = {
             'fault_occurrence_time': DateTimePicker(),
@@ -177,7 +178,115 @@ class OtnFaultImpactForm(NetBoxModelForm):
                 pass
 
 from utilities.forms.utils import add_blank_choice
-from utilities.forms.fields import TagFilterField
+from utilities.forms.fields import TagFilterField, CommentField
+from netbox.forms import NetBoxModelBulkEditForm
+
+class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
+    """OTN故障批量编辑表单"""
+    model = OtnFault
+    
+    # 可批量编辑的字段
+    duty_officer = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='值守人员'
+    )
+    province = DynamicModelChoiceField(
+        queryset=Region.objects.all(),
+        required=False,
+        label='省份'
+    )
+    line_manager = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='线路主管'
+    )
+    handling_unit = DynamicModelChoiceField(
+        queryset=ServiceProvider.objects.all(),
+        required=False,
+        label='处理单位'
+    )
+    fault_category = forms.ChoiceField(
+        choices=add_blank_choice(FaultCategoryChoices),
+        required=False,
+        label='故障分类'
+    )
+    interruption_reason = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.INTERRUPTION_REASON_CHOICES),
+        required=False,
+        label='中断原因'
+    )
+    urgency = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.URGENCY_CHOICES),
+        required=False,
+        label='紧急程度'
+    )
+    first_report_source = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.FIRST_REPORT_SOURCE_CHOICES),
+        required=False,
+        label='第一报障来源'
+    )
+    planned = forms.BooleanField(
+        required=False,
+        label='计划内'
+    )
+    maintenance_mode = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.MAINTENANCE_MODE_CHOICES),
+        required=False,
+        label='维护方式'
+    )
+    resource_type = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.RESOURCE_TYPE_CHOICES),
+        required=False,
+        label='资源类型'
+    )
+    cable_route = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.CABLE_ROUTE_CHOICES),
+        required=False,
+        label='光缆路由属性'
+    )
+    recovery_mode = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.RECOVERY_MODE_CHOICES),
+        required=False,
+        label='恢复方式'
+    )
+    timeout = forms.BooleanField(
+        required=False,
+        label='规定时间内完成修复'
+    )
+    handler = forms.CharField(
+        required=False,
+        label='故障处理人'
+    )
+    timeout_reason = forms.CharField(
+        required=False,
+        label='超时原因'
+    )
+    comments = CommentField(
+        required=False,
+        label='评论'
+    )
+    
+    nullable_fields = (
+        'province', 'line_manager', 'handling_unit', 'fault_category',
+        'interruption_reason', 'maintenance_mode', 'resource_type',
+        'recovery_mode', 'handler', 'timeout_reason', 'comments'
+    )
+
+    # fieldsets = (
+    #     ('故障信息', (
+    #         'duty_officer', 'province', 'line_manager', 'handling_unit',
+    #         'fault_category', 'interruption_reason', 'urgency',
+    #         'first_report_source', 'planned', 'resource_type', 'cable_route',
+    #     )),
+    #     ('处理信息', (
+    #         'maintenance_mode', 'recovery_mode', 'timeout',
+    #         'handler', 'timeout_reason',
+    #     )),
+    #     ('其他', (
+    #         'comments',
+    #     )),
+    # )
 
 class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     tag = TagFilterField(OtnFault)

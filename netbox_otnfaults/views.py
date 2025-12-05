@@ -2,7 +2,7 @@ from netbox.views import generic
 from django.shortcuts import render
 from utilities.views import register_model_view
 from .models import OtnFault, OtnFaultImpact
-from .forms import OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm
+from .forms import OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, OtnFaultBulkEditForm
 from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet
 from .tables import OtnFaultTable, OtnFaultImpactTable
 
@@ -66,6 +66,34 @@ class OtnFaultEditView(generic.ObjectEditView):
 class OtnFaultDeleteView(generic.ObjectDeleteView):
     """OTN故障删除视图"""
     queryset = OtnFault.objects.all()
+
+class OtnFaultBulkDeleteView(generic.BulkDeleteView):
+    """OTN故障批量删除视图"""
+    queryset = OtnFault.objects.all()
+    table = OtnFaultTable
+
+# 使用装饰器注册批量编辑视图
+# path='edit' 告诉 NetBox 这是批量编辑视图
+# detail=False 表示这不是针对单个对象的视图
+@register_model_view(OtnFault, 'bulk_edit', path='edit', detail=False)
+class OtnFaultBulkEditView(generic.BulkEditView):
+    """OTN故障批量编辑视图"""
+    queryset = OtnFault.objects.all()
+    filterset = OtnFaultFilterSet
+    table = OtnFaultTable
+    form = OtnFaultBulkEditForm
+    
+    def get_required_permission(self):
+        return 'netbox_otnfaults.change_otnfault'
+    
+    def get_object(self, **kwargs):
+        """批量编辑不需要单个对象，返回 None"""
+        return None
+    
+    def get_return_url(self, request, obj=None):
+        """返回故障列表页的 URL"""
+        from django.urls import reverse
+        return reverse('plugins:netbox_otnfaults:otnfault_list')
 
 class OtnFaultImpactListView(generic.ObjectListView):
     """故障影响业务列表视图"""
