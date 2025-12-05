@@ -23,132 +23,404 @@
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+<style>
+    #map {
+        position: relative;
+        height: 600px;
+        width: 100%;
+    }
+    .map-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .map-loading {
+        background-color: rgba(248, 249, 250, 0.9);
+        color: #6c757d;
+    }
+    .map-error {
+        background-color: rgba(248, 215, 218, 0.95);
+        color: #721c24;
+        padding: 20px;
+        text-align: center;
+    }
+    .map-error h5 {
+        margin-bottom: 15px;
+    }
+    .map-error ul {
+        text-align: left;
+        margin: 15px 0;
+    }
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+    .hidden {
+        display: none !important;
+    }
+    /* 隐藏地图版权信息 */
+    .maplibregl-ctrl-attrib {
+        display: none !important;
+    }
+    /* 图层切换按钮样式 */
+    .layer-toggle-control .toggle-button {
+        background-color: #ffffff;
+        border: 1px solid #cccccc;
+        border-radius: 4px;
+        width: 32px;
+        height: 32px;
+        margin: 2px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        transition: all 0.2s ease;
+    }
+    .layer-toggle-control .toggle-button:hover {
+        background-color: #f0f0f0;
+    }
+    .layer-toggle-control .toggle-button.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #0056b3;
+    }
+    .layer-toggle-control .toggle-button.active:hover {
+        background-color: #0056b3;
+    }
+    .layer-toggle-control .heatmap-toggle.active {
+        background-color: #ff6b6b;
+        border-color: #ff4757;
+    }
+    .layer-toggle-control .heatmap-toggle.active:hover {
+        background-color: #ff4757;
+    }
+    .layer-toggle-control .markers-toggle.active {
+        background-color: #4cd964;
+        border-color: #2ecc71;
+    }
+    .layer-toggle-control .markers-toggle.active:hover {
+        background-color: #2ecc71;
+    }
+</style>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        var heatmapData = {{ heatmap_data| safe
-    }};
-    var markerData = {{ marker_data| safe }};
-    var apiKey = "{{ apikey }}";
-
-    var map = new maplibregl.Map({
-        container: 'map',
-        style: 'https://tiles.stadiamaps.com/styles/alidade_satellite.json?api_key=' + apiKey,
-        center: [105.0, 35.0], // Default center (China)
-        zoom: 4
-    });
-
-    map.addControl(new maplibregl.NavigationControl());
-
-    map.on('load', function () {
-        // Prepare GeoJSON for heatmap
-        var features = heatmapData.map(function (point) {
-            return {
-                type: 'Feature',
-                properties: { count: point.count },
-                geometry: {
-                    type: 'Point',
-                    coordinates: [point.lng, point.lat]
-                }
-            };
-        });
-
-        if (features.length > 0) {
-            map.addSource('faults', {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: features
-                }
-            });
-
-            map.addLayer({
-                id: 'faults-heat',
-                type: 'heatmap',
-                source: 'faults',
-                maxzoom: 15,
-                paint: {
-                    // Increase the heatmap weight based on frequency and property magnitude
-                    'heatmap-weight': [
-                        'interpolate',
-                        ['linear'],
-                        ['get', 'count'],
-                        0, 0,
-                        6, 1
-                    ],
-                    // Increase the heatmap color weight weight by zoom level
-                    // heatmap-intensity is a multiplier on top of heatmap-weight
-                    'heatmap-intensity': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        0, 1,
-                        9, 3
-                    ],
-                    // Color ramp for heatmap.  Domain is 0 (low) to 1 (high).
-                    // Begin color ramp at 0-stop with a 0-transparancy color
-                    // to create a blur-like effect.
-                    'heatmap-color': [
-                        'interpolate',
-                        ['linear'],
-                        ['heatmap-density'],
-                        0, 'rgba(33,102,172,0)',
-                        0.2, 'rgb(103,169,207)',
-                        0.4, 'rgb(209,229,240)',
-                        0.6, 'rgb(253,219,199)',
-                        0.8, 'rgb(239,138,98)',
-                        1, 'rgb(178,24,43)'
-                    ],
-                    // Adjust the heatmap radius by zoom level
-                    'heatmap-radius': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        0, 2,
-                        9, 20
-                    ],
-                    // Transition from heatmap to circle layer by zoom level
-                    'heatmap-opacity': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        7, 1,
-                        9, 0
-                    ],
-                }
-            });
-
-            // Fit bounds to data
-            var bounds = new maplibregl.LngLatBounds();
-            features.forEach(function (feature) {
-                bounds.extend(feature.geometry.coordinates);
-            });
-            // Also include markers in bounds
-            markerData.forEach(function (m) {
-                bounds.extend([m.lng, m.lat]);
-            });
-
-            if (!bounds.isEmpty()) {
-                map.fitBounds(bounds, { padding: 50 });
+        var mapContainer = document.getElementById('map');
+        
+        // 创建加载覆盖层
+        var loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'map-overlay map-loading';
+        loadingOverlay.innerHTML = `
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <div class="mt-3">正在加载地图...</div>
+        `;
+        mapContainer.appendChild(loadingOverlay);
+        
+        try {
+            // 验证数据格式
+            var heatmapData = {{ heatmap_data|safe }};
+            var markerData = {{ marker_data|safe }};
+            var apiKey = "{{ apikey }}";
+            
+            // 检查数据是否有效
+            if (!Array.isArray(heatmapData)) {
+                console.warn('heatmap_data 不是有效的数组，使用空数组');
+                heatmapData = [];
             }
+            if (!Array.isArray(markerData)) {
+                console.warn('marker_data 不是有效的数组，使用空数组');
+                markerData = [];
+            }
+
+            // 检查 Maplibre GL 是否加载成功
+            if (typeof maplibregl === 'undefined') {
+                throw new Error('地图库加载失败，请检查网络连接或刷新页面');
+            }
+
+            var map = new maplibregl.Map({
+                container: 'map',
+                style: 'https://tiles.stadiamaps.com/styles/alidade_satellite.json?api_key=' + apiKey,
+                center: [105.0, 35.0], // 默认中心点（中国）
+                zoom: 4
+            });
+
+            map.addControl(new maplibregl.NavigationControl());
+            
+            // 添加全屏控件
+            map.addControl(new maplibregl.FullscreenControl({
+                container: document.querySelector('#map')
+            }));
+
+            // 创建图层切换控件
+            class LayerToggleControl {
+                constructor(options) {
+                    this.options = options || {};
+                    this.heatmapVisible = true;
+                    this.markersVisible = true;
+                    this.markers = []; // 存储标记对象
+                }
+                
+                onAdd(map) {
+                    this.map = map;
+                    this.container = document.createElement('div');
+                    this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group layer-toggle-control';
+                    
+                    // 热力图开关按钮
+                    this.heatmapButton = document.createElement('button');
+                    this.heatmapButton.className = 'maplibregl-ctrl-icon toggle-button heatmap-toggle active';
+                    this.heatmapButton.innerHTML = '🔥';
+                    this.heatmapButton.title = '热力图开关';
+                    this.heatmapButton.onclick = () => this.toggleHeatmap();
+                    
+                    // 故障点开关按钮
+                    this.markersButton = document.createElement('button');
+                    this.markersButton.className = 'maplibregl-ctrl-icon toggle-button markers-toggle active';
+                    this.markersButton.innerHTML = '📍';
+                    this.markersButton.title = '故障点开关';
+                    this.markersButton.onclick = () => this.toggleMarkers();
+                    
+                    this.container.appendChild(this.heatmapButton);
+                    this.container.appendChild(this.markersButton);
+                    
+                    return this.container;
+                }
+                
+                onRemove() {
+                    this.container.parentNode.removeChild(this.container);
+                    this.map = undefined;
+                }
+                
+                toggleHeatmap() {
+                    this.heatmapVisible = !this.heatmapVisible;
+                    if (this.heatmapVisible) {
+                        this.heatmapButton.classList.add('active');
+                        this.map.setLayoutProperty('faults-heat', 'visibility', 'visible');
+                    } else {
+                        this.heatmapButton.classList.remove('active');
+                        this.map.setLayoutProperty('faults-heat', 'visibility', 'none');
+                    }
+                }
+                
+                toggleMarkers() {
+                    this.markersVisible = !this.markersVisible;
+                    if (this.markersVisible) {
+                        this.markersButton.classList.add('active');
+                        // 显示所有标记
+                        this.markers.forEach(marker => marker.getElement().style.display = 'block');
+                    } else {
+                        this.markersButton.classList.remove('active');
+                        // 隐藏所有标记
+                        this.markers.forEach(marker => marker.getElement().style.display = 'none');
+                    }
+                }
+                
+                addMarker(marker) {
+                    this.markers.push(marker);
+                }
+            }
+            
+            // 添加图层切换控件
+            var layerToggleControl = new LayerToggleControl();
+            map.addControl(layerToggleControl, 'top-left');
+
+            // 在样式加载时立即设置中文标签
+            map.on('style.load', function () {
+                // 设置地图语言为中文
+                function setMapLanguageToChinese() {
+                    const layers = map.getStyle().layers;
+                    layers.forEach(layer => {
+                        if (layer.layout && layer.layout['text-field']) {
+                            map.setLayoutProperty(layer.id, 'text-field', ['coalesce', ['get', 'name:zh'], ['get', 'name']]);
+                        }
+                    });
+                }
+                
+                // 过滤城市标签 - 只显示主要城市
+                function filterCityLabels() {
+                    const layers = map.getStyle().layers;
+                    layers.forEach(layer => {
+                        if (layer.type === 'symbol' &&
+                            (layer.id.includes('place') || layer.id.includes('settlement') ||
+                             layer.id.includes('label'))) {
+                            if (layer.id.includes('village') || layer.id.includes('town') ||
+                                layer.id.includes('hamlet') || layer.id.includes('suburb') ||
+                                layer.id.includes('neighbourhood') || layer.id.includes('neighborhood') ||
+                                layer.id.includes('quarter') || layer.id.includes('locality') ||
+                                layer.id.includes('isolated_dwelling')) {
+                                map.setLayoutProperty(layer.id, 'visibility', 'none');
+                            }
+                        }
+                    });
+                }
+                
+                // 立即调用中文标签设置函数
+                setMapLanguageToChinese();
+                // 过滤城市标签，只显示主要城市
+                filterCityLabels();
+            });
+
+            map.on('load', function () {
+                // 准备热力图的GeoJSON数据
+                var features = heatmapData.map(function (point) {
+                    return {
+                        type: 'Feature',
+                        properties: { count: point.count },
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [point.lng, point.lat]
+                        }
+                    };
+                });
+
+                if (features.length > 0) {
+                    map.addSource('faults', {
+                        type: 'geojson',
+                        data: {
+                            type: 'FeatureCollection',
+                            features: features
+                        }
+                    });
+
+                    map.addLayer({
+                        id: 'faults-heat',
+                        type: 'heatmap',
+                        source: 'faults',
+                        maxzoom: 15,
+                        paint: {
+                            // 根据频率和属性大小增加热力图权重 - 降低阈值使热点更明显
+                            'heatmap-weight': [
+                                'interpolate',
+                                ['linear'],
+                                ['get', 'count'],
+                                0, 0,
+                                4, 1  // 将阈值从10降低到4，增加低密度区域显示
+                            ],
+                            // 根据缩放级别增加热力图颜色权重 - 适度增强对比度
+                            // heatmap-intensity是heatmap-weight的乘数
+                            'heatmap-intensity': [
+                                'interpolate',
+                                ['linear'],
+                                ['zoom'],
+                                0, 1,
+                                9, 4  // 将强度从5调整到4，适度增强对比度
+                            ],
+                            // 热力图颜色渐变。域为0（低）到1（高）。
+                            // 从0-stop开始使用0透明度的颜色创建模糊效果。
+                            'heatmap-color': [
+                                'interpolate',
+                                ['linear'],
+                                ['heatmap-density'],
+                                0, 'rgba(33,102,172,0)',
+                                0.1, 'rgb(103,169,207)',  // 恢复低密度区域的颜色
+                                0.3, 'rgb(209,229,240)',
+                                0.5, 'rgb(253,219,199)',
+                                0.7, 'rgb(239,138,98)',
+                                1, 'rgb(178,24,43)'  // 恢复标准高密度颜色
+                            ],
+                            // 根据缩放级别调整热力图半径 - 增加半径使热点更明显
+                            'heatmap-radius': [
+                                'interpolate',
+                                ['linear'],
+                                ['zoom'],
+                                0, 3,   // 将最小半径从1增加到3
+                                9, 25   // 将最大半径从10增加到25，使热点更明显
+                            ],
+                            // 根据缩放级别从热力图过渡到圆形图层
+                            'heatmap-opacity': [
+                                'interpolate',
+                                ['linear'],
+                                ['zoom'],
+                                7, 1,
+                                9, 0
+                            ],
+                        }
+                    });
+
+                    // 将地图边界适配到数据范围
+                    var bounds = new maplibregl.LngLatBounds();
+                    features.forEach(function (feature) {
+                        bounds.extend(feature.geometry.coordinates);
+                    });
+                    // 同时将标记点包含在边界内
+                    markerData.forEach(function (m) {
+                        bounds.extend([m.lng, m.lat]);
+                    });
+
+                    if (!bounds.isEmpty()) {
+                        map.fitBounds(bounds, { padding: 50 });
+                    }
+                }
+
+                // 添加最近一周故障点的标记
+                markerData.forEach(function (m) {
+                    var popup = new maplibregl.Popup({ offset: 25 }).setHTML(
+                        '<div style="text-align: center;">' +
+                        '<h6><a href="' + m.url + '" target="_blank">' + m.number + '</a></h6>' +
+                        '<p>' + m.details + '</p>' +
+                        '</div>'
+                    );
+
+                    var marker = new maplibregl.Marker({ color: "#FF0000" })
+                        .setLngLat([m.lng, m.lat])
+                        .setPopup(popup)
+                        .addTo(map);
+                    
+                    // 将标记添加到切换控件中
+                    layerToggleControl.addMarker(marker);
+                });
+                
+                // 隐藏加载状态
+                loadingOverlay.classList.add('hidden');
+            });
+
+            map.on('error', function (e) {
+                console.error('地图加载错误:', e.error);
+                showMapError('地图加载失败: ' + (e.error.message || '未知错误'));
+            });
+
+        } catch (error) {
+            console.error('地图初始化错误:', error);
+            showMapError('地图初始化失败: ' + error.message);
         }
 
-        // Add markers for last week's faults
-        markerData.forEach(function (m) {
-            var popup = new maplibregl.Popup({ offset: 25 }).setHTML(
-                '<div style="text-align: center;">' +
-                '<h6><a href="' + m.url + '" target="_blank">' + m.number + '</a></h6>' +
-                '<p>' + m.details + '</p>' +
-                '</div>'
-            );
-
-            new maplibregl.Marker({ color: "#FF0000" })
-                .setLngLat([m.lng, m.lat])
-                .setPopup(popup)
-                .addTo(map);
-        });
-    });
+        function showMapError(message) {
+            // 移除加载覆盖层
+            if (loadingOverlay && loadingOverlay.parentNode) {
+                loadingOverlay.parentNode.removeChild(loadingOverlay);
+            }
+            
+            // 创建错误覆盖层
+            var errorOverlay = document.createElement('div');
+            errorOverlay.className = 'map-overlay map-error';
+            errorOverlay.innerHTML = `
+                <h5>地图加载失败</h5>
+                <p>${message}</p>
+                <ul>
+                    <li>请检查网络连接</li>
+                    <li>确保API密钥有效</li>
+                    <li>刷新页面重试</li>
+                    <li>如果问题持续，请联系管理员</li>
+                </ul>
+                <button class="btn btn-primary mt-3" onclick="window.location.reload()">
+                    刷新页面
+                </button>
+            `;
+            mapContainer.appendChild(errorOverlay);
+        }
     });
 </script>
 {% endblock %}
