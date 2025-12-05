@@ -3,3 +3,9 @@
 netbox_otnfaults/__pycache__/__init__.cpython-314.pyc
 netbox_otnfaults/__pycache__/forms.cpython-314.pyc
 netbox_otnfaults/__pycache__/views.cpython-314.pyc
+.agent/rules/otnfaults.md
+netbox_otnfaults/__pycache__/models.cpython-314.pyc
+netbox_otnfaults/scripts/__pycache__/generate_fault_data.cpython-314.pyc
+netbox_otnfaults/scripts/__pycache__/weekly_fault_report.cpython-314.pyc
+netbox_otnfaults/scripts/__pycache__/fill_missing_sites.cpython-314.pyc
+netbox_otnfaults/__pycache__/urls.cpython-314.pyc

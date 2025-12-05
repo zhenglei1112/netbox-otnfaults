@@ -5,6 +5,12 @@ from .models import OtnFault, OtnFaultImpact
 from .forms import OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm
 from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet
 from .tables import OtnFaultTable, OtnFaultImpactTable
+from django.utils import timezone
+from datetime import timedelta
+from django.views.generic import View
+from django.contrib.auth.mixins import PermissionRequiredMixin
+import json
+from django.core.serializers.json import DjangoJSONEncoder
 
 class OtnFaultListView(generic.ObjectListView):
     """OTN故障列表视图"""
@@ -12,6 +18,52 @@ class OtnFaultListView(generic.ObjectListView):
     table = OtnFaultTable
     filterset = OtnFaultFilterSet
     filterset_form = OtnFaultFilterForm
+    template_name = 'netbox_otnfaults/otnfault_list.html'
+
+class OtnFaultMapView(PermissionRequiredMixin, View):
+    """OTN故障分布图视图"""
+    permission_required = 'netbox_otnfaults.view_otnfault'
+
+    def get(self, request):
+        # 获取当前年份和上一周的时间点
+        now = timezone.now()
+        current_year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_week_start = now - timedelta(days=7)
+
+        # 获取所有有经纬度的故障
+        faults = OtnFault.objects.exclude(
+            interruption_longitude__isnull=True
+        ).exclude(
+            interruption_latitude__isnull=True
+        )
+
+        # 热力图数据：本年发生的故障
+        heatmap_faults = faults.filter(fault_occurrence_time__gte=current_year_start)
+        heatmap_data = []
+        for fault in heatmap_faults:
+            heatmap_data.append({
+                'lat': float(fault.interruption_latitude),
+                'lng': float(fault.interruption_longitude),
+                'count': 1  # 简单计数，也可以根据紧急程度加权
+            })
+
+        # 标记点数据：上一周发生的故障
+        marker_faults = faults.filter(fault_occurrence_time__gte=last_week_start)
+        marker_data = []
+        for fault in marker_faults:
+            marker_data.append({
+                'lat': float(fault.interruption_latitude),
+                'lng': float(fault.interruption_longitude),
+                'number': fault.fault_number,
+                'url': fault.get_absolute_url(),
+                'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}"
+            })
+
+        return render(request, 'netbox_otnfaults/otnfault_map.html', {
+            'heatmap_data': json.dumps(heatmap_data, cls=DjangoJSONEncoder),
+            'marker_data': json.dumps(marker_data, cls=DjangoJSONEncoder),
+            'apikey': 'e0109253-b502-41de-9dd2-8a80bb3b1a09'
+        })
 
 @register_model_view(OtnFault)
 class OtnFaultView(generic.ObjectView):

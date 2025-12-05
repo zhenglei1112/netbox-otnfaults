@@ -9,6 +9,7 @@ urlpatterns = [
     # 批量编辑路由 - 必须手动配置
     path('faults/edit/', views.OtnFaultBulkEditView.as_view(), name='otnfault_bulk_edit'),
     path('faults/bulk-delete/', views.OtnFaultBulkDeleteView.as_view(), name='otnfault_bulk_delete'),
+    path('faults/map/', views.OtnFaultMapView.as_view(), name='otnfault_map'),
     path('faults/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'otnfault'))),
     path('faults/<int:pk>/edit/', views.OtnFaultEditView.as_view(), name='otnfault_edit'),
     path('faults/<int:pk>/delete/', views.OtnFaultDeleteView.as_view(), name='otnfault_delete'),
