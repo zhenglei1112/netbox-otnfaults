@@ -51,12 +51,33 @@ class OtnFaultMapView(PermissionRequiredMixin, View):
         marker_faults = faults.filter(fault_occurrence_time__gte=last_week_start)
         marker_data = []
         for fault in marker_faults:
+            # 获取故障分类，转换为前端可识别的键
+            fault_category = fault.fault_category
+            category_key = 'other'  # 默认值
+            
+            # 将数据库中的分类值映射到前端可识别的键
+            if fault_category:
+                # 根据models.py中的FaultCategoryChoices进行映射
+                # 数据库中的值: 'power', 'fiber', 'pigtail', 'device', 'other'
+                # 前端需要的键: 'power', 'optical', 'optical', 'equipment', 'other'
+                
+                category_mapping = {
+                    'power': 'power',        # 电力故障 -> 电源故障
+                    'fiber': 'optical',      # 光缆故障 -> 光缆故障
+                    'pigtail': 'optical',    # 尾纤故障 -> 光缆故障（同属光缆类）
+                    'device': 'equipment',   # 设备故障 -> 设备故障
+                    'other': 'other'         # 其他故障 -> 其他故障
+                }
+                
+                category_key = category_mapping.get(fault_category, 'other')
+            
             marker_data.append({
                 'lat': float(fault.interruption_latitude),
                 'lng': float(fault.interruption_longitude),
                 'number': fault.fault_number,
                 'url': fault.get_absolute_url(),
-                'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}"
+                'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}",
+                'category': category_key  # 添加分类字段
             })
 
         return render(request, 'netbox_otnfaults/otnfault_map.html', {

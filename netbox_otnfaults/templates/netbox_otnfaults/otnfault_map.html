@@ -365,16 +365,42 @@
                     }
                 }
 
-                // 添加最近一周故障点的标记
+                // 故障分类颜色映射
+                var faultCategoryColors = {
+                    'network': '#FF0000',      // 网络故障 - 红色
+                    'equipment': '#FFA500',    // 设备故障 - 橙色
+                    'power': '#FFFF00',        // 电源故障 - 黄色
+                    'optical': '#00FF00',      // 光缆故障 - 绿色
+                    'software': '#0000FF',     // 软件故障 - 蓝色
+                    'other': '#800080'         // 其他故障 - 紫色
+                };
+                
+                // 故障分类名称映射
+                var faultCategoryNames = {
+                    'network': '网络故障',
+                    'equipment': '设备故障',
+                    'power': '电源故障',
+                    'optical': '光缆故障',
+                    'software': '软件故障',
+                    'other': '其他故障'
+                };
+                
+                // 添加最近一周故障点的标记 - 根据故障分类显示不同颜色
                 markerData.forEach(function (m) {
+                    // 获取故障分类，默认为'other'
+                    var category = m.category || 'other';
+                    var color = faultCategoryColors[category] || faultCategoryColors['other'];
+                    var categoryName = faultCategoryNames[category] || faultCategoryNames['other'];
+                    
                     var popup = new maplibregl.Popup({ offset: 25 }).setHTML(
                         '<div style="text-align: center;">' +
                         '<h6><a href="' + m.url + '" target="_blank">' + m.number + '</a></h6>' +
+                        '<p><strong>故障分类:</strong> ' + categoryName + '</p>' +
                         '<p>' + m.details + '</p>' +
                         '</div>'
                     );
 
-                    var marker = new maplibregl.Marker({ color: "#FF0000" })
+                    var marker = new maplibregl.Marker({ color: color })
                         .setLngLat([m.lng, m.lat])
                         .setPopup(popup)
                         .addTo(map);
@@ -382,6 +408,64 @@
                     // 将标记添加到切换控件中
                     layerToggleControl.addMarker(marker);
                 });
+                
+                // 创建故障点图例
+                function createFaultLegend() {
+                    var legendContainer = document.createElement('div');
+                    legendContainer.className = 'maplibregl-ctrl maplibregl-ctrl-group fault-legend';
+                    legendContainer.style.padding = '10px';
+                    legendContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                    legendContainer.style.borderRadius = '4px';
+                    legendContainer.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
+                    legendContainer.style.maxWidth = '200px';
+                    
+                    var legendTitle = document.createElement('div');
+                    legendTitle.innerHTML = '<strong>故障分类图例</strong>';
+                    legendTitle.style.marginBottom = '8px';
+                    legendTitle.style.borderBottom = '1px solid #ddd';
+                    legendTitle.style.paddingBottom = '5px';
+                    legendContainer.appendChild(legendTitle);
+                    
+                    // 添加每个分类的图例项
+                    Object.keys(faultCategoryColors).forEach(function(category) {
+                        var legendItem = document.createElement('div');
+                        legendItem.style.display = 'flex';
+                        legendItem.style.alignItems = 'center';
+                        legendItem.style.marginBottom = '5px';
+                        
+                        var colorBox = document.createElement('div');
+                        colorBox.style.width = '15px';
+                        colorBox.style.height = '15px';
+                        colorBox.style.backgroundColor = faultCategoryColors[category];
+                        colorBox.style.borderRadius = '3px';
+                        colorBox.style.marginRight = '8px';
+                        colorBox.style.border = '1px solid #ccc';
+                        
+                        var label = document.createElement('span');
+                        label.style.fontSize = '12px';
+                        label.textContent = faultCategoryNames[category];
+                        
+                        legendItem.appendChild(colorBox);
+                        legendItem.appendChild(label);
+                        legendContainer.appendChild(legendItem);
+                    });
+                    
+                    return legendContainer;
+                }
+                
+                // 添加图例到地图右下角
+                var legendControl = {
+                    onAdd: function(map) {
+                        this.container = createFaultLegend();
+                        return this.container;
+                    },
+                    onRemove: function() {
+                        this.container.parentNode.removeChild(this.container);
+                        this.map = undefined;
+                    }
+                };
+                
+                map.addControl(legendControl, 'bottom-right');
                 
                 // 隐藏加载状态
                 loadingOverlay.classList.add('hidden');
