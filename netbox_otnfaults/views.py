@@ -2,7 +2,7 @@ from netbox.views import generic
 from django.shortcuts import render
 from utilities.views import register_model_view
 from .models import OtnFault, OtnFaultImpact
-from .forms import OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm, OtnFaultImportForm
+from .forms import OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm, OtnFaultImportForm, OtnFaultImpactImportForm
 from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet
 from .tables import OtnFaultTable, OtnFaultImpactTable
 from django.utils import timezone
@@ -181,6 +181,13 @@ class OtnFaultImpactListView(generic.ObjectListView):
     table = OtnFaultImpactTable
     filterset = OtnFaultImpactFilterSet
     filterset_form = OtnFaultImpactFilterForm
+
+@register_model_view(OtnFaultImpact, 'bulk_import')
+class OtnFaultImpactBulkImportView(generic.BulkImportView):
+    """故障影响业务批量导入视图"""
+    queryset = OtnFaultImpact.objects.all()
+    model_form = OtnFaultImpactImportForm
+    table = OtnFaultImpactTable
 
 @register_model_view(OtnFaultImpact)
 class OtnFaultImpactView(generic.ObjectView):

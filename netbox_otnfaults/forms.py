@@ -180,6 +180,28 @@ class OtnFaultImportForm(NetBoxModelImportForm):
         )
 
 
+
+class OtnFaultImpactImportForm(NetBoxModelImportForm):
+    otn_fault = CSVModelChoiceField(
+        queryset=OtnFault.objects.all(),
+        to_field_name='fault_number',
+        help_text='故障编号'
+    )
+    impacted_service = CSVModelChoiceField(
+        queryset=Tenant.objects.all(),
+        to_field_name='name',
+        help_text='影响业务（租户名称）'
+    )
+
+    class Meta:
+        model = OtnFaultImpact
+        fields = (
+            'otn_fault', 'impacted_service', 
+            'service_interruption_time', 'service_recovery_time', 
+            'comments', 'tags'
+        )
+
+
 class OtnFaultImpactForm(NetBoxModelForm):
     otn_fault = DynamicModelChoiceField(
         queryset=OtnFault.objects.all(),
