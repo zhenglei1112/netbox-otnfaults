@@ -6,6 +6,7 @@ urlpatterns = [
     # OTN故障相关路由
     path('faults/', views.OtnFaultListView.as_view(), name='otnfault_list'),
     path('faults/add/', views.OtnFaultEditView.as_view(), name='otnfault_add'),
+    path('faults/import/', views.OtnFaultBulkImportView.as_view(), name='otnfault_import'),
     # 批量编辑路由 - 必须手动配置
     path('faults/edit/', views.OtnFaultBulkEditView.as_view(), name='otnfault_bulk_edit'),
     path('faults/bulk-delete/', views.OtnFaultBulkDeleteView.as_view(), name='otnfault_bulk_delete'),

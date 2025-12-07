@@ -1,7 +1,7 @@
-from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm
+from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm, NetBoxModelImportForm
 from .models import OtnFault, OtnFaultImpact, FaultCategoryChoices
 from django import forms
-from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField
+from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField
 from utilities.forms.widgets import DateTimePicker
 from dcim.models import Site, Region
 from tenancy.models import Tenant
@@ -131,6 +131,53 @@ class OtnFaultForm(NetBoxModelForm):
                     )
         
         return cleaned_data
+
+
+class OtnFaultImportForm(NetBoxModelImportForm):
+    duty_officer = CSVModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        to_field_name='username',
+        required=False,
+        help_text='值守人员用户名'
+    )
+    province = CSVModelChoiceField(
+        queryset=Region.objects.all(),
+        required=False,
+        to_field_name='slug',
+        help_text='省份（Slug）'
+    )
+    line_manager = CSVModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        to_field_name='username',
+        help_text='线路主管用户名'
+    )
+    handling_unit = CSVModelChoiceField(
+        queryset=ServiceProvider.objects.all(),
+        required=False,
+        to_field_name='name',
+        help_text='处理单位名称'
+    )
+    interruption_location = CSVModelMultipleChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        to_field_name='name',
+        help_text='中断机房名称'
+    )
+
+    class Meta:
+        model = OtnFault
+        fields = (
+            'fault_number', 'duty_officer', 'province', 'interruption_location', 
+            'fault_category', 'interruption_reason', 'fault_occurrence_time', 
+            'fault_recovery_time', 'urgency', 'first_report_source', 
+            'planned', 'resource_type', 'cable_route', 'line_manager', 
+            'maintenance_mode', 'handling_unit', 'dispatch_time', 
+            'departure_time', 'arrival_time', 'repair_time', 
+            'timeout', 'timeout_reason', 'handler', 'recovery_mode', 
+            'interruption_longitude', 'interruption_latitude', 
+            'fault_details', 'comments', 'tags'
+        )
 
 
 class OtnFaultImpactForm(NetBoxModelForm):
