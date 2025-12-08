@@ -343,7 +343,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     fault_status = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.FAULT_STATUS_CHOICES),
         required=False,
-        label='故障状态'
+        label='处理状态'
     )
     timeout = forms.BooleanField(
         required=False,
@@ -498,7 +498,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     fault_status = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.FAULT_STATUS_CHOICES),
         required=False,
-        label='故障状态'
+        label='处理状态'
     )
     timeout = forms.BooleanField(
         required=False,
@@ -536,7 +536,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     )
     fault_details = forms.CharField(
         required=False,
-        label='故障及处置详情'
+        label='故障详情和处理过程'
     )
     timeout_reason = forms.CharField(
         required=False,

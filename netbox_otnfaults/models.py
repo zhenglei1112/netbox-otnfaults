@@ -23,7 +23,7 @@ class FaultCategoryChoices(ChoiceSet):
     CHOICES = [
         (CATEGORY_POWER, '电力故障', 'orange'),
         (CATEGORY_FIBER, '光缆故障', 'red'),
-        (CATEGORY_PIGTAIL, '尾纤故障', 'blue'),
+        (CATEGORY_PIGTAIL, '空调故障', 'blue'),
         (CATEGORY_DEVICE, '设备故障', 'green'),
         (CATEGORY_OTHER, '其他故障', 'gray'),
     ]
@@ -262,7 +262,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='故障处理人'
     )
     
-    # 18) 故障状态，为选择型字段，分为处理中、临时恢复、挂起、关闭
+    # 18) 处理状态，为选择型字段，分为处理中、临时恢复、挂起、关闭
     FAULT_STATUS_CHOICES = (
         ('processing', '处理中'),
         ('temporary_recovery', '临时恢复'),
@@ -275,7 +275,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         default='processing',
         blank=True,
         null=True,
-        verbose_name='故障状态'
+        verbose_name='处理状态'
     )
     
     # 19) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
@@ -392,7 +392,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         return cable_route_colors.get(self.cable_route, 'gray')
 
     def get_fault_status_color(self):
-        """获取故障状态的颜色"""
+        """获取处理状态的颜色"""
         fault_status_colors = {
             'processing': 'orange',      # 处理中 - 橙色
             'temporary_recovery': 'blue', # 临时恢复 - 蓝色

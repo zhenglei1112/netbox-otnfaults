@@ -58,7 +58,7 @@ class OtnFaultTable(NetBoxTable):
         verbose_name='光缆路由属性'
     )
     fault_status = columns.ChoiceFieldColumn(
-        verbose_name='故障状态'
+        verbose_name='处理状态'
     )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:otnfault_list'
