@@ -6,7 +6,7 @@ NetBox自定义脚本：上周故障统计报告
 2. 筛选故障发生时间在上一周内的所有故障记录
 3. 分离已恢复和未恢复的故障，单独列出未恢复故障编号
 4. 统计以下指标：故障总数量、故障总历时、平均故障历时
-5. 按多个维度分组统计：省份、故障分类、故障原因、第一报障来源、计划内、资源类型、光缆路由属性
+5. 按多个维度分组统计：省份、故障分类、故障原因、第一报障来源、资源类型、光缆路由属性
 6. 按故障涉及业务分组统计：故障数量、总历时
 7. 结果以Markdown形式输出表格
 
@@ -89,10 +89,7 @@ class WeeklyFaultReport(Script):
             'customer_support': '客户报障',
             'other': '其他',
             
-            # 计划内
-            True: '是',
-            False: '否',
-            
+
             # 资源类型
             'self_built': '自建光缆',
             'coordinated': '协调资源',
@@ -260,13 +257,7 @@ class WeeklyFaultReport(Script):
             lambda fault: fault.first_report_source
         )
     
-    def group_statistics_by_planned(self, resolved_faults):
-        """按计划内分组统计"""
-        return self.group_statistics_by_field(
-            resolved_faults,
-            lambda fault: fault.planned
-        )
-    
+
     def group_statistics_by_resource_type(self, resolved_faults):
         """按资源类型分组统计"""
         return self.group_statistics_by_field(
@@ -349,7 +340,7 @@ class WeeklyFaultReport(Script):
             'by_category': self.group_statistics_by_category(resolved_faults),
             'by_reason': self.group_statistics_by_reason(resolved_faults),
             'by_report_source': self.group_statistics_by_report_source(resolved_faults),
-            'by_planned': self.group_statistics_by_planned(resolved_faults),
+
             'by_resource_type': self.group_statistics_by_resource_type(resolved_faults),
             'by_cable_route': self.group_statistics_by_cable_route(resolved_faults),
             'by_service': self.group_statistics_by_service(resolved_faults, period_duration_hours),
@@ -458,22 +449,7 @@ class WeeklyFaultReport(Script):
                 rows
             )
         
-        # 按计划内统计
-        if stats['by_planned']:
-            rows = []
-            for planned_name, planned_stats in sorted(stats['by_planned'].items(), key=lambda x: x[1]['count'], reverse=True):
-                rows.append([
-                    planned_name,
-                    planned_stats['count'],
-                    f"{planned_stats['total_duration']:.2f}",
-                    f"{planned_stats['avg_duration']:.2f}",
-                ])
-            report += self.generate_markdown_table(
-                "按计划内统计",
-                ["计划内", "故障数量", "总历时(小时)", "平均历时(小时)"],
-                rows
-            )
-        
+
         # 按资源类型统计
         if stats['by_resource_type']:
             rows = []
@@ -647,15 +623,7 @@ class WeeklyFaultReport(Script):
                                   f"平均{source_stats['avg_duration']:.2f}小时")
             report_lines.append("")
         
-        # 按计划内统计
-        if stats['by_planned']:
-            report_lines.append("按计划内统计：")
-            for planned_name, planned_stats in sorted(stats['by_planned'].items(), key=lambda x: x[1]['count'], reverse=True):
-                report_lines.append(f"  {planned_name}: {planned_stats['count']}次, "
-                                  f"总历时{planned_stats['total_duration']:.2f}小时, "
-                                  f"平均{planned_stats['avg_duration']:.2f}小时")
-            report_lines.append("")
-        
+
         # 按资源类型统计
         if stats['by_resource_type']:
             report_lines.append("按资源类型统计：")

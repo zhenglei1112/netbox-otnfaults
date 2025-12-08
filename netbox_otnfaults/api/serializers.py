@@ -80,7 +80,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration',
             'fault_category', 'interruption_reason', 'fault_details',
             'interruption_longitude', 'interruption_latitude',
-            'province', 'urgency', 'first_report_source', 'planned',
+            'province', 'urgency', 'first_report_source',
             'line_manager', 'resource_type', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time',
             'arrival_time', 'repair_time', 'repair_duration', 'timeout', 'timeout_reason',

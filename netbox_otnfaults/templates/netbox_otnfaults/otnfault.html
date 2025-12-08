@@ -117,16 +117,7 @@
               <th scope="row">第一报障来源</th>
               <td>{{ object.get_first_report_source_display|default:"—" }}</td>
             </tr>
-            <tr>
-              <th scope="row">计划内</th>
-              <td>
-                {% if object.planned %}
-                  <span class="text-success"><i class="mdi mdi-check-bold"></i></span>
-                {% else %}
-                  <span class="text-danger"><i class="mdi mdi-close-thick"></i></span>
-                {% endif %}
-              </td>
-            </tr>
+
             <tr>
               <th scope="row">资源类型</th>
               <td>
@@ -168,7 +159,7 @@
               </td>
             </tr>
             <tr>
-              <th scope="row">故障详细情况</th>
+              <th scope="row">故障及处置详情</th>
               <td>{{ object.fault_details|default:"—" }}</td>
             </tr>
           </table>
@@ -188,7 +179,7 @@
     <div class="col col-md-6">
       <!-- 处理信息组 -->
       <div class="card">
-        <h5 class="card-header">处理信息</h5>
+        <h5 class="card-header">光缆中断处理信息</h5>
           <table class="table table-hover attr-table">
             <tr>
               <th scope="row">维护方式</th>

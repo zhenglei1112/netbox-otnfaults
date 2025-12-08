@@ -42,7 +42,7 @@ class OtnFaultForm(NetBoxModelForm):
             'urgency', 'province', 'interruption_location',
             'interruption_longitude', 'interruption_latitude', 'fault_category',
             'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
-            'first_report_source', 'planned', 'resource_type',
+            'first_report_source', 'resource_type',
             'cable_route', 'line_manager', 'duty_officer', 'fault_details',
             'fault_status',
         )),
@@ -63,7 +63,7 @@ class OtnFaultForm(NetBoxModelForm):
             'urgency', 'province', 'interruption_location',
             'interruption_longitude', 'interruption_latitude', 'fault_category',
             'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
-            'first_report_source', 'planned', 'resource_type',
+            'first_report_source', 'resource_type',
             'cable_route', 'line_manager', 'duty_officer', 'fault_details',
             'fault_status',
             # 处理信息组字段
@@ -173,7 +173,7 @@ class OtnFaultImportForm(NetBoxModelImportForm):
             'fault_number', 'duty_officer', 'province', 'interruption_location', 
             'fault_category', 'interruption_reason', 'fault_occurrence_time', 
             'fault_recovery_time', 'urgency', 'first_report_source', 
-            'planned', 'resource_type', 'cable_route', 'line_manager', 
+            'resource_type', 'cable_route', 'line_manager', 
             'maintenance_mode', 'handling_unit', 'dispatch_time', 
             'departure_time', 'arrival_time', 'repair_time', 
             'timeout', 'timeout_reason', 'handler', 'recovery_mode', 
@@ -297,10 +297,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='第一报障来源'
     )
-    planned = forms.BooleanField(
-        required=False,
-        label='计划内'
-    )
+
     maintenance_mode = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.MAINTENANCE_MODE_CHOICES),
         required=False,
@@ -447,10 +444,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='第一报障来源'
     )
-    planned = forms.BooleanField(
-        required=False,
-        label='计划内'
-    )
+
     maintenance_mode = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.MAINTENANCE_MODE_CHOICES),
         required=False,
@@ -512,7 +506,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     )
     fault_details = forms.CharField(
         required=False,
-        label='故障详细情况'
+        label='故障及处置详情'
     )
     timeout_reason = forms.CharField(
         required=False,

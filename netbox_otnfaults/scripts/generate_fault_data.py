@@ -369,7 +369,7 @@ class GenerateFaultData(Script):
             # 管理信息
             urgency=random.choice(self.urgency_levels),
             first_report_source=random.choice(self.report_sources),
-            planned=random.choice([True, False]),
+
             line_manager=random.choice(self.users) if self.users else None,
             maintenance_mode=random.choice(self.maintenance_modes),
             handling_unit=random.choice(self.service_providers) if self.service_providers else None,

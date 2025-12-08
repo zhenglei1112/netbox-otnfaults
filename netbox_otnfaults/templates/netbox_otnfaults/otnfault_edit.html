@@ -2,58 +2,58 @@
 {% load form_helpers %}
 
 {% block form %}
-    <div class="field-group my-5">
-        <div class="row mb-3">
-            <h2 class="col-9 offset-3 mb-0">故障信息</h2>
-        </div>
-        <div class="row">
-            {% if form.fault_number_display %}
-                {% render_field form.fault_number_display %}
-            {% endif %}
-            {% render_field form.fault_status %}
-            {% render_field form.urgency %}
-            {% render_field form.province %}
-            {% render_field form.interruption_location %}
-            {% render_field form.interruption_longitude %}
-            {% render_field form.interruption_latitude %}
-            {% render_field form.fault_category %}
-            {% render_field form.interruption_reason %}
-            {% render_field form.fault_occurrence_time %}
-            {% render_field form.fault_recovery_time %}
-            {% render_field form.first_report_source %}
-            {% render_field form.planned %}
-            {% render_field form.resource_type %}
-            {% render_field form.cable_route %}
-            {% render_field form.line_manager %}
-            {% render_field form.duty_officer %}
-            {% render_field form.fault_details %}
-        </div>
+<div class="field-group my-5">
+    <div class="row mb-3">
+        <h2 class="col-9 offset-3 mb-0">故障信息</h2>
     </div>
+    <div class="row">
+        {% if form.fault_number_display %}
+        {% render_field form.fault_number_display %}
+        {% endif %}
+        {% render_field form.fault_status %}
+        {% render_field form.urgency %}
+        {% render_field form.province %}
+        {% render_field form.interruption_location %}
+        {% render_field form.interruption_longitude %}
+        {% render_field form.interruption_latitude %}
+        {% render_field form.fault_category %}
+        {% render_field form.interruption_reason %}
+        {% render_field form.fault_occurrence_time %}
+        {% render_field form.fault_recovery_time %}
+        {% render_field form.first_report_source %}
 
-    <div class="field-group my-5">
-        <div class="row mb-3">
-            <h2 class="col-9 offset-3 mb-0">处理信息</h2>
-        </div>
-        <div class="row">
-            {% render_field form.maintenance_mode %}
-            {% render_field form.handling_unit %}
-            {% render_field form.dispatch_time %}
-            {% render_field form.departure_time %}
-            {% render_field form.arrival_time %}
-            {% render_field form.timeout %}
-            {% render_field form.timeout_reason %}
-            {% render_field form.handler %}
-            {% render_field form.recovery_mode %}
-        </div>
+        {% render_field form.resource_type %}
+        {% render_field form.cable_route %}
+        {% render_field form.line_manager %}
+        {% render_field form.duty_officer %}
+        {% render_field form.fault_details %}
     </div>
+</div>
 
-    <div class="field-group my-5">
-        <div class="row mb-3">
-            <h2 class="col-9 offset-3 mb-0">其他信息</h2>
-        </div>
-        <div class="row">
-            {% render_field form.comments %}
-            {% render_field form.tags %}
-        </div>
+<div class="field-group my-5">
+    <div class="row mb-3">
+        <h2 class="col-9 offset-3 mb-0">光缆中断处理信息</h2>
     </div>
+    <div class="row">
+        {% render_field form.maintenance_mode %}
+        {% render_field form.handling_unit %}
+        {% render_field form.dispatch_time %}
+        {% render_field form.departure_time %}
+        {% render_field form.arrival_time %}
+        {% render_field form.timeout %}
+        {% render_field form.timeout_reason %}
+        {% render_field form.handler %}
+        {% render_field form.recovery_mode %}
+    </div>
+</div>
+
+<div class="field-group my-5">
+    <div class="row mb-3">
+        <h2 class="col-9 offset-3 mb-0">其他信息</h2>
+    </div>
+    <div class="row">
+        {% render_field form.comments %}
+        {% render_field form.tags %}
+    </div>
+</div>
 {% endblock %}

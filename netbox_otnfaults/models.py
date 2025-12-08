@@ -140,12 +140,6 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='第一报障来源'
     )
     
-    # 4) 计划内，布尔类型，默认值为否
-    planned = models.BooleanField(
-        default=False,
-        verbose_name='计划内'
-    )
-    
     # 5) 线路主管，为选择性字段，选择系统用户
     line_manager = models.ForeignKey(
         to=settings.AUTH_USER_MODEL,

@@ -40,9 +40,7 @@ class OtnFaultTable(NetBoxTable):
     first_report_source = columns.ChoiceFieldColumn(
         verbose_name='第一报障来源'
     )
-    planned = columns.BooleanColumn(
-        verbose_name='计划内'
-    )
+
     maintenance_mode = columns.ChoiceFieldColumn(
         verbose_name='维护方式'
     )
@@ -67,7 +65,7 @@ class OtnFaultTable(NetBoxTable):
         fields = (
             'pk', 'fault_number', 'duty_officer', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration',
-            'fault_category', 'interruption_reason', 'urgency', 'first_report_source', 'planned',
+            'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
             'province', 'line_manager', 'resource_type', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'handler', 'recovery_mode', 'handling_unit',

@@ -22,6 +22,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='otnfault',
             name='fault_details',
-            field=models.TextField(blank=True, null=True, verbose_name='故障详细情况'),
+            field=models.TextField(blank=True, null=True, verbose_name='故障及处置详情'),
         ),
     ]
