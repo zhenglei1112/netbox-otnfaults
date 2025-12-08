@@ -13,9 +13,14 @@ class OtnFaultForm(NetBoxModelForm):
         queryset=get_user_model().objects.all(),
         label='值守人员'
     )
+    interruption_location_a = DynamicModelChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        label='故障位置A端站点'
+    )
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
-        label='故障位置AZ端机房'
+        label='故障位置Z端站点'
     )
     province = DynamicModelChoiceField(
         queryset=Region.objects.all(),
@@ -47,7 +52,7 @@ class OtnFaultForm(NetBoxModelForm):
     
     fieldsets = (
         ('故障信息', (
-            'urgency', 'province', 'interruption_location',
+            'urgency', 'province', 'interruption_location_a', 'interruption_location',
             'interruption_longitude', 'interruption_latitude', 'fault_category',
             'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
             'first_report_source', 'resource_type',
@@ -68,7 +73,7 @@ class OtnFaultForm(NetBoxModelForm):
         model = OtnFault
         fields = (
             # 故障信息组字段
-            'urgency', 'province', 'interruption_location',
+            'urgency', 'province', 'interruption_location_a', 'interruption_location',
             'interruption_longitude', 'interruption_latitude', 'fault_category',
             'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
             'first_report_source', 'resource_type',
@@ -174,6 +179,12 @@ class OtnFaultImportForm(NetBoxModelImportForm):
         to_field_name='name',
         help_text='代维合同名称'
     )
+    interruption_location_a = CSVModelChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        to_field_name='name',
+        help_text='故障位置A端站点名称'
+    )
     interruption_location = CSVModelMultipleChoiceField(
         queryset=Site.objects.all(),
         required=False,
@@ -184,7 +195,7 @@ class OtnFaultImportForm(NetBoxModelImportForm):
     class Meta:
         model = OtnFault
         fields = (
-            'fault_number', 'duty_officer', 'province', 'interruption_location', 
+            'fault_number', 'duty_officer', 'province', 'interruption_location_a', 'interruption_location', 
             'fault_category', 'interruption_reason', 'fault_occurrence_time', 
             'fault_recovery_time', 'urgency', 'first_report_source', 
             'resource_type', 'cable_route', 'line_manager', 
@@ -299,6 +310,11 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
             'service_provider_id': '$handling_unit',
         }
     )
+    interruption_location_a = DynamicModelChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        label='故障位置A端站点'
+    )
     fault_category = forms.ChoiceField(
         choices=add_blank_choice(FaultCategoryChoices),
         required=False,
@@ -370,7 +386,8 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     nullable_fields = (
         'province', 'line_manager', 'handling_unit', 'fault_category',
         'interruption_reason', 'maintenance_mode', 'resource_type',
-        'cable_break_location', 'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments'
+        'cable_break_location', 'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments',
+        'interruption_location_a'
     )
 
     # fieldsets = (
@@ -431,10 +448,15 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='值守人员'
     )
+    interruption_location_a = DynamicModelChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        label='故障位置A端站点'
+    )
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
         required=False,
-        label='故障位置AZ端机房'
+        label='故障位置Z端站点'
     )
     province = DynamicModelChoiceField(
         queryset=Region.objects.all(),

@@ -58,11 +58,21 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">故障位置AZ端机房</th>
+          <th scope="row">故障位置A端站点</th>
+          <td>
+            {% if object.interruption_location_a %}
+            <a href="{{ object.interruption_location_a.get_absolute_url }}">{{ object.interruption_location_a }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">故障位置Z端站点</th>
           <td>
             {% if object.interruption_location.all %}
             {% for site in object.interruption_location.all %}
-            <a href="{{ site.get_absolute_url }}">{{ site }}</a>{% if not forloop.last %} - {% endif %}
+            <a href="{{ site.get_absolute_url }}">{{ site }}</a>{% if not forloop.last %} / {% endif %}
             {% endfor %}
             {% else %}
             —

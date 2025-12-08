@@ -16,9 +16,13 @@ class OtnFaultTable(NetBoxTable):
         linkify=True,
         verbose_name='代维合同'
     )
+    interruption_location_a = tables.Column(
+        linkify=True,
+        verbose_name='故障位置A端站点'
+    )
     interruption_location = columns.ManyToManyColumn(
         linkify_item=True,
-        verbose_name='故障位置AZ端机房'
+        verbose_name='故障位置Z端站点'
     )
     fault_occurrence_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
@@ -70,7 +74,7 @@ class OtnFaultTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = OtnFault
         fields = (
-            'pk', 'fault_number', 'duty_officer', 'interruption_location',
+            'pk', 'fault_number', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration',
             'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
             'province', 'line_manager', 'resource_type', 'cable_route',

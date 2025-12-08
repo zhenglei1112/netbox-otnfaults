@@ -42,10 +42,18 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         related_name='otn_faults',
         verbose_name='值守人员'
     )
+    interruption_location_a = models.ForeignKey(
+        to=Site,
+        on_delete=models.PROTECT,
+        related_name='otn_faults_a',
+        verbose_name='故障位置A端站点',
+        blank=True,
+        null=True
+    )
     interruption_location = models.ManyToManyField(
         to=Site,
         related_name='otn_faults',
-        verbose_name='故障位置AZ端机房'
+        verbose_name='故障位置Z端站点'
     )
     fault_occurrence_time = models.DateTimeField(
         verbose_name='故障中断时间'

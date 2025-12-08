@@ -6,7 +6,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
     class Meta:
         model = OtnFault
         fields = (
-            'id', 'fault_number', 'duty_officer', 'interruption_location',
+            'id', 'fault_number', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_category',
             'interruption_reason', 'fault_details', 'interruption_longitude',
             'interruption_latitude', 'province', 'urgency', 'first_report_source',
