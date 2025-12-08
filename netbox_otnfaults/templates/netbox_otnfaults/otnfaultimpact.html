@@ -28,7 +28,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row">业务中断时间</th>
+                        <th scope="row">业务故障时间</th>
                         <td>{{ object.service_interruption_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
                     </tr>
                     <tr>
@@ -36,7 +36,7 @@
                         <td>{{ object.service_recovery_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
                     </tr>
                     <tr>
-                        <th scope="row">中断历时</th>
+                        <th scope="row">故障历时</th>
                         <td>{{ object.service_duration|default:"—" }}</td>
                     </tr>
                 </table>

@@ -96,7 +96,7 @@ class GenerateFaultData(Script):
             'other',    # 其他故障
         ]
         
-        # 中断原因选项
+        # 故障原因选项
         self.interruption_reasons = [
             'road_construction',      # 道路施工
             'sabotage',               # 人为破坏
@@ -115,7 +115,7 @@ class GenerateFaultData(Script):
         self.report_sources = [
             'national_backbone',  # 国干网网管
             'future_network',     # 未来网络网管
-            'customer_support',   # 客户保障
+            'customer_support',   # 客户报障
             'other',              # 其他
         ]
         
@@ -174,7 +174,7 @@ class GenerateFaultData(Script):
         # 读取站点
         self.sites = list(Site.objects.all())
         if not self.sites:
-            self.log_warning("系统中没有站点数据，故障的中断位置将为空")
+            self.log_warning("系统中没有站点数据，故障的故障位置将为空")
         
         # 读取省份（顶级区域）
         self.provinces = list(Region.objects.filter(parent__isnull=True))
@@ -268,13 +268,13 @@ class GenerateFaultData(Script):
     def generate_fault_details(self):
         """生成故障详细情况文本"""
         templates = [
-            "光缆在{}附近被施工挖断，导致{}方向业务中断。",
+            "光缆在{}附近被施工挖断，导致{}方向业务故障。",
             "设备{}端口故障，影响{}业务传输。",
-            "{}地区电力故障，导致设备断电，业务中断。",
+            "{}地区电力故障，导致设备断电，业务故障。",
             "光缆在{}处被车辆挂断，需要紧急抢修。",
             "{}设备软件故障，需要重启恢复。",
-            "尾纤在{}机房被误拔，导致业务中断。",
-            "{}地区自然灾害导致光缆中断。",
+            "尾纤在{}机房被误拔，导致业务故障。",
+            "{}地区自然灾害导致光缆故障。",
         ]
         
         locations = ["高速公路旁", "市政施工区域", "农田", "山区", "城区", "工业园区"]
@@ -285,10 +285,10 @@ class GenerateFaultData(Script):
     
     def generate_time_sequence(self, fault_occurrence_time):
         """根据故障中断时间生成时间序列"""
-        # 中断历时：1分钟到50小时之间随机
+        # 故障历时：1分钟到50小时之间随机
         duration_minutes = random.randint(1, 50 * 60)  # 转换为分钟
         
-        # 故障恢复时间 = 故障中断时间 + 中断历时
+        # 故障恢复时间 = 故障中断时间 + 故障历时
         fault_recovery_time = fault_occurrence_time + datetime.timedelta(minutes=duration_minutes)
         
         # 处理派发时间：在故障中断时间后的0-30分钟内随机
@@ -340,7 +340,7 @@ class GenerateFaultData(Script):
         import uuid
         fault_number = f"FTEST{uuid.uuid4().hex[:12].upper()}"
         
-        # 随机选择中断位置（站点） - 每个故障关联1-3个站点
+        # 随机选择故障位置（站点） - 每个故障关联1-3个站点
         selected_sites = []
         if self.sites:
             # 随机选择1-3个站点
@@ -403,7 +403,7 @@ class GenerateFaultData(Script):
         impact_count = random.randint(1, 5)
         
         for i in range(impact_count):
-            # 业务中断时间略晚于故障中断时间（0-5分钟）
+            # 业务故障时间略晚于故障中断时间（0-5分钟）
             service_interruption_delay = random.randint(0, 5)
             service_interruption_time = fault.fault_occurrence_time + datetime.timedelta(
                 minutes=service_interruption_delay
@@ -432,7 +432,7 @@ class GenerateFaultData(Script):
         if not fault_sites_mapping:
             return
         
-        self.log_info("正在设置故障中断位置关系...")
+        self.log_info("正在设置故障位置关系...")
         
         for fault_number, sites in fault_sites_mapping.items():
             try:
@@ -446,7 +446,7 @@ class GenerateFaultData(Script):
             except Exception as e:
                 self.log_warning(f"设置故障 {fault_number} 的站点关系时出错：{str(e)}")
         
-        self.log_success(f"已为 {len(fault_sites_mapping)} 条故障记录设置中断位置关系")
+        self.log_success(f"已为 {len(fault_sites_mapping)} 条故障记录设置故障位置关系")
     
     def clear_existing_data(self):
         """清除现有的故障和业务影响记录"""
@@ -515,13 +515,13 @@ class GenerateFaultData(Script):
             if fault_sites_mapping:
                 self.set_fault_sites_relationships(fault_sites_mapping)
             else:
-                self.log_warning("系统中没有站点数据，故障的中断位置字段将为空")
+                self.log_warning("系统中没有站点数据，故障的故障位置字段将为空")
         else:
             self.log_info(f"模拟模式：将创建 {len(faults)} 条故障记录")
             if fault_sites_mapping:
-                self.log_info(f"模拟模式：将为 {len(fault_sites_mapping)} 条故障记录设置中断位置关系")
+                self.log_info(f"模拟模式：将为 {len(fault_sites_mapping)} 条故障记录设置故障位置关系")
             else:
-                self.log_warning("模拟模式：系统中没有站点数据，故障的中断位置字段将为空")
+                self.log_warning("模拟模式：系统中没有站点数据，故障的故障位置字段将为空")
         
         # 批量保存业务影响记录
         self.log_info("正在保存业务影响记录到数据库...")
@@ -541,7 +541,7 @@ class GenerateFaultData(Script):
             f"• 故障记录：{len(faults)} 条\n"
             f"• 业务影响记录：{total_impacts} 条\n"
             f"• 平均每条故障影响业务：{avg_impacts_per_fault:.1f} 条\n"
-            f"• 设置中断位置的故障：{total_faults_with_sites} 条\n"
+            f"• 设置故障位置的故障：{total_faults_with_sites} 条\n"
             f"• 时间范围：{data['start_date']} 至 {data['end_date']}\n"
         )
         

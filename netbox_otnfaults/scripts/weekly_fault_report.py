@@ -6,7 +6,7 @@ NetBox自定义脚本：上周故障统计报告
 2. 筛选故障发生时间在上一周内的所有故障记录
 3. 分离已恢复和未恢复的故障，单独列出未恢复故障编号
 4. 统计以下指标：故障总数量、故障总历时、平均故障历时
-5. 按多个维度分组统计：省份、故障分类、中断原因、第一报障来源、计划内、资源类型、光缆路由属性
+5. 按多个维度分组统计：省份、故障分类、故障原因、第一报障来源、计划内、资源类型、光缆路由属性
 6. 按故障涉及业务分组统计：故障数量、总历时
 7. 结果以Markdown形式输出表格
 
@@ -73,7 +73,7 @@ class WeeklyFaultReport(Script):
             'device': '设备故障',
             'other': '其他故障',
             
-            # 中断原因
+            # 故障原因
             'road_construction': '道路施工',
             'sabotage': '人为破坏',
             'line_rectification': '线路整改',
@@ -86,7 +86,7 @@ class WeeklyFaultReport(Script):
             # 第一报障来源
             'national_backbone': '国干网网管',
             'future_network': '未来网络网管',
-            'customer_support': '客户保障',
+            'customer_support': '客户报障',
             'other': '其他',
             
             # 计划内
@@ -247,7 +247,7 @@ class WeeklyFaultReport(Script):
         )
     
     def group_statistics_by_reason(self, resolved_faults):
-        """按中断原因分组统计"""
+        """按故障原因分组统计"""
         return self.group_statistics_by_field(
             resolved_faults,
             lambda fault: fault.interruption_reason
@@ -301,8 +301,8 @@ class WeeklyFaultReport(Script):
                         'total_duration': Decimal('0.00'),
                     }
                 
-                # 计算业务中断时长
-                # 优先使用业务恢复时间 - 业务中断时间
+                # 计算业务故障时长
+                # 优先使用业务恢复时间 - 业务故障时间
                 if impact.service_recovery_time and impact.service_interruption_time:
                     service_duration_seconds = (impact.service_recovery_time - impact.service_interruption_time).total_seconds()
                     service_duration = Decimal(str(round(service_duration_seconds / 3600, 2)))
@@ -318,7 +318,7 @@ class WeeklyFaultReport(Script):
         if period_duration_hours:
             for service_name, stats in service_groups.items():
                 total_duration = stats['total_duration']
-                # SLA = 1 - (中断时长 / 总时长)
+                # SLA = 1 - (故障时长 / 总时长)
                 if period_duration_hours > 0:
                     sla = (Decimal('1') - (total_duration / Decimal(str(period_duration_hours)))) * 100
                     # 确保 SLA 不小于 0
@@ -426,7 +426,7 @@ class WeeklyFaultReport(Script):
                 rows
             )
         
-        # 按中断原因统计
+        # 按故障原因统计
         if stats['by_reason']:
             rows = []
             for reason_name, reason_stats in sorted(stats['by_reason'].items(), key=lambda x: x[1]['count'], reverse=True):
@@ -437,8 +437,8 @@ class WeeklyFaultReport(Script):
                     f"{reason_stats['avg_duration']:.2f}",
                 ])
             report += self.generate_markdown_table(
-                "按中断原因统计",
-                ["中断原因", "故障数量", "总历时(小时)", "平均历时(小时)"],
+                "按故障原因统计",
+                ["故障原因", "故障数量", "总历时(小时)", "平均历时(小时)"],
                 rows
             )
         
@@ -629,9 +629,9 @@ class WeeklyFaultReport(Script):
                                   f"平均{category_stats['avg_duration']:.2f}小时")
             report_lines.append("")
         
-        # 按中断原因统计
+        # 按故障原因统计
         if stats['by_reason']:
-            report_lines.append("按中断原因统计：")
+            report_lines.append("按故障原因统计：")
             for reason_name, reason_stats in sorted(stats['by_reason'].items(), key=lambda x: x[1]['count'], reverse=True):
                 report_lines.append(f"  {reason_name}: {reason_stats['count']}次, "
                                   f"总历时{reason_stats['total_duration']:.2f}小时, "

@@ -7,6 +7,10 @@
             <h2 class="col-9 offset-3 mb-0">故障信息</h2>
         </div>
         <div class="row">
+            {% if form.fault_number_display %}
+                {% render_field form.fault_number_display %}
+            {% endif %}
+            {% render_field form.fault_status %}
             {% render_field form.urgency %}
             {% render_field form.province %}
             {% render_field form.interruption_location %}

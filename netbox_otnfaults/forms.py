@@ -15,7 +15,7 @@ class OtnFaultForm(NetBoxModelForm):
     )
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
-        label='中断位置AZ端机房'
+        label='故障位置AZ端机房'
     )
     province = DynamicModelChoiceField(
         queryset=Region.objects.all(),
@@ -44,6 +44,7 @@ class OtnFaultForm(NetBoxModelForm):
             'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
             'first_report_source', 'planned', 'resource_type',
             'cable_route', 'line_manager', 'duty_officer', 'fault_details',
+            'fault_status',
         )),
         ('处理信息', (
             'maintenance_mode', 'handling_unit', 'dispatch_time',
@@ -64,6 +65,7 @@ class OtnFaultForm(NetBoxModelForm):
             'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
             'first_report_source', 'planned', 'resource_type',
             'cable_route', 'line_manager', 'duty_officer', 'fault_details',
+            'fault_status',
             # 处理信息组字段
             'maintenance_mode', 'handling_unit', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
@@ -162,7 +164,7 @@ class OtnFaultImportForm(NetBoxModelImportForm):
         queryset=Site.objects.all(),
         required=False,
         to_field_name='name',
-        help_text='中断机房名称'
+        help_text='故障机房名称'
     )
 
     class Meta:
@@ -283,7 +285,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     interruption_reason = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.INTERRUPTION_REASON_CHOICES),
         required=False,
-        label='中断原因'
+        label='故障原因'
     )
     urgency = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.URGENCY_CHOICES),
@@ -319,6 +321,11 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='恢复方式'
     )
+    fault_status = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.FAULT_STATUS_CHOICES),
+        required=False,
+        label='故障状态'
+    )
     timeout = forms.BooleanField(
         required=False,
         label='规定时间内完成修复'
@@ -339,7 +346,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     nullable_fields = (
         'province', 'line_manager', 'handling_unit', 'fault_category',
         'interruption_reason', 'maintenance_mode', 'resource_type',
-        'recovery_mode', 'handler', 'timeout_reason', 'comments'
+        'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments'
     )
 
     # fieldsets = (
@@ -370,7 +377,7 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
     )
     service_interruption_time = forms.DateTimeField(
         required=False,
-        label='业务中断时间',
+        label='业务故障时间',
         widget=DateTimePicker()
     )
     service_recovery_time = forms.DateTimeField(
@@ -403,7 +410,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
         required=False,
-        label='中断位置AZ端机房'
+        label='故障位置AZ端机房'
     )
     province = DynamicModelChoiceField(
         queryset=Region.objects.all(),
@@ -428,7 +435,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     interruption_reason = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.INTERRUPTION_REASON_CHOICES),
         required=False,
-        label='中断原因'
+        label='故障原因'
     )
     urgency = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.URGENCY_CHOICES),
@@ -463,6 +470,11 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         choices=add_blank_choice(OtnFault.RECOVERY_MODE_CHOICES),
         required=False,
         label='恢复方式'
+    )
+    fault_status = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.FAULT_STATUS_CHOICES),
+        required=False,
+        label='故障状态'
     )
     timeout = forms.BooleanField(
         required=False,
@@ -512,13 +524,13 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     )
     interruption_longitude = forms.DecimalField(
         required=False,
-        label='中断位置经度',
+        label='故障位置经度',
         max_digits=9,
         decimal_places=6
     )
     interruption_latitude = forms.DecimalField(
         required=False,
-        label='中断位置纬度',
+        label='故障位置纬度',
         max_digits=8,
         decimal_places=6
     )

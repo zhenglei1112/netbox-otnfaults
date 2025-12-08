@@ -84,13 +84,14 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'line_manager', 'resource_type', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time',
             'arrival_time', 'repair_time', 'repair_duration', 'timeout', 'timeout_reason',
-            'handler', 'recovery_mode', 'handling_unit',
+            'handler', 'recovery_mode', 'handling_unit', 'fault_status',
             'tags', 'comments', 'custom_fields', 'created', 'last_updated',
             'journal_entries',
         )
         brief_fields = (
             'id', 'url', 'display', 'fault_number', 'duty_officer', 'fault_occurrence_time',
             'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
+            'fault_status',
         )
         read_only_fields = ('fault_number', 'fault_duration', 'repair_duration', 'journal_entries')
 

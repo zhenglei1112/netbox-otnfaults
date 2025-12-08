@@ -14,7 +14,7 @@ class OtnFaultTable(NetBoxTable):
     )
     interruption_location = columns.ManyToManyColumn(
         linkify_item=True,
-        verbose_name='中断位置AZ端机房'
+        verbose_name='故障位置AZ端机房'
     )
     fault_occurrence_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
@@ -28,10 +28,10 @@ class OtnFaultTable(NetBoxTable):
         verbose_name='故障分类'
     )
     interruption_reason = columns.ChoiceFieldColumn(
-        verbose_name='中断原因'
+        verbose_name='故障原因'
     )
     fault_duration = tables.Column(
-        verbose_name='中断历时',
+        verbose_name='故障历时',
         orderable=False
     )
     urgency = columns.ChoiceFieldColumn(
@@ -55,6 +55,9 @@ class OtnFaultTable(NetBoxTable):
     cable_route = columns.ChoiceFieldColumn(
         verbose_name='光缆路由属性'
     )
+    fault_status = columns.ChoiceFieldColumn(
+        verbose_name='故障状态'
+    )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:otnfault_list'
     )
@@ -68,11 +71,11 @@ class OtnFaultTable(NetBoxTable):
             'province', 'line_manager', 'resource_type', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'handler', 'recovery_mode', 'handling_unit',
-            'comments', 'tags', 'actions',
+            'fault_status', 'comments', 'tags', 'actions',
         )
         default_columns = (
             'fault_number', 'duty_officer', 'interruption_location',
-            'fault_occurrence_time', 'fault_duration', 'fault_category', 'urgency', 'tags',
+            'fault_occurrence_time', 'fault_duration', 'fault_category', 'urgency', 'fault_status', 'tags',
         )
 
 class OtnFaultImpactTable(NetBoxTable):
@@ -86,14 +89,14 @@ class OtnFaultImpactTable(NetBoxTable):
     )
     service_interruption_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
-        verbose_name='业务中断时间'
+        verbose_name='业务故障时间'
     )
     service_recovery_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
         verbose_name='业务恢复时间'
     )
     service_duration = tables.Column(
-        verbose_name='中断历时',
+        verbose_name='故障历时',
         orderable=False
     )
     tags = columns.TagColumn(

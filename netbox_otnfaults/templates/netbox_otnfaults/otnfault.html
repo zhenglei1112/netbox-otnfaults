@@ -27,6 +27,16 @@
               <td>{{ object.fault_number|default:"—" }}</td>
             </tr>
             <tr>
+              <th scope="row">故障状态</th>
+              <td>
+                {% if object.fault_status %}
+                  {% badge object.get_fault_status_display bg_color=object.get_fault_status_color %}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
               <th scope="row">紧急程度</th>
               <td>
                 {% if object.urgency %}
@@ -47,7 +57,7 @@
               </td>
             </tr>
             <tr>
-              <th scope="row">中断位置AZ端机房</th>
+              <th scope="row">故障位置AZ端机房</th>
               <td>
                 {% if object.interruption_location.all %}
                   {% for site in object.interruption_location.all %}
@@ -88,7 +98,7 @@
               </td>
             </tr>
             <tr>
-              <th scope="row">中断原因</th>
+              <th scope="row">故障原因</th>
               <td>{{ object.get_interruption_reason_display|default:"—" }}</td>
             </tr>
             <tr>
@@ -100,7 +110,7 @@
               <td>{{ object.fault_recovery_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
             </tr>
             <tr>
-              <th scope="row">中断历时</th>
+              <th scope="row">故障历时</th>
               <td>{{ object.fault_duration|default:"—" }}</td>
             </tr>
             <tr>

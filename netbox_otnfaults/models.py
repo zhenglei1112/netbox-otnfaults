@@ -45,7 +45,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     interruption_location = models.ManyToManyField(
         to=Site,
         related_name='otn_faults',
-        verbose_name='中断位置AZ端机房'
+        verbose_name='故障位置AZ端机房'
     )
     fault_occurrence_time = models.DateTimeField(
         verbose_name='故障中断时间'
@@ -77,7 +77,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     interruption_reason = models.CharField(
         max_length=30,
         choices=INTERRUPTION_REASON_CHOICES,
-        verbose_name='中断原因',
+        verbose_name='故障原因',
         blank=True,
         null=True
     )
@@ -91,7 +91,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         decimal_places=6,
         blank=True,
         null=True,
-        verbose_name='中断位置经度',
+        verbose_name='故障位置经度',
         help_text='GPS坐标（十进制格式, xx.yyyyyy）'
     )
     interruption_latitude = models.DecimalField(
@@ -99,7 +99,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         decimal_places=6,
         blank=True,
         null=True,
-        verbose_name='中断位置纬度',
+        verbose_name='故障位置纬度',
         help_text='GPS坐标（十进制格式, xx.yyyyyy）'
     )
     
@@ -131,7 +131,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     FIRST_REPORT_SOURCE_CHOICES = (
         ('national_backbone', '国干网网管'),
         ('future_network', '未来网络网管'),
-        ('customer_support', '客户保障'),
+        ('customer_support', '客户报障'),
         ('other', '其他'),
     )
     first_report_source = models.CharField(
@@ -258,7 +258,23 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='故障处理人'
     )
     
-    # 18) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
+    # 18) 故障状态，为选择型字段，分为处理中、临时恢复、挂起、关闭
+    FAULT_STATUS_CHOICES = (
+        ('processing', '处理中'),
+        ('temporary_recovery', '临时恢复'),
+        ('suspended', '挂起'),
+        ('closed', '关闭'),
+    )
+    fault_status = models.CharField(
+        max_length=20,
+        choices=FAULT_STATUS_CHOICES,
+        default='processing',
+        blank=True,
+        null=True,
+        verbose_name='故障状态'
+    )
+    
+    # 19) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
     RECOVERY_MODE_CHOICES = (
         ('fusion_splicing', '熔接恢复'),
         ('tail_fiber_replacement', '更换尾纤恢复'),
@@ -371,6 +387,16 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         }
         return cable_route_colors.get(self.cable_route, 'gray')
 
+    def get_fault_status_color(self):
+        """获取故障状态的颜色"""
+        fault_status_colors = {
+            'processing': 'orange',      # 处理中 - 橙色
+            'temporary_recovery': 'blue', # 临时恢复 - 蓝色
+            'suspended': 'yellow',       # 挂起 - 黄色
+            'closed': 'green',           # 关闭 - 绿色
+        }
+        return fault_status_colors.get(self.fault_status, 'gray')
+
     def clean(self):
         super().clean()
         
@@ -433,7 +459,7 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='影响业务'
     )
     service_interruption_time = models.DateTimeField(
-        verbose_name='业务中断时间'
+        verbose_name='业务故障时间'
     )
     service_recovery_time = models.DateTimeField(
         null=True,

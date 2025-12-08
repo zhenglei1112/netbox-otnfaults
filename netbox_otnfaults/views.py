@@ -20,10 +20,10 @@ class OtnFaultListView(generic.ObjectListView):
     filterset_form = OtnFaultFilterForm
     template_name = 'netbox_otnfaults/otnfault_list.html'
 
-@register_model_view(OtnFault, 'bulk_import')
 class OtnFaultBulkImportView(generic.BulkImportView):
     """OTN故障批量导入视图"""
     queryset = OtnFault.objects.all()
+    model = OtnFault
     model_form = OtnFaultImportForm
     table = OtnFaultTable
 
@@ -182,10 +182,10 @@ class OtnFaultImpactListView(generic.ObjectListView):
     filterset = OtnFaultImpactFilterSet
     filterset_form = OtnFaultImpactFilterForm
 
-@register_model_view(OtnFaultImpact, 'bulk_import')
 class OtnFaultImpactBulkImportView(generic.BulkImportView):
     """故障影响业务批量导入视图"""
     queryset = OtnFaultImpact.objects.all()
+    model = OtnFaultImpact
     model_form = OtnFaultImpactImportForm
     table = OtnFaultImpactTable
 
