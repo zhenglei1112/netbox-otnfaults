@@ -1,271 +1,282 @@
 {% extends 'generic/object.html' %}
-{% load plugins %} 
+{% load plugins %}
 {% load render_table from django_tables2 %}
 {% load i18n %}
 {% load l10n %}
 
 {% block extra_styles %}
 <style>
-.attr-table th {
-  width: 38.2%;
-}
-.attr-table td {
-  width: 61.8%;
-}
+  .attr-table th {
+    width: 38.2%;
+  }
+
+  .attr-table td {
+    width: 61.8%;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-  <div class="row mb-3">
-    <div class="col col-md-6">
-      <!-- 故障信息组 -->
-      <div class="card">
-        <h5 class="card-header">故障信息</h5>
-          <table class="table table-hover attr-table">
-            <tr>
-              <th scope="row">故障编号</th>
-              <td>{{ object.fault_number|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">故障状态</th>
-              <td>
-                {% if object.fault_status %}
-                  {% badge object.get_fault_status_display bg_color=object.get_fault_status_color %}
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">紧急程度</th>
-              <td>
-                {% if object.urgency %}
-                  {% badge object.get_urgency_display bg_color=object.get_urgency_color %}
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">省份</th>
-              <td>
-                {% if object.province %}
-                  <a href="{{ object.province.get_absolute_url }}">{{ object.province }}</a>
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">故障位置AZ端机房</th>
-              <td>
-                {% if object.interruption_location.all %}
-                  {% for site in object.interruption_location.all %}
-                    <a href="{{ site.get_absolute_url }}">{{ site }}</a>{% if not forloop.last %} - {% endif %}
-                  {% endfor %}
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">GPS坐标</th>
-              <td class="position-relative">
-                {% if object.interruption_longitude and object.interruption_latitude %}
-                  {% if config.MAPS_URL %}
-                    <div class="position-absolute top-50 end-0 me-2 translate-middle-y d-print-none">
-                      <a href="{{ config.MAPS_URL }}{{ object.interruption_latitude|unlocalize }},{{ object.interruption_longitude|unlocalize }}" 
-                         target="_blank" 
-                         class="btn btn-primary btn-sm">
-                        <i class="mdi mdi-map-marker"></i> 地图
-                      </a>
-                    </div>
-                  {% endif %}
-                  <span>{{ object.interruption_latitude }}, {{ object.interruption_longitude }}</span>
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">故障分类</th>
-              <td>
-                {% if object.fault_category %}
-                  {% badge object.get_fault_category_display bg_color=object.get_fault_category_color %}
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">故障原因</th>
-              <td>{{ object.get_interruption_reason_display|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">故障中断时间</th>
-              <td>{{ object.fault_occurrence_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">故障恢复时间</th>
-              <td>{{ object.fault_recovery_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">故障历时</th>
-              <td>{{ object.fault_duration|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">第一报障来源</th>
-              <td>{{ object.get_first_report_source_display|default:"—" }}</td>
-            </tr>
+<div class="row mb-3">
+  <div class="col col-md-6">
+    <!-- 故障信息组 -->
+    <div class="card">
+      <h5 class="card-header">故障信息</h5>
+      <table class="table table-hover attr-table">
+        <tr>
+          <th scope="row">故障编号</th>
+          <td>{{ object.fault_number|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">故障状态</th>
+          <td>
+            {% if object.fault_status %}
+            {% badge object.get_fault_status_display bg_color=object.get_fault_status_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">紧急程度</th>
+          <td>
+            {% if object.urgency %}
+            {% badge object.get_urgency_display bg_color=object.get_urgency_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">省份</th>
+          <td>
+            {% if object.province %}
+            <a href="{{ object.province.get_absolute_url }}">{{ object.province }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">故障位置AZ端机房</th>
+          <td>
+            {% if object.interruption_location.all %}
+            {% for site in object.interruption_location.all %}
+            <a href="{{ site.get_absolute_url }}">{{ site }}</a>{% if not forloop.last %} - {% endif %}
+            {% endfor %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">GPS坐标</th>
+          <td class="position-relative">
+            {% if object.interruption_longitude and object.interruption_latitude %}
+            {% if config.MAPS_URL %}
+            <div class="position-absolute top-50 end-0 me-2 translate-middle-y d-print-none">
+              <a href="{{ config.MAPS_URL }}{{ object.interruption_latitude|unlocalize }},{{ object.interruption_longitude|unlocalize }}"
+                target="_blank" class="btn btn-primary btn-sm">
+                <i class="mdi mdi-map-marker"></i> 地图
+              </a>
+            </div>
+            {% endif %}
+            <span>{{ object.interruption_latitude }}, {{ object.interruption_longitude }}</span>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">故障分类</th>
+          <td>
+            {% if object.fault_category %}
+            {% badge object.get_fault_category_display bg_color=object.get_fault_category_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">故障原因</th>
+          <td>{{ object.get_interruption_reason_display|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">故障中断时间</th>
+          <td>{{ object.fault_occurrence_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">故障恢复时间</th>
+          <td>{{ object.fault_recovery_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">故障历时</th>
+          <td>{{ object.fault_duration|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">第一报障来源</th>
+          <td>{{ object.get_first_report_source_display|default:"—" }}</td>
+        </tr>
 
-            <tr>
-              <th scope="row">资源类型</th>
-              <td>
-                {% if object.resource_type %}
-                  {% badge object.get_resource_type_display bg_color=object.get_resource_type_color %}
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">光缆路由属性</th>
-              <td>
-                {% if object.cable_route %}
-                  {% badge object.get_cable_route_display bg_color=object.get_cable_route_color %}
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">线路主管</th>
-              <td>
-                {% if object.line_manager %}
-                  <a href="{{ object.line_manager.get_absolute_url }}">{{ object.line_manager }}</a>
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">值守人员</th>
-              <td>
-                {% if object.duty_officer %}
-                  <a href="{{ object.duty_officer.get_absolute_url }}">{{ object.duty_officer }}</a>
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">故障及处置详情</th>
-              <td>{{ object.fault_details|default:"—" }}</td>
-            </tr>
-          </table>
-      </div>
-    </div>
-    <div class="col col-md-6">
-      <!-- 图像附件 -->
-      {% include 'inc/panels/image_attachments.html' %}
-      <!-- 标签和评论 -->
-      {% include 'inc/panels/tags.html' %}
-      {% include 'inc/panels/comments.html' %}
-      {% plugin_right_page object %}  
+        <tr>
+          <th scope="row">资源类型</th>
+          <td>
+            {% if object.resource_type %}
+            {% badge object.get_resource_type_display bg_color=object.get_resource_type_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">光缆路由属性</th>
+          <td>
+            {% if object.cable_route %}
+            {% badge object.get_cable_route_display bg_color=object.get_cable_route_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">线路主管</th>
+          <td>
+            {% if object.line_manager %}
+            <a href="{{ object.line_manager.get_absolute_url }}">{{ object.line_manager }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">值守人员</th>
+          <td>
+            {% if object.duty_officer %}
+            <a href="{{ object.duty_officer.get_absolute_url }}">{{ object.duty_officer }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">故障及处置详情</th>
+          <td>{{ object.fault_details|default:"—" }}</td>
+        </tr>
+      </table>
     </div>
   </div>
+  <div class="col col-md-6">
+    <!-- 图像附件 -->
+    {% include 'inc/panels/image_attachments.html' %}
+    <!-- 标签和评论 -->
+    {% include 'inc/panels/tags.html' %}
+    {% include 'inc/panels/comments.html' %}
+    {% plugin_right_page object %}
+  </div>
+</div>
 
-  <div class="row mb-3">
-    <div class="col col-md-6">
-      <!-- 处理信息组 -->
-      <div class="card">
-        <h5 class="card-header">光缆中断处理信息</h5>
-          <table class="table table-hover attr-table">
-            <tr>
-              <th scope="row">维护方式</th>
-              <td>
-                {% if object.maintenance_mode %}
-                  {% badge object.get_maintenance_mode_display bg_color=object.get_maintenance_mode_color %}
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">处理单位</th>
-              <td>
-                {% if object.handling_unit %}
-                  <a href="{{ object.handling_unit.get_absolute_url }}">{{ object.handling_unit }}</a>
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">处理派发时间</th>
-              <td>{{ object.dispatch_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">维修出发时间</th>
-              <td>{{ object.departure_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">到达现场时间</th>
-              <td>{{ object.arrival_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">规定时间内完成修复</th>
-              <td>
-                {% if object.timeout %}
-                  <span class="text-success"><i class="mdi mdi-check-bold"></i></span>
-                {% else %}
-                  <span class="text-danger"><i class="mdi mdi-close-thick"></i></span>
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">超时原因</th>
-              <td>{{ object.timeout_reason|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">故障处理人</th>
-              <td>{{ object.handler|default:"—" }}</td>
-            </tr>
-            <tr>
-              <th scope="row">恢复方式</th>
-              <td>
-                {% if object.recovery_mode %}
-                  {% badge object.get_recovery_mode_display bg_color=object.get_recovery_mode_color %}
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-          </table>
-      </div>
-    </div>
-    <div class="col col-md-6">
-      <!-- 自定义字段 -->
-      {% include 'inc/panels/custom_fields.html' %}
-    </div>
-  </div>
-  
-  <div class="row mb-3">
-    <div class="col col-md-12">
-      <div class="card">
-        <h5 class="card-header">
-          影响业务
-          {% if perms.netbox_otnfaults.add_otnfaultimpact %}
-          <div class="card-actions">
-            <a href="{% url 'plugins:netbox_otnfaults:otnfaultimpact_add' %}?otn_fault={{ object.pk }}" class="btn btn-ghost-primary btn-sm">
-              <i class="mdi mdi-plus-thick" aria-hidden="true"></i>
-              增加一个影响的业务
-            </a>
-          </div>
-          {% endif %}
-        </h5>
-          {% render_table impacts_table %}
-      </div>
+<div class="row mb-3">
+  <div class="col col-md-6">
+    <!-- 处理信息组 -->
+    <div class="card">
+      <h5 class="card-header">光缆中断处理信息</h5>
+      <table class="table table-hover attr-table">
+        <tr>
+          <th scope="row">维护方式</th>
+          <td>
+            {% if object.maintenance_mode %}
+            {% badge object.get_maintenance_mode_display bg_color=object.get_maintenance_mode_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">处理单位</th>
+          <td>
+            {% if object.handling_unit %}
+            <a href="{{ object.handling_unit.get_absolute_url }}">{{ object.handling_unit }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">代维合同</th>
+          <td>
+            {% if object.contract %}
+            <a href="{{ object.contract.get_absolute_url }}">{{ object.contract }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">处理派发时间</th>
+          <td>{{ object.dispatch_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">维修出发时间</th>
+          <td>{{ object.departure_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">到达现场时间</th>
+          <td>{{ object.arrival_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">规定时间内完成修复</th>
+          <td>
+            {% if object.timeout %}
+            <span class="text-success"><i class="mdi mdi-check-bold"></i></span>
+            {% else %}
+            <span class="text-danger"><i class="mdi mdi-close-thick"></i></span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">超时原因</th>
+          <td>{{ object.timeout_reason|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">故障处理人</th>
+          <td>{{ object.handler|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">恢复方式</th>
+          <td>
+            {% if object.recovery_mode %}
+            {% badge object.get_recovery_mode_display bg_color=object.get_recovery_mode_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+      </table>
     </div>
   </div>
+  <div class="col col-md-6">
+    <!-- 自定义字段 -->
+    {% include 'inc/panels/custom_fields.html' %}
+  </div>
+</div>
+
+<div class="row mb-3">
+  <div class="col col-md-12">
+    <div class="card">
+      <h5 class="card-header">
+        影响业务
+        {% if perms.netbox_otnfaults.add_otnfaultimpact %}
+        <div class="card-actions">
+          <a href="{% url 'plugins:netbox_otnfaults:otnfaultimpact_add' %}?otn_fault={{ object.pk }}"
+            class="btn btn-ghost-primary btn-sm">
+            <i class="mdi mdi-plus-thick" aria-hidden="true"></i>
+            增加一个影响的业务
+          </a>
+        </div>
+        {% endif %}
+      </h5>
+      {% render_table impacts_table %}
+    </div>
+  </div>
+</div>
 {% endblock %}

@@ -173,6 +173,16 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         blank=True,
         null=True
     )
+
+    # 7.1) 代维合同，引用netbox-contract中的合同
+    contract = models.ForeignKey(
+        to='netbox_contract.Contract',
+        on_delete=models.PROTECT,
+        related_name='otn_faults',
+        verbose_name='代维合同',
+        blank=True,
+        null=True
+    )
     
     # 8) 处理派发时间，格式为2024/11/17  10:23:34，包括列表，详细信息，编辑页
     dispatch_time = models.DateTimeField(

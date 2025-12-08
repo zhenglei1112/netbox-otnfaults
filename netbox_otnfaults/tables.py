@@ -12,6 +12,10 @@ class OtnFaultTable(NetBoxTable):
         linkify=True,
         verbose_name='值守人员'
     )
+    contract = tables.Column(
+        linkify=True,
+        verbose_name='代维合同'
+    )
     interruption_location = columns.ManyToManyColumn(
         linkify_item=True,
         verbose_name='故障位置AZ端机房'
@@ -68,7 +72,7 @@ class OtnFaultTable(NetBoxTable):
             'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
             'province', 'line_manager', 'resource_type', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
-            'timeout', 'handler', 'recovery_mode', 'handling_unit',
+            'timeout', 'handler', 'recovery_mode', 'handling_unit', 'contract',
             'fault_status', 'comments', 'tags', 'actions',
         )
         default_columns = (

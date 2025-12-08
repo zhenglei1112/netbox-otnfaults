@@ -6,7 +6,7 @@ from utilities.forms.widgets import DateTimePicker
 from dcim.models import Site, Region
 from tenancy.models import Tenant
 from django.contrib.auth import get_user_model
-from netbox_contract.models import ServiceProvider
+from netbox_contract.models import ServiceProvider, Contract
 
 class OtnFaultForm(NetBoxModelForm):
     duty_officer = DynamicModelChoiceField(
@@ -32,6 +32,14 @@ class OtnFaultForm(NetBoxModelForm):
         required=False,
         label='处理单位'
     )
+    contract = DynamicModelChoiceField(
+        queryset=Contract.objects.all(),
+        required=False,
+        label='代维合同',
+        query_params={
+            'service_provider_id': '$handling_unit',
+        }
+    )
     comments = CommentField(
         label='评论',
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
@@ -47,7 +55,7 @@ class OtnFaultForm(NetBoxModelForm):
             'fault_status',
         )),
         ('处理信息', (
-            'maintenance_mode', 'handling_unit', 'dispatch_time',
+            'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
             'timeout_reason', 'handler', 'recovery_mode',
         )),
@@ -67,7 +75,7 @@ class OtnFaultForm(NetBoxModelForm):
             'cable_route', 'line_manager', 'duty_officer', 'fault_details',
             'fault_status',
             # 处理信息组字段
-            'maintenance_mode', 'handling_unit', 'dispatch_time',
+            'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
             'timeout_reason', 'handler', 'recovery_mode',
             # 其他字段
@@ -160,6 +168,12 @@ class OtnFaultImportForm(NetBoxModelImportForm):
         to_field_name='name',
         help_text='处理单位名称'
     )
+    contract = CSVModelChoiceField(
+        queryset=Contract.objects.all(),
+        required=False,
+        to_field_name='name',
+        help_text='代维合同名称'
+    )
     interruption_location = CSVModelMultipleChoiceField(
         queryset=Site.objects.all(),
         required=False,
@@ -174,7 +188,7 @@ class OtnFaultImportForm(NetBoxModelImportForm):
             'fault_category', 'interruption_reason', 'fault_occurrence_time', 
             'fault_recovery_time', 'urgency', 'first_report_source', 
             'resource_type', 'cable_route', 'line_manager', 
-            'maintenance_mode', 'handling_unit', 'dispatch_time', 
+            'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time', 
             'departure_time', 'arrival_time', 'repair_time', 
             'timeout', 'timeout_reason', 'handler', 'recovery_mode', 
             'interruption_longitude', 'interruption_latitude', 
@@ -276,6 +290,14 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         queryset=ServiceProvider.objects.all(),
         required=False,
         label='处理单位'
+    )
+    contract = DynamicModelChoiceField(
+        queryset=Contract.objects.all(),
+        required=False,
+        label='代维合同',
+        query_params={
+            'service_provider_id': '$handling_unit',
+        }
     )
     fault_category = forms.ChoiceField(
         choices=add_blank_choice(FaultCategoryChoices),
@@ -423,6 +445,14 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         queryset=ServiceProvider.objects.all(),
         required=False,
         label='处理单位'
+    )
+    contract = DynamicModelChoiceField(
+        queryset=Contract.objects.all(),
+        required=False,
+        label='代维合同',
+        query_params={
+            'service_provider_id': '$handling_unit',
+        }
     )
     fault_category = forms.ChoiceField(
         choices=add_blank_choice(FaultCategoryChoices),
