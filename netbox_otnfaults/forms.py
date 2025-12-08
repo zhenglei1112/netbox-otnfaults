@@ -57,7 +57,7 @@ class OtnFaultForm(NetBoxModelForm):
         ('处理信息', (
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
-            'timeout_reason', 'handler', 'recovery_mode',
+            'timeout_reason', 'handler', 'cable_break_location', 'recovery_mode',
         )),
         (None, (
             'comments', 'tags',
@@ -77,7 +77,7 @@ class OtnFaultForm(NetBoxModelForm):
             # 处理信息组字段
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
-            'timeout_reason', 'handler', 'recovery_mode',
+            'timeout_reason', 'handler', 'cable_break_location', 'recovery_mode',
             # 其他字段
             'comments', 'tags',
         )
@@ -190,7 +190,7 @@ class OtnFaultImportForm(NetBoxModelImportForm):
             'resource_type', 'cable_route', 'line_manager', 
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time', 
             'departure_time', 'arrival_time', 'repair_time', 
-            'timeout', 'timeout_reason', 'handler', 'recovery_mode', 
+            'timeout', 'timeout_reason', 'handler', 'cable_break_location', 'recovery_mode', 
             'interruption_longitude', 'interruption_latitude', 
             'fault_details', 'comments', 'tags'
         )
@@ -335,6 +335,11 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='光缆路由属性'
     )
+    cable_break_location = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.CABLE_BREAK_LOCATION_CHOICES),
+        required=False,
+        label='光缆中断部位'
+    )
     recovery_mode = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.RECOVERY_MODE_CHOICES),
         required=False,
@@ -365,7 +370,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     nullable_fields = (
         'province', 'line_manager', 'handling_unit', 'fault_category',
         'interruption_reason', 'maintenance_mode', 'resource_type',
-        'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments'
+        'cable_break_location', 'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments'
     )
 
     # fieldsets = (
@@ -489,6 +494,11 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         choices=add_blank_choice(OtnFault.CABLE_ROUTE_CHOICES),
         required=False,
         label='光缆路由属性'
+    )
+    cable_break_location = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.CABLE_BREAK_LOCATION_CHOICES),
+        required=False,
+        label='光缆中断部位'
     )
     recovery_mode = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.RECOVERY_MODE_CHOICES),

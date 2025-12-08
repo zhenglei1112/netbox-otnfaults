@@ -242,6 +242,16 @@
           <td>{{ object.handler|default:"—" }}</td>
         </tr>
         <tr>
+          <th scope="row">光缆中断部位</th>
+          <td>
+            {% if object.cable_break_location %}
+            {% badge object.get_cable_break_location_display bg_color=object.get_cable_break_location_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
           <th scope="row">恢复方式</th>
           <td>
             {% if object.recovery_mode %}

@@ -57,6 +57,9 @@ class OtnFaultTable(NetBoxTable):
     cable_route = columns.ChoiceFieldColumn(
         verbose_name='光缆路由属性'
     )
+    cable_break_location = columns.ChoiceFieldColumn(
+        verbose_name='光缆中断部位'
+    )
     fault_status = columns.ChoiceFieldColumn(
         verbose_name='处理状态'
     )
@@ -72,7 +75,7 @@ class OtnFaultTable(NetBoxTable):
             'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
             'province', 'line_manager', 'resource_type', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
-            'timeout', 'handler', 'recovery_mode', 'handling_unit', 'contract',
+            'timeout', 'handler', 'cable_break_location', 'recovery_mode', 'handling_unit', 'contract',
             'fault_status', 'comments', 'tags', 'actions',
         )
         default_columns = (

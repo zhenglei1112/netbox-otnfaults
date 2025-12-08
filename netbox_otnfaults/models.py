@@ -278,7 +278,21 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='处理状态'
     )
     
-    # 19) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
+    # 19) 光缆中断部位，为选择型字段，分为尾纤、出局缆、长途光缆
+    CABLE_BREAK_LOCATION_CHOICES = (
+        ('pigtail', '尾纤'),
+        ('local_cable', '出局缆'),
+        ('long_haul_cable', '长途光缆'),
+    )
+    cable_break_location = models.CharField(
+        max_length=20,
+        choices=CABLE_BREAK_LOCATION_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='光缆中断部位'
+    )
+    
+    # 20) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
     RECOVERY_MODE_CHOICES = (
         ('fusion_splicing', '熔接恢复'),
         ('tail_fiber_replacement', '更换尾纤恢复'),
@@ -360,6 +374,15 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             'self_maintained': 'purple'
         }
         return maintenance_mode_colors.get(self.maintenance_mode, 'gray')
+
+    def get_cable_break_location_color(self):
+        """获取光缆中断部位的颜色"""
+        cable_break_location_colors = {
+            'pigtail': 'yellow',
+            'local_cable': 'orange',
+            'long_haul_cable': 'red'
+        }
+        return cable_break_location_colors.get(self.cable_break_location, 'gray')
 
     def get_recovery_mode_color(self):
         """获取恢复方式的颜色"""

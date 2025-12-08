@@ -13,7 +13,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'line_manager', 'maintenance_mode', 'handling_unit', 'contract',
             'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'timeout_reason', 'resource_type', 'cable_route',
-            'handler', 'recovery_mode', 'comments',
+            'handler', 'cable_break_location', 'recovery_mode', 'comments',
         )
 
     def search(self, queryset, name, value):
