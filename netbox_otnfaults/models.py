@@ -90,7 +90,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         null=True
     )
     fault_details = models.TextField(
-        verbose_name='故障详细情况',
+        verbose_name='故障详情和处理过程',
         blank=True,
         null=True
     )
