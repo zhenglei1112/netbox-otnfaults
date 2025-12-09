@@ -384,83 +384,20 @@
                     };
                 });
 
+                // 将地图边界适配到数据范围
+                var bounds = new maplibregl.LngLatBounds();
                 if (features.length > 0) {
-                    map.addSource('faults', {
-                        type: 'geojson',
-                        data: {
-                            type: 'FeatureCollection',
-                            features: features
-                        }
-                    });
-
-                    map.addLayer({
-                        id: 'faults-heat',
-                        type: 'heatmap',
-                        source: 'faults',
-                        maxzoom: 15,
-                        paint: {
-                            // 根据频率和属性大小增加热力图权重 - 降低阈值使热点更明显
-                            'heatmap-weight': [
-                                'interpolate',
-                                ['linear'],
-                                ['get', 'count'],
-                                0, 0,
-                                4, 1  // 将阈值从10降低到4，增加低密度区域显示
-                            ],
-                            // 根据缩放级别增加热力图颜色权重 - 适度增强对比度
-                            // heatmap-intensity是heatmap-weight的乘数
-                            'heatmap-intensity': [
-                                'interpolate',
-                                ['linear'],
-                                ['zoom'],
-                                0, 1,
-                                9, 4  // 将强度从5调整到4，适度增强对比度
-                            ],
-                            // 热力图颜色渐变。域为0（低）到1（高）。 
-                            // 从0-stop开始使用0透明度的颜色创建模糊效果。
-                            'heatmap-color': [
-                                'interpolate',
-                                ['linear'],
-                                ['heatmap-density'],
-                                0, 'rgba(33,102,172,0)',
-                                0.1, 'rgb(103,169,207)',  // 恢复低密度区域的颜色
-                                0.3, 'rgb(209,229,240)',
-                                0.5, 'rgb(253,219,199)',
-                                0.7, 'rgb(239,138,98)',
-                                1, 'rgb(178,24,43)'  // 恢复标准高密度颜色
-                            ],
-                            // 根据缩放级别调整热力图半径 - 增加半径使热点更明显
-                            'heatmap-radius': [
-                                'interpolate',
-                                ['linear'],
-                                ['zoom'],
-                                0, 3,   // 将最小半径从1增加到3
-                                9, 25   // 将最大半径从10增加到25，使热点更明显
-                            ],
-                            // 根据缩放级别从热力图过渡到圆形图层
-                            'heatmap-opacity': [
-                                'interpolate',
-                                ['linear'],
-                                ['zoom'],
-                                7, 1,
-                                9, 0
-                            ],
-                        }
-                    });
-
-                    // 将地图边界适配到数据范围
-                    var bounds = new maplibregl.LngLatBounds();
                     features.forEach(function (feature) {
                         bounds.extend(feature.geometry.coordinates);
                     });
-                    // 同时将标记点包含在边界内
-                    markerData.forEach(function (m) {
-                        bounds.extend([m.lng, m.lat]);
-                    });
+                }
+                // 同时将标记点包含在边界内
+                markerData.forEach(function (m) {
+                    bounds.extend([m.lng, m.lat]);
+                });
 
-                    if (!bounds.isEmpty()) {
-                        map.fitBounds(bounds, { padding: 50 });
-                    }
+                if (!bounds.isEmpty()) {
+                    map.fitBounds(bounds, { padding: 50 });
                 }
 
                 // 故障分类颜色映射
@@ -654,6 +591,72 @@
                             'text-halo-width': 2
                         }
                     });
+                    
+                    // 现在添加热力图，置于ArcGIS线图层之上
+                    if (features.length > 0) {
+                        map.addSource('faults', {
+                            type: 'geojson',
+                            data: {
+                                type: 'FeatureCollection',
+                                features: features
+                            }
+                        });
+
+                        map.addLayer({
+                            id: 'faults-heat',
+                            type: 'heatmap',
+                            source: 'faults',
+                            maxzoom: 15,
+                            paint: {
+                                // 根据频率和属性大小增加热力图权重 - 降低阈值使热点更明显
+                                'heatmap-weight': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['get', 'count'],
+                                    0, 0,
+                                    4, 1  // 将阈值从10降低到4，增加低密度区域显示
+                                ],
+                                // 根据缩放级别增加热力图颜色权重 - 适度增强对比度
+                                // heatmap-intensity是heatmap-weight的乘数
+                                'heatmap-intensity': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['zoom'],
+                                    0, 1,
+                                    9, 4  // 将强度从5调整到4，适度增强对比度
+                                ],
+                                // 热力图颜色渐变。域为0（低）到1（高）。 
+                                // 从0-stop开始使用0透明度的颜色创建模糊效果。
+                                'heatmap-color': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['heatmap-density'],
+                                    0, 'rgba(33,102,172,0)',
+                                    0.1, 'rgb(103,169,207)',  // 恢复低密度区域的颜色
+                                    0.3, 'rgb(209,229,240)',
+                                    0.5, 'rgb(253,219,199)',
+                                    0.7, 'rgb(239,138,98)',
+                                    1, 'rgb(178,24,43)'  // 恢复标准高密度颜色
+                                ],
+                                // 根据缩放级别调整热力图半径 - 增加半径使热点更明显
+                                'heatmap-radius': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['zoom'],
+                                    0, 3,   // 将最小半径从1增加到3
+                                    9, 25   // 将最大半径从10增加到25，使热点更明显
+                                ],
+                                // 根据缩放级别从热力图过渡到圆形图层
+                                'heatmap-opacity': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['zoom'],
+                                    7, 1,
+                                    9, 0
+                                ],
+                            }
+                        });
+                    }
                     
                     // 为所有点图层添加hover效果
                     ['arcgis-otn-points-0', 'arcgis-otn-points-1'].forEach(function(layerId) {
@@ -1014,7 +1017,7 @@
                                 }
                             }); // 不指定beforeId，默认添加在现有图层之上
                         
-                        // 重新绑定事件
+                            // 重新绑定事件
                         ['arcgis-otn-points-0', 'arcgis-otn-points-1'].forEach(function(layerId) {
                             var hoveredStateId = null;
                             var sourceId = layerId.replace('-points-', '-layer-');
@@ -1132,9 +1135,9 @@
                         // 初始设置图层可见性
                         layerToggleControl.updateArcgisLayersVisibility();
                         
-                    } catch (error) {
-                        console.warn('ArcGIS图层重新加载失败:', error);
-                    }
+                        } catch (error) {
+                            console.warn('ArcGIS图层重新加载失败:', error);
+                        }
                 }
                 
                 // 隐藏加载状态

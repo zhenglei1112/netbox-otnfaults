@@ -201,11 +201,64 @@ class RandomizeFaultCoordinates(Script):
         
         self.log_info(f"开始更新 {fault_count} 个故障对象的坐标...")
         
+        # 4. 创建热点区域（使故障分布更加不均衡）
+        # 定义热点区域：某些线段会被更频繁地选择
+        hotspot_multiplier = 5  # 热点区域的线段被选择的概率是普通区域的5倍
+        
+        # 分析线段的地理分布，识别可能的密集区域
+        # 简单实现：根据线段中心点的经纬度划分区域
+        segment_centers = []
+        for segment in all_segments:
+            pt1, pt2 = segment
+            center_lon = (pt1[0] + pt2[0]) / 2
+            center_lat = (pt1[1] + pt2[1]) / 2
+            segment_centers.append((center_lon, center_lat))
+        
+        # 识别热点区域（例如：东部沿海地区、大城市周边）
+        # 定义热点区域边界（经度，纬度）
+        hotspot_regions = [
+            # 长三角地区
+            {"min_lon": 118.0, "max_lon": 122.0, "min_lat": 30.0, "max_lat": 32.5, "weight": 8},
+            # 珠三角地区
+            {"min_lon": 112.5, "max_lon": 114.5, "min_lat": 22.0, "max_lat": 24.0, "weight": 7},
+            # 京津冀地区
+            {"min_lon": 115.5, "max_lon": 118.0, "min_lat": 38.5, "max_lat": 40.5, "weight": 6},
+            # 成渝地区
+            {"min_lon": 103.5, "max_lon": 107.0, "min_lat": 29.0, "max_lat": 31.5, "weight": 5},
+        ]
+        
+        # 为每个线段分配权重
+        segment_weights = []
+        for i, (center_lon, center_lat) in enumerate(segment_centers):
+            weight = 1.0  # 基础权重
+            
+            # 检查是否在热点区域内
+            for region in hotspot_regions:
+                if (region["min_lon"] <= center_lon <= region["max_lon"] and
+                    region["min_lat"] <= center_lat <= region["max_lat"]):
+                    weight = region["weight"]
+                    break
+            
+            segment_weights.append(weight)
+        
+        # 创建加权选择列表
+        weighted_segments = []
+        for i, segment in enumerate(all_segments):
+            weight = segment_weights[i]
+            # 根据权重重复添加线段到选择列表
+            for _ in range(int(weight)):
+                weighted_segments.append(segment)
+        
+        self.log_info(f"加权选择列表包含 {len(weighted_segments)} 个条目（原始 {len(all_segments)} 个线段）")
+        
+        # 5. 更新故障坐标（使用加权选择）
         updated_count = 0
+        hotspot_faults = 0
+        
         for fault in faults:
             try:
-                # 随机选择一个线段
-                segment = random.choice(all_segments)
+                # 使用加权随机选择线段
+                segment = random.choice(weighted_segments)
                 pt1, pt2 = segment
                 
                 # 在线段上进行线性插值
@@ -221,6 +274,15 @@ class RandomizeFaultCoordinates(Script):
                 # 确保坐标在中国境内合理范围
                 lat = max(15.0, min(55.0, lat))  # 纬度范围：15°N - 55°N
                 lon = max(70.0, min(140.0, lon))  # 经度范围：70°E - 140°E
+                
+                # 检查是否在热点区域内
+                in_hotspot = False
+                for region in hotspot_regions:
+                    if (region["min_lon"] <= lon <= region["max_lon"] and
+                        region["min_lat"] <= lat <= region["max_lat"]):
+                        in_hotspot = True
+                        hotspot_faults += 1
+                        break
                 
                 # 更新故障坐标
                 fault.interruption_latitude = lat
@@ -239,14 +301,32 @@ class RandomizeFaultCoordinates(Script):
         
         self.log_success(f"处理完成。成功更新了 {updated_count}/{fault_count} 个故障对象的坐标")
         
-        # 4. 统计信息
+        # 6. 统计信息
         if all_segments and updated_count > 0:
             # 计算平均每个线段分配了多少故障点
             avg_per_segment = updated_count / len(all_segments)
             self.log_info(f"平均每个线段分配了 {avg_per_segment:.2f} 个故障点")
             
+            # 热点区域统计
+            hotspot_percentage = (hotspot_faults / updated_count * 100) if updated_count > 0 else 0
+            self.log_info(f"热点区域故障分布：{hotspot_faults}/{updated_count} ({hotspot_percentage:.1f}%)")
+            
+            # 显示热点区域详情
+            self.log_info("热点区域定义：")
+            for i, region in enumerate(hotspot_regions):
+                self.log_info(f"  区域{i+1}: 经度[{region['min_lon']:.1f}-{region['max_lon']:.1f}], "
+                            f"纬度[{region['min_lat']:.1f}-{region['max_lat']:.1f}], 权重:{region['weight']}")
+            
             # 显示一些示例坐标
             if updated_count >= 3:
                 sample_faults = faults[:3]
                 for i, fault in enumerate(sample_faults):
-                    self.log_info(f"示例 {i+1}: 故障 {fault.fault_number} -> ({fault.interruption_latitude:.6f}, {fault.interruption_longitude:.6f})")
+                    # 检查示例故障是否在热点区域
+                    in_hotspot = "热点区域" if any(
+                        region["min_lon"] <= fault.interruption_longitude <= region["max_lon"] and
+                        region["min_lat"] <= fault.interruption_latitude <= region["max_lat"]
+                        for region in hotspot_regions
+                    ) else "普通区域"
+                    
+                    self.log_info(f"示例 {i+1}: 故障 {fault.fault_number} -> "
+                                f"({fault.interruption_latitude:.6f}, {fault.interruption_longitude:.6f}) [{in_hotspot}]")
