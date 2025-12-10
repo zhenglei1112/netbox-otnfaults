@@ -99,8 +99,12 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
     permission_required = 'netbox_otnfaults.view_otnfault'
 
     def get(self, request):
-        # 获取当前年份和上一周的时间点
+        # 获取时间范围参数（默认为'year'，即本年），仅用于设置按钮初始状态
+        time_range = request.GET.get('time_range', 'year')
+        
         now = timezone.now()
+        
+        # 计算本年度起始时间（1月1日）
         current_year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
         last_week_start = now - timedelta(days=7)
 
@@ -111,18 +115,24 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             interruption_latitude__isnull=True
         )
 
-        # 热力图数据：本年发生的故障
+        # 热力图数据：传递本年度全部故障数据（包含发生时间，用于前端筛选）
         heatmap_faults = faults.filter(fault_occurrence_time__gte=current_year_start)
         heatmap_data = []
         for fault in heatmap_faults:
             heatmap_data.append({
                 'lat': float(fault.interruption_latitude),
                 'lng': float(fault.interruption_longitude),
-                'count': 1  # 简单计数，也可以根据紧急程度加权
+                'count': 1,  # 简单计数，也可以根据紧急程度加权
+                'occurrence_time': fault.fault_occurrence_time.isoformat() if fault.fault_occurrence_time else None
             })
 
-        # 标记点数据：上一周发生的故障
-        marker_faults = faults.filter(fault_occurrence_time__gte=last_week_start)
+        # 标记点数据：上一周发生的故障（优化查询，预取相关数据）
+        marker_faults = faults.filter(fault_occurrence_time__gte=last_week_start).select_related(
+            'province', 'interruption_location_a'
+        ).prefetch_related(
+            'interruption_location', 'images'
+        )
+        
         marker_data = []
         for fault in marker_faults:
             # 获取故障分类，转换为前端可识别的键
@@ -131,10 +141,6 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             
             # 将数据库中的分类值映射到前端可识别的键
             if fault_category:
-                # 根据models.py中的FaultCategoryChoices进行映射
-                # 数据库中的值: 'power', 'fiber', 'pigtail', 'device', 'other'
-                # 前端需要的键: 'power', 'optical', 'optical', 'equipment', 'other'
-                
                 category_mapping = {
                     'power': 'power',        # 电力故障 -> 电源故障
                     'fiber': 'optical',      # 光缆故障 -> 光缆故障
@@ -145,19 +151,48 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 
                 category_key = category_mapping.get(fault_category, 'other')
             
+            # 获取Z端站点名称列表（ManyToMany关系）
+            z_sites = list(fault.interruption_location.all().values_list('name', flat=True))
+            z_sites_str = '、'.join(z_sites) if z_sites else '未指定'
+            
+            # 格式化时间
+            occurrence_time_str = fault.fault_occurrence_time.strftime('%Y-%m-%d %H:%M:%S') if fault.fault_occurrence_time else '未记录'
+            recovery_time_str = fault.fault_recovery_time.strftime('%Y-%m-%d %H:%M:%S') if fault.fault_recovery_time else '未恢复'
+            
+            # 获取故障历时（使用模型的计算属性）
+            fault_duration_str = fault.fault_duration if hasattr(fault, 'fault_duration') and fault.fault_duration else '无法计算'
+            
             marker_data.append({
                 'lat': float(fault.interruption_latitude),
                 'lng': float(fault.interruption_longitude),
                 'number': fault.fault_number,
                 'url': fault.get_absolute_url(),
                 'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}",
-                'category': category_key  # 添加分类字段
+                'category': category_key,  # 添加分类字段
+                
+                # 新增字段：省份、A端站点、Z端站点
+                'province': fault.province.name if fault.province else '未指定',
+                'a_site': fault.interruption_location_a.name if fault.interruption_location_a else '未指定',
+                'z_sites': z_sites_str,
+                
+                # 新增字段：时间信息
+                'occurrence_time': occurrence_time_str,
+                'recovery_time': recovery_time_str,
+                'fault_duration': fault_duration_str,
+                
+                # 新增字段：故障详情
+                'fault_details': fault.fault_details or '无详细描述',
+                
+                # 新增字段：照片信息
+                'has_images': fault.images.exists() if hasattr(fault, 'images') else False,
+                'image_count': fault.images.count() if hasattr(fault, 'images') else 0
             })
 
         return render(request, 'netbox_otnfaults/otnfault_map_globe.html', {
             'heatmap_data': json.dumps(heatmap_data, cls=DjangoJSONEncoder),
             'marker_data': json.dumps(marker_data, cls=DjangoJSONEncoder),
-            'apikey': 'e0109253-b502-41de-9dd2-8a80bb3b1a09'
+            'apikey': 'e0109253-b502-41de-9dd2-8a80bb3b1a09',
+            'current_time_range': time_range  # 传递给模板，用于显示当前选择
         })
 
 @register_model_view(OtnFault)

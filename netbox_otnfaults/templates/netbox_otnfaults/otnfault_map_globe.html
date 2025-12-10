@@ -8,7 +8,7 @@
     <div class="col">
         <div class="card">
             <h5 class="card-header">
-                故障分布图（地球模式）
+                故障分布图
                 <div class="card-actions">
                     <a href="{% url 'plugins:netbox_otnfaults:otnfault_list' %}" class="btn btn-ghost-primary btn-sm">
                         <i class="mdi mdi-format-list-bulleted"></i> 查看列表
@@ -144,6 +144,40 @@
         background-color: #0056b3;
         border-color: #003d82;
     }
+    
+    /* 热力图时间范围菜单样式 */
+    .heatmap-time-range-menu {
+        position: absolute;
+        background-color: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        z-index: 1000;
+        min-width: 120px;
+        padding: 4px 0;
+        display: none;
+    }
+    
+    .dropdown-item {
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #333;
+    }
+    
+    .dropdown-item:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .dropdown-item.active {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .heatmap-button-container {
+        position: relative;
+        display: inline-block;
+    }
 </style>
 
 <script>
@@ -266,6 +300,16 @@
                     this.markersVisible = true;
                     this.arcgisVisible = true;
                     this.markers = []; // 存储标记对象
+                    this.currentTimeRange = 'year'; // 默认时间范围：本年
+                    this.menuHovered = false; // 菜单悬停状态
+                    this.lastMouseX = 0; // 鼠标X坐标
+                    this.lastMouseY = 0; // 鼠标Y坐标
+                    
+                    // 跟踪鼠标位置
+                    document.addEventListener('mousemove', (e) => {
+                        this.lastMouseX = e.clientX;
+                        this.lastMouseY = e.clientY;
+                    });
                 }
                 
                 onAdd(map) {
@@ -273,12 +317,42 @@
                     this.container = document.createElement('div');
                     this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group layer-toggle-control';
                     
+                    // 创建热力图按钮容器（用于定位弹出菜单）
+                    this.heatmapContainer = document.createElement('div');
+                    this.heatmapContainer.className = 'heatmap-button-container';
+                    this.heatmapContainer.style.position = 'relative';
+                    
                     // 热力图开关按钮 - 使用SVG图标
                     this.heatmapButton = document.createElement('button');
                     this.heatmapButton.className = 'maplibregl-ctrl-icon toggle-button heatmap-toggle active';
                     this.heatmapButton.innerHTML = svgIcons.heatmap;
-                    this.heatmapButton.title = '热力图开关';
-                    this.heatmapButton.onclick = () => this.toggleHeatmap();
+                    this.heatmapButton.title = '热力图开关 - 当前范围: 本年 (悬停显示时间菜单)';
+                    
+                    // 鼠标悬停显示时间范围菜单
+                    this.heatmapButton.addEventListener('mouseenter', (e) => {
+                        e.stopPropagation();
+                        this.showTimeRangeMenu();
+                    });
+                    
+                    // 鼠标离开隐藏时间范围菜单（延迟隐藏，避免菜单无法点击）
+                    this.heatmapButton.addEventListener('mouseleave', (e) => {
+                        e.stopPropagation();
+                        // 延迟隐藏，给用户时间移动到菜单
+                        setTimeout(() => {
+                            if (!this.isMouseOverMenu()) {
+                                this.hideTimeRangeMenu();
+                            }
+                        }, 300);
+                    });
+                    
+                    // 单击切换热力图层显示/隐藏
+                    this.heatmapButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.toggleHeatmap();
+                    });
+                    
+                    // 创建时间范围菜单
+                    this.createTimeRangeMenu();
                     
                     // 故障点开关按钮 - 使用SVG图标
                     this.markersButton = document.createElement('button');
@@ -299,7 +373,8 @@
                         this.arcgisButton.classList.add('active');
                     }
                     
-                    this.container.appendChild(this.heatmapButton);
+                    this.heatmapContainer.appendChild(this.heatmapButton);
+                    this.container.appendChild(this.heatmapContainer);
                     this.container.appendChild(this.markersButton);
                     this.container.appendChild(this.arcgisButton);
                     
@@ -309,6 +384,232 @@
                 onRemove() {
                     this.container.parentNode.removeChild(this.container);
                     this.map = undefined;
+                }
+                
+                createTimeRangeMenu() {
+                    this.timeRangeMenu = document.createElement('div');
+                    this.timeRangeMenu.className = 'heatmap-time-range-menu';
+                    
+                    // 菜单项数据
+                    const menuItems = [
+                        { range: 'month', text: '一个月' },
+                        { range: 'three_months', text: '三个月' },
+                        { range: 'year', text: '本年' }
+                    ];
+                    
+                    // 动态生成菜单项
+                    menuItems.forEach(item => {
+                        const menuItem = document.createElement('div');
+                        menuItem.className = 'dropdown-item';
+                        menuItem.setAttribute('data-range', item.range);
+                        menuItem.textContent = item.text;
+                        
+                        // 如果是当前选择项，添加高亮类
+                        if (item.range === this.currentTimeRange) {
+                            menuItem.classList.add('active');
+                        }
+                        
+                        // 添加点击事件
+                        menuItem.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const range = e.target.getAttribute('data-range');
+                            this.selectTimeRange(range);
+                            this.hideTimeRangeMenu();
+                        });
+                        
+                        this.timeRangeMenu.appendChild(menuItem);
+                    });
+                    
+                    // 菜单鼠标事件
+                    this.timeRangeMenu.addEventListener('mouseenter', () => {
+                        this.menuHovered = true;
+                    });
+                    
+                    this.timeRangeMenu.addEventListener('mouseleave', () => {
+                        this.menuHovered = false;
+                        setTimeout(() => {
+                            if (!this.menuHovered && !this.isMouseOverButton()) {
+                                this.hideTimeRangeMenu();
+                            }
+                        }, 300);
+                    });
+                    
+                    this.heatmapContainer.appendChild(this.timeRangeMenu);
+                    
+                    // 点击其他地方隐藏菜单
+                    document.addEventListener('click', () => {
+                        this.hideTimeRangeMenu();
+                    });
+                }
+                
+                isMouseOverMenu() {
+                    return this.menuHovered || false;
+                }
+                
+                isMouseOverButton() {
+                    // 检查鼠标是否在按钮上
+                    if (!this.heatmapButton) return false;
+                    const rect = this.heatmapButton.getBoundingClientRect();
+                    const mouseX = this.lastMouseX || 0;
+                    const mouseY = this.lastMouseY || 0;
+                    return mouseX >= rect.left && mouseX <= rect.right && 
+                           mouseY >= rect.top && mouseY <= rect.bottom;
+                }
+                
+                showTimeRangeMenu() {
+                    // 隐藏其他可能打开的菜单
+                    this.hideTimeRangeMenu();
+                    
+                    // 显示菜单
+                    this.timeRangeMenu.style.display = 'block';
+                    
+                    // 定位菜单在按钮下方
+                    const rect = this.heatmapButton.getBoundingClientRect();
+                    this.timeRangeMenu.style.position = 'absolute';
+                    this.timeRangeMenu.style.top = '100%';
+                    this.timeRangeMenu.style.left = '0';
+                    this.timeRangeMenu.style.zIndex = '1000';
+                }
+                
+                hideTimeRangeMenu() {
+                    if (this.timeRangeMenu) {
+                        this.timeRangeMenu.style.display = 'none';
+                    }
+                }
+                
+                selectTimeRange(range) {
+                    this.currentTimeRange = range;
+                    
+                    // 更新按钮标题
+                    let rangeText = '本年';  // 默认值
+                    if (range === 'month') rangeText = '一个月';
+                    else if (range === 'three_months') rangeText = '三个月';
+                    
+                    this.heatmapButton.title = `热力图开关 - 当前范围: ${rangeText}`;
+                    
+                    // 更新菜单项高亮状态
+                    this.updateMenuHighlight();
+                    
+                    // 重新加载数据
+                    this.reloadHeatmapData(range);
+                }
+                
+                updateMenuHighlight() {
+                    // 更新所有菜单项的高亮状态
+                    if (this.timeRangeMenu) {
+                        const menuItems = this.timeRangeMenu.querySelectorAll('.dropdown-item');
+                        menuItems.forEach(item => {
+                            const range = item.getAttribute('data-range');
+                            if (range === this.currentTimeRange) {
+                                item.classList.add('active');
+                            } else {
+                                item.classList.remove('active');
+                            }
+                        });
+                    }
+                }
+                
+                reloadHeatmapData(timeRange) {
+                    // 计算起始日期
+                    const now = new Date();
+                    let startDate;
+                    
+                    if (timeRange === 'month') {
+                        startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+                    } else if (timeRange === 'three_months') {
+                        startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+                    } else { // 'year' 或 'all'
+                        // 本年1月1日
+                        startDate = new Date(now.getFullYear(), 0, 1);
+                    }
+                    
+                    // 筛选数据：只保留发生时间在起始日期之后的数据点
+                    const filteredData = heatmapData.filter(point => {
+                        if (!point.occurrence_time) return false;
+                        const pointDate = new Date(point.occurrence_time);
+                        return pointDate >= startDate;
+                    });
+                    
+                    console.log(`前端筛选热力图数据，时间范围: ${timeRange}, 原始数据点: ${heatmapData.length}, 筛选后数据点: ${filteredData.length}`);
+                    
+                    // 将筛选结果转换为GeoJSON格式
+                    const features = filteredData.map(point => ({
+                        type: 'Feature',
+                        properties: { count: point.count },
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [point.lng, point.lat]
+                        }
+                    }));
+                    
+                    const geoJsonData = {
+                        type: 'FeatureCollection',
+                        features: features
+                    };
+                    
+                    // 更新地图数据源
+                    if (this.map.getSource('faults')) {
+                        this.map.getSource('faults').setData(geoJsonData);
+                    }
+                    
+                    // 更新按钮标题
+                    this.updateButtonTitle(timeRange);
+                }
+                
+                showLoading() {
+                    // 创建或显示加载提示
+                    if (!this.loadingOverlay) {
+                        this.loadingOverlay = document.createElement('div');
+                        this.loadingOverlay.className = 'heatmap-loading-overlay';
+                        this.loadingOverlay.innerHTML = `
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">加载中...</span>
+                            </div>
+                            <div class="mt-2">正在加载热力图数据...</div>
+                        `;
+                        this.loadingOverlay.style.cssText = `
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background-color: rgba(255, 255, 255, 0.8);
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            z-index: 9999;
+                            border-radius: 4px;
+                        `;
+                        this.heatmapContainer.appendChild(this.loadingOverlay);
+                    }
+                    this.loadingOverlay.style.display = 'flex';
+                }
+                
+                hideLoading() {
+                    if (this.loadingOverlay) {
+                        this.loadingOverlay.style.display = 'none';
+                    }
+                }
+                
+                updateButtonTitle(timeRange) {
+                    let rangeText = '本年';  // 默认值
+                    if (timeRange === 'month') rangeText = '一个月';
+                    else if (timeRange === 'three_months') rangeText = '三个月';
+                    
+                    this.heatmapButton.title = `热力图开关 - 当前范围: ${rangeText}`;
+                    this.currentTimeRange = timeRange;
+                }
+                
+                // 可选：回退到页面刷新方式
+                fallbackToPageRefresh(timeRange) {
+                    console.warn('使用页面刷新方式作为回退');
+                    const currentUrl = window.location.href.split('?')[0];
+                    let newUrl = currentUrl;
+                    if (timeRange !== 'year') {
+                        newUrl = `${currentUrl}?time_range=${timeRange}`;
+                    }
+                    window.location.href = newUrl;
                 }
                 
                 toggleHeatmap() {
@@ -347,8 +648,8 @@
                     if (!this.arcgisVisible) {
                         // 如果开关关闭，隐藏所有ArcGIS图层（包括文本标注图层）
                         ['arcgis-otn-points-0', 'arcgis-otn-points-1', 'arcgis-otn-lines-2', 'arcgis-otn-lines-3', 'arcgis-otn-labels-0', 'arcgis-otn-labels-1'].forEach(layerId => {
-                            if (map.getLayer(layerId)) {
-                                map.setLayoutProperty(layerId, 'visibility', 'none');
+                            if (this.map.getLayer(layerId)) {
+                                this.map.setLayoutProperty(layerId, 'visibility', 'none');
                             }
                         });
                         // 确保按钮状态更新
@@ -358,19 +659,19 @@
                     }
                     
                     // 开关打开时，根据缩放级别控制图层显示
-                    const currentZoom = map.getZoom();
+                    const currentZoom = this.map.getZoom();
                     const isNationalView = currentZoom <= 4;    // 全国视野：缩放级别 ≤ 6
                     const isProvincialView = currentZoom >= 5;  // 省级视野：缩放级别 ≥ 8
                     
                     console.log('当前缩放级别:', currentZoom, '全国视野:', isNationalView, '省级视野:', isProvincialView);
                     
                     // 线图层：全国视野时显示，省级视野时也显示（始终显示）
-                    if (map.getLayer('arcgis-otn-lines-2')) {
-                        map.setLayoutProperty('arcgis-otn-lines-2', 'visibility', 'visible');
+                    if (this.map.getLayer('arcgis-otn-lines-2')) {
+                        this.map.setLayoutProperty('arcgis-otn-lines-2', 'visibility', 'visible');
                         console.log('线图层2设置为可见');
                     }
-                    if (map.getLayer('arcgis-otn-lines-3')) {
-                        map.setLayoutProperty('arcgis-otn-lines-3', 'visibility', 'visible');
+                    if (this.map.getLayer('arcgis-otn-lines-3')) {
+                        this.map.setLayoutProperty('arcgis-otn-lines-3', 'visibility', 'visible');
                         console.log('线图层3设置为可见');
                     }
                     
@@ -378,20 +679,20 @@
                     const pointVisibility = isProvincialView ? 'visible' : 'none';
                     console.log('点图层可见性:', pointVisibility);
                     
-                    if (map.getLayer('arcgis-otn-points-0')) {
-                        map.setLayoutProperty('arcgis-otn-points-0', 'visibility', pointVisibility);
+                    if (this.map.getLayer('arcgis-otn-points-0')) {
+                        this.map.setLayoutProperty('arcgis-otn-points-0', 'visibility', pointVisibility);
                         console.log('点图层0设置为:', pointVisibility);
                     }
-                    if (map.getLayer('arcgis-otn-points-1')) {
-                        map.setLayoutProperty('arcgis-otn-points-1', 'visibility', pointVisibility);
+                    if (this.map.getLayer('arcgis-otn-points-1')) {
+                        this.map.setLayoutProperty('arcgis-otn-points-1', 'visibility', pointVisibility);
                         console.log('点图层1设置为:', pointVisibility);
                     }
-                    if (map.getLayer('arcgis-otn-labels-0')) {
-                        map.setLayoutProperty('arcgis-otn-labels-0', 'visibility', pointVisibility);
+                    if (this.map.getLayer('arcgis-otn-labels-0')) {
+                        this.map.setLayoutProperty('arcgis-otn-labels-0', 'visibility', pointVisibility);
                         console.log('标签图层0设置为:', pointVisibility);
                     }
-                    if (map.getLayer('arcgis-otn-labels-1')) {
-                        map.setLayoutProperty('arcgis-otn-labels-1', 'visibility', pointVisibility);
+                    if (this.map.getLayer('arcgis-otn-labels-1')) {
+                        this.map.setLayoutProperty('arcgis-otn-labels-1', 'visibility', pointVisibility);
                         console.log('标签图层1设置为:', pointVisibility);
                     }
                     
@@ -534,13 +835,71 @@
                     var color = faultCategoryColors[category] || faultCategoryColors['other'];
                     var categoryName = faultCategoryNames[category] || faultCategoryNames['other'];
                     
-                    var popup = new maplibregl.Popup({ offset: 25 }).setHTML(
-                        '<div style="text-align: center;">' +
-                        '<h6><a href="' + m.url + '" target="_blank">' + m.number + '</a></h6>' +
-                        '<p><strong>故障分类:</strong> ' + categoryName + '</p>' +
-                        '<p>' + m.details + '</p>' +
-                        '</div>'
-                    );
+                    // 构建详细的popup内容
+                    var popupContent = '<div style="max-width: 450px; max-height: 500px; overflow-y: auto; font-size: 13px;">' +
+                        '<div style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 12px;">' +
+                        '<h6 style="margin: 0 0 8px 0; font-size: 16px;">' +
+                        '<a href="' + m.url + '" target="_blank" style="color: #007bff; text-decoration: none;">' + m.number + '</a>' +
+                        '</h6>' +
+                        '<div style="display: inline-block; padding: 2px 8px; background-color: ' + color + '; color: white; border-radius: 3px; font-size: 12px;">' +
+                        categoryName +
+                        '</div>' +
+                        '</div>' +
+                        
+                        '<table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">' +
+                        '<tr>' +
+                        '<td style="width: 35%; padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">省份:</td>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.province || '未指定') + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">A端站点:</td>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.a_site || '未指定') + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">Z端站点:</td>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.z_sites || '未指定') + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">中断时间:</td>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + m.occurrence_time + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">恢复时间:</td>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + m.recovery_time + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">故障历时:</td>' +
+                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.fault_duration || '无法计算') + '</td>' +
+                        '</tr>' +
+                        '</table>' +
+                        
+                        '<div style="margin-bottom: 12px;">' +
+                        '<div style="font-weight: bold; margin-bottom: 6px;">故障详情:</div>' +
+                        '<div style="padding: 10px; background-color: #f8f9fa; border-radius: 4px; max-height: 150px; overflow-y: auto; line-height: 1.5;">' +
+                        (m.fault_details || '无详细描述') +
+                        '</div>' +
+                        '</div>';
+                    
+                    // 如果有照片，添加照片信息
+                    if (m.has_images && m.image_count > 0) {
+                        popupContent += '<div style="margin-bottom: 12px;">' +
+                            '<div style="font-weight: bold; margin-bottom: 6px;">故障照片:</div>' +
+                            '<div style="padding: 8px; background-color: #e9ecef; border-radius: 4px; font-size: 12px;">' +
+                            '<div style="display: flex; align-items: center; margin-bottom: 4px;">' +
+                            '<span style="margin-right: 8px;">📷</span>' +
+                            '<span>共 ' + m.image_count + ' 张照片</span>' +
+                            '</div>' +
+                            '<div style="color: #666; font-size: 11px;">点击上方故障编号查看详情页面中的照片</div>' +
+                            '</div>' +
+                            '</div>';
+                    }
+                    
+                    popupContent += '<div style="text-align: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; font-size: 11px; color: #666;">' +
+                        '点击标记点可查看详细信息，点击故障编号可查看完整详情' +
+                        '</div>' +
+                        '</div>';
+                    
+                    var popup = new maplibregl.Popup({ offset: 25, maxWidth: '500px' }).setHTML(popupContent);
 
                     var marker = new maplibregl.Marker({ color: color })
                         .setLngLat([m.lng, m.lat])
@@ -956,304 +1315,6 @@
                 };
                 
                 map.addControl(legendControl, 'bottom-right');
-                
-                // 重新加载业务图层函数
-                function reloadBusinessLayers() {
-                    console.log('重新加载业务图层...');
-                    
-                    // 重新添加热力图
-                    if (map.getLayer('faults-heat')) {
-                        map.removeLayer('faults-heat');
-                    }
-                    if (map.getSource('faults')) {
-                        map.removeSource('faults');
-                    }
-                    
-                    // 重新添加ArcGIS图层
-                    ['arcgis-otn-points-0', 'arcgis-otn-points-1', 'arcgis-otn-lines-2', 'arcgis-otn-lines-3'].forEach(layerId => {
-                        if (map.getLayer(layerId)) {
-                            map.removeLayer(layerId);
-                        }
-                    });
-                    ['arcgis-otn-layer-0', 'arcgis-otn-layer-1', 'arcgis-otn-layer-2', 'arcgis-otn-layer-3'].forEach(sourceId => {
-                        if (map.getSource(sourceId)) {
-                            map.removeSource(sourceId);
-                        }
-                    });
-                    
-                    // 重新添加热力图
-                    if (features && features.length > 0) {
-                        map.addSource('faults', {
-                            type: 'geojson',
-                            data: {
-                                type: 'FeatureCollection',
-                                features: features
-                            }
-                        });
-                        
-                        map.addLayer({
-                            id: 'faults-heat',
-                            type: 'heatmap',
-                            source: 'faults',
-                            maxzoom: 15,
-                            paint: {
-                                'heatmap-weight': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['get', 'count'],
-                                    0, 0,
-                                    4, 1
-                                ],
-                                'heatmap-intensity': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['zoom'],
-                                    0, 1,
-                                    9, 4
-                                ],
-                                'heatmap-color': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['heatmap-density'],
-                                    0, 'rgba(33,102,172,0)',
-                                    0.1, 'rgb(103,169,207)',
-                                    0.3, 'rgb(209,229,240)',
-                                    0.5, 'rgb(253,219,199)',
-                                    0.7, 'rgb(239,138,98)',
-                                    1, 'rgb(178,24,43)'
-                                ],
-                                'heatmap-radius': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['zoom'],
-                                    0, 3,
-                                    9, 25
-                                ],
-                                'heatmap-opacity': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['zoom'],
-                                    7, 1,
-                                    9, 0
-                                ],
-                            }
-                        });
-                    }
-                    
-                        // 重新添加ArcGIS图层
-                        try {
-                            // 首先添加线图层（置于底图之上，其他图层之下）
-                            // 图层2：线图层
-                            var arcgisUrl2 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/2/query?where=1%3D1&outFields=*&f=geojson';
-                            map.addSource('arcgis-otn-layer-2', {
-                                type: 'geojson',
-                                data: arcgisUrl2,
-                                promoteId: 'OBJECTID'
-                            });
-                            map.addLayer({
-                                id: 'arcgis-otn-lines-2',
-                                type: 'line',
-                                source: 'arcgis-otn-layer-2',
-                                paint: {
-                                    'line-color': '#ff6600',
-                                    'line-width': 2,
-                                    'line-opacity': 0.8
-                                }
-                            }); // 不指定beforeId，确保地图正常加载
-                            
-                            // 图层3：线图层
-                            var arcgisUrl3 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/3/query?where=1%3D1&outFields=*&f=geojson';
-                            map.addSource('arcgis-otn-layer-3', {
-                                type: 'geojson',
-                                data: arcgisUrl3,
-                                promoteId: 'OBJECTID'
-                            });
-                            map.addLayer({
-                                id: 'arcgis-otn-lines-3',
-                                type: 'line',
-                                source: 'arcgis-otn-layer-3',
-                                paint: {
-                                    'line-color': '#00cc66',
-                                    'line-width': 3,
-                                    'line-opacity': 0.7
-                                }
-                            }); // 不指定beforeId，确保地图正常加载
-                            
-                            // 然后添加点图层（置于线图层之上，热力图和故障点之下）
-                            // 图层0：点图层
-                            var arcgisUrl0 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson';
-                            map.addSource('arcgis-otn-layer-0', {
-                                type: 'geojson',
-                                data: arcgisUrl0,
-                                promoteId: 'OBJECTID'
-                            });
-                            map.addLayer({
-                                id: 'arcgis-otn-points-0',
-                                type: 'circle',
-                                source: 'arcgis-otn-layer-0',
-                                paint: {
-                                    'circle-radius': [
-                                        'interpolate', ['linear'], ['zoom'],
-                                        6, 4,    // 缩放级别6时，半径为4
-                                        10, 8,   // 缩放级别10时，半径为8
-                                        15, 12   // 缩放级别15时，半径为12
-                                    ],
-                                    'circle-color': '#007bff',
-                                    'circle-stroke-width': 2,
-                                    'circle-stroke-color': '#ffffff',
-                                    'circle-opacity': 0.9,
-                                    'circle-stroke-opacity': 0.8
-                                }
-                            }); // 不指定beforeId，默认添加在现有图层之上
-                            
-                            // 图层1：点图层
-                            var arcgisUrl1 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/1/query?where=1%3D1&outFields=*&f=geojson';
-                            map.addSource('arcgis-otn-layer-1', {
-                                type: 'geojson',
-                                data: arcgisUrl1,
-                                promoteId: 'OBJECTID'
-                            });
-                            map.addLayer({
-                                id: 'arcgis-otn-points-1',
-                                type: 'circle',
-                                source: 'arcgis-otn-layer-1',
-                                paint: {
-                                    'circle-radius': [
-                                        'interpolate', ['linear'], ['zoom'],
-                                        6, 3,    // 缩放级别6时，半径为3
-                                        10, 6,   // 缩放级别10时，半径为6
-                                        15, 10   // 缩放级别15时，半径为10
-                                    ],
-                                    'circle-color': '#00aaff',
-                                    'circle-stroke-width': 1,
-                                    'circle-stroke-color': '#ffffff',
-                                    'circle-opacity': 0.8,
-                                    'circle-stroke-opacity': 0.7
-                                }
-                            }); // 不指定beforeId，默认添加在现有图层之上
-                        
-                            // 重新绑定事件
-                        ['arcgis-otn-points-0', 'arcgis-otn-points-1'].forEach(function(layerId) {
-                            var hoveredStateId = null;
-                            var sourceId = layerId.replace('-points-', '-layer-');
-                            
-                            map.on('mouseenter', layerId, function(e) {
-                                map.getCanvas().style.cursor = 'pointer';
-                                
-                                if (e.features.length > 0) {
-                                    if (hoveredStateId !== null) {
-                                        map.setFeatureState(
-                                            { source: sourceId, id: hoveredStateId },
-                                            { hover: false }
-                                        );
-                                    }
-                                    hoveredStateId = e.features[0].id;
-                                    map.setFeatureState(
-                                        { source: sourceId, id: hoveredStateId },
-                                        { hover: true }
-                                    );
-                                }
-                            });
-                            
-                            map.on('mouseleave', layerId, function() {
-                                map.getCanvas().style.cursor = '';
-                                if (hoveredStateId !== null) {
-                                    map.setFeatureState(
-                                        { source: sourceId, id: hoveredStateId },
-                                        { hover: false }
-                                    );
-                                }
-                                hoveredStateId = null;
-                            });
-                            
-                            // 点击显示弹出信息
-                            map.on('click', layerId, function(e) {
-                                if (e.features.length > 0) {
-                                    var feature = e.features[0];
-                                    var properties = feature.properties;
-                                    
-                                    // 构建弹出内容
-                                    var popupContent = '<div style="max-width: 300px;">';
-                                    popupContent += '<h6>OTN网络节点</h6>';
-                                    popupContent += '<table class="table table-sm">';
-                                    
-                                    // 显示所有属性
-                                    for (var key in properties) {
-                                        if (properties.hasOwnProperty(key) && properties[key] !== null) {
-                                            popupContent += '<tr>';
-                                            popupContent += '<th style="width: 40%;">' + key + '</th>';
-                                            popupContent += '<td>' + properties[key] + '</td>';
-                                            popupContent += '</tr>';
-                                        }
-                                    }
-                                    
-                                    popupContent += '</table>';
-                                    popupContent += '</div>';
-                                    
-                                    new maplibregl.Popup()
-                                        .setLngLat(e.lngLat)
-                                        .setHTML(popupContent)
-                                        .addTo(map);
-                                }
-                            });
-                        });
-                        
-                        // 为线图层重新绑定事件
-                        ['arcgis-otn-lines-2', 'arcgis-otn-lines-3'].forEach(function(layerId) {
-                            map.on('mouseenter', layerId, function() {
-                                map.getCanvas().style.cursor = 'pointer';
-                            });
-                            
-                            map.on('mouseleave', layerId, function() {
-                                map.getCanvas().style.cursor = '';
-                            });
-                            
-                            // 点击显示弹出信息
-                            map.on('click', layerId, function(e) {
-                                if (e.features.length > 0) {
-                                    var feature = e.features[0];
-                                    var properties = feature.properties;
-                                    
-                                    // 构建弹出内容
-                                    var popupContent = '<div style="max-width: 300px;">';
-                                    popupContent += '<h6>OTN网络线路</h6>';
-                                    popupContent += '<table class="table table-sm">';
-                                    
-                                    // 显示所有属性
-                                    for (var key in properties) {
-                                        if (properties.hasOwnProperty(key) && properties[key] !== null) {
-                                            popupContent += '<tr>';
-                                            popupContent += '<th style="width: 40%;">' + key + '</th>';
-                                            popupContent += '<td>' + properties[key] + '</td>';
-                                            popupContent += '</tr>';
-                                        }
-                                    }
-                                    
-                                    popupContent += '</table>';
-                                    popupContent += '</div>';
-                                    
-                                    new maplibregl.Popup()
-                                        .setLngLat(e.lngLat)
-                                        .setHTML(popupContent)
-                                        .addTo(map);
-                                }
-                            });
-                        });
-                        
-                        console.log('业务图层重新加载完成');
-                        
-                        // 重新添加缩放事件监听
-                        map.on('zoom', function() {
-                            layerToggleControl.updateArcgisLayersVisibility();
-                        });
-                        
-                        // 初始设置图层可见性
-                        layerToggleControl.updateArcgisLayersVisibility();
-                        
-                        } catch (error) {
-                            console.warn('ArcGIS图层重新加载失败:', error);
-                        }
-                }
                 
                 // 隐藏加载状态
                 loadingOverlay.classList.add('hidden');
