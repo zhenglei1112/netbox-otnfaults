@@ -15,11 +15,11 @@ class OtnFaultForm(NetBoxModelForm):
     )
     interruption_location_a = DynamicModelChoiceField(
         queryset=Site.objects.all(),
-        required=False,
         label='故障位置A端站点'
     )
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
+        required=False,
         label='故障位置Z端站点'
     )
     province = DynamicModelChoiceField(
@@ -55,14 +55,14 @@ class OtnFaultForm(NetBoxModelForm):
             'urgency', 'province', 'interruption_location_a', 'interruption_location',
             'interruption_longitude', 'interruption_latitude', 'fault_category',
             'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
-            'first_report_source', 'resource_type',
-            'cable_route', 'line_manager', 'duty_officer', 'fault_details',
+            'first_report_source', 'line_manager', 'duty_officer', 'fault_details',
             'fault_status',
         )),
-        ('处理信息', (
+        ('光缆中断补充信息', (
+            'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
-            'timeout_reason', 'handler', 'cable_break_location', 'recovery_mode',
+            'timeout_reason', 'handler',
         )),
         (None, (
             'comments', 'tags',
@@ -76,13 +76,13 @@ class OtnFaultForm(NetBoxModelForm):
             'urgency', 'province', 'interruption_location_a', 'interruption_location',
             'interruption_longitude', 'interruption_latitude', 'fault_category',
             'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
-            'first_report_source', 'resource_type',
-            'cable_route', 'line_manager', 'duty_officer', 'fault_details',
+            'first_report_source', 'line_manager', 'duty_officer', 'fault_details',
             'fault_status',
-            # 处理信息组字段
+            # 光缆中断补充信息组字段
+            'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
-            'timeout_reason', 'handler', 'cable_break_location', 'recovery_mode',
+            'timeout_reason', 'handler',
             # 其他字段
             'comments', 'tags',
         )
@@ -181,7 +181,6 @@ class OtnFaultImportForm(NetBoxModelImportForm):
     )
     interruption_location_a = CSVModelChoiceField(
         queryset=Site.objects.all(),
-        required=False,
         to_field_name='name',
         help_text='故障位置A端站点名称'
     )
@@ -387,7 +386,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         'province', 'line_manager', 'handling_unit', 'fault_category',
         'interruption_reason', 'maintenance_mode', 'resource_type',
         'cable_break_location', 'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments',
-        'interruption_location_a'
+        'interruption_location_a', 'first_report_source', 'cable_route'
     )
 
     # fieldsets = (

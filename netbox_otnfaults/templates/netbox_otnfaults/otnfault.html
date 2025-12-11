@@ -127,27 +127,6 @@
           <th scope="row">第一报障来源</th>
           <td>{{ object.get_first_report_source_display|default:"—" }}</td>
         </tr>
-
-        <tr>
-          <th scope="row">资源类型</th>
-          <td>
-            {% if object.resource_type %}
-            {% badge object.get_resource_type_display bg_color=object.get_resource_type_color %}
-            {% else %}
-            —
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
-          <th scope="row">光缆路由属性</th>
-          <td>
-            {% if object.cable_route %}
-            {% badge object.get_cable_route_display bg_color=object.get_cable_route_color %}
-            {% else %}
-            —
-            {% endif %}
-          </td>
-        </tr>
         <tr>
           <th scope="row">线路主管</th>
           <td>
@@ -187,10 +166,50 @@
 
 <div class="row mb-3">
   <div class="col col-md-6">
-    <!-- 处理信息组 -->
+    <!-- 光缆中断补充信息组 -->
     <div class="card">
       <h5 class="card-header">光缆中断补充信息</h5>
       <table class="table table-hover attr-table">
+        <tr>
+          <th scope="row">资源类型</th>
+          <td>
+            {% if object.resource_type %}
+            {% badge object.get_resource_type_display bg_color=object.get_resource_type_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">光缆路由属性</th>
+          <td>
+            {% if object.cable_route %}
+            {% badge object.get_cable_route_display bg_color=object.get_cable_route_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">光缆中断部位</th>
+          <td>
+            {% if object.cable_break_location %}
+            {% badge object.get_cable_break_location_display bg_color=object.get_cable_break_location_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">恢复方式</th>
+          <td>
+            {% if object.recovery_mode %}
+            {% badge object.get_recovery_mode_display bg_color=object.get_recovery_mode_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
         <tr>
           <th scope="row">维护方式</th>
           <td>
@@ -250,26 +269,6 @@
         <tr>
           <th scope="row">故障处理人</th>
           <td>{{ object.handler|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">光缆中断部位</th>
-          <td>
-            {% if object.cable_break_location %}
-            {% badge object.get_cable_break_location_display bg_color=object.get_cable_break_location_color %}
-            {% else %}
-            —
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
-          <th scope="row">恢复方式</th>
-          <td>
-            {% if object.recovery_mode %}
-            {% badge object.get_recovery_mode_display bg_color=object.get_recovery_mode_color %}
-            {% else %}
-            —
-            {% endif %}
-          </td>
         </tr>
       </table>
     </div>

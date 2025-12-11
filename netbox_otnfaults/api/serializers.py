@@ -67,6 +67,7 @@ class NestedJournalEntrySerializer(WritableNestedSerializer):
 
 class OtnFaultSerializer(NetBoxModelSerializer):
     duty_officer = NestedUserSerializer()
+    interruption_location_a = NestedSiteSerializer()
     interruption_location = NestedSiteSerializer(many=True, required=False)
     province = NestedRegionSerializer(required=False)
     line_manager = NestedUserSerializer(required=False)
@@ -76,7 +77,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
     class Meta:
         model = OtnFault
         fields = (
-            'id', 'url', 'display', 'fault_number', 'duty_officer', 'interruption_location',
+            'id', 'url', 'display', 'fault_number', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration',
             'fault_category', 'interruption_reason', 'fault_details',
             'interruption_longitude', 'interruption_latitude',

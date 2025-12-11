@@ -46,14 +46,13 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         to=Site,
         on_delete=models.PROTECT,
         related_name='otn_faults_a',
-        verbose_name='故障位置A端站点',
-        blank=True,
-        null=True
+        verbose_name='故障位置A端站点'
     )
     interruption_location = models.ManyToManyField(
         to=Site,
         related_name='otn_faults',
-        verbose_name='故障位置Z端站点'
+        verbose_name='故障位置Z端站点',
+        blank=True
     )
     fault_occurrence_time = models.DateTimeField(
         verbose_name='故障中断时间'
@@ -135,7 +134,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='紧急程度'
     )
     
-    # 3) 第一报障来源，为选择性字段，分为国干网网管、未来网络网管、客户保障、其他，必填
+    # 3) 第一报障来源，为选择性字段，分为国干网网管、未来网络网管、客户保障、其他，可空
     FIRST_REPORT_SOURCE_CHOICES = (
         ('national_backbone', '国干网网管'),
         ('future_network', '未来网络网管'),
@@ -145,6 +144,8 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     first_report_source = models.CharField(
         max_length=20,
         choices=FIRST_REPORT_SOURCE_CHOICES,
+        blank=True,
+        null=True,
         verbose_name='第一报障来源'
     )
     
@@ -250,7 +251,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='资源类型'
     )
     
-    # 16) 光缆路由属性，为选择性字段，分为高速公路、非高速两类，默认值为高速公路
+    # 16) 光缆路由属性，为选择性字段，分为高速公路、非高速两类，默认值为高速公路，可空
     CABLE_ROUTE_CHOICES = (
         ('highway', '高速公路'),
         ('non_highway', '非高速'),
@@ -259,6 +260,8 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         max_length=20,
         choices=CABLE_ROUTE_CHOICES,
         default='highway',
+        blank=True,
+        null=True,
         verbose_name='光缆路由属性'
     )
     

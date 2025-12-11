@@ -22,9 +22,6 @@
         {% render_field form.fault_occurrence_time %}
         {% render_field form.fault_recovery_time %}
         {% render_field form.first_report_source %}
-
-        {% render_field form.resource_type %}
-        {% render_field form.cable_route %}
         {% render_field form.line_manager %}
         {% render_field form.duty_officer %}
         {% render_field form.fault_details %}
@@ -36,6 +33,10 @@
         <h2 class="col-9 offset-3 mb-0">光缆中断补充信息</h2>
     </div>
     <div class="row">
+        {% render_field form.resource_type %}
+        {% render_field form.cable_route %}
+        {% render_field form.cable_break_location %}
+        {% render_field form.recovery_mode %}
         {% render_field form.maintenance_mode %}
         {% render_field form.handling_unit %}
         {% render_field form.contract %}
@@ -45,8 +46,6 @@
         {% render_field form.timeout %}
         {% render_field form.timeout_reason %}
         {% render_field form.handler %}
-        {% render_field form.cable_break_location %}
-        {% render_field form.recovery_mode %}
     </div>
 </div>
 
