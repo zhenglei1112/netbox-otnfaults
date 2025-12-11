@@ -859,12 +859,6 @@
                             }, 300);
                         });
                         
-                    // 单击切换筛选状态
-                    this.filterButton.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.toggleAllCategories();
-                    });
-                        
                     // 创建分类菜单
                     this.createCategoryMenu();
                     
@@ -1166,14 +1160,7 @@
                         const title = `故障分类筛选 - 时间: ${timeRangeText}, 分类: ${categoryText}`;
                         this.filterButton.title = title;
                         
-                        // 更新按钮激活状态
-                        if (selectedCount === totalCategories) {
-                            this.filterButton.classList.add('active');
-                        } else if (selectedCount === 0) {
-                            this.filterButton.classList.remove('active');
-                        } else {
-                            this.filterButton.classList.add('active');
-                        }
+                        // 不再更新按钮激活状态，按钮始终保持非激活状态
                     }
                     
                     reloadHeatmapData() {
