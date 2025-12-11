@@ -1,9 +1,9 @@
 """
-NetBox自定义脚本：根据故障位置经纬度查找最近站点
+NetBox自定义脚本：根据故障位置经纬度查找最近站点（仅限光缆故障）
 
 功能：
-1. 遍历所有故障记录
-2. 对于每个有经纬度的故障，计算其与所有有经纬度的站点之间的距离
+1. 遍历所有光缆故障记录
+2. 对于每个有经纬度的光缆故障，计算其与所有有经纬度的站点之间的距离
 3. 找到距离最近的两个站点
 4. 将最近站点设为故障位置A端站点，第二近站点设为故障位置Z端站点
 5. 支持覆盖已有站点关联
@@ -25,12 +25,12 @@ from netbox_otnfaults.models import OtnFault
 
 class FindNearestSitesForFaults(Script):
     """
-    根据故障位置经纬度查找最近站点的自定义脚本
+    根据故障位置经纬度查找最近站点的自定义脚本（仅限光缆故障）
     """
     
     class Meta:
-        name = "根据故障位置查找最近站点"
-        description = "根据故障位置经纬度查找最近的两个站点并设置为A/Z端站点"
+        name = "根据故障位置查找最近站点（光缆故障）"
+        description = "根据故障位置经纬度查找最近的两个站点并设置为A/Z端站点（仅处理光缆故障）"
         commit_default = False
     
     # 脚本参数
@@ -138,26 +138,28 @@ class FindNearestSitesForFaults(Script):
         """
         self.log_info("正在扫描故障记录...")
         
-        # 获取所有有经纬度的故障记录
+        # 获取所有有经纬度的故障记录，且故障类型为光缆故障（fiber）
         faults = OtnFault.objects.exclude(
             interruption_latitude__isnull=True
         ).exclude(
             interruption_longitude__isnull=True
+        ).filter(
+            fault_category='fiber'  # 只处理光缆故障
         )
         
         faults_to_process = []
         for fault in faults:
             # 根据overwrite参数决定是否处理已有站点关联的故障
             if overwrite:
-                # 覆盖模式：处理所有有经纬度的故障
+                # 覆盖模式：处理所有有经纬度的光缆故障
                 faults_to_process.append(fault)
             else:
-                # 非覆盖模式：只处理没有站点关联的故障
+                # 非覆盖模式：只处理没有站点关联的光缆故障
                 if not fault.interruption_location.exists() and not fault.interruption_location_a:
                     faults_to_process.append(fault)
         
-        self.log_info(f"扫描完成：共 {faults.count()} 条有经纬度的故障记录")
-        self.log_info(f"将处理 {len(faults_to_process)} 条故障记录")
+        self.log_info(f"扫描完成：共 {faults.count()} 条有经纬度的光缆故障记录")
+        self.log_info(f"将处理 {len(faults_to_process)} 条光缆故障记录")
         
         return faults_to_process
     
@@ -324,7 +326,7 @@ class FindNearestSitesForFaults(Script):
         overwrite = data['overwrite']
         verbose = data['verbose']
         
-        self.log_info("开始根据故障位置查找最近站点")
+        self.log_info("开始根据故障位置查找最近站点（仅限光缆故障）")
         
         # 加载有经纬度的站点
         sites_with_coords = self.load_sites_with_coordinates()
@@ -337,9 +339,9 @@ class FindNearestSitesForFaults(Script):
         
         if not faults_to_process:
             if overwrite:
-                return "所有有经纬度的故障记录都已处理完成，无需更新"
+                return "所有有经纬度的光缆故障记录都已处理完成，无需更新"
             else:
-                return "没有需要处理的故障记录（可能所有故障都已有关联站点，或没有有经纬度的故障）"
+                return "没有需要处理的光缆故障记录（可能所有光缆故障都已有关联站点，或没有有经纬度的光缆故障）"
         
         # 统计信息
         total_to_process = len(faults_to_process)
@@ -347,13 +349,13 @@ class FindNearestSitesForFaults(Script):
         failed_updates = 0
         skipped_faults = 0
         
-        self.log_info(f"开始为 {total_to_process} 条故障记录查找最近站点...")
+        self.log_info(f"开始为 {total_to_process} 条光缆故障记录查找最近站点...")
         
         # 处理每个故障记录
         for i, fault in enumerate(faults_to_process):
             # 进度反馈
             if (i + 1) % 10 == 0:
-                self.log_info(f"已处理 {i + 1}/{total_to_process} 条故障记录...")
+                self.log_info(f"已处理 {i + 1}/{total_to_process} 条光缆故障记录...")
             
             try:
                 # 获取故障经纬度
@@ -436,8 +438,8 @@ class FindNearestSitesForFaults(Script):
         result_message = (
             f"处理完成！\n"
             f"• 有经纬度的站点数量：{len(sites_with_coords)} 个\n"
-            f"• 有经纬度的故障记录：{OtnFault.objects.exclude(interruption_latitude__isnull=True).exclude(interruption_longitude__isnull=True).count()} 条\n"
-            f"• 需要处理的故障记录：{total_to_process} 条\n"
+            f"• 有经纬度的光缆故障记录：{OtnFault.objects.exclude(interruption_latitude__isnull=True).exclude(interruption_longitude__isnull=True).filter(fault_category='fiber').count()} 条\n"
+            f"• 需要处理的光缆故障记录：{total_to_process} 条\n"
             f"• 成功更新：{successful_updates} 条\n"
             f"• 更新失败：{failed_updates} 条\n"
             f"• 跳过处理：{skipped_faults} 条\n"

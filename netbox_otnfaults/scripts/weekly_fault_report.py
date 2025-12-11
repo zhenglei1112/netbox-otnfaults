@@ -69,7 +69,7 @@ class WeeklyFaultReport(Script):
             # 故障分类
             'power': '电力故障',
             'fiber': '光缆故障',
-            'pigtail': '尾纤故障',
+            'pigtail': '空调故障',
             'device': '设备故障',
             'other': '其他故障',
             
@@ -318,6 +318,52 @@ class WeeklyFaultReport(Script):
                     stats['sla'] = Decimal('0.00')
         
         return service_groups
+    
+    def get_top_power_fault_sites(self, resolved_faults):
+        """获取电力故障最高的五个A端站点"""
+        power_faults = [f for f in resolved_faults if f.fault_category == 'power']
+        
+        # 统计每个A端站点的电力故障数量
+        site_counts = {}
+        for fault in power_faults:
+            if fault.interruption_location_a:
+                site_name = fault.interruption_location_a.name
+                site_counts[site_name] = site_counts.get(site_name, 0) + 1
+        
+        # 按故障数量降序排序，取前5个
+        sorted_sites = sorted(site_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        
+        return sorted_sites
+    
+    def get_top_fiber_fault_site_pairs(self, resolved_faults):
+        """获取光缆故障最高的五对站点（A-Z对，合并AZ和ZA）"""
+        fiber_faults = [f for f in resolved_faults if f.fault_category == 'fiber']
+        
+        # 统计每个站点对的光缆故障数量
+        pair_counts = {}
+        
+        for fault in fiber_faults:
+            if fault.interruption_location_a:
+                a_site = fault.interruption_location_a.name
+                # 获取所有Z端站点
+                z_sites = list(fault.interruption_location.all())
+                
+                for z_site_obj in z_sites:
+                    z_site = z_site_obj.name
+                    # 创建规范化的站点对（按字母顺序排序，使A-Z和Z-A视为同一对）
+                    site_pair = tuple(sorted([a_site, z_site]))
+                    pair_counts[site_pair] = pair_counts.get(site_pair, 0) + 1
+        
+        # 按故障数量降序排序，取前5个
+        sorted_pairs = sorted(pair_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        
+        # 格式化结果：将元组转换为字符串 "站点A-站点B"
+        formatted_pairs = []
+        for pair, count in sorted_pairs:
+            site_a, site_b = pair
+            formatted_pairs.append((f"{site_a}-{site_b}", count))
+        
+        return formatted_pairs
 
     def calculate_stats_for_period(self, start_time, end_time):
         """计算指定时间段内的所有统计信息"""
@@ -344,7 +390,10 @@ class WeeklyFaultReport(Script):
             'by_resource_type': self.group_statistics_by_resource_type(resolved_faults),
             'by_cable_route': self.group_statistics_by_cable_route(resolved_faults),
             'by_service': self.group_statistics_by_service(resolved_faults, period_duration_hours),
-            'unresolved_faults': unresolved_faults
+            'unresolved_faults': unresolved_faults,
+            # 新增统计项
+            'top_power_sites': self.get_top_power_fault_sites(resolved_faults),
+            'top_fiber_site_pairs': self.get_top_fiber_fault_site_pairs(resolved_faults)
         }
         
         return stats
@@ -509,6 +558,30 @@ class WeeklyFaultReport(Script):
                 rows
             )
         
+        # 新增：电力故障最高的五个A端站点
+        if stats.get('top_power_sites'):
+            rows = []
+            for site_name, count in stats['top_power_sites']:
+                rows.append([site_name, count])
+            
+            report += self.generate_markdown_table(
+                "电力故障最高的五个A端站点",
+                ["站点名称", "电力故障数量"],
+                rows
+            )
+        
+        # 新增：光缆故障最高的五对站点
+        if stats.get('top_fiber_site_pairs'):
+            rows = []
+            for site_pair, count in stats['top_fiber_site_pairs']:
+                rows.append([site_pair, count])
+            
+            report += self.generate_markdown_table(
+                "光缆故障最高的五对站点（A-Z对）",
+                ["站点对", "光缆故障数量"],
+                rows
+            )
+        
         return report
     
     def run(self, data, commit):
@@ -650,6 +723,20 @@ class WeeklyFaultReport(Script):
                 if 'sla' in service_stats:
                     line += f", SLA {service_stats['sla']:.4f}%"
                 report_lines.append(line)
+            report_lines.append("")
+        
+        # 新增：电力故障最高的五个A端站点
+        if stats.get('top_power_sites'):
+            report_lines.append("电力故障最高的五个A端站点：")
+            for site_name, count in stats['top_power_sites']:
+                report_lines.append(f"  {site_name}: {count}次")
+            report_lines.append("")
+        
+        # 新增：光缆故障最高的五对站点
+        if stats.get('top_fiber_site_pairs'):
+            report_lines.append("光缆故障最高的五对站点（A-Z对）：")
+            for site_pair, count in stats['top_fiber_site_pairs']:
+                report_lines.append(f"  {site_pair}: {count}次")
             report_lines.append("")
         
         return "\n".join(report_lines)

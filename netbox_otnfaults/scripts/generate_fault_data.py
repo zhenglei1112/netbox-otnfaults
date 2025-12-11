@@ -91,7 +91,7 @@ class GenerateFaultData(Script):
         self.fault_categories = [
             'power',    # 电力故障
             'fiber',    # 光缆故障
-            'pigtail',  # 尾纤故障
+            'pigtail',  # 空调故障
             'device',   # 设备故障
             'other',    # 其他故障
         ]
