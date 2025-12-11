@@ -200,7 +200,8 @@
             home: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>',
             heatmap: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>',
             marker: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>',
-            network: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="12" cy="16" r="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="8" x2="12" y2="16"/><line x1="16" y1="8" x2="12" y2="16"/></svg>'
+            network: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="12" cy="16" r="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="8" x2="12" y2="16"/><line x1="16" y1="8" x2="12" y2="16"/></svg>',
+            filter: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>'
         };
         
         try {
@@ -326,33 +327,13 @@
                     this.heatmapButton = document.createElement('button');
                     this.heatmapButton.className = 'maplibregl-ctrl-icon toggle-button heatmap-toggle active';
                     this.heatmapButton.innerHTML = svgIcons.heatmap;
-                    this.heatmapButton.title = '热力图开关 - 当前范围: 本年 (悬停显示时间菜单)';
-                    
-                    // 鼠标悬停显示时间范围菜单
-                    this.heatmapButton.addEventListener('mouseenter', (e) => {
-                        e.stopPropagation();
-                        this.showTimeRangeMenu();
-                    });
-                    
-                    // 鼠标离开隐藏时间范围菜单（延迟隐藏，避免菜单无法点击）
-                    this.heatmapButton.addEventListener('mouseleave', (e) => {
-                        e.stopPropagation();
-                        // 延迟隐藏，给用户时间移动到菜单
-                        setTimeout(() => {
-                            if (!this.isMouseOverMenu()) {
-                                this.hideTimeRangeMenu();
-                            }
-                        }, 300);
-                    });
+                    this.heatmapButton.title = '热力图开关';
                     
                     // 单击切换热力图层显示/隐藏
                     this.heatmapButton.addEventListener('click', (e) => {
                         e.stopPropagation();
                         this.toggleHeatmap();
                     });
-                    
-                    // 创建时间范围菜单
-                    this.createTimeRangeMenu();
                     
                     // 故障点开关按钮 - 使用SVG图标
                     this.markersButton = document.createElement('button');
@@ -808,24 +789,473 @@
                     map.fitBounds(bounds, { padding: 50 });
                 }
 
-                // 故障分类颜色映射
+                // 故障分类颜色映射（5种分类）
                 var faultCategoryColors = {
-                    'network': '#FF0000',      // 网络故障 - 红色
-                    'equipment': '#FFA500',    // 设备故障 - 橙色
-                    'power': '#FFFF00',        // 电源故障 - 黄色
-                    'optical': '#00FF00',      // 光缆故障 - 绿色
-                    'software': '#0000FF',     // 软件故障 - 蓝色
-                    'other': '#800080'         // 其他故障 - 紫色
+                    'power': '#FF0000',      // 电力故障 - 红色
+                    'fiber': '#00FF00',      // 光缆故障 - 绿色
+                    'pigtail': '#0000FF',    // 空调故障 - 蓝色
+                    'device': '#FFA500',     // 设备故障 - 橙色
+                    'other': '#800080'       // 其他故障 - 紫色
                 };
                 
-                // 故障分类名称映射
+                // 故障分类名称映射（5种分类）
                 var faultCategoryNames = {
-                    'network': '网络故障',
-                    'equipment': '设备故障',
-                    'power': '电源故障',
-                    'optical': '光缆故障',
-                    'software': '软件故障',
+                    'power': '电力故障',
+                    'fiber': '光缆故障',
+                    'pigtail': '空调故障',
+                    'device': '设备故障',
                     'other': '其他故障'
+                };
+                
+                // 故障分类筛选状态（默认全选）
+                var selectedCategories = Object.keys(faultCategoryColors);
+                
+                // 创建故障分类筛选控件
+                class CategoryFilterControl {
+                    constructor(options) {
+                        this.options = options || {};
+                        this.selectedCategories = Object.keys(faultCategoryColors); // 默认全选
+                        this.currentTimeRange = 'year'; // 默认时间范围：本年
+                        this.menuHovered = false;
+                        this.lastMouseX = 0;
+                        this.lastMouseY = 0;
+                        
+                        // 跟踪鼠标位置
+                        document.addEventListener('mousemove', (e) => {
+                            this.lastMouseX = e.clientX;
+                            this.lastMouseY = e.clientY;
+                        });
+                    }
+                    
+                    onAdd(map) {
+                        this.map = map;
+                        this.container = document.createElement('div');
+                        this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group category-filter-control';
+                        
+                        // 创建筛选按钮容器
+                        this.filterContainer = document.createElement('div');
+                        this.filterContainer.className = 'category-filter-button-container';
+                        this.filterContainer.style.position = 'relative';
+                        
+                        // 筛选按钮 - 使用SVG图标
+                        this.filterButton = document.createElement('button');
+                        this.filterButton.className = 'maplibregl-ctrl-icon toggle-button category-filter-toggle';
+                        this.filterButton.innerHTML = svgIcons.filter;
+                        this.filterButton.title = '故障分类筛选 - 当前选中: 全部5种分类';
+                        
+                        // 鼠标悬停显示分类菜单
+                        this.filterButton.addEventListener('mouseenter', (e) => {
+                            e.stopPropagation();
+                            this.showCategoryMenu();
+                        });
+                        
+                        // 鼠标离开隐藏分类菜单
+                        this.filterButton.addEventListener('mouseleave', (e) => {
+                            e.stopPropagation();
+                            setTimeout(() => {
+                                if (!this.isMouseOverMenu()) {
+                                    this.hideCategoryMenu();
+                                }
+                            }, 300);
+                        });
+                        
+                    // 单击切换筛选状态
+                    this.filterButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.toggleAllCategories();
+                    });
+                        
+                    // 创建分类菜单
+                    this.createCategoryMenu();
+                    
+                    this.filterContainer.appendChild(this.filterButton);
+                    this.container.appendChild(this.filterContainer);
+                    
+                    return this.container;
+                    }
+                    
+                    onRemove() {
+                        this.container.parentNode.removeChild(this.container);
+                        this.map = undefined;
+                    }
+                    
+                    createCategoryMenu() {
+                        this.categoryMenu = document.createElement('div');
+                        this.categoryMenu.className = 'category-filter-menu';
+                        this.categoryMenu.style.cssText = `
+                            position: absolute;
+                            background-color: white;
+                            border: 1px solid #ddd;
+                            border-radius: 4px;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                            z-index: 1000;
+                            min-width: 150px;
+                            padding: 8px 0;
+                            display: none;
+                            top: 100%;
+                            left: 0;
+                        `;
+                        
+                        // 阻止菜单内部的点击事件冒泡到文档
+                        this.categoryMenu.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                        });
+                        
+                        // 添加时间范围选择部分
+                        const timeRangeTitle = document.createElement('div');
+                        timeRangeTitle.className = 'dropdown-item';
+                        timeRangeTitle.innerHTML = '<strong>时间范围</strong>';
+                        timeRangeTitle.style.borderBottom = '1px solid #eee';
+                        timeRangeTitle.style.marginBottom = '4px';
+                        this.categoryMenu.appendChild(timeRangeTitle);
+                        
+                        // 时间范围选项
+                        const timeRanges = [
+                            { range: 'month', text: '一个月' },
+                            { range: 'three_months', text: '三个月' },
+                            { range: 'year', text: '本年' }
+                        ];
+                        
+                        timeRanges.forEach(item => {
+                            const timeRangeItem = document.createElement('div');
+                            timeRangeItem.className = 'dropdown-item';
+                            timeRangeItem.setAttribute('data-range', item.range);
+                            timeRangeItem.textContent = item.text;
+                            
+                            // 如果是当前选择项，添加高亮类
+                            if (item.range === this.currentTimeRange) {
+                                timeRangeItem.classList.add('active');
+                            }
+                            
+                            // 添加点击事件
+                            timeRangeItem.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                const range = e.target.getAttribute('data-range');
+                                this.selectTimeRange(range);
+                                // 不隐藏菜单，让用户可以继续操作
+                            });
+                            
+                            this.categoryMenu.appendChild(timeRangeItem);
+                        });
+                        
+                        // 添加分隔线
+                        const separator = document.createElement('div');
+                        separator.style.height = '1px';
+                        separator.style.backgroundColor = '#eee';
+                        separator.style.margin = '8px 0';
+                        this.categoryMenu.appendChild(separator);
+                        
+                        // 添加全选/全不选按钮
+                        const allButton = document.createElement('div');
+                        allButton.className = 'dropdown-item';
+                        allButton.innerHTML = '<strong>全选/全不选</strong>';
+                        allButton.style.borderBottom = '1px solid #eee';
+                        allButton.style.marginBottom = '4px';
+                        allButton.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.toggleAllCategories();
+                            // 不隐藏菜单，让用户可以继续操作
+                        });
+                        this.categoryMenu.appendChild(allButton);
+                        
+                        // 添加每个分类的复选框
+                        Object.keys(faultCategoryColors).forEach(category => {
+                            const menuItem = document.createElement('div');
+                            menuItem.className = 'dropdown-item';
+                            menuItem.style.display = 'flex';
+                            menuItem.style.alignItems = 'center';
+                            menuItem.style.padding = '6px 12px';
+                            
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.id = `category-${category}`;
+                            checkbox.checked = this.selectedCategories.includes(category);
+                            checkbox.style.marginRight = '8px';
+                            
+                            const label = document.createElement('label');
+                            label.htmlFor = `category-${category}`;
+                            label.style.display = 'flex';
+                            label.style.alignItems = 'center';
+                            label.style.cursor = 'pointer';
+                            label.style.flex = '1';
+                            
+                            const colorBox = document.createElement('div');
+                            colorBox.style.width = '12px';
+                            colorBox.style.height = '12px';
+                            colorBox.style.backgroundColor = faultCategoryColors[category];
+                            colorBox.style.borderRadius = '2px';
+                            colorBox.style.marginRight = '8px';
+                            colorBox.style.border = '1px solid #ccc';
+                            
+                            const text = document.createElement('span');
+                            text.textContent = faultCategoryNames[category];
+                            text.style.fontSize = '13px';
+                            
+                            label.appendChild(colorBox);
+                            label.appendChild(text);
+                            
+                            // 复选框变化事件
+                            checkbox.addEventListener('change', (e) => {
+                                e.stopPropagation();
+                                this.toggleCategory(category, checkbox.checked);
+                            });
+                            
+                            // 点击标签也触发复选框
+                            label.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                checkbox.checked = !checkbox.checked;
+                                this.toggleCategory(category, checkbox.checked);
+                            });
+                            
+                            // 菜单项点击事件，阻止冒泡
+                            menuItem.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                            });
+                            
+                            menuItem.appendChild(checkbox);
+                            menuItem.appendChild(label);
+                            this.categoryMenu.appendChild(menuItem);
+                        });
+                        
+                        // 菜单鼠标事件
+                        this.categoryMenu.addEventListener('mouseenter', () => {
+                            this.menuHovered = true;
+                        });
+                        
+                        this.categoryMenu.addEventListener('mouseleave', () => {
+                            this.menuHovered = false;
+                            setTimeout(() => {
+                                if (!this.menuHovered && !this.isMouseOverButton()) {
+                                    this.hideCategoryMenu();
+                                }
+                            }, 300);
+                        });
+                        
+                        this.filterContainer.appendChild(this.categoryMenu);
+                        
+                        // 智能的文档点击事件处理：只在点击菜单和按钮外部时隐藏
+                        document.addEventListener('click', (e) => {
+                            // 检查点击是否在菜单或按钮内部
+                            const isClickInsideMenu = this.categoryMenu && this.categoryMenu.contains(e.target);
+                            const isClickInsideButton = this.filterButton && this.filterButton.contains(e.target);
+                            
+                            if (!isClickInsideMenu && !isClickInsideButton) {
+                                this.hideCategoryMenu();
+                            }
+                        });
+                    }
+                    
+                    isMouseOverMenu() {
+                        return this.menuHovered || false;
+                    }
+                    
+                    isMouseOverButton() {
+                        if (!this.filterButton) return false;
+                        const rect = this.filterButton.getBoundingClientRect();
+                        const mouseX = this.lastMouseX || 0;
+                        const mouseY = this.lastMouseY || 0;
+                        return mouseX >= rect.left && mouseX <= rect.right && 
+                               mouseY >= rect.top && mouseY <= rect.bottom;
+                    }
+                    
+                    showCategoryMenu() {
+                        this.hideCategoryMenu();
+                        this.categoryMenu.style.display = 'block';
+                    }
+                    
+                    hideCategoryMenu() {
+                        if (this.categoryMenu) {
+                            this.categoryMenu.style.display = 'none';
+                        }
+                    }
+                    
+                    selectTimeRange(range) {
+                        this.currentTimeRange = range;
+                        
+                        // 更新菜单项高亮状态
+                        this.updateTimeRangeMenuHighlight();
+                        
+                        // 更新按钮标题
+                        this.updateButtonTitle();
+                        
+                        // 重新加载热力图数据
+                        this.reloadHeatmapData();
+                    }
+                    
+                    updateTimeRangeMenuHighlight() {
+                        if (this.categoryMenu) {
+                            const timeRangeItems = this.categoryMenu.querySelectorAll('.dropdown-item[data-range]');
+                            timeRangeItems.forEach(item => {
+                                const range = item.getAttribute('data-range');
+                                if (range === this.currentTimeRange) {
+                                    item.classList.add('active');
+                                } else {
+                                    item.classList.remove('active');
+                                }
+                            });
+                        }
+                    }
+                    
+                    toggleCategory(category, checked) {
+                        if (checked) {
+                            if (!this.selectedCategories.includes(category)) {
+                                this.selectedCategories.push(category);
+                            }
+                        } else {
+                            this.selectedCategories = this.selectedCategories.filter(c => c !== category);
+                        }
+                        
+                        // 更新按钮标题
+                        this.updateButtonTitle();
+                        
+                        // 重新加载热力图数据
+                        this.reloadHeatmapData();
+                    }
+                    
+                    toggleAllCategories() {
+                        const allCategories = Object.keys(faultCategoryColors);
+                        if (this.selectedCategories.length === allCategories.length) {
+                            // 如果当前全选，则全不选
+                            this.selectedCategories = [];
+                        } else {
+                            // 否则全选
+                            this.selectedCategories = [...allCategories];
+                        }
+                        
+                        // 更新菜单中的复选框状态
+                        this.updateMenuCheckboxes();
+                        
+                        // 更新按钮标题
+                        this.updateButtonTitle();
+                        
+                        // 重新加载热力图数据
+                        this.reloadHeatmapData();
+                    }
+                    
+                    updateMenuCheckboxes() {
+                        if (this.categoryMenu) {
+                            Object.keys(faultCategoryColors).forEach(category => {
+                                const checkbox = document.getElementById(`category-${category}`);
+                                if (checkbox) {
+                                    checkbox.checked = this.selectedCategories.includes(category);
+                                }
+                            });
+                        }
+                    }
+                    
+                    updateButtonTitle() {
+                        const totalCategories = Object.keys(faultCategoryColors).length;
+                        const selectedCount = this.selectedCategories.length;
+                        
+                        // 时间范围文本
+                        let timeRangeText = '本年';
+                        if (this.currentTimeRange === 'month') timeRangeText = '一个月';
+                        else if (this.currentTimeRange === 'three_months') timeRangeText = '三个月';
+                        
+                        // 分类选择文本
+                        let categoryText = '';
+                        if (selectedCount === totalCategories) {
+                            categoryText = '全部' + totalCategories + '种分类';
+                        } else if (selectedCount === 0) {
+                            categoryText = '无分类';
+                        } else {
+                            categoryText = selectedCount + '种分类';
+                        }
+                        
+                        // 组合标题
+                        const title = `故障分类筛选 - 时间: ${timeRangeText}, 分类: ${categoryText}`;
+                        this.filterButton.title = title;
+                        
+                        // 更新按钮激活状态
+                        if (selectedCount === totalCategories) {
+                            this.filterButton.classList.add('active');
+                        } else if (selectedCount === 0) {
+                            this.filterButton.classList.remove('active');
+                        } else {
+                            this.filterButton.classList.add('active');
+                        }
+                    }
+                    
+                    reloadHeatmapData() {
+                        // 使用内部时间范围属性
+                        const timeRange = this.currentTimeRange;
+                        
+                        // 计算起始日期
+                        const now = new Date();
+                        let startDate;
+                        
+                        if (timeRange === 'month') {
+                            startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+                        } else if (timeRange === 'three_months') {
+                            startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+                        } else { // 'year' 或 'all'
+                            startDate = new Date(now.getFullYear(), 0, 1);
+                        }
+                        
+                        // 筛选数据：同时考虑时间范围和故障分类
+                        const filteredData = heatmapData.filter(point => {
+                            // 时间筛选
+                            if (!point.occurrence_time) return false;
+                            const pointDate = new Date(point.occurrence_time);
+                            if (pointDate < startDate) return false;
+                            
+                            // 分类筛选
+                            if (this.selectedCategories.length === 0) {
+                                return false; // 如果没有选中任何分类，不显示任何数据
+                            }
+                            
+                            const category = point.category || 'other';
+                            return this.selectedCategories.includes(category);
+                        });
+                        
+                        console.log(`前端筛选热力图数据，时间范围: ${timeRange}, 分类: ${this.selectedCategories.length}种, 筛选后数据点: ${filteredData.length}`);
+                        
+                        // 将筛选结果转换为GeoJSON格式
+                        const features = filteredData.map(point => ({
+                            type: 'Feature',
+                            properties: { count: point.count },
+                            geometry: {
+                                type: 'Point',
+                                coordinates: [point.lng, point.lat]
+                            }
+                        }));
+                        
+                        const geoJsonData = {
+                            type: 'FeatureCollection',
+                            features: features
+                        };
+                        
+                        // 更新地图数据源
+                        if (this.map.getSource('faults')) {
+                            this.map.getSource('faults').setData(geoJsonData);
+                        }
+                    }
+                }
+                
+                // 添加故障分类筛选控件
+                var categoryFilterControl = new CategoryFilterControl();
+                map.addControl(categoryFilterControl, 'top-left');
+                
+                // 修改LayerToggleControl的reloadHeatmapData方法，使其考虑分类筛选
+                var originalReloadHeatmapData = layerToggleControl.reloadHeatmapData;
+                layerToggleControl.reloadHeatmapData = function(timeRange) {
+                    // 调用原始方法更新时间范围
+                    this.currentTimeRange = timeRange;
+                    
+                    // 更新按钮标题
+                    let rangeText = '本年';  // 默认值
+                    if (timeRange === 'month') rangeText = '一个月';
+                    else if (timeRange === 'three_months') rangeText = '三个月';
+                    
+                    this.heatmapButton.title = `热力图开关 - 当前范围: ${rangeText}`;
+                    
+                    // 更新菜单项高亮状态
+                    this.updateMenuHighlight();
+                    
+                    // 调用分类筛选控件的重新加载方法
+                    if (categoryFilterControl && categoryFilterControl.reloadHeatmapData) {
+                        categoryFilterControl.reloadHeatmapData();
+                    }
                 };
                 
                 // 添加最近一周故障点的标记 - 根据故障分类显示不同颜色

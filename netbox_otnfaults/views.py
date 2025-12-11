@@ -52,11 +52,28 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
         heatmap_faults = faults.filter(fault_occurrence_time__gte=current_year_start)
         heatmap_data = []
         for fault in heatmap_faults:
+            # 获取故障分类，转换为前端可识别的键
+            fault_category = fault.fault_category
+            category_key = 'other'  # 默认值
+            
+            # 将数据库中的分类值映射到前端可识别的键
+            if fault_category:
+                category_mapping = {
+                    'power': 'power',      # 电力故障 -> power
+                    'fiber': 'fiber',      # 光缆故障 -> fiber
+                    'pigtail': 'pigtail',  # 空调故障 -> pigtail
+                    'device': 'device',    # 设备故障 -> device
+                    'other': 'other'       # 其他故障 -> other
+                }
+                
+                category_key = category_mapping.get(fault_category, 'other')
+            
             heatmap_data.append({
                 'lat': float(fault.interruption_latitude),
                 'lng': float(fault.interruption_longitude),
                 'count': 1,  # 简单计数，也可以根据紧急程度加权
-                'occurrence_time': fault.fault_occurrence_time.isoformat() if fault.fault_occurrence_time else None
+                'occurrence_time': fault.fault_occurrence_time.isoformat() if fault.fault_occurrence_time else None,
+                'category': category_key  # 新增：故障分类
             })
 
         # 标记点数据：上一周发生的故障（优化查询，预取相关数据）
@@ -75,11 +92,11 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             # 将数据库中的分类值映射到前端可识别的键
             if fault_category:
                 category_mapping = {
-                    'power': 'power',        # 电力故障 -> 电源故障
-                    'fiber': 'optical',      # 光缆故障 -> 光缆故障
-                    'pigtail': 'optical',    # 尾纤故障 -> 光缆故障（同属光缆类）
-                    'device': 'equipment',   # 设备故障 -> 设备故障
-                    'other': 'other'         # 其他故障 -> 其他故障
+                    'power': 'power',      # 电力故障 -> power
+                    'fiber': 'fiber',      # 光缆故障 -> fiber
+                    'pigtail': 'pigtail',  # 空调故障 -> pigtail
+                    'device': 'device',    # 设备故障 -> device
+                    'other': 'other'       # 其他故障 -> other
                 }
                 
                 category_key = category_mapping.get(fault_category, 'other')
