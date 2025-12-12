@@ -1,1776 +1,1856 @@
-{% extends 'base/layout.html' %}
+﻿{% extends 'base/layout.html' %}
 {% load static %}
 
-{% block title %}故障分布图（地球模式）{% endblock %}
+{% block title %}故障分布图{% endblock %}
 
 {% block content %}
 <div class="row mb-3">
-    <div class="col">
-        <div class="card">
-            <h5 class="card-header">
-                故障分布图
-                <div class="card-actions">
-                    <a href="{% url 'plugins:netbox_otnfaults:otnfault_list' %}" class="btn btn-ghost-primary btn-sm">
-                        <i class="mdi mdi-format-list-bulleted"></i> 查看列表
-                    </a>
-                </div>
-            </h5>
-            <div class="card-body p-0">
-                <div id="map" style="height:calc(-178px + 100vh);width: 100%;"></div>
-            </div>
+  <div class="col">
+    <div class="card">
+      <h5 class="card-header">
+        故障分布图
+        <div class="card-actions">
+          <a
+            href="{% url 'plugins:netbox_otnfaults:otnfault_list' %}"
+            class="btn btn-ghost-primary btn-sm"
+          >
+            <i class="mdi mdi-format-list-bulleted"></i> 查看列表
+          </a>
         </div>
+      </h5>
+      <div class="card-body p-0">
+        <div id="map" style="height: calc(-178px + 100vh); width: 100%"></div>
+      </div>
     </div>
+  </div>
 </div>
 
-<link href="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+<link
+  href="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.css"
+  rel="stylesheet"
+/>
+<link
+  href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.4.0/dist/maplibre-gl.css"
+  rel="stylesheet"
+/>
 <script src="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.4.0/dist/maplibre-gl.js"></script>
 
 <style>
-    #map {
-        position: relative;
-        height: 600px;
-        width: 100%;
-    }
-    .map-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
-    .map-loading {
-        background-color: rgba(248, 249, 250, 0.9);
-        color: #6c757d;
-    }
-    .map-error {
-        background-color: rgba(248, 215, 218, 0.95);
-        color: #721c24;
-        padding: 20px;
-        text-align: center;
-    }
-    .map-error h5 {
-        margin-bottom: 15px;
-    }
-    .map-error ul {
-        text-align: left;
-        margin: 15px 0;
-    }
-    .spinner-border {
-        width: 3rem;
-        height: 3rem;
-    }
-    .hidden {
-        display: none !important;
-    }
-    /* 隐藏地图版权信息 */
-    .maplibregl-ctrl-attrib {
-        display: none !important;
-    }
-    /* 统一地图按钮样式 - 与放大缩小全图按钮风格一致 */
-    .maplibregl-ctrl-group button {
-        background-color: #ffffff;
-        border: 1px solid #999999; /* 加深边框颜色，避免双线条视觉效果 */
-        border-radius: 4px;
-        width: 32px;
-        height: 32px;
-        margin: 2px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        transition: all 0.2s ease;
-        color: #333333;
-    }
-    .maplibregl-ctrl-group button:hover {
-        background-color: #f0f0f0;
-        border-color: #999999; /* 悬停时保持相同边框颜色 */
-    }
-    .maplibregl-ctrl-group button.active {
-        background-color: #007bff;
-        color: white;
-        border-color: #003d82; /* 加深激活状态边框颜色，确保单线条清晰可见 */
-    }
-    .maplibregl-ctrl-group button.active:hover {
-        background-color: #0056b3;
-        border-color: #003d82; /* 悬停时保持相同边框颜色 */
-    }
-    
-    /* SVG图标样式 - 确保颜色正确继承 */
-    .maplibregl-ctrl-group button svg {
-        width: 20px;
-        height: 20px;
-        stroke: currentColor;
-        fill: none;
-    }
-    
-    /* 激活状态下SVG图标为白色 */
-    .maplibregl-ctrl-group button.active svg {
-        stroke: white;
-    }
-    
-    /* 图层切换按钮特定样式 */
-    .layer-toggle-control .toggle-button {
-        /* 继承基础样式 */
-    }
-    .layer-toggle-control .heatmap-toggle.active {
-        background-color: #007bff;
-        border-color: #003d82; /* 统一使用更深的蓝色边框 */
-    }
-    .layer-toggle-control .heatmap-toggle.active:hover {
-        background-color: #0056b3;
-        border-color: #003d82;
-    }
-    .layer-toggle-control .markers-toggle.active {
-        background-color: #007bff;
-        border-color: #003d82; /* 统一使用更深的蓝色边框 */
-    }
-    .layer-toggle-control .markers-toggle.active:hover {
-        background-color: #0056b3;
-        border-color: #003d82;
-    }
-    .layer-toggle-control .arcgis-toggle.active {
-        background-color: #007bff;
-        border-color: #003d82; /* 统一使用更深的蓝色边框 */
-    }
-    .layer-toggle-control .arcgis-toggle.active:hover {
-        background-color: #0056b3;
-        border-color: #003d82;
-    }
-    
-    /* 热力图时间范围菜单样式 */
-    .heatmap-time-range-menu {
-        position: absolute;
-        background-color: white;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        z-index: 1000;
-        min-width: 120px;
-        padding: 4px 0;
-        display: none;
-    }
-    
-    .dropdown-item {
-        padding: 8px 16px;
-        cursor: pointer;
-        font-size: 14px;
-        color: #333;
-    }
-    
-    .dropdown-item:hover {
-        background-color: #f5f5f5;
-    }
-    
-    .dropdown-item.active {
-        background-color: #007bff;
-        color: white;
-    }
-    
-    .heatmap-button-container {
-        position: relative;
-        display: inline-block;
-    }
+  #map {
+    position: relative;
+    height: 600px;
+    width: 100%;
+  }
+
+  .map-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .map-loading {
+    background-color: rgba(248, 249, 250, 0.9);
+    color: #6c757d;
+  }
+
+  .map-error {
+    background-color: rgba(248, 215, 218, 0.95);
+    color: #721c24;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .map-error h5 {
+    margin-bottom: 15px;
+  }
+
+  .map-error ul {
+    text-align: left;
+    margin: 15px 0;
+  }
+
+  .spinner-border {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  /* 隐藏地图版权信息 */
+  .maplibregl-ctrl-attrib {
+    display: none !important;
+  }
+
+  /* 统一地图按钮样式 - 与放大缩小全图按钮风格一致 */
+  .maplibregl-ctrl-group button {
+    background-color: #ffffff;
+    border: 1px solid #999999;
+    /* 加深边框颜色，避免双线条视觉效果 */
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    margin: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    color: #333333;
+  }
+
+  .maplibregl-ctrl-group button:hover {
+    background-color: #f0f0f0;
+    border-color: #999999;
+    /* 悬停时保持相同边框颜色 */
+  }
+
+  .maplibregl-ctrl-group button.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #003d82;
+    /* 加深激活状态边框颜色，确保单线条清晰可见 */
+  }
+
+  .maplibregl-ctrl-group button.active:hover {
+    background-color: #0056b3;
+    border-color: #003d82;
+    /* 悬停时保持相同边框颜色 */
+  }
+
+  /* SVG图标样式 - 确保颜色正确继承 */
+  .maplibregl-ctrl-group button svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: none;
+  }
+
+  /* 激活状态下SVG图标为白色 */
+  .maplibregl-ctrl-group button.active svg {
+    stroke: white;
+  }
+
+  /* 图层切换按钮特定样式 */
+  .layer-toggle-control .toggle-button {
+    /* 继承基础样式 */
+  }
+
+  .layer-toggle-control .heatmap-toggle.active {
+    background-color: #007bff;
+    border-color: #003d82;
+    /* 统一使用更深的蓝色边框 */
+  }
+
+  .layer-toggle-control .heatmap-toggle.active:hover {
+    background-color: #0056b3;
+    border-color: #003d82;
+  }
+
+  .layer-toggle-control .markers-toggle.active {
+    background-color: #007bff;
+    border-color: #003d82;
+    /* 统一使用更深的蓝色边框 */
+  }
+
+  .layer-toggle-control .markers-toggle.active:hover {
+    background-color: #0056b3;
+    border-color: #003d82;
+  }
+
+  .layer-toggle-control .arcgis-toggle.active {
+    background-color: #007bff;
+    border-color: #003d82;
+    /* 统一使用更深的蓝色边框 */
+  }
+
+  .layer-toggle-control .arcgis-toggle.active:hover {
+    background-color: #0056b3;
+    border-color: #003d82;
+  }
+
+  /* 热力图时间范围菜单样式 */
+  .heatmap-time-range-menu {
+    position: absolute;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    min-width: 120px;
+    padding: 4px 0;
+    display: none;
+  }
+
+  .dropdown-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+  }
+
+  .dropdown-item:hover {
+    background-color: #f5f5f5;
+  }
+
+  .dropdown-item.active {
+    background-color: #007bff;
+    color: white;
+  }
+
+  .heatmap-button-container {
+    position: relative;
+    display: inline-block;
+  }
 </style>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var mapContainer = document.getElementById('map');
-        
-        // 创建加载覆盖层
-        var loadingOverlay = document.createElement('div');
-        loadingOverlay.className = 'map-overlay map-loading';
-            loadingOverlay.innerHTML = `
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">加载中...</span>
-            </div>
-            <div class="mt-3">正在加载地图...</div>
-        `;
-        mapContainer.appendChild(loadingOverlay);
-        
-        // SVG图标定义 - 黑白线条风格，与放大缩小按钮一致
-        var svgIcons = {
-            home: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>',
-            heatmap: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>',
-            marker: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>',
-            network: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="12" cy="16" r="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="8" x2="12" y2="16"/><line x1="16" y1="8" x2="12" y2="16"/></svg>',
-            filter: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>'
-        };
-        
-        try {
-            // 验证数据格式
-            var heatmapData = {{ heatmap_data|safe }};
-            var markerData = {{ marker_data|safe }};
-            var apiKey = "{{ apikey }}";
-            
-            // 检查数据是否有效
-            if (!Array.isArray(heatmapData)) {
-                console.warn('heatmap_data 不是有效的数组，使用空数组');
-                heatmapData = [];
-            }
-            if (!Array.isArray(markerData)) {
-                console.warn('marker_data 不是有效的数组，使用空数组');
-                markerData = [];
-            }
+  document.addEventListener('DOMContentLoaded', function () {
+      var mapContainer = document.getElementById('map');
 
-            // 检查 Maplibre GL 是否加载成功
-            if (typeof maplibregl === 'undefined') {
-                throw new Error('地图库加载失败，请检查网络连接或刷新页面');
-            }
+      // 创建加载覆盖层
+      var loadingOverlay = document.createElement('div');
+      loadingOverlay.className = 'map-overlay map-loading';
+      loadingOverlay.innerHTML = `
+          <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">加载中...</span>
+          </div>
+          <div class="mt-3">正在加载地图...</div>
+      `;
+      mapContainer.appendChild(loadingOverlay);
 
-            var map = new maplibregl.Map({
-                container: 'map',
-                style: 'https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=' + apiKey,
-                center: [105.0, 35.0], // 默认中心点（中国）
-                zoom: 4
-            });
+      // SVG图标定义 - 黑白线条风格，与放大缩小按钮一致
+      var svgIcons = {
+          home: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>',
+          heatmap: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>',
+          marker: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>',
+          network: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="12" cy="16" r="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="8" x2="12" y2="16"/><line x1="16" y1="8" x2="12" y2="16"/></svg>',
+          filter: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>'
+      };
 
-            map.addControl(new maplibregl.NavigationControl());
-            
-            // 添加全屏控件
-            map.addControl(new maplibregl.FullscreenControl({
-                container: document.querySelector('#map')
-            }));
+      try {
+      // 验证数据格式
+      var heatmapData = {{ heatmap_data| safe  }};
+  var markerData = {{ marker_data| safe }};
+  var apiKey = "{{ apikey }}";
 
-            // 添加Home按钮控件，用于恢复初始视野
-            class HomeControl {
-                constructor(options) {
-                    this.options = options || {};
-                    this.initialCenter = [105.0, 35.0]; // 默认中心点（中国）
-                    this.initialZoom = 4;
-                }
-                
-                onAdd(map) {
-                    this.map = map;
-                    this.container = document.createElement('div');
-                    this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-                    
-                    // Home按钮 - 使用SVG图标
-                    this.homeButton = document.createElement('button');
-                    this.homeButton.className = 'maplibregl-ctrl-icon';
-                    this.homeButton.innerHTML = svgIcons.home;
-                    this.homeButton.title = '恢复初始视野（包括比例尺、视野、北向、俯仰等）';
-                    this.homeButton.onclick = () => this.goHome();
-                    
-                    this.container.appendChild(this.homeButton);
-                    
-                    return this.container;
-                }
-                
-                onRemove() {
-                    this.container.parentNode.removeChild(this.container);
-                    this.map = undefined;
-                }
-                
-                goHome() {
-                    console.log('Home按钮点击：完全恢复到初始窗口状态');
-                    
-                    // 完全恢复到初始窗口状态，包括比例尺、视野、北向、俯仰等所有内容
-                    this.map.flyTo({
-                        center: this.initialCenter,  // 中心点：[105.0, 35.0]
-                        zoom: this.initialZoom,      // 缩放级别：4
-                        bearing: 0,                  // 方位角：0度（正北方向）
-                        pitch: 0,                    // 俯仰角：0度（水平视角）
-                        essential: true
-                    });
-                    
-                    // 确保地球投影模式
-                    this.map.setProjection({ type: 'globe' });
-                    
-                    console.log('已恢复：中心点=' + this.initialCenter + 
-                              ', 缩放=' + this.initialZoom + 
-                              ', 方位角=0, 俯仰角=0, 投影模式=globe');
-                }
-            }
-            
-            // 添加Home控件到地图（在全屏控件下方）
-            map.addControl(new HomeControl(), 'top-right');
+  // 检查数据是否有效
+  if (!Array.isArray(heatmapData)) {
+      console.warn('heatmap_data 不是有效的数组，使用空数组');
+      heatmapData = [];
+  }
+  if (!Array.isArray(markerData)) {
+      console.warn('marker_data 不是有效的数组，使用空数组');
+      markerData = [];
+  }
 
-            // 创建图层切换控件
-            class LayerToggleControl {
-                constructor(options) {
-                    this.options = options || {};
-                    this.heatmapVisible = true;
-                    this.markersVisible = true;
-                    this.arcgisVisible = true;
-                    this.markers = []; // 存储标记对象
-                    this.currentTimeRange = 'year'; // 默认时间范围：本年
-                    this.menuHovered = false; // 菜单悬停状态
-                    this.lastMouseX = 0; // 鼠标X坐标
-                    this.lastMouseY = 0; // 鼠标Y坐标
-                    
-                    // 跟踪鼠标位置
-                    document.addEventListener('mousemove', (e) => {
-                        this.lastMouseX = e.clientX;
-                        this.lastMouseY = e.clientY;
-                    });
-                }
-                
-                onAdd(map) {
-                    this.map = map;
-                    this.container = document.createElement('div');
-                    this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group layer-toggle-control';
-                    
-                    // 创建热力图按钮容器（用于定位弹出菜单）
-                    this.heatmapContainer = document.createElement('div');
-                    this.heatmapContainer.className = 'heatmap-button-container';
-                    this.heatmapContainer.style.position = 'relative';
-                    
-                    // 热力图开关按钮 - 使用SVG图标
-                    this.heatmapButton = document.createElement('button');
-                    this.heatmapButton.className = 'maplibregl-ctrl-icon toggle-button heatmap-toggle active';
-                    this.heatmapButton.innerHTML = svgIcons.heatmap;
-                    this.heatmapButton.title = '热力图开关';
-                    
-                    // 单击切换热力图层显示/隐藏
-                    this.heatmapButton.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.toggleHeatmap();
-                    });
-                    
-                    // 故障点开关按钮 - 使用SVG图标
-                    this.markersButton = document.createElement('button');
-                    this.markersButton.className = 'maplibregl-ctrl-icon toggle-button markers-toggle active';
-                    this.markersButton.innerHTML = svgIcons.marker;
-                    this.markersButton.title = '故障点开关';
-                    this.markersButton.onclick = () => this.toggleMarkers();
-                    
-                    // ArcGIS图层开关按钮（统一控制所有ArcGIS图层）- 使用SVG图标
-                    this.arcgisButton = document.createElement('button');
-                    this.arcgisButton.className = 'maplibregl-ctrl-icon toggle-button arcgis-toggle';
-                    this.arcgisButton.innerHTML = svgIcons.network;
-                    this.arcgisButton.title = 'OTN网络图层';
-                    this.arcgisButton.onclick = () => this.toggleArcgis();
-                    
-                    // 根据初始可见性设置按钮状态
-                    if (this.arcgisVisible) {
-                        this.arcgisButton.classList.add('active');
-                    }
-                    
-                    this.heatmapContainer.appendChild(this.heatmapButton);
-                    this.container.appendChild(this.heatmapContainer);
-                    this.container.appendChild(this.markersButton);
-                    this.container.appendChild(this.arcgisButton);
-                    
-                    return this.container;
-                }
-                
-                onRemove() {
-                    this.container.parentNode.removeChild(this.container);
-                    this.map = undefined;
-                }
-                
-                createTimeRangeMenu() {
-                    this.timeRangeMenu = document.createElement('div');
-                    this.timeRangeMenu.className = 'heatmap-time-range-menu';
-                    
-                    // 菜单项数据
-                    const menuItems = [
-                        { range: 'month', text: '一个月' },
-                        { range: 'three_months', text: '三个月' },
-                        { range: 'year', text: '本年' }
-                    ];
-                    
-                    // 动态生成菜单项
-                    menuItems.forEach(item => {
-                        const menuItem = document.createElement('div');
-                        menuItem.className = 'dropdown-item';
-                        menuItem.setAttribute('data-range', item.range);
-                        menuItem.textContent = item.text;
-                        
-                        // 如果是当前选择项，添加高亮类
-                        if (item.range === this.currentTimeRange) {
-                            menuItem.classList.add('active');
-                        }
-                        
-                        // 添加点击事件
-                        menuItem.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            const range = e.target.getAttribute('data-range');
-                            this.selectTimeRange(range);
-                            this.hideTimeRangeMenu();
-                        });
-                        
-                        this.timeRangeMenu.appendChild(menuItem);
-                    });
-                    
-                    // 菜单鼠标事件
-                    this.timeRangeMenu.addEventListener('mouseenter', () => {
-                        this.menuHovered = true;
-                    });
-                    
-                    this.timeRangeMenu.addEventListener('mouseleave', () => {
-                        this.menuHovered = false;
-                        setTimeout(() => {
-                            if (!this.menuHovered && !this.isMouseOverButton()) {
-                                this.hideTimeRangeMenu();
-                            }
-                        }, 300);
-                    });
-                    
-                    this.heatmapContainer.appendChild(this.timeRangeMenu);
-                    
-                    // 点击其他地方隐藏菜单
-                    document.addEventListener('click', () => {
-                        this.hideTimeRangeMenu();
-                    });
-                }
-                
-                isMouseOverMenu() {
-                    return this.menuHovered || false;
-                }
-                
-                isMouseOverButton() {
-                    // 检查鼠标是否在按钮上
-                    if (!this.heatmapButton) return false;
-                    const rect = this.heatmapButton.getBoundingClientRect();
-                    const mouseX = this.lastMouseX || 0;
-                    const mouseY = this.lastMouseY || 0;
-                    return mouseX >= rect.left && mouseX <= rect.right && 
-                           mouseY >= rect.top && mouseY <= rect.bottom;
-                }
-                
-                showTimeRangeMenu() {
-                    // 隐藏其他可能打开的菜单
-                    this.hideTimeRangeMenu();
-                    
-                    // 显示菜单
-                    this.timeRangeMenu.style.display = 'block';
-                    
-                    // 定位菜单在按钮下方
-                    const rect = this.heatmapButton.getBoundingClientRect();
-                    this.timeRangeMenu.style.position = 'absolute';
-                    this.timeRangeMenu.style.top = '100%';
-                    this.timeRangeMenu.style.left = '0';
-                    this.timeRangeMenu.style.zIndex = '1000';
-                }
-                
-                hideTimeRangeMenu() {
-                    if (this.timeRangeMenu) {
-                        this.timeRangeMenu.style.display = 'none';
-                    }
-                }
-                
-                selectTimeRange(range) {
-                    this.currentTimeRange = range;
-                    
-                    // 更新按钮标题
-                    let rangeText = '本年';  // 默认值
-                    if (range === 'month') rangeText = '一个月';
-                    else if (range === 'three_months') rangeText = '三个月';
-                    
-                    this.heatmapButton.title = `热力图开关 - 当前范围: ${rangeText}`;
-                    
-                    // 更新菜单项高亮状态
-                    this.updateMenuHighlight();
-                    
-                    // 重新加载数据
-                    this.reloadHeatmapData(range);
-                }
-                
-                updateMenuHighlight() {
-                    // 更新所有菜单项的高亮状态
-                    if (this.timeRangeMenu) {
-                        const menuItems = this.timeRangeMenu.querySelectorAll('.dropdown-item');
-                        menuItems.forEach(item => {
-                            const range = item.getAttribute('data-range');
-                            if (range === this.currentTimeRange) {
-                                item.classList.add('active');
-                            } else {
-                                item.classList.remove('active');
-                            }
-                        });
-                    }
-                }
-                
-                reloadHeatmapData(timeRange) {
-                    // 计算起始日期
-                    const now = new Date();
-                    let startDate;
-                    
-                    if (timeRange === 'month') {
-                        startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-                    } else if (timeRange === 'three_months') {
-                        startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-                    } else { // 'year' 或 'all'
-                        // 本年1月1日
-                        startDate = new Date(now.getFullYear(), 0, 1);
-                    }
-                    
-                    // 筛选数据：只保留发生时间在起始日期之后的数据点
-                    const filteredData = heatmapData.filter(point => {
-                        if (!point.occurrence_time) return false;
-                        const pointDate = new Date(point.occurrence_time);
-                        return pointDate >= startDate;
-                    });
-                    
-                    console.log(`前端筛选热力图数据，时间范围: ${timeRange}, 原始数据点: ${heatmapData.length}, 筛选后数据点: ${filteredData.length}`);
-                    
-                    // 将筛选结果转换为GeoJSON格式
-                    const features = filteredData.map(point => ({
-                        type: 'Feature',
-                        properties: { count: point.count },
-                        geometry: {
-                            type: 'Point',
-                            coordinates: [point.lng, point.lat]
-                        }
-                    }));
-                    
-                    const geoJsonData = {
-                        type: 'FeatureCollection',
-                        features: features
-                    };
-                    
-                    // 更新地图数据源
-                    if (this.map.getSource('faults')) {
-                        this.map.getSource('faults').setData(geoJsonData);
-                    }
-                    
-                    // 更新按钮标题
-                    this.updateButtonTitle(timeRange);
-                }
-                
-                showLoading() {
-                    // 创建或显示加载提示
-                    if (!this.loadingOverlay) {
-                        this.loadingOverlay = document.createElement('div');
-                        this.loadingOverlay.className = 'heatmap-loading-overlay';
-                        this.loadingOverlay.innerHTML = `
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">加载中...</span>
-                            </div>
-                            <div class="mt-2">正在加载热力图数据...</div>
-                        `;
-                        this.loadingOverlay.style.cssText = `
-                            position: absolute;
-                            top: 0;
-                            left: 0;
-                            width: 100%;
-                            height: 100%;
-                            background-color: rgba(255, 255, 255, 0.8);
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            justify-content: center;
-                            z-index: 9999;
-                            border-radius: 4px;
-                        `;
-                        this.heatmapContainer.appendChild(this.loadingOverlay);
-                    }
-                    this.loadingOverlay.style.display = 'flex';
-                }
-                
-                hideLoading() {
-                    if (this.loadingOverlay) {
-                        this.loadingOverlay.style.display = 'none';
-                    }
-                }
-                
-                updateButtonTitle(timeRange) {
-                    let rangeText = '本年';  // 默认值
-                    if (timeRange === 'month') rangeText = '一个月';
-                    else if (timeRange === 'three_months') rangeText = '三个月';
-                    
-                    this.heatmapButton.title = `热力图开关 - 当前范围: ${rangeText}`;
-                    this.currentTimeRange = timeRange;
-                }
-                
-                // 可选：回退到页面刷新方式
-                fallbackToPageRefresh(timeRange) {
-                    console.warn('使用页面刷新方式作为回退');
-                    const currentUrl = window.location.href.split('?')[0];
-                    let newUrl = currentUrl;
-                    if (timeRange !== 'year') {
-                        newUrl = `${currentUrl}?time_range=${timeRange}`;
-                    }
-                    window.location.href = newUrl;
-                }
-                
-                toggleHeatmap() {
-                    this.heatmapVisible = !this.heatmapVisible;
-                    if (this.heatmapVisible) {
-                        this.heatmapButton.classList.add('active');
-                        this.map.setLayoutProperty('faults-heat', 'visibility', 'visible');
-                    } else {
-                        this.heatmapButton.classList.remove('active');
-                        this.map.setLayoutProperty('faults-heat', 'visibility', 'none');
-                    }
-                }
-                
-                toggleMarkers() {
-                    this.markersVisible = !this.markersVisible;
-                    if (this.markersVisible) {
-                        this.markersButton.classList.add('active');
-                        // 显示所有标记
-                        this.markers.forEach(marker => marker.getElement().style.display = 'block');
-                    } else {
-                        this.markersButton.classList.remove('active');
-                        // 隐藏所有标记
-                        this.markers.forEach(marker => marker.getElement().style.display = 'none');
-                    }
-                }
-                
-                toggleArcgis() {
-                    this.arcgisVisible = !this.arcgisVisible;
-                    console.log('ArcGIS按钮切换，新状态:', this.arcgisVisible ? '显示' : '隐藏');
-                    this.updateArcgisLayersVisibility();
-                }
-                
-                updateArcgisLayersVisibility() {
-                    console.log('更新ArcGIS图层可见性，当前状态:', this.arcgisVisible ? '显示' : '隐藏');
-                    
-                    if (!this.arcgisVisible) {
-                        // 如果开关关闭，隐藏所有ArcGIS图层（包括文本标注图层）
-                        ['arcgis-otn-points-0', 'arcgis-otn-points-1', 'arcgis-otn-lines-2', 'arcgis-otn-lines-3', 'arcgis-otn-labels-0', 'arcgis-otn-labels-1'].forEach(layerId => {
-                            if (this.map.getLayer(layerId)) {
-                                this.map.setLayoutProperty(layerId, 'visibility', 'none');
-                            }
-                        });
-                        // 确保按钮状态更新
-                        this.arcgisButton.classList.remove('active');
-                        console.log('ArcGIS图层已隐藏，按钮状态更新为: 非激活');
-                        return;
-                    }
-                    
-                    // 开关打开时，根据缩放级别控制图层显示
-                    const currentZoom = this.map.getZoom();
-                    const isNationalView = currentZoom <= 4;    // 全国视野：缩放级别 ≤ 6
-                    const isProvincialView = currentZoom >= 5;  // 省级视野：缩放级别 ≥ 8
-                    
-                    console.log('当前缩放级别:', currentZoom, '全国视野:', isNationalView, '省级视野:', isProvincialView);
-                    
-                    // 线图层：全国视野时显示，省级视野时也显示（始终显示）
-                    if (this.map.getLayer('arcgis-otn-lines-2')) {
-                        this.map.setLayoutProperty('arcgis-otn-lines-2', 'visibility', 'visible');
-                        console.log('线图层2设置为可见');
-                    }
-                    if (this.map.getLayer('arcgis-otn-lines-3')) {
-                        this.map.setLayoutProperty('arcgis-otn-lines-3', 'visibility', 'visible');
-                        console.log('线图层3设置为可见');
-                    }
-                    
-                    // 点图层和文本标注图层：只在省级视野时显示
-                    const pointVisibility = isProvincialView ? 'visible' : 'none';
-                    console.log('点图层可见性:', pointVisibility);
-                    
-                    if (this.map.getLayer('arcgis-otn-points-0')) {
-                        this.map.setLayoutProperty('arcgis-otn-points-0', 'visibility', pointVisibility);
-                        console.log('点图层0设置为:', pointVisibility);
-                    }
-                    if (this.map.getLayer('arcgis-otn-points-1')) {
-                        this.map.setLayoutProperty('arcgis-otn-points-1', 'visibility', pointVisibility);
-                        console.log('点图层1设置为:', pointVisibility);
-                    }
-                    if (this.map.getLayer('arcgis-otn-labels-0')) {
-                        this.map.setLayoutProperty('arcgis-otn-labels-0', 'visibility', pointVisibility);
-                        console.log('标签图层0设置为:', pointVisibility);
-                    }
-                    if (this.map.getLayer('arcgis-otn-labels-1')) {
-                        this.map.setLayoutProperty('arcgis-otn-labels-1', 'visibility', pointVisibility);
-                        console.log('标签图层1设置为:', pointVisibility);
-                    }
-                    
-                    // 更新按钮状态
-                    this.arcgisButton.classList.add('active');
-                    console.log('ArcGIS图层已显示，按钮状态更新为: 激活');
-                }
-                
-                addMarker(marker) {
-                    this.markers.push(marker);
-                }
-            }
-            
-            // 添加图层切换控件
-            var layerToggleControl = new LayerToggleControl();
-            map.addControl(layerToggleControl, 'top-left');
+  // 检查 Maplibre GL 是否加载成功
+  if (typeof maplibregl === 'undefined') {
+      throw new Error('地图库加载失败，请检查网络连接或刷新页面');
+  }
 
-            // 在样式加载时立即设置中文标签
-            map.on('style.load', function () {
-                // 设置地图语言为中文
-                function setMapLanguageToChinese() {
-                    const layers = map.getStyle().layers;
-                    layers.forEach(layer => {
-                        if (layer.layout && layer.layout['text-field']) {
-                            map.setLayoutProperty(layer.id, 'text-field', ['coalesce', ['get', 'name:zh'], ['get', 'name']]);
-                        }
-                    });
-                }
-                
-                // 过滤地图标签 - 只显示城市行政名，隐藏所有道路名称
-                function filterCityLabels() {
-                    const layers = map.getStyle().layers;
-                    console.log('开始过滤地图标签，隐藏道路名称，只显示城市行政名');
-                    
-                    layers.forEach(layer => {
-                        if (layer.type === 'symbol') {
-                            // 隐藏所有道路相关标签
-                            if (layer.id.includes('road') || 
-                                layer.id.includes('highway') ||
-                                layer.id.includes('street') ||
-                                layer.id.includes('route') ||
-                                layer.id.includes('motorway') ||
-                                layer.id.includes('trunk') ||
-                                layer.id.includes('primary') ||
-                                layer.id.includes('secondary') ||
-                                layer.id.includes('tertiary') ||
-                                layer.id.includes('path') ||
-                                layer.id.includes('track') ||
-                                layer.id.includes('service') ||
-                                layer.id.includes('pedestrian') ||
-                                layer.id.includes('cycleway') ||
-                                layer.id.includes('footway') ||
-                                layer.id.includes('steps') ||
-                                layer.id.includes('ferry') ||
-                                layer.id.includes('rail') ||
-                                layer.id.includes('transit')) {
-                                map.setLayoutProperty(layer.id, 'visibility', 'none');
-                                console.log('隐藏道路标签:', layer.id);
-                            }
-                            
-                            // 保留城市行政标签，但过滤小城镇
-                            if ((layer.id.includes('place') || layer.id.includes('settlement') ||
-                                 layer.id.includes('label')) &&
-                                (layer.id.includes('village') || layer.id.includes('town') ||
-                                 layer.id.includes('hamlet') || layer.id.includes('suburb') ||
-                                 layer.id.includes('neighbourhood') || layer.id.includes('neighborhood') ||
-                                 layer.id.includes('quarter') || layer.id.includes('locality') ||
-                                 layer.id.includes('isolated_dwelling'))) {
-                                map.setLayoutProperty(layer.id, 'visibility', 'none');
-                                console.log('隐藏小城镇标签:', layer.id);
-                            }
-                        }
-                    });
-                    
-                    console.log('地图标签过滤完成');
-                }
-                
-                // 立即调用中文标签设置函数
-                setMapLanguageToChinese();
-                // 过滤城市标签，只显示主要城市
-                filterCityLabels();
-            });
+  var map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=' + apiKey,
+      center: [105.0, 35.0], // 默认中心点（中国）
+      zoom: 4
+  });
 
-            map.on('load', function () {
-                // 设置地球投影模式
-                map.setProjection({ type: 'globe' });
-                
-                // 准备热力图的GeoJSON数据
-                var features = heatmapData.map(function (point) {
-                    return {
-                        type: 'Feature',
-                        properties: { count: point.count },
-                        geometry: {
-                            type: 'Point',
-                            coordinates: [point.lng, point.lat]
-                        }
-                    };
-                });
+  map.addControl(new maplibregl.NavigationControl());
 
-                // 将地图边界适配到数据范围
-                var bounds = new maplibregl.LngLatBounds();
-                if (features.length > 0) {
-                    features.forEach(function (feature) {
-                        bounds.extend(feature.geometry.coordinates);
-                    });
-                }
-                // 同时将标记点包含在边界内
-                markerData.forEach(function (m) {
-                    bounds.extend([m.lng, m.lat]);
-                });
+  // 添加全屏控件
+  map.addControl(new maplibregl.FullscreenControl({
+      container: document.querySelector('#map')
+  }));
 
-                if (!bounds.isEmpty()) {
-                    map.fitBounds(bounds, { padding: 50 });
-                }
+  // 添加Home按钮控件，用于恢复初始视野
+  class HomeControl {
+      constructor(options) {
+          this.options = options || {};
+          this.initialCenter = [105.0, 35.0]; // 默认中心点（中国）
+          this.initialZoom = 4;
+      }
 
-                // 故障分类颜色映射（5种分类）
-                var faultCategoryColors = {
-                    'power': '#FF0000',      // 电力故障 - 红色
-                    'fiber': '#00FF00',      // 光缆故障 - 绿色
-                    'pigtail': '#0000FF',    // 空调故障 - 蓝色
-                    'device': '#FFA500',     // 设备故障 - 橙色
-                    'other': '#800080'       // 其他故障 - 紫色
-                };
-                
-                // 故障分类名称映射（5种分类）
-                var faultCategoryNames = {
-                    'power': '电力故障',
-                    'fiber': '光缆故障',
-                    'pigtail': '空调故障',
-                    'device': '设备故障',
-                    'other': '其他故障'
-                };
-                
-                // 故障分类筛选状态（默认全选）
-                var selectedCategories = Object.keys(faultCategoryColors);
-                
-                // 创建故障分类筛选控件
-                class CategoryFilterControl {
-                    constructor(options) {
-                        this.options = options || {};
-                        this.selectedCategories = Object.keys(faultCategoryColors); // 默认全选
-                        this.currentTimeRange = 'year'; // 默认时间范围：本年
-                        this.menuHovered = false;
-                        this.lastMouseX = 0;
-                        this.lastMouseY = 0;
-                        
-                        // 跟踪鼠标位置
-                        document.addEventListener('mousemove', (e) => {
-                            this.lastMouseX = e.clientX;
-                            this.lastMouseY = e.clientY;
-                        });
-                    }
-                    
-                    onAdd(map) {
-                        this.map = map;
-                        this.container = document.createElement('div');
-                        this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group category-filter-control';
-                        
-                        // 创建筛选按钮容器
-                        this.filterContainer = document.createElement('div');
-                        this.filterContainer.className = 'category-filter-button-container';
-                        this.filterContainer.style.position = 'relative';
-                        
-                        // 筛选按钮 - 使用SVG图标
-                        this.filterButton = document.createElement('button');
-                        this.filterButton.className = 'maplibregl-ctrl-icon toggle-button category-filter-toggle';
-                        this.filterButton.innerHTML = svgIcons.filter;
-                        this.filterButton.title = '故障分类筛选 - 当前选中: 全部5种分类';
-                        
-                        // 鼠标悬停显示分类菜单
-                        this.filterButton.addEventListener('mouseenter', (e) => {
-                            e.stopPropagation();
-                            this.showCategoryMenu();
-                        });
-                        
-                        // 鼠标离开隐藏分类菜单
-                        this.filterButton.addEventListener('mouseleave', (e) => {
-                            e.stopPropagation();
-                            setTimeout(() => {
-                                if (!this.isMouseOverMenu()) {
-                                    this.hideCategoryMenu();
-                                }
-                            }, 300);
-                        });
-                        
-                    // 创建分类菜单
-                    this.createCategoryMenu();
-                    
-                    this.filterContainer.appendChild(this.filterButton);
-                    this.container.appendChild(this.filterContainer);
-                    
-                    return this.container;
-                    }
-                    
-                    onRemove() {
-                        this.container.parentNode.removeChild(this.container);
-                        this.map = undefined;
-                    }
-                    
-                    createCategoryMenu() {
-                        this.categoryMenu = document.createElement('div');
-                        this.categoryMenu.className = 'category-filter-menu';
-                        this.categoryMenu.style.cssText = `
-                            position: absolute;
-                            background-color: white;
-                            border: 1px solid #ddd;
-                            border-radius: 4px;
-                            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                            z-index: 1000;
-                            min-width: 150px;
-                            padding: 8px 0;
-                            display: none;
-                            top: 100%;
-                            left: 0;
-                        `;
-                        
-                        // 阻止菜单内部的点击事件冒泡到文档
-                        this.categoryMenu.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                        });
-                        
-                        // 添加时间范围选择部分
-                        const timeRangeTitle = document.createElement('div');
-                        timeRangeTitle.className = 'dropdown-item';
-                        timeRangeTitle.innerHTML = '<strong>时间范围</strong>';
-                        timeRangeTitle.style.borderBottom = '1px solid #eee';
-                        timeRangeTitle.style.marginBottom = '4px';
-                        this.categoryMenu.appendChild(timeRangeTitle);
-                        
-                        // 时间范围选项
-                        const timeRanges = [
-                            { range: 'month', text: '一个月' },
-                            { range: 'three_months', text: '三个月' },
-                            { range: 'year', text: '本年' }
-                        ];
-                        
-                        timeRanges.forEach(item => {
-                            const timeRangeItem = document.createElement('div');
-                            timeRangeItem.className = 'dropdown-item';
-                            timeRangeItem.setAttribute('data-range', item.range);
-                            timeRangeItem.textContent = item.text;
-                            
-                            // 如果是当前选择项，添加高亮类
-                            if (item.range === this.currentTimeRange) {
-                                timeRangeItem.classList.add('active');
-                            }
-                            
-                            // 添加点击事件
-                            timeRangeItem.addEventListener('click', (e) => {
-                                e.stopPropagation();
-                                const range = e.target.getAttribute('data-range');
-                                this.selectTimeRange(range);
-                                // 不隐藏菜单，让用户可以继续操作
-                            });
-                            
-                            this.categoryMenu.appendChild(timeRangeItem);
-                        });
-                        
-                        // 添加分隔线
-                        const separator = document.createElement('div');
-                        separator.style.height = '1px';
-                        separator.style.backgroundColor = '#eee';
-                        separator.style.margin = '8px 0';
-                        this.categoryMenu.appendChild(separator);
-                        
-                        // 添加全选/全不选按钮
-                        const allButton = document.createElement('div');
-                        allButton.className = 'dropdown-item';
-                        allButton.innerHTML = '<strong>全选/全不选</strong>';
-                        allButton.style.borderBottom = '1px solid #eee';
-                        allButton.style.marginBottom = '4px';
-                        allButton.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            this.toggleAllCategories();
-                            // 不隐藏菜单，让用户可以继续操作
-                        });
-                        this.categoryMenu.appendChild(allButton);
-                        
-                        // 添加每个分类的复选框
-                        Object.keys(faultCategoryColors).forEach(category => {
-                            const menuItem = document.createElement('div');
-                            menuItem.className = 'dropdown-item';
-                            menuItem.style.display = 'flex';
-                            menuItem.style.alignItems = 'center';
-                            menuItem.style.padding = '6px 12px';
-                            
-                            const checkbox = document.createElement('input');
-                            checkbox.type = 'checkbox';
-                            checkbox.id = `category-${category}`;
-                            checkbox.checked = this.selectedCategories.includes(category);
-                            checkbox.style.marginRight = '8px';
-                            
-                            const label = document.createElement('label');
-                            label.htmlFor = `category-${category}`;
-                            label.style.display = 'flex';
-                            label.style.alignItems = 'center';
-                            label.style.cursor = 'pointer';
-                            label.style.flex = '1';
-                            
-                            const colorBox = document.createElement('div');
-                            colorBox.style.width = '12px';
-                            colorBox.style.height = '12px';
-                            colorBox.style.backgroundColor = faultCategoryColors[category];
-                            colorBox.style.borderRadius = '2px';
-                            colorBox.style.marginRight = '8px';
-                            colorBox.style.border = '1px solid #ccc';
-                            
-                            const text = document.createElement('span');
-                            text.textContent = faultCategoryNames[category];
-                            text.style.fontSize = '13px';
-                            
-                            label.appendChild(colorBox);
-                            label.appendChild(text);
-                            
-                            // 复选框变化事件
-                            checkbox.addEventListener('change', (e) => {
-                                e.stopPropagation();
-                                this.toggleCategory(category, checkbox.checked);
-                            });
-                            
-                            // 点击标签也触发复选框
-                            label.addEventListener('click', (e) => {
-                                e.stopPropagation();
-                                checkbox.checked = !checkbox.checked;
-                                this.toggleCategory(category, checkbox.checked);
-                            });
-                            
-                            // 菜单项点击事件，阻止冒泡
-                            menuItem.addEventListener('click', (e) => {
-                                e.stopPropagation();
-                            });
-                            
-                            menuItem.appendChild(checkbox);
-                            menuItem.appendChild(label);
-                            this.categoryMenu.appendChild(menuItem);
-                        });
-                        
-                        // 菜单鼠标事件
-                        this.categoryMenu.addEventListener('mouseenter', () => {
-                            this.menuHovered = true;
-                        });
-                        
-                        this.categoryMenu.addEventListener('mouseleave', () => {
-                            this.menuHovered = false;
-                            setTimeout(() => {
-                                if (!this.menuHovered && !this.isMouseOverButton()) {
-                                    this.hideCategoryMenu();
-                                }
-                            }, 300);
-                        });
-                        
-                        this.filterContainer.appendChild(this.categoryMenu);
-                        
-                        // 智能的文档点击事件处理：只在点击菜单和按钮外部时隐藏
-                        document.addEventListener('click', (e) => {
-                            // 检查点击是否在菜单或按钮内部
-                            const isClickInsideMenu = this.categoryMenu && this.categoryMenu.contains(e.target);
-                            const isClickInsideButton = this.filterButton && this.filterButton.contains(e.target);
-                            
-                            if (!isClickInsideMenu && !isClickInsideButton) {
-                                this.hideCategoryMenu();
-                            }
-                        });
-                    }
-                    
-                    isMouseOverMenu() {
-                        return this.menuHovered || false;
-                    }
-                    
-                    isMouseOverButton() {
-                        if (!this.filterButton) return false;
-                        const rect = this.filterButton.getBoundingClientRect();
-                        const mouseX = this.lastMouseX || 0;
-                        const mouseY = this.lastMouseY || 0;
-                        return mouseX >= rect.left && mouseX <= rect.right && 
-                               mouseY >= rect.top && mouseY <= rect.bottom;
-                    }
-                    
-                    showCategoryMenu() {
-                        this.hideCategoryMenu();
-                        this.categoryMenu.style.display = 'block';
-                    }
-                    
-                    hideCategoryMenu() {
-                        if (this.categoryMenu) {
-                            this.categoryMenu.style.display = 'none';
-                        }
-                    }
-                    
-                    selectTimeRange(range) {
-                        this.currentTimeRange = range;
-                        
-                        // 更新菜单项高亮状态
-                        this.updateTimeRangeMenuHighlight();
-                        
-                        // 更新按钮标题
-                        this.updateButtonTitle();
-                        
-                        // 重新加载热力图数据
-                        this.reloadHeatmapData();
-                    }
-                    
-                    updateTimeRangeMenuHighlight() {
-                        if (this.categoryMenu) {
-                            const timeRangeItems = this.categoryMenu.querySelectorAll('.dropdown-item[data-range]');
-                            timeRangeItems.forEach(item => {
-                                const range = item.getAttribute('data-range');
-                                if (range === this.currentTimeRange) {
-                                    item.classList.add('active');
-                                } else {
-                                    item.classList.remove('active');
-                                }
-                            });
-                        }
-                    }
-                    
-                    toggleCategory(category, checked) {
-                        if (checked) {
-                            if (!this.selectedCategories.includes(category)) {
-                                this.selectedCategories.push(category);
-                            }
-                        } else {
-                            this.selectedCategories = this.selectedCategories.filter(c => c !== category);
-                        }
-                        
-                        // 更新按钮标题
-                        this.updateButtonTitle();
-                        
-                        // 重新加载热力图数据
-                        this.reloadHeatmapData();
-                    }
-                    
-                    toggleAllCategories() {
-                        const allCategories = Object.keys(faultCategoryColors);
-                        if (this.selectedCategories.length === allCategories.length) {
-                            // 如果当前全选，则全不选
-                            this.selectedCategories = [];
-                        } else {
-                            // 否则全选
-                            this.selectedCategories = [...allCategories];
-                        }
-                        
-                        // 更新菜单中的复选框状态
-                        this.updateMenuCheckboxes();
-                        
-                        // 更新按钮标题
-                        this.updateButtonTitle();
-                        
-                        // 重新加载热力图数据
-                        this.reloadHeatmapData();
-                    }
-                    
-                    updateMenuCheckboxes() {
-                        if (this.categoryMenu) {
-                            Object.keys(faultCategoryColors).forEach(category => {
-                                const checkbox = document.getElementById(`category-${category}`);
-                                if (checkbox) {
-                                    checkbox.checked = this.selectedCategories.includes(category);
-                                }
-                            });
-                        }
-                    }
-                    
-                    updateButtonTitle() {
-                        const totalCategories = Object.keys(faultCategoryColors).length;
-                        const selectedCount = this.selectedCategories.length;
-                        
-                        // 时间范围文本
-                        let timeRangeText = '本年';
-                        if (this.currentTimeRange === 'month') timeRangeText = '一个月';
-                        else if (this.currentTimeRange === 'three_months') timeRangeText = '三个月';
-                        
-                        // 分类选择文本
-                        let categoryText = '';
-                        if (selectedCount === totalCategories) {
-                            categoryText = '全部' + totalCategories + '种分类';
-                        } else if (selectedCount === 0) {
-                            categoryText = '无分类';
-                        } else {
-                            categoryText = selectedCount + '种分类';
-                        }
-                        
-                        // 组合标题
-                        const title = `故障分类筛选 - 时间: ${timeRangeText}, 分类: ${categoryText}`;
-                        this.filterButton.title = title;
-                        
-                        // 不再更新按钮激活状态，按钮始终保持非激活状态
-                    }
-                    
-                    reloadHeatmapData() {
-                        // 使用内部时间范围属性
-                        const timeRange = this.currentTimeRange;
-                        
-                        // 计算起始日期
-                        const now = new Date();
-                        let startDate;
-                        
-                        if (timeRange === 'month') {
-                            startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-                        } else if (timeRange === 'three_months') {
-                            startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-                        } else { // 'year' 或 'all'
-                            startDate = new Date(now.getFullYear(), 0, 1);
-                        }
-                        
-                        // 筛选数据：同时考虑时间范围和故障分类
-                        const filteredData = heatmapData.filter(point => {
-                            // 时间筛选
-                            if (!point.occurrence_time) return false;
-                            const pointDate = new Date(point.occurrence_time);
-                            if (pointDate < startDate) return false;
-                            
-                            // 分类筛选
-                            if (this.selectedCategories.length === 0) {
-                                return false; // 如果没有选中任何分类，不显示任何数据
-                            }
-                            
-                            const category = point.category || 'other';
-                            return this.selectedCategories.includes(category);
-                        });
-                        
-                        console.log(`前端筛选热力图数据，时间范围: ${timeRange}, 分类: ${this.selectedCategories.length}种, 筛选后数据点: ${filteredData.length}`);
-                        
-                        // 将筛选结果转换为GeoJSON格式
-                        const features = filteredData.map(point => ({
-                            type: 'Feature',
-                            properties: { count: point.count },
-                            geometry: {
-                                type: 'Point',
-                                coordinates: [point.lng, point.lat]
-                            }
-                        }));
-                        
-                        const geoJsonData = {
-                            type: 'FeatureCollection',
-                            features: features
-                        };
-                        
-                        // 更新地图数据源
-                        if (this.map.getSource('faults')) {
-                            this.map.getSource('faults').setData(geoJsonData);
-                        }
-                    }
-                }
-                
-                // 添加故障分类筛选控件
-                var categoryFilterControl = new CategoryFilterControl();
-                map.addControl(categoryFilterControl, 'top-left');
-                
-                // 修改LayerToggleControl的reloadHeatmapData方法，使其考虑分类筛选
-                var originalReloadHeatmapData = layerToggleControl.reloadHeatmapData;
-                layerToggleControl.reloadHeatmapData = function(timeRange) {
-                    // 调用原始方法更新时间范围
-                    this.currentTimeRange = timeRange;
-                    
-                    // 更新按钮标题
-                    let rangeText = '本年';  // 默认值
-                    if (timeRange === 'month') rangeText = '一个月';
-                    else if (timeRange === 'three_months') rangeText = '三个月';
-                    
-                    this.heatmapButton.title = `热力图开关 - 当前范围: ${rangeText}`;
-                    
-                    // 更新菜单项高亮状态
-                    this.updateMenuHighlight();
-                    
-                    // 调用分类筛选控件的重新加载方法
-                    if (categoryFilterControl && categoryFilterControl.reloadHeatmapData) {
-                        categoryFilterControl.reloadHeatmapData();
-                    }
-                };
-                
-                // 添加最近一周故障点的标记 - 根据故障分类显示不同颜色
-                markerData.forEach(function (m) {
-                    // 获取故障分类，默认为'other'
-                    var category = m.category || 'other';
-                    var color = faultCategoryColors[category] || faultCategoryColors['other'];
-                    var categoryName = faultCategoryNames[category] || faultCategoryNames['other'];
-                    
-                    // 构建详细的popup内容
-                    var popupContent = '<div style="max-width: 450px; max-height: 500px; overflow-y: auto; font-size: 13px;">' +
-                        '<div style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 12px;">' +
-                        '<h6 style="margin: 0 0 8px 0; font-size: 16px;">' +
-                        '<a href="' + m.url + '" target="_blank" style="color: #007bff; text-decoration: none;">' + m.number + '</a>' +
-                        '</h6>' +
-                        '<div style="display: inline-block; padding: 2px 8px; background-color: ' + color + '; color: white; border-radius: 3px; font-size: 12px;">' +
-                        categoryName +
-                        '</div>' +
-                        '</div>' +
-                        
-                        '<table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">' +
-                        '<tr>' +
-                        '<td style="width: 35%; padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">省份:</td>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.province || '未指定') + '</td>' +
-                        '</tr>' +
-                        '<tr>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">A端站点:</td>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.a_site || '未指定') + '</td>' +
-                        '</tr>' +
-                        '<tr>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">Z端站点:</td>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.z_sites || '未指定') + '</td>' +
-                        '</tr>' +
-                        '<tr>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">中断时间:</td>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + m.occurrence_time + '</td>' +
-                        '</tr>' +
-                        '<tr>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">恢复时间:</td>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + m.recovery_time + '</td>' +
-                        '</tr>' +
-                        '<tr>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">故障历时:</td>' +
-                        '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.fault_duration || '无法计算') + '</td>' +
-                        '</tr>' +
-                        '</table>' +
-                        
-                        '<div style="margin-bottom: 12px;">' +
-                        '<div style="font-weight: bold; margin-bottom: 6px;">故障详情:</div>' +
-                        '<div style="padding: 10px; background-color: #f8f9fa; border-radius: 4px; max-height: 150px; overflow-y: auto; line-height: 1.5;">' +
-                        (m.fault_details || '无详细描述') +
-                        '</div>' +
-                        '</div>';
-                    
-                    // 如果有照片，添加照片信息
-                    if (m.has_images && m.image_count > 0) {
-                        popupContent += '<div style="margin-bottom: 12px;">' +
-                            '<div style="font-weight: bold; margin-bottom: 6px;">故障照片:</div>' +
-                            '<div style="padding: 8px; background-color: #e9ecef; border-radius: 4px; font-size: 12px;">' +
-                            '<div style="display: flex; align-items: center; margin-bottom: 4px;">' +
-                            '<span style="margin-right: 8px;">📷</span>' +
-                            '<span>共 ' + m.image_count + ' 张照片</span>' +
-                            '</div>' +
-                            '<div style="color: #666; font-size: 11px;">点击上方故障编号查看详情页面中的照片</div>' +
-                            '</div>' +
-                            '</div>';
-                    }
-                    
-                    popupContent += '<div style="text-align: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; font-size: 11px; color: #666;">' +
-                        '点击标记点可查看详细信息，点击故障编号可查看完整详情' +
-                        '</div>' +
-                        '</div>';
-                    
-                    var popup = new maplibregl.Popup({ offset: 25, maxWidth: '500px' }).setHTML(popupContent);
+      onAdd(map) {
+          this.map = map;
+          this.container = document.createElement('div');
+          this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 
-                    var marker = new maplibregl.Marker({ color: color })
-                        .setLngLat([m.lng, m.lat])
-                        .setPopup(popup)
-                        .addTo(map);
-                    
-                    // 将标记添加到切换控件中
-                    layerToggleControl.addMarker(marker);
-                });
-                
-                // 添加ArcGIS OTN网络图层（4个图层）
-                try {
-                    // 首先添加线图层（置于底图之上，其他图层之下）
-                    // 图层2：线图层
-                    var arcgisUrl2 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/2/query?where=1%3D1&outFields=*&f=geojson';
-                    map.addSource('arcgis-otn-layer-2', {
-                        type: 'geojson',
-                        data: arcgisUrl2,
-                        promoteId: 'OBJECTID'
-                    });
-                    map.addLayer({
-                        id: 'arcgis-otn-lines-2',
-                        type: 'line',
-                        source: 'arcgis-otn-layer-2',
-                        paint: {
-                            'line-color': '#ff6600',
-                            'line-width': 3,
-                            'line-opacity': 0.8
-                        }
-                    }); // 不指定beforeId，确保地图正常加载
-                    
-                    // 图层3：线图层
-                    var arcgisUrl3 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/3/query?where=1%3D1&outFields=*&f=geojson';
-                    map.addSource('arcgis-otn-layer-3', {
-                        type: 'geojson',
-                        data: arcgisUrl3,
-                        promoteId: 'OBJECTID'
-                    });
-                    map.addLayer({
-                        id: 'arcgis-otn-lines-3',
-                        type: 'line',
-                        source: 'arcgis-otn-layer-3',
-                        paint: {
-                            'line-color': '#00cc66',
-                            'line-width': 3,
-                            'line-opacity': 0.7
-                        }
-                    }); // 不指定beforeId，确保地图正常加载
-                    
-                    // 然后添加点图层（置于线图层之上，热力图和故障点之下）
-                    // 图层0：点图层
-                    var arcgisUrl0 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson';
-                    map.addSource('arcgis-otn-layer-0', {
-                        type: 'geojson',
-                        data: arcgisUrl0,
-                        promoteId: 'OBJECTID'
-                    });
-                    map.addLayer({
-                        id: 'arcgis-otn-points-0',
-                        type: 'circle',
-                        source: 'arcgis-otn-layer-0',
-                        paint: {
-                            'circle-radius': [
-                                'interpolate', ['linear'], ['zoom'],
-                                6, 4,    // 缩放级别6时，半径为4
-                                10, 8,   // 缩放级别10时，半径为8
-                                15, 12   // 缩放级别15时，半径为12
-                            ],
-                            'circle-color': '#007bff',
-                            'circle-stroke-width': 2,
-                            'circle-stroke-color': '#ffffff',
-                            'circle-opacity': 0.9,
-                            'circle-stroke-opacity': 0.8
-                        }
-                    }); // 不指定beforeId，默认添加在现有图层之上
-                    
-                    // 为点图层0添加文本标注（使用O_name字段，增强兼容性）
-                    map.addLayer({
-                        id: 'arcgis-otn-labels-0',
-                        type: 'symbol',
-                        source: 'arcgis-otn-layer-0',
-                        layout: {
-                            'text-field': [
-                                'coalesce',
-                                ['get', 'O_name'],
-                                ['get', 'O_NAME'],
-                                ['get', 'o_name'],
-                                ['get', 'name'],
-                                ''  // 默认值
-                            ],
-                            'text-font': ['Arial Unicode MS Bold', 'sans-serif'],
-                            'text-size': 14,
-                            'text-offset': [0, -1.5],
-                            'text-anchor': 'bottom',
-                            'text-allow-overlap': false,
-                            'text-ignore-placement': false
-                        },
-                        paint: {
-                            'text-color': '#ffffff',
-                            'text-halo-color': 'rgba(0, 0, 0, 0.8)',
-                            'text-halo-width': 2
-                        }
-                    });
-                    
-                    // 图层1：点图层
-                    var arcgisUrl1 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/1/query?where=1%3D1&outFields=*&f=geojson';
-                    map.addSource('arcgis-otn-layer-1', {
-                        type: 'geojson',
-                        data: arcgisUrl1,
-                        promoteId: 'OBJECTID'
-                    });
-                    map.addLayer({
-                        id: 'arcgis-otn-points-1',
-                        type: 'circle',
-                        source: 'arcgis-otn-layer-1',
-                        paint: {
-                            'circle-radius': [
-                                'interpolate', ['linear'], ['zoom'],
-                                6, 3,    // 缩放级别6时，半径为3
-                                10, 6,   // 缩放级别10时，半径为6
-                                15, 10   // 缩放级别15时，半径为10
-                            ],
-                            'circle-color': '#00aaff',
-                            'circle-stroke-width': 1,
-                            'circle-stroke-color': '#ffffff',
-                            'circle-opacity': 0.8,
-                            'circle-stroke-opacity': 0.7
-                        }
-                    }); // 不指定beforeId，默认添加在现有图层之上
-                    
-                    // 为点图层1添加文本标注（使用O_name字段，增强兼容性）
-                    map.addLayer({
-                        id: 'arcgis-otn-labels-1',
-                        type: 'symbol',
-                        source: 'arcgis-otn-layer-1',
-                        layout: {
-                            'text-field': [
-                                'coalesce',
-                                ['get', 'O_name'],
-                                ['get', 'O_NAME'],
-                                ['get', 'o_name'],
-                                ['get', 'name'],
-                                ''  // 默认值
-                            ],
-                            'text-font': ['Arial Unicode MS Bold', 'sans-serif'],
-                            'text-size': 13,
-                            'text-offset': [0, -1.5],
-                            'text-anchor': 'bottom',
-                            'text-allow-overlap': false,
-                            'text-ignore-placement': false
-                        },
-                        paint: {
-                            'text-color': '#ffffff',
-                            'text-halo-color': 'rgba(0, 0, 0, 0.8)',
-                            'text-halo-width': 2
-                        }
-                    });
-                    
-                    // 现在添加热力图，置于ArcGIS线图层之上
-                    if (features.length > 0) {
-                        map.addSource('faults', {
-                            type: 'geojson',
-                            data: {
-                                type: 'FeatureCollection',
-                                features: features
-                            }
-                        });
+          // Home按钮 - 使用SVG图标
+          this.homeButton = document.createElement('button');
+          this.homeButton.className = 'maplibregl-ctrl-icon';
+          this.homeButton.innerHTML = svgIcons.home;
+          this.homeButton.title = '恢复初始视野（包括比例尺、视野、北向、俯仰等）';
+          this.homeButton.onclick = () => this.goHome();
 
-                        map.addLayer({
-                            id: 'faults-heat',
-                            type: 'heatmap',
-                            source: 'faults',
-                            maxzoom: 15,
-                            paint: {
-                                // 根据频率和属性大小增加热力图权重 - 降低阈值使热点更明显
-                                'heatmap-weight': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['get', 'count'],
-                                    0, 0,
-                                    4, 1  // 将阈值从10降低到4，增加低密度区域显示
-                                ],
-                                // 根据缩放级别增加热力图颜色权重 - 适度增强对比度
-                                // heatmap-intensity是heatmap-weight的乘数
-                                'heatmap-intensity': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['zoom'],
-                                    0, 1,
-                                    9, 4  // 将强度从5调整到4，适度增强对比度
-                                ],
-                                // 热力图颜色渐变。域为0（低）到1（高）。 
-                                // 从0-stop开始使用0透明度的颜色创建模糊效果。
-                                'heatmap-color': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['heatmap-density'],
-                                    0, 'rgba(33,102,172,0)',
-                                    0.1, 'rgb(103,169,207)',  // 恢复低密度区域的颜色
-                                    0.3, 'rgb(209,229,240)',
-                                    0.5, 'rgb(253,219,199)',
-                                    0.7, 'rgb(239,138,98)',
-                                    1, 'rgb(178,24,43)'  // 恢复标准高密度颜色
-                                ],
-                                // 根据缩放级别调整热力图半径 - 增加半径使热点更明显
-                                'heatmap-radius': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['zoom'],
-                                    0, 3,   // 将最小半径从1增加到3
-                                    9, 25   // 将最大半径从10增加到25，使热点更明显
-                                ],
-                                // 根据缩放级别从热力图过渡到圆形图层
-                                'heatmap-opacity': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['zoom'],
-                                    7, 1,
-                                    9, 0
-                                ],
-                            }
-                        });
-                    }
-                    
-                    // 为所有点图层添加hover效果
-                    ['arcgis-otn-points-0', 'arcgis-otn-points-1'].forEach(function(layerId) {
-                        var hoveredStateId = null;
-                        var sourceId = layerId.replace('-points-', '-layer-');
-                        
-                        map.on('mouseenter', layerId, function(e) {
-                            map.getCanvas().style.cursor = 'pointer';
-                            
-                            if (e.features.length > 0) {
-                                if (hoveredStateId !== null) {
-                                    map.setFeatureState(
-                                        { source: sourceId, id: hoveredStateId },
-                                        { hover: false }
-                                    );
-                                }
-                                hoveredStateId = e.features[0].id;
-                                map.setFeatureState(
-                                    { source: sourceId, id: hoveredStateId },
-                                    { hover: true }
-                                );
-                            }
-                        });
-                        
-                        map.on('mouseleave', layerId, function() {
-                            map.getCanvas().style.cursor = '';
-                            if (hoveredStateId !== null) {
-                                map.setFeatureState(
-                                    { source: sourceId, id: hoveredStateId },
-                                    { hover: false }
-                                );
-                            }
-                            hoveredStateId = null;
-                        });
-                        
-                        // 点击显示弹出信息
-                        map.on('click', layerId, function(e) {
-                            if (e.features.length > 0) {
-                                var feature = e.features[0];
-                                var properties = feature.properties;
-                                
-                                // 构建弹出内容
-                                var popupContent = '<div style="max-width: 300px;">';
-                                popupContent += '<h6>OTN网络节点</h6>';
-                                popupContent += '<table class="table table-sm">';
-                                
-                                // 显示所有属性
-                                for (var key in properties) {
-                                    if (properties.hasOwnProperty(key) && properties[key] !== null) {
-                                        popupContent += '<tr>';
-                                        popupContent += '<th style="width: 40%;">' + key + '</th>';
-                                        popupContent += '<td>' + properties[key] + '</td>';
-                                        popupContent += '</tr>';
-                                    }
-                                }
-                                
-                                popupContent += '</table>';
-                                popupContent += '</div>';
-                                
-                                new maplibregl.Popup()
-                                    .setLngLat(e.lngLat)
-                                    .setHTML(popupContent)
-                                    .addTo(map);
-                            }
-                        });
-                    });
-                    
-                    // 为线图层添加hover效果
-                    ['arcgis-otn-lines-2', 'arcgis-otn-lines-3'].forEach(function(layerId) {
-                        map.on('mouseenter', layerId, function() {
-                            map.getCanvas().style.cursor = 'pointer';
-                        });
-                        
-                        map.on('mouseleave', layerId, function() {
-                            map.getCanvas().style.cursor = '';
-                        });
-                        
-                        // 点击显示弹出信息
-                        map.on('click', layerId, function(e) {
-                            if (e.features.length > 0) {
-                                var feature = e.features[0];
-                                var properties = feature.properties;
-                                
-                                // 构建弹出内容
-                                var popupContent = '<div style="max-width: 300px;">';
-                                popupContent += '<h6>OTN网络线路</h6>';
-                                popupContent += '<table class="table table-sm">';
-                                
-                                // 显示所有属性
-                                for (var key in properties) {
-                                    if (properties.hasOwnProperty(key) && properties[key] !== null) {
-                                        popupContent += '<tr>';
-                                        popupContent += '<th style="width: 40%;">' + key + '</th>';
-                                        popupContent += '<td>' + properties[key] + '</td>';
-                                        popupContent += '</tr>';
-                                    }
-                                }
-                                
-                                popupContent += '</table>';
-                                popupContent += '</div>';
-                                
-                                new maplibregl.Popup()
-                                    .setLngLat(e.lngLat)
-                                    .setHTML(popupContent)
-                                    .addTo(map);
-                            }
-                        });
-                    });
-                    
-                    console.log('ArcGIS OTN图层加载成功（4个图层）');
-                    
-                    // 添加缩放事件监听，动态控制图层显示
-                    map.on('zoom', function() {
-                        if (layerToggleControl.arcgisVisible) {
-                            layerToggleControl.updateArcgisLayersVisibility();
-                        }
-                    });
-                    
-                    // 初始设置图层可见性
-                    layerToggleControl.updateArcgisLayersVisibility();
-                    
-                    // 添加地图加载完成后的初始状态同步
-                    map.once('idle', function() {
-                        console.log('地图加载完成，同步ArcGIS按钮初始状态');
-                        layerToggleControl.updateArcgisLayersVisibility();
-                    });
-                    
-                } catch (error) {
-                    console.warn('ArcGIS图层加载失败，但不影响其他功能:', error);
-                    // 如果ArcGIS图层加载失败，隐藏对应的开关按钮
-                    if (layerToggleControl.arcgisButton) {
-                        layerToggleControl.arcgisButton.style.display = 'none';
-                    }
-                }
-                
-                // 创建故障点图例
-                function createFaultLegend() {
-                    var legendContainer = document.createElement('div');
-                    legendContainer.className = 'maplibregl-ctrl maplibregl-ctrl-group fault-legend';
-                    legendContainer.style.padding = '10px';
-                    legendContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-                    legendContainer.style.borderRadius = '4px';
-                    legendContainer.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
-                    legendContainer.style.maxWidth = '200px';
-                    
-                    var legendTitle = document.createElement('div');
-                    legendTitle.innerHTML = '<strong>故障分类图例</strong>';
-                    legendTitle.style.marginBottom = '8px';
-                    legendTitle.style.borderBottom = '1px solid #ddd';
-                    legendTitle.style.paddingBottom = '5px';
-                    legendContainer.appendChild(legendTitle);
-                    
-                    // 添加每个分类的图例项
-                    Object.keys(faultCategoryColors).forEach(function(category) {
-                        var legendItem = document.createElement('div');
-                        legendItem.style.display = 'flex';
-                        legendItem.style.alignItems = 'center';
-                        legendItem.style.marginBottom = '5px';
-                        
-                        var colorBox = document.createElement('div');
-                        colorBox.style.width = '15px';
-                        colorBox.style.height = '15px';
-                        colorBox.style.backgroundColor = faultCategoryColors[category];
-                        colorBox.style.borderRadius = '3px';
-                        colorBox.style.marginRight = '8px';
-                        colorBox.style.border = '1px solid #ccc';
-                        
-                        var label = document.createElement('span');
-                        label.style.fontSize = '12px';
-                        label.textContent = faultCategoryNames[category];
-                        
-                        legendItem.appendChild(colorBox);
-                        legendItem.appendChild(label);
-                        legendContainer.appendChild(legendItem);
-                    });
-                    
-                    return legendContainer;
-                }
-                
-                // 添加图例到地图右下角
-                var legendControl = {
-                    onAdd: function(map) {
-                        this.container = createFaultLegend();
-                        return this.container;
-                    },
-                    onRemove: function() {
-                        this.container.parentNode.removeChild(this.container);
-                        this.map = undefined;
-                    }
-                };
-                
-                map.addControl(legendControl, 'bottom-right');
-                
-                // 隐藏加载状态
-                loadingOverlay.classList.add('hidden');
-            });
+          this.container.appendChild(this.homeButton);
 
-            map.on('error', function (e) {
-                console.error('地图加载错误:', e.error);
-                showMapError('地图加载失败: ' + (e.error.message || '未知错误'));
-            });
+          return this.container;
+      }
 
-        } catch (error) {
-            console.error('地图初始化错误:', error);
-            showMapError('地图初始化失败: ' + error.message);
-        }
+      onRemove() {
+          this.container.parentNode.removeChild(this.container);
+          this.map = undefined;
+      }
 
-        function showMapError(message) {
-            // 移除加载覆盖层
-            if (loadingOverlay && loadingOverlay.parentNode) {
-                loadingOverlay.parentNode.removeChild(loadingOverlay);
-            }
-            
-            // 创建错误覆盖层
-            var errorOverlay = document.createElement('div');
-            errorOverlay.className = 'map-overlay map-error';
-            errorOverlay.innerHTML = `
-                <h5>地图加载失败</h5>
-                <p>${message}</p>
-                <ul>
-                    <li>请检查网络连接</li>
-                    <li>确保API密钥有效</li>
-                    <li>刷新页面重试</li>
-                    <li>如果问题持续，请联系管理员</li>
-                </ul>
-                <button class="btn btn-primary mt-3" onclick="window.location.reload()">
-                    刷新页面
-                </button>
-            `;
-            mapContainer.appendChild(errorOverlay);
-        }
-    });
+      goHome() {
+          console.log('Home按钮点击：完全恢复到初始窗口状态');
+
+          // 完全恢复到初始窗口状态，包括比例尺、视野、北向、俯仰等所有内容
+          this.map.flyTo({
+              center: this.initialCenter,  // 中心点：[105.0, 35.0]
+              zoom: this.initialZoom,      // 缩放级别：4
+              bearing: 0,                  // 方位角：0度（正北方向）
+              pitch: 0,                    // 俯仰角：0度（水平视角）
+              essential: true
+          });
+
+          // 确保地球投影模式
+          this.map.setProjection({ type: 'globe' });
+
+          console.log('已恢复：中心点=' + this.initialCenter +
+              ', 缩放=' + this.initialZoom +
+              ', 方位角=0, 俯仰角=0, 投影模式=globe');
+      }
+  }
+
+  // 添加Home控件到地图（在全屏控件下方）
+  map.addControl(new HomeControl(), 'top-right');
+
+  // 创建图层切换控件
+  class LayerToggleControl {
+      constructor(options) {
+          this.options = options || {};
+          this.heatmapVisible = true;
+          this.markersVisible = true;
+          this.arcgisVisible = true;
+          this.markers = []; // 存储标记对象
+          this.currentTimeRange = 'year'; // 默认时间范围：本年
+          this.menuHovered = false; // 菜单悬停状态
+          this.lastMouseX = 0; // 鼠标X坐标
+          this.lastMouseY = 0; // 鼠标Y坐标
+
+          // 跟踪鼠标位置
+          document.addEventListener('mousemove', (e) => {
+              this.lastMouseX = e.clientX;
+              this.lastMouseY = e.clientY;
+          });
+      }
+
+      onAdd(map) {
+          this.map = map;
+          this.container = document.createElement('div');
+          this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group layer-toggle-control';
+
+          // 创建热力图按钮容器（用于定位弹出菜单）
+          this.heatmapContainer = document.createElement('div');
+          this.heatmapContainer.className = 'heatmap-button-container';
+          this.heatmapContainer.style.position = 'relative';
+
+          // 热力图开关按钮 - 使用SVG图标
+          this.heatmapButton = document.createElement('button');
+          this.heatmapButton.className = 'maplibregl-ctrl-icon toggle-button heatmap-toggle active';
+          this.heatmapButton.innerHTML = svgIcons.heatmap;
+          this.heatmapButton.title = '热力图开关';
+
+          // 单击切换热力图层显示/隐藏
+          this.heatmapButton.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.toggleHeatmap();
+          });
+
+          // 故障点开关按钮 - 使用SVG图标
+          this.markersButton = document.createElement('button');
+          this.markersButton.className = 'maplibregl-ctrl-icon toggle-button markers-toggle active';
+          this.markersButton.innerHTML = svgIcons.marker;
+          this.markersButton.title = '故障点开关';
+          this.markersButton.onclick = () => this.toggleMarkers();
+
+          // ArcGIS图层开关按钮（统一控制所有ArcGIS图层）- 使用SVG图标
+          this.arcgisButton = document.createElement('button');
+          this.arcgisButton.className = 'maplibregl-ctrl-icon toggle-button arcgis-toggle';
+          this.arcgisButton.innerHTML = svgIcons.network;
+          this.arcgisButton.title = 'OTN网络图层';
+          this.arcgisButton.onclick = () => this.toggleArcgis();
+
+          // 根据初始可见性设置按钮状态
+          if (this.arcgisVisible) {
+              this.arcgisButton.classList.add('active');
+          }
+
+          this.heatmapContainer.appendChild(this.heatmapButton);
+          this.container.appendChild(this.heatmapContainer);
+          this.container.appendChild(this.markersButton);
+          this.container.appendChild(this.arcgisButton);
+
+          return this.container;
+      }
+
+      onRemove() {
+          this.container.parentNode.removeChild(this.container);
+          this.map = undefined;
+      }
+
+      createTimeRangeMenu() {
+          this.timeRangeMenu = document.createElement('div');
+          this.timeRangeMenu.className = 'heatmap-time-range-menu';
+
+          // 菜单项数据
+          const menuItems = [
+              { range: 'month', text: '一个月' },
+              { range: 'three_months', text: '三个月' },
+              { range: 'year', text: '本年' }
+          ];
+
+          // 动态生成菜单项
+          menuItems.forEach(item => {
+              const menuItem = document.createElement('div');
+              menuItem.className = 'dropdown-item';
+              menuItem.setAttribute('data-range', item.range);
+              menuItem.textContent = item.text;
+
+              // 如果是当前选择项，添加高亮类
+              if (item.range === this.currentTimeRange) {
+                  menuItem.classList.add('active');
+              }
+
+              // 添加点击事件
+              menuItem.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  const range = e.target.getAttribute('data-range');
+                  this.selectTimeRange(range);
+                  this.hideTimeRangeMenu();
+              });
+
+              this.timeRangeMenu.appendChild(menuItem);
+          });
+
+          // 菜单鼠标事件
+          this.timeRangeMenu.addEventListener('mouseenter', () => {
+              this.menuHovered = true;
+          });
+
+          this.timeRangeMenu.addEventListener('mouseleave', () => {
+              this.menuHovered = false;
+              setTimeout(() => {
+                  if (!this.menuHovered && !this.isMouseOverButton()) {
+                      this.hideTimeRangeMenu();
+                  }
+              }, 300);
+          });
+
+          this.heatmapContainer.appendChild(this.timeRangeMenu);
+
+          // 点击其他地方隐藏菜单
+          document.addEventListener('click', () => {
+              this.hideTimeRangeMenu();
+          });
+      }
+
+      isMouseOverMenu() {
+          return this.menuHovered || false;
+      }
+
+      isMouseOverButton() {
+          // 检查鼠标是否在按钮上
+          if (!this.heatmapButton) return false;
+          const rect = this.heatmapButton.getBoundingClientRect();
+          const mouseX = this.lastMouseX || 0;
+          const mouseY = this.lastMouseY || 0;
+          return mouseX >= rect.left && mouseX <= rect.right &&
+              mouseY >= rect.top && mouseY <= rect.bottom;
+      }
+
+      showTimeRangeMenu() {
+          // 隐藏其他可能打开的菜单
+          this.hideTimeRangeMenu();
+
+          // 显示菜单
+          this.timeRangeMenu.style.display = 'block';
+
+          // 定位菜单在按钮下方
+          const rect = this.heatmapButton.getBoundingClientRect();
+          this.timeRangeMenu.style.position = 'absolute';
+          this.timeRangeMenu.style.top = '100%';
+          this.timeRangeMenu.style.left = '0';
+          this.timeRangeMenu.style.zIndex = '1000';
+      }
+
+      hideTimeRangeMenu() {
+          if (this.timeRangeMenu) {
+              this.timeRangeMenu.style.display = 'none';
+          }
+      }
+
+      selectTimeRange(range) {
+          this.currentTimeRange = range;
+
+          // 更新按钮标题
+          let rangeText = '本年';  // 默认值
+          if (range === 'month') rangeText = '一个月';
+          else if (range === 'three_months') rangeText = '三个月';
+
+          this.heatmapButton.title = `热力图开关 - 当前范围: ${rangeText}`;
+
+          // 更新菜单项高亮状态
+          this.updateMenuHighlight();
+
+          // 重新加载数据
+          this.reloadHeatmapData(range);
+      }
+
+      updateMenuHighlight() {
+          // 更新所有菜单项的高亮状态
+          if (this.timeRangeMenu) {
+              const menuItems = this.timeRangeMenu.querySelectorAll('.dropdown-item');
+              menuItems.forEach(item => {
+                  const range = item.getAttribute('data-range');
+                  if (range === this.currentTimeRange) {
+                      item.classList.add('active');
+                  } else {
+                      item.classList.remove('active');
+                  }
+              });
+          }
+      }
+
+      reloadHeatmapData(timeRange) {
+          // 计算起始日期
+          const now = new Date();
+          let startDate;
+
+          if (timeRange === 'month') {
+              startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+          } else if (timeRange === 'three_months') {
+              startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+          } else { // 'year' 或 'all'
+              // 本年1月1日
+              startDate = new Date(now.getFullYear(), 0, 1);
+          }
+
+          // 筛选数据：只保留发生时间在起始日期之后的数据点
+          const filteredData = heatmapData.filter(point => {
+              if (!point.occurrence_time) return false;
+              const pointDate = new Date(point.occurrence_time);
+              return pointDate >= startDate;
+          });
+
+          console.log(`前端筛选热力图数据，时间范围: ${timeRange}, 原始数据点: ${heatmapData.length}, 筛选后数据点: ${filteredData.length}`);
+
+          // 将筛选结果转换为GeoJSON格式
+          const features = filteredData.map(point => ({
+              type: 'Feature',
+              properties: { count: point.count },
+              geometry: {
+                  type: 'Point',
+                  coordinates: [point.lng, point.lat]
+              }
+          }));
+
+          const geoJsonData = {
+              type: 'FeatureCollection',
+              features: features
+          };
+
+          // 更新地图数据源
+          if (this.map.getSource('faults')) {
+              this.map.getSource('faults').setData(geoJsonData);
+          }
+
+          // 更新按钮标题
+          this.updateButtonTitle(timeRange);
+      }
+
+      showLoading() {
+          // 创建或显示加载提示
+          if (!this.loadingOverlay) {
+              this.loadingOverlay = document.createElement('div');
+              this.loadingOverlay.className = 'heatmap-loading-overlay';
+              this.loadingOverlay.innerHTML = `
+                          <div class="spinner-border text-primary" role="status">
+                              <span class="visually-hidden">加载中...</span>
+                          </div>
+                          <div class="mt-2">正在加载热力图数据...</div>
+                      `;
+              this.loadingOverlay.style.cssText = `
+                          position: absolute;
+                          top: 0;
+                          left: 0;
+                          width: 100%;
+                          height: 100%;
+                          background-color: rgba(255, 255, 255, 0.8);
+                          display: flex;
+                          flex-direction: column;
+                          align-items: center;
+                          justify-content: center;
+                          z-index: 9999;
+                          border-radius: 4px;
+                      `;
+              this.heatmapContainer.appendChild(this.loadingOverlay);
+          }
+          this.loadingOverlay.style.display = 'flex';
+      }
+
+      hideLoading() {
+          if (this.loadingOverlay) {
+              this.loadingOverlay.style.display = 'none';
+          }
+      }
+
+      updateButtonTitle(timeRange) {
+          let rangeText = '本年';  // 默认值
+          if (timeRange === 'month') rangeText = '一个月';
+          else if (timeRange === 'three_months') rangeText = '三个月';
+
+          this.heatmapButton.title = `热力图开关 - 当前范围: ${rangeText}`;
+          this.currentTimeRange = timeRange;
+      }
+
+      // 可选：回退到页面刷新方式
+      fallbackToPageRefresh(timeRange) {
+          console.warn('使用页面刷新方式作为回退');
+          const currentUrl = window.location.href.split('?')[0];
+          let newUrl = currentUrl;
+          if (timeRange !== 'year') {
+              newUrl = `${currentUrl}?time_range=${timeRange}`;
+          }
+          window.location.href = newUrl;
+      }
+
+      toggleHeatmap() {
+          this.heatmapVisible = !this.heatmapVisible;
+          if (this.heatmapVisible) {
+              this.heatmapButton.classList.add('active');
+              this.map.setLayoutProperty('faults-heat', 'visibility', 'visible');
+          } else {
+              this.heatmapButton.classList.remove('active');
+              this.map.setLayoutProperty('faults-heat', 'visibility', 'none');
+          }
+      }
+
+
+
+      toggleArcgis() {
+          this.arcgisVisible = !this.arcgisVisible;
+          console.log('ArcGIS按钮切换，新状态:', this.arcgisVisible ? '显示' : '隐藏');
+          this.updateArcgisLayersVisibility();
+      }
+
+      updateArcgisLayersVisibility() {
+          console.log('更新ArcGIS图层可见性，当前状态:', this.arcgisVisible ? '显示' : '隐藏');
+
+          if (!this.arcgisVisible) {
+              // 如果开关关闭，隐藏所有ArcGIS图层（包括文本标注图层和省份图层）
+              ['arcgis-province-layer', 'arcgis-otn-points-0', 'arcgis-otn-points-1', 'arcgis-otn-lines-2', 'arcgis-otn-lines-3', 'arcgis-otn-labels-0', 'arcgis-otn-labels-1'].forEach(layerId => {
+                  if (this.map.getLayer(layerId)) {
+                      this.map.setLayoutProperty(layerId, 'visibility', 'none');
+                  }
+              });
+              // 确保按钮状态更新
+              this.arcgisButton.classList.remove('active');
+              console.log('ArcGIS图层已隐藏，按钮状态更新为: 非激活');
+              return;
+          }
+
+          // 开关打开时，根据缩放级别控制图层显示
+          const currentZoom = this.map.getZoom();
+          const isNationalView = currentZoom <= 4;    // 全国视野：缩放级别 ≤ 6
+          const isProvincialView = currentZoom >= 5;  // 省级视野：缩放级别 ≥ 8
+
+          console.log('当前缩放级别:', currentZoom, '全国视野:', isNationalView, '省级视野:', isProvincialView);
+
+          // 省份图层：始终显示（作为底层参考）
+          if (this.map.getLayer('arcgis-province-layer')) {
+              this.map.setLayoutProperty('arcgis-province-layer', 'visibility', 'visible');
+              console.log('省份图层设置为可见');
+          }
+
+          // 线图层：全国视野时显示，省级视野时也显示（始终显示）
+          if (this.map.getLayer('arcgis-otn-lines-2')) {
+              this.map.setLayoutProperty('arcgis-otn-lines-2', 'visibility', 'visible');
+              console.log('线图层2设置为可见');
+          }
+          if (this.map.getLayer('arcgis-otn-lines-3')) {
+              this.map.setLayoutProperty('arcgis-otn-lines-3', 'visibility', 'visible');
+              console.log('线图层3设置为可见');
+          }
+
+          // 点图层和文本标注图层：只在省级视野时显示
+          const pointVisibility = isProvincialView ? 'visible' : 'none';
+          console.log('点图层可见性:', pointVisibility);
+
+          if (this.map.getLayer('arcgis-otn-points-0')) {
+              this.map.setLayoutProperty('arcgis-otn-points-0', 'visibility', pointVisibility);
+              console.log('点图层0设置为:', pointVisibility);
+          }
+          if (this.map.getLayer('arcgis-otn-points-1')) {
+              this.map.setLayoutProperty('arcgis-otn-points-1', 'visibility', pointVisibility);
+              console.log('点图层1设置为:', pointVisibility);
+          }
+          if (this.map.getLayer('arcgis-otn-labels-0')) {
+              this.map.setLayoutProperty('arcgis-otn-labels-0', 'visibility', pointVisibility);
+              console.log('标签图层0设置为:', pointVisibility);
+          }
+          if (this.map.getLayer('arcgis-otn-labels-1')) {
+              this.map.setLayoutProperty('arcgis-otn-labels-1', 'visibility', pointVisibility);
+              console.log('标签图层1设置为:', pointVisibility);
+          }
+
+          // 更新按钮状态
+          this.arcgisButton.classList.add('active');
+          console.log('ArcGIS图层已显示，按钮状态更新为: 激活');
+      }
+
+      setLegend(legendContainer) {
+          this.legendContainer = legendContainer;
+      }
+
+      addMarker(marker) {
+          this.markers.push(marker);
+      }
+
+      toggleMarkers() {
+          this.markersVisible = !this.markersVisible;
+          if (this.markersVisible) {
+              this.markersButton.classList.add('active');
+              // 显示所有标记
+              this.markers.forEach(marker => marker.getElement().style.display = 'block');
+              // 显示图例
+              if (this.legendContainer) {
+                  this.legendContainer.style.display = 'block';
+              }
+          } else {
+              this.markersButton.classList.remove('active');
+              // 隐藏所有标记
+              this.markers.forEach(marker => marker.getElement().style.display = 'none');
+              // 隐藏图例
+              if (this.legendContainer) {
+                  this.legendContainer.style.display = 'none';
+              }
+          }
+      }
+  }
+
+  // 添加图层切换控件
+  var layerToggleControl = new LayerToggleControl();
+  map.addControl(layerToggleControl, 'top-left');
+
+  // 在样式加载时立即设置中文标签
+  map.on('style.load', function () {
+      // 设置地图语言为中文
+      function setMapLanguageToChinese() {
+          const layers = map.getStyle().layers;
+          layers.forEach(layer => {
+              if (layer.layout && layer.layout['text-field']) {
+                  map.setLayoutProperty(layer.id, 'text-field', ['coalesce', ['get', 'name:zh'], ['get', 'name']]);
+              }
+          });
+      }
+
+      // 过滤地图标签 - 只显示城市行政名，隐藏所有道路名称
+      function filterCityLabels() {
+          const layers = map.getStyle().layers;
+          console.log('开始过滤地图标签，隐藏道路名称，只显示城市行政名');
+
+          layers.forEach(layer => {
+              if (layer.type === 'symbol') {
+                  // 隐藏所有道路相关标签
+                  if (layer.id.includes('road') ||
+                      layer.id.includes('highway') ||
+                      layer.id.includes('street') ||
+                      layer.id.includes('route') ||
+                      layer.id.includes('motorway') ||
+                      layer.id.includes('trunk') ||
+                      layer.id.includes('primary') ||
+                      layer.id.includes('secondary') ||
+                      layer.id.includes('tertiary') ||
+                      layer.id.includes('path') ||
+                      layer.id.includes('track') ||
+                      layer.id.includes('service') ||
+                      layer.id.includes('pedestrian') ||
+                      layer.id.includes('cycleway') ||
+                      layer.id.includes('footway') ||
+                      layer.id.includes('steps') ||
+                      layer.id.includes('ferry') ||
+                      layer.id.includes('rail') ||
+                      layer.id.includes('transit')) {
+                      map.setLayoutProperty(layer.id, 'visibility', 'none');
+                      console.log('隐藏道路标签:', layer.id);
+                  }
+
+                  // 保留城市行政标签，但过滤小城镇
+                  if ((layer.id.includes('place') || layer.id.includes('settlement') ||
+                      layer.id.includes('label')) &&
+                      (layer.id.includes('village') || layer.id.includes('town') ||
+                          layer.id.includes('hamlet') || layer.id.includes('suburb') ||
+                          layer.id.includes('neighbourhood') || layer.id.includes('neighborhood') ||
+                          layer.id.includes('quarter') || layer.id.includes('locality') ||
+                          layer.id.includes('isolated_dwelling'))) {
+                      map.setLayoutProperty(layer.id, 'visibility', 'none');
+                      console.log('隐藏小城镇标签:', layer.id);
+                  }
+              }
+          });
+
+          console.log('地图标签过滤完成');
+      }
+
+      // 立即调用中文标签设置函数
+      setMapLanguageToChinese();
+      // 过滤城市标签，只显示主要城市
+      filterCityLabels();
+  });
+
+  map.on('load', function () {
+      // 设置地球投影模式
+      map.setProjection({ type: 'globe' });
+
+      // 准备热力图的GeoJSON数据
+      var features = heatmapData.map(function (point) {
+          return {
+              type: 'Feature',
+              properties: { count: point.count },
+              geometry: {
+                  type: 'Point',
+                  coordinates: [point.lng, point.lat]
+              }
+          };
+      });
+
+      // 将地图边界适配到数据范围
+      var bounds = new maplibregl.LngLatBounds();
+      if (features.length > 0) {
+          features.forEach(function (feature) {
+              bounds.extend(feature.geometry.coordinates);
+          });
+      }
+      // 同时将标记点包含在边界内
+      markerData.forEach(function (m) {
+          bounds.extend([m.lng, m.lat]);
+      });
+
+      if (!bounds.isEmpty()) {
+          map.fitBounds(bounds, { padding: 50 });
+      }
+
+      // 故障分类颜色映射（5种分类）
+      var faultCategoryColors = {
+          'power': '#FF0000',      // 电力故障 - 红色
+          'fiber': '#00FF00',      // 光缆故障 - 绿色
+          'pigtail': '#0000FF',    // 空调故障 - 蓝色
+          'device': '#FFA500',     // 设备故障 - 橙色
+          'other': '#800080'       // 其他故障 - 紫色
+      };
+
+      // 故障分类名称映射（5种分类）
+      var faultCategoryNames = {
+          'power': '电力故障',
+          'fiber': '光缆故障',
+          'pigtail': '空调故障',
+          'device': '设备故障',
+          'other': '其他故障'
+      };
+
+      // 故障分类筛选状态（默认全选）
+      var selectedCategories = Object.keys(faultCategoryColors);
+
+      // 创建故障分类筛选控件
+      class CategoryFilterControl {
+          constructor(options) {
+              this.options = options || {};
+              this.selectedCategories = Object.keys(faultCategoryColors); // 默认全选
+              this.currentTimeRange = 'year'; // 默认时间范围：本年
+              this.menuHovered = false;
+              this.lastMouseX = 0;
+              this.lastMouseY = 0;
+
+              // 跟踪鼠标位置
+              document.addEventListener('mousemove', (e) => {
+                  this.lastMouseX = e.clientX;
+                  this.lastMouseY = e.clientY;
+              });
+          }
+
+          onAdd(map) {
+              this.map = map;
+              this.container = document.createElement('div');
+              this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group category-filter-control';
+
+              // 创建筛选按钮容器
+              this.filterContainer = document.createElement('div');
+              this.filterContainer.className = 'category-filter-button-container';
+              this.filterContainer.style.position = 'relative';
+
+              // 筛选按钮 - 使用SVG图标
+              this.filterButton = document.createElement('button');
+              this.filterButton.className = 'maplibregl-ctrl-icon toggle-button category-filter-toggle';
+              this.filterButton.innerHTML = svgIcons.filter;
+              this.filterButton.title = '故障分类筛选 - 当前选中: 全部5种分类';
+
+              // 鼠标悬停显示分类菜单
+              this.filterButton.addEventListener('mouseenter', (e) => {
+                  e.stopPropagation();
+                  this.showCategoryMenu();
+              });
+
+              // 鼠标离开隐藏分类菜单
+              this.filterButton.addEventListener('mouseleave', (e) => {
+                  e.stopPropagation();
+                  setTimeout(() => {
+                      if (!this.isMouseOverMenu()) {
+                          this.hideCategoryMenu();
+                      }
+                  }, 300);
+              });
+
+              // 创建分类菜单
+              this.createCategoryMenu();
+
+              this.filterContainer.appendChild(this.filterButton);
+              this.container.appendChild(this.filterContainer);
+
+              return this.container;
+          }
+
+          onRemove() {
+              this.container.parentNode.removeChild(this.container);
+              this.map = undefined;
+          }
+
+          createCategoryMenu() {
+              this.categoryMenu = document.createElement('div');
+              this.categoryMenu.className = 'category-filter-menu';
+              this.categoryMenu.style.cssText = `
+                          position: absolute;
+                          background-color: white;
+                          border: 1px solid #ddd;
+                          border-radius: 4px;
+                          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                          z-index: 1000;
+                          min-width: 150px;
+                          padding: 8px 0;
+                          display: none;
+                          top: 100%;
+                          left: 0;
+                      `;
+
+              // 阻止菜单内部的点击事件冒泡到文档
+              this.categoryMenu.addEventListener('click', (e) => {
+                  e.stopPropagation();
+              });
+
+              // 添加时间范围选择部分
+              const timeRangeTitle = document.createElement('div');
+              timeRangeTitle.className = 'dropdown-item';
+              timeRangeTitle.innerHTML = '<strong>时间范围</strong>';
+              timeRangeTitle.style.borderBottom = '1px solid #eee';
+              timeRangeTitle.style.marginBottom = '4px';
+              this.categoryMenu.appendChild(timeRangeTitle);
+
+              // 时间范围选项
+              const timeRanges = [
+                  { range: 'month', text: '一个月' },
+                  { range: 'three_months', text: '三个月' },
+                  { range: 'year', text: '本年' }
+              ];
+
+              timeRanges.forEach(item => {
+                  const timeRangeItem = document.createElement('div');
+                  timeRangeItem.className = 'dropdown-item';
+                  timeRangeItem.setAttribute('data-range', item.range);
+                  timeRangeItem.textContent = item.text;
+
+                  // 如果是当前选择项，添加高亮类
+                  if (item.range === this.currentTimeRange) {
+                      timeRangeItem.classList.add('active');
+                  }
+
+                  // 添加点击事件
+                  timeRangeItem.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      const range = e.target.getAttribute('data-range');
+                      this.selectTimeRange(range);
+                      // 不隐藏菜单，让用户可以继续操作
+                  });
+
+                  this.categoryMenu.appendChild(timeRangeItem);
+              });
+
+              // 添加分隔线
+              const separator = document.createElement('div');
+              separator.style.height = '1px';
+              separator.style.backgroundColor = '#eee';
+              separator.style.margin = '8px 0';
+              this.categoryMenu.appendChild(separator);
+
+              // 添加全选/全不选按钮
+              const allButton = document.createElement('div');
+              allButton.className = 'dropdown-item';
+              allButton.innerHTML = '<strong>全选/全不选</strong>';
+              allButton.style.borderBottom = '1px solid #eee';
+              allButton.style.marginBottom = '4px';
+              allButton.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  this.toggleAllCategories();
+                  // 不隐藏菜单，让用户可以继续操作
+              });
+              this.categoryMenu.appendChild(allButton);
+
+              // 添加每个分类的复选框
+              Object.keys(faultCategoryColors).forEach(category => {
+                  const menuItem = document.createElement('div');
+                  menuItem.className = 'dropdown-item';
+                  menuItem.style.display = 'flex';
+                  menuItem.style.alignItems = 'center';
+                  menuItem.style.padding = '6px 12px';
+
+                  const checkbox = document.createElement('input');
+                  checkbox.type = 'checkbox';
+                  checkbox.id = `category-${category}`;
+                  checkbox.checked = this.selectedCategories.includes(category);
+                  checkbox.style.marginRight = '8px';
+
+                  const label = document.createElement('label');
+                  label.htmlFor = `category-${category}`;
+                  label.style.display = 'flex';
+                  label.style.alignItems = 'center';
+                  label.style.cursor = 'pointer';
+                  label.style.flex = '1';
+
+                  const colorBox = document.createElement('div');
+                  colorBox.style.width = '12px';
+                  colorBox.style.height = '12px';
+                  colorBox.style.backgroundColor = faultCategoryColors[category];
+                  colorBox.style.borderRadius = '2px';
+                  colorBox.style.marginRight = '8px';
+                  colorBox.style.border = '1px solid #ccc';
+
+                  const text = document.createElement('span');
+                  text.textContent = faultCategoryNames[category];
+                  text.style.fontSize = '13px';
+
+                  label.appendChild(colorBox);
+                  label.appendChild(text);
+
+                  // 复选框变化事件
+                  checkbox.addEventListener('change', (e) => {
+                      e.stopPropagation();
+                      this.toggleCategory(category, checkbox.checked);
+                  });
+
+                  // 点击标签也触发复选框
+                  label.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      checkbox.checked = !checkbox.checked;
+                      this.toggleCategory(category, checkbox.checked);
+                  });
+
+                  // 菜单项点击事件，阻止冒泡
+                  menuItem.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                  });
+
+                  menuItem.appendChild(checkbox);
+                  menuItem.appendChild(label);
+                  this.categoryMenu.appendChild(menuItem);
+              });
+
+              // 菜单鼠标事件
+              this.categoryMenu.addEventListener('mouseenter', () => {
+                  this.menuHovered = true;
+              });
+
+              this.categoryMenu.addEventListener('mouseleave', () => {
+                  this.menuHovered = false;
+                  setTimeout(() => {
+                      if (!this.menuHovered && !this.isMouseOverButton()) {
+                          this.hideCategoryMenu();
+                      }
+                  }, 300);
+              });
+
+              this.filterContainer.appendChild(this.categoryMenu);
+
+              // 智能的文档点击事件处理：只在点击菜单和按钮外部时隐藏
+              document.addEventListener('click', (e) => {
+                  // 检查点击是否在菜单或按钮内部
+                  const isClickInsideMenu = this.categoryMenu && this.categoryMenu.contains(e.target);
+                  const isClickInsideButton = this.filterButton && this.filterButton.contains(e.target);
+
+                  if (!isClickInsideMenu && !isClickInsideButton) {
+                      this.hideCategoryMenu();
+                  }
+              });
+          }
+
+          isMouseOverMenu() {
+              return this.menuHovered || false;
+          }
+
+          isMouseOverButton() {
+              if (!this.filterButton) return false;
+              const rect = this.filterButton.getBoundingClientRect();
+              const mouseX = this.lastMouseX || 0;
+              const mouseY = this.lastMouseY || 0;
+              return mouseX >= rect.left && mouseX <= rect.right &&
+                  mouseY >= rect.top && mouseY <= rect.bottom;
+          }
+
+          showCategoryMenu() {
+              this.hideCategoryMenu();
+              this.categoryMenu.style.display = 'block';
+          }
+
+          hideCategoryMenu() {
+              if (this.categoryMenu) {
+                  this.categoryMenu.style.display = 'none';
+              }
+          }
+
+          selectTimeRange(range) {
+              this.currentTimeRange = range;
+
+              // 更新菜单项高亮状态
+              this.updateTimeRangeMenuHighlight();
+
+              // 更新按钮标题
+              this.updateButtonTitle();
+
+              // 重新加载热力图数据
+              this.reloadHeatmapData();
+          }
+
+          updateTimeRangeMenuHighlight() {
+              if (this.categoryMenu) {
+                  const timeRangeItems = this.categoryMenu.querySelectorAll('.dropdown-item[data-range]');
+                  timeRangeItems.forEach(item => {
+                      const range = item.getAttribute('data-range');
+                      if (range === this.currentTimeRange) {
+                          item.classList.add('active');
+                      } else {
+                          item.classList.remove('active');
+                      }
+                  });
+              }
+          }
+
+          toggleCategory(category, checked) {
+              if (checked) {
+                  if (!this.selectedCategories.includes(category)) {
+                      this.selectedCategories.push(category);
+                  }
+              } else {
+                  this.selectedCategories = this.selectedCategories.filter(c => c !== category);
+              }
+
+              // 更新按钮标题
+              this.updateButtonTitle();
+
+              // 重新加载热力图数据
+              this.reloadHeatmapData();
+          }
+
+          toggleAllCategories() {
+              const allCategories = Object.keys(faultCategoryColors);
+              if (this.selectedCategories.length === allCategories.length) {
+                  // 如果当前全选，则全不选
+                  this.selectedCategories = [];
+              } else {
+                  // 否则全选
+                  this.selectedCategories = [...allCategories];
+              }
+
+              // 更新菜单中的复选框状态
+              this.updateMenuCheckboxes();
+
+              // 更新按钮标题
+              this.updateButtonTitle();
+
+              // 重新加载热力图数据
+              this.reloadHeatmapData();
+          }
+
+          updateMenuCheckboxes() {
+              if (this.categoryMenu) {
+                  Object.keys(faultCategoryColors).forEach(category => {
+                      const checkbox = document.getElementById(`category-${category}`);
+                      if (checkbox) {
+                          checkbox.checked = this.selectedCategories.includes(category);
+                      }
+                  });
+              }
+          }
+
+          updateButtonTitle() {
+              const totalCategories = Object.keys(faultCategoryColors).length;
+              const selectedCount = this.selectedCategories.length;
+
+              // 时间范围文本
+              let timeRangeText = '本年';
+              if (this.currentTimeRange === 'month') timeRangeText = '一个月';
+              else if (this.currentTimeRange === 'three_months') timeRangeText = '三个月';
+
+              // 分类选择文本
+              let categoryText = '';
+              if (selectedCount === totalCategories) {
+                  categoryText = '全部' + totalCategories + '种分类';
+              } else if (selectedCount === 0) {
+                  categoryText = '无分类';
+              } else {
+                  categoryText = selectedCount + '种分类';
+              }
+
+              // 组合标题
+              const title = `故障分类筛选 - 时间: ${timeRangeText}, 分类: ${categoryText}`;
+              this.filterButton.title = title;
+
+              // 不再更新按钮激活状态，按钮始终保持非激活状态
+          }
+
+          reloadHeatmapData() {
+              // 使用内部时间范围属性
+              const timeRange = this.currentTimeRange;
+
+              // 计算起始日期
+              const now = new Date();
+              let startDate;
+
+              if (timeRange === 'month') {
+                  startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+              } else if (timeRange === 'three_months') {
+                  startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+              } else { // 'year' 或 'all'
+                  startDate = new Date(now.getFullYear(), 0, 1);
+              }
+
+              // 筛选数据：同时考虑时间范围和故障分类
+              const filteredData = heatmapData.filter(point => {
+                  // 时间筛选
+                  if (!point.occurrence_time) return false;
+                  const pointDate = new Date(point.occurrence_time);
+                  if (pointDate < startDate) return false;
+
+                  // 分类筛选
+                  if (this.selectedCategories.length === 0) {
+                      return false; // 如果没有选中任何分类，不显示任何数据
+                  }
+
+                  const category = point.category || 'other';
+                  return this.selectedCategories.includes(category);
+              });
+
+              console.log(`前端筛选热力图数据，时间范围: ${timeRange}, 分类: ${this.selectedCategories.length}种, 筛选后数据点: ${filteredData.length}`);
+
+              // 将筛选结果转换为GeoJSON格式
+              const features = filteredData.map(point => ({
+                  type: 'Feature',
+                  properties: { count: point.count },
+                  geometry: {
+                      type: 'Point',
+                      coordinates: [point.lng, point.lat]
+                  }
+              }));
+
+              const geoJsonData = {
+                  type: 'FeatureCollection',
+                  features: features
+              };
+
+              // 更新地图数据源
+              if (this.map.getSource('faults')) {
+                  this.map.getSource('faults').setData(geoJsonData);
+              }
+          }
+      }
+
+      // 添加故障分类筛选控件
+      var categoryFilterControl = new CategoryFilterControl();
+      map.addControl(categoryFilterControl, 'top-left');
+
+      // 修改LayerToggleControl的reloadHeatmapData方法，使其考虑分类筛选
+      var originalReloadHeatmapData = layerToggleControl.reloadHeatmapData;
+      layerToggleControl.reloadHeatmapData = function (timeRange) {
+          // 调用原始方法更新时间范围
+          this.currentTimeRange = timeRange;
+
+          // 更新按钮标题
+          let rangeText = '本年';  // 默认值
+          if (timeRange === 'month') rangeText = '一个月';
+          else if (timeRange === 'three_months') rangeText = '三个月';
+
+          this.heatmapButton.title = `热力图开关 - 当前范围: ${rangeText}`;
+
+          // 更新菜单项高亮状态
+          this.updateMenuHighlight();
+
+          // 调用分类筛选控件的重新加载方法
+          if (categoryFilterControl && categoryFilterControl.reloadHeatmapData) {
+              categoryFilterControl.reloadHeatmapData();
+          }
+      };
+
+      // 添加最近一周故障点的标记 - 根据故障分类显示不同颜色
+      markerData.forEach(function (m) {
+          // 获取故障分类，默认为'other'
+          var category = m.category || 'other';
+          var color = faultCategoryColors[category] || faultCategoryColors['other'];
+          var categoryName = faultCategoryNames[category] || faultCategoryNames['other'];
+
+          // 构建详细的popup内容
+          var popupContent = '<div style="max-width: 450px; max-height: 500px; overflow-y: auto; font-size: 13px;">' +
+              '<div style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 12px;">' +
+              '<h6 style="margin: 0 0 8px 0; font-size: 16px;">' +
+              '<a href="' + m.url + '" target="_blank" style="color: #007bff; text-decoration: none;">' + m.number + '</a>' +
+              '</h6>' +
+              '<div style="display: inline-block; padding: 2px 8px; background-color: ' + color + '; color: white; border-radius: 3px; font-size: 12px;">' +
+              categoryName +
+              '</div>' +
+              '</div>' +
+
+              '<table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">' +
+              '<tr>' +
+              '<td style="width: 35%; padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">省份:</td>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.province || '未指定') + '</td>' +
+              '</tr>' +
+              '<tr>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">A端站点:</td>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.a_site || '未指定') + '</td>' +
+              '</tr>' +
+              '<tr>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">Z端站点:</td>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.z_sites || '未指定') + '</td>' +
+              '</tr>' +
+              '<tr>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">中断时间:</td>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + m.occurrence_time + '</td>' +
+              '</tr>' +
+              '<tr>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">恢复时间:</td>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + m.recovery_time + '</td>' +
+              '</tr>' +
+              '<tr>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">故障历时:</td>' +
+              '<td style="padding: 6px 8px; border-bottom: 1px solid #eee;">' + (m.fault_duration || '无法计算') + '</td>' +
+              '</tr>' +
+              '</table>' +
+
+              '<div style="margin-bottom: 12px;">' +
+              '<div style="font-weight: bold; margin-bottom: 6px;">故障详情:</div>' +
+              '<div style="padding: 10px; background-color: #f8f9fa; border-radius: 4px; max-height: 150px; overflow-y: auto; line-height: 1.5;">' +
+              (m.fault_details || '无详细描述') +
+              '</div>' +
+              '</div>';
+
+          // 如果有照片，添加照片信息
+          if (m.has_images && m.image_count > 0) {
+              popupContent += '<div style="margin-bottom: 12px;">' +
+                  '<div style="font-weight: bold; margin-bottom: 6px;">故障照片:</div>' +
+                  '<div style="padding: 8px; background-color: #e9ecef; border-radius: 4px; font-size: 12px;">' +
+                  '<div style="display: flex; align-items: center; margin-bottom: 4px;">' +
+                  '<span style="margin-right: 8px;">📷</span>' +
+                  '<span>共 ' + m.image_count + ' 张照片</span>' +
+                  '</div>' +
+                  '<div style="color: #666; font-size: 11px;">点击上方故障编号查看详情页面中的照片</div>' +
+                  '</div>' +
+                  '</div>';
+          }
+
+          popupContent += '<div style="text-align: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; font-size: 11px; color: #666;">' +
+              '点击标记点可查看详细信息，点击故障编号可查看完整详情' +
+              '</div>' +
+              '</div>';
+
+          var popup = new maplibregl.Popup({ offset: 25, maxWidth: '500px' }).setHTML(popupContent);
+
+          var marker = new maplibregl.Marker({ color: color })
+              .setLngLat([m.lng, m.lat])
+              .setPopup(popup)
+              .addTo(map);
+
+          // 将标记添加到切换控件中
+          layerToggleControl.addMarker(marker);
+      });
+
+      // 添加ArcGIS OTN网络图层（4个图层）
+      try {
+          // 首先添加线图层（置于底图之上，其他图层之下）
+          // 图层2：线图层
+          var arcgisUrl2 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/2/query?where=1%3D1&outFields=*&f=geojson';
+          map.addSource('arcgis-otn-layer-2', {
+              type: 'geojson',
+              data: arcgisUrl2,
+              promoteId: 'OBJECTID'
+          });
+          map.addLayer({
+              id: 'arcgis-otn-lines-2',
+              type: 'line',
+              source: 'arcgis-otn-layer-2',
+              paint: {
+                  'line-color': '#00cc66',
+                  'line-width': 3,
+                  'line-opacity': 0.8
+              }
+          }); // 不指定beforeId，确保地图正常加载
+
+          // 图层3：线图层
+          var arcgisUrl3 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/3/query?where=1%3D1&outFields=*&f=geojson';
+          map.addSource('arcgis-otn-layer-3', {
+              type: 'geojson',
+              data: arcgisUrl3,
+              promoteId: 'OBJECTID'
+          });
+          map.addLayer({
+              id: 'arcgis-otn-lines-3',
+              type: 'line',
+              source: 'arcgis-otn-layer-3',
+              paint: {
+                  'line-color': '#00cc66',
+                  'line-width': 3,
+                  'line-opacity': 0.7
+              }
+          }); // 不指定beforeId，确保地图正常加载
+
+          // 然后添加点图层（置于线图层之上，热力图和故障点之下）
+          // 图层0：点图层
+          var arcgisUrl0 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson';
+          map.addSource('arcgis-otn-layer-0', {
+              type: 'geojson',
+              data: arcgisUrl0,
+              promoteId: 'OBJECTID'
+          });
+          map.addLayer({
+              id: 'arcgis-otn-points-0',
+              type: 'circle',
+              source: 'arcgis-otn-layer-0',
+              paint: {
+                  'circle-radius': [
+                      'interpolate', ['linear'], ['zoom'],
+                      6, 4,    // 缩放级别6时，半径为4
+                      10, 8,   // 缩放级别10时，半径为8
+                      15, 12   // 缩放级别15时，半径为12
+                  ],
+                  'circle-color': '#007bff',
+                  'circle-stroke-width': 2,
+                  'circle-stroke-color': '#ffffff',
+                  'circle-opacity': 0.9,
+                  'circle-stroke-opacity': 0.8
+              }
+          }); // 不指定beforeId，默认添加在现有图层之上
+
+          // 为点图层0添加文本标注（使用O_name字段，增强兼容性）
+          map.addLayer({
+              id: 'arcgis-otn-labels-0',
+              type: 'symbol',
+              source: 'arcgis-otn-layer-0',
+              layout: {
+                  'text-field': [
+                      'coalesce',
+                      ['get', 'O_name'],
+                      ['get', 'O_NAME'],
+                      ['get', 'o_name'],
+                      ['get', 'name'],
+                      ''  // 默认值
+                  ],
+                  'text-font': ['Arial Unicode MS Bold', 'sans-serif'],
+                  'text-size': 14,
+                  'text-offset': [0, -1.5],
+                  'text-anchor': 'bottom',
+                  'text-allow-overlap': false,
+                  'text-ignore-placement': false
+              },
+              paint: {
+                  'text-color': '#ffffff',
+                  'text-halo-color': 'rgba(0, 0, 0, 0.8)',
+                  'text-halo-width': 2
+              }
+          });
+
+          // 图层1：点图层
+          var arcgisUrl1 = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/1/query?where=1%3D1&outFields=*&f=geojson';
+          map.addSource('arcgis-otn-layer-1', {
+              type: 'geojson',
+              data: arcgisUrl1,
+              promoteId: 'OBJECTID'
+          });
+          map.addLayer({
+              id: 'arcgis-otn-points-1',
+              type: 'circle',
+              source: 'arcgis-otn-layer-1',
+              paint: {
+                  'circle-radius': [
+                      'interpolate', ['linear'], ['zoom'],
+                      6, 3,    // 缩放级别6时，半径为3
+                      10, 6,   // 缩放级别10时，半径为6
+                      15, 10   // 缩放级别15时，半径为10
+                  ],
+                  'circle-color': '#00aaff',
+                  'circle-stroke-width': 1,
+                  'circle-stroke-color': '#ffffff',
+                  'circle-opacity': 0.8,
+                  'circle-stroke-opacity': 0.7
+              }
+          }); // 不指定beforeId，默认添加在现有图层之上
+
+          // 为点图层1添加文本标注（使用O_name字段，增强兼容性）
+          map.addLayer({
+              id: 'arcgis-otn-labels-1',
+              type: 'symbol',
+              source: 'arcgis-otn-layer-1',
+              layout: {
+                  'text-field': [
+                      'coalesce',
+                      ['get', 'O_name'],
+                      ['get', 'O_NAME'],
+                      ['get', 'o_name'],
+                      ['get', 'name'],
+                      ''  // 默认值
+                  ],
+                  'text-font': ['Arial Unicode MS Bold', 'sans-serif'],
+                  'text-size': 13,
+                  'text-offset': [0, -1.5],
+                  'text-anchor': 'bottom',
+                  'text-allow-overlap': false,
+                  'text-ignore-placement': false
+              },
+              paint: {
+                  'text-color': '#ffffff',
+                  'text-halo-color': 'rgba(0, 0, 0, 0.8)',
+                  'text-halo-width': 2
+              }
+          });
+
+          // 现在添加热力图，置于ArcGIS线图层之上
+          if (features.length > 0) {
+              map.addSource('faults', {
+                  type: 'geojson',
+                  data: {
+                      type: 'FeatureCollection',
+                      features: features
+                  }
+              });
+
+              map.addLayer({
+                  id: 'faults-heat',
+                  type: 'heatmap',
+                  source: 'faults',
+                  maxzoom: 15,
+                  paint: {
+                      // 根据频率和属性大小增加热力图权重 - 降低阈值使热点更明显
+                      'heatmap-weight': [
+                          'interpolate',
+                          ['linear'],
+                          ['get', 'count'],
+                          0, 0,
+                          4, 1  // 将阈值从10降低到4，增加低密度区域显示
+                      ],
+                      // 根据缩放级别增加热力图颜色权重 - 适度增强对比度
+                      // heatmap-intensity是heatmap-weight的乘数
+                      'heatmap-intensity': [
+                          'interpolate',
+                          ['linear'],
+                          ['zoom'],
+                          0, 1,
+                          9, 4  // 将强度从5调整到4，适度增强对比度
+                      ],
+                      // 热力图颜色渐变。域为0（低）到1（高）。
+                      // 从0-stop开始使用0透明度的颜色创建模糊效果。
+                      'heatmap-color': [
+                          'interpolate',
+                          ['linear'],
+                          ['heatmap-density'],
+                          0, 'rgba(33,102,172,0)',
+                          0.1, 'rgb(103,169,207)',  // 恢复低密度区域的颜色
+                          0.3, 'rgb(209,229,240)',
+                          0.5, 'rgb(253,219,199)',
+                          0.7, 'rgb(239,138,98)',
+                          1, 'rgb(178,24,43)'  // 恢复标准高密度颜色
+                      ],
+                      // 根据缩放级别调整热力图半径 - 增加半径使热点更明显
+                      'heatmap-radius': [
+                          'interpolate',
+                          ['linear'],
+                          ['zoom'],
+                          0, 3,   // 将最小半径从1增加到3
+                          9, 25   // 将最大半径从10增加到25，使热点更明显
+                      ],
+                      // 根据缩放级别从热力图过渡到圆形图层
+                      'heatmap-opacity': [
+                          'interpolate',
+                          ['linear'],
+                          ['zoom'],
+                          7, 1,
+                          9, 0
+                      ],
+                  }
+              });
+          }
+
+          // 为所有点图层添加hover效果
+          ['arcgis-otn-points-0', 'arcgis-otn-points-1'].forEach(function (layerId) {
+              var hoveredStateId = null;
+              var sourceId = layerId.replace('-points-', '-layer-');
+
+              map.on('mouseenter', layerId, function (e) {
+                  map.getCanvas().style.cursor = 'pointer';
+
+                  if (e.features.length > 0) {
+                      if (hoveredStateId !== null) {
+                          map.setFeatureState(
+                              { source: sourceId, id: hoveredStateId },
+                              { hover: false }
+                          );
+                      }
+                      hoveredStateId = e.features[0].id;
+                      map.setFeatureState(
+                          { source: sourceId, id: hoveredStateId },
+                          { hover: true }
+                      );
+                  }
+              });
+
+              map.on('mouseleave', layerId, function () {
+                  map.getCanvas().style.cursor = '';
+                  if (hoveredStateId !== null) {
+                      map.setFeatureState(
+                          { source: sourceId, id: hoveredStateId },
+                          { hover: false }
+                      );
+                  }
+                  hoveredStateId = null;
+              });
+
+              // 点击显示弹出信息
+              map.on('click', layerId, function (e) {
+                  if (e.features.length > 0) {
+                      var feature = e.features[0];
+                      var properties = feature.properties;
+
+                      // 构建弹出内容
+                      var popupContent = '<div style="max-width: 300px;">';
+                      popupContent += '<h6>OTN网络节点</h6>';
+                      popupContent += '<table class="table table-sm">';
+
+                      // 显示所有属性
+                      for (var key in properties) {
+                          if (properties.hasOwnProperty(key) && properties[key] !== null) {
+                              popupContent += '<tr>';
+                              popupContent += '<th style="width: 40%;">' + key + '</th>';
+                              popupContent += '<td>' + properties[key] + '</td>';
+                              popupContent += '</tr>';
+                          }
+                      }
+
+                      popupContent += '</table>';
+                      popupContent += '</div>';
+
+                      new maplibregl.Popup()
+                          .setLngLat(e.lngLat)
+                          .setHTML(popupContent)
+                          .addTo(map);
+                  }
+              });
+          });
+
+          // 为线图层添加hover效果
+          ['arcgis-otn-lines-2', 'arcgis-otn-lines-3'].forEach(function (layerId) {
+              map.on('mouseenter', layerId, function () {
+                  map.getCanvas().style.cursor = 'pointer';
+              });
+
+              map.on('mouseleave', layerId, function () {
+                  map.getCanvas().style.cursor = '';
+              });
+
+              // 点击显示弹出信息
+              map.on('click', layerId, function (e) {
+                  if (e.features.length > 0) {
+                      var feature = e.features[0];
+                      var properties = feature.properties;
+
+                      // 构建弹出内容
+                      var popupContent = '<div style="max-width: 300px;">';
+                      popupContent += '<h6>OTN网络线路</h6>';
+                      popupContent += '<table class="table table-sm">';
+
+                      // 显示所有属性
+                      for (var key in properties) {
+                          if (properties.hasOwnProperty(key) && properties[key] !== null) {
+                              popupContent += '<tr>';
+                              popupContent += '<th style="width: 40%;">' + key + '</th>';
+                              popupContent += '<td>' + properties[key] + '</td>';
+                              popupContent += '</tr>';
+                          }
+                      }
+
+                      popupContent += '</table>';
+                      popupContent += '</div>';
+
+                      new maplibregl.Popup()
+                          .setLngLat(e.lngLat)
+                          .setHTML(popupContent)
+                          .addTo(map);
+                  }
+              });
+          });
+
+          console.log('ArcGIS OTN图层加载成功（4个图层）');
+
+          // 添加ArcGIS省份图层（置于底层，只显示边界线）
+          // 省份图层URL
+          var provinceUrl = 'http://192.168.70.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson';
+          map.addSource('arcgis-province-source', {
+              type: 'geojson',
+              data: provinceUrl,
+              promoteId: 'OBJECTID'
+          });
+          map.addLayer({
+              id: 'arcgis-province-layer',
+              type: 'line',
+              source: 'arcgis-province-source',
+              paint: {
+                  'line-color': '#E3CF57', // 更浅的黄色边界线
+                  'line-width': 1,
+                  'line-opacity': 0.5
+              }
+          }); // 不指定beforeId，自动添加到合适位置
+
+          console.log('ArcGIS省份图层加载成功');
+
+          // 添加缩放事件监听，动态控制图层显示
+          map.on('zoom', function () {
+              if (layerToggleControl.arcgisVisible) {
+                  layerToggleControl.updateArcgisLayersVisibility();
+              }
+          });
+
+          // 初始设置图层可见性
+          layerToggleControl.updateArcgisLayersVisibility();
+
+          // 添加地图加载完成后的初始状态同步
+          map.once('idle', function () {
+              console.log('地图加载完成，同步ArcGIS按钮初始状态');
+              layerToggleControl.updateArcgisLayersVisibility();
+          });
+
+      } catch (error) {
+          console.warn('ArcGIS图层加载失败，但不影响其他功能:', error);
+          // 如果ArcGIS图层加载失败，隐藏对应的开关按钮
+          if (layerToggleControl.arcgisButton) {
+              layerToggleControl.arcgisButton.style.display = 'none';
+          }
+      }
+
+      // 创建故障点图例
+      function createFaultLegend() {
+          var legendContainer = document.createElement('div');
+          legendContainer.className = 'maplibregl-ctrl maplibregl-ctrl-group fault-legend';
+          legendContainer.style.padding = '10px';
+          legendContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+          legendContainer.style.borderRadius = '4px';
+          legendContainer.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
+          legendContainer.style.maxWidth = '200px';
+
+          var legendTitle = document.createElement('div');
+          legendTitle.innerHTML = '<strong>故障分类图例</strong>';
+          legendTitle.style.marginBottom = '8px';
+          legendTitle.style.borderBottom = '1px solid #ddd';
+          legendTitle.style.paddingBottom = '5px';
+          legendContainer.appendChild(legendTitle);
+
+          // 添加每个分类的图例项
+          Object.keys(faultCategoryColors).forEach(function (category) {
+              var legendItem = document.createElement('div');
+              legendItem.style.display = 'flex';
+              legendItem.style.alignItems = 'center';
+              legendItem.style.marginBottom = '5px';
+
+              var colorBox = document.createElement('div');
+              colorBox.style.width = '15px';
+              colorBox.style.height = '15px';
+              colorBox.style.backgroundColor = faultCategoryColors[category];
+              colorBox.style.borderRadius = '3px';
+              colorBox.style.marginRight = '8px';
+              colorBox.style.border = '1px solid #ccc';
+
+              var label = document.createElement('span');
+              label.style.fontSize = '12px';
+              label.textContent = faultCategoryNames[category];
+
+              legendItem.appendChild(colorBox);
+              legendItem.appendChild(label);
+              legendContainer.appendChild(legendItem);
+          });
+
+          return legendContainer;
+      }
+
+      // 添加图例到地图右下角
+      var legendControl = {
+          onAdd: function (map) {
+              this.container = createFaultLegend();
+              return this.container;
+          },
+          onRemove: function () {
+              this.container.parentNode.removeChild(this.container);
+              this.map = undefined;
+          }
+      };
+
+      map.addControl(legendControl, 'bottom-right');
+
+      // 将图例控件与图层切换控件关联
+      if (layerToggleControl && legendControl.container) {
+          layerToggleControl.setLegend(legendControl.container);
+      }
+
+      // 隐藏加载状态
+      loadingOverlay.classList.add('hidden');
+  });
+
+  map.on('error', function (e) {
+      console.error('地图加载错误:', e.error);
+      showMapError('地图加载失败: ' + (e.error.message || '未知错误'));
+  });
+
+  } catch (error) {
+      console.error('地图初始化错误:', error);
+      showMapError('地图初始化失败: ' + error.message);
+  }
+
+  function showMapError(message) {
+      // 移除加载覆盖层
+      if (loadingOverlay && loadingOverlay.parentNode) {
+          loadingOverlay.parentNode.removeChild(loadingOverlay);
+      }
+
+      // 创建错误覆盖层
+      var errorOverlay = document.createElement('div');
+      errorOverlay.className = 'map-overlay map-error';
+      errorOverlay.innerHTML = `
+              <h5>地图加载失败</h5>
+              <p>${message}</p>
+              <ul>
+                  <li>请检查网络连接</li>
+                  <li>确保API密钥有效</li>
+                  <li>刷新页面重试</li>
+                  <li>如果问题持续，请联系管理员</li>
+              </ul>
+              <button class="btn btn-primary mt-3" onclick="window.location.reload()">
+                  刷新页面
+              </button>
+          `;
+      mapContainer.appendChild(errorOverlay);
+  }
+  }); // 关闭 DOMContentLoaded 事件监听器
 </script>
 {% endblock %}
