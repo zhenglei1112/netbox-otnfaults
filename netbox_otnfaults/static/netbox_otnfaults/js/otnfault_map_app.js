@@ -52,8 +52,8 @@ document.addEventListener('DOMContentLoaded', function () {
             this.heatmapVisible = true;
             this.markersVisible = true;
             this.arcgisVisible = true;
-            this.markers = [];
-            this.currentTimeRange = 'year';
+            this.markers = [];            this.currentTimeRange = 'year';
+            this.currentMarkerTimeRange = 'one_week'; // Default marker filter
             this.menuHovered = false;
             this.lastMouseX = 0;
             this.lastMouseY = 0;
@@ -144,6 +144,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 this.timeRangeMenu.appendChild(menuItem);
             });
 
+
             this.timeRangeMenu.addEventListener('mouseenter', () => { this.menuHovered = true; });
             this.timeRangeMenu.addEventListener('mouseleave', () => {
                 this.menuHovered = false;
@@ -156,6 +157,87 @@ document.addEventListener('DOMContentLoaded', function () {
 
             this.heatmapContainer.appendChild(this.timeRangeMenu);
             document.addEventListener('click', () => { this.hideTimeRangeMenu(); });
+        }
+
+        filterMarkers(range) {
+            this.currentMarkerTimeRange = range;
+            const now = new Date();
+            let startDate;
+            
+            // Calculate start date based on range
+            if (range === 'one_week') {
+                startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            } else if (range === 'two_weeks') {
+                startDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+            } else if (range === 'month') {
+                const temp = new Date(now);
+                temp.setMonth(temp.getMonth() - 1);
+                startDate = temp;
+            } else {
+                // Fallback or 'all', though UI only offers valid options
+                startDate = new Date(now.getFullYear(), 0, 1); 
+            }
+
+            // Filter markers
+            this.markers.forEach(markerWrapper => {
+                // Assuming markerWrapper is the object we pushed: { marker: ..., data: ... } 
+                // Wait, previous code pushed just the mapboxgl marker object.
+                // We need to attach data to the marker object to filter it.
+                // Let's check how markers are added. 
+                // In generic init: layerToggleControl.addMarker(marker); 
+                // We need to store data with the marker.
+                
+                // Inspecting line 692: const marker = mapBase.addMarker(...)
+                // The marker object itself doesn't easily hold custom data unless we added it on creation.
+                // We need to modify the addMarker usage in the main loop to store the time data.
+                
+                // BUT, looking at the code I'm editing, I can just attach the element display style logic here 
+                // IF I had access to the data. 
+                // I will modify the addMarker method and the main loop to pass data.
+            });
+            
+            // Re-implementing filter logic requires data access. 
+            // Instead of complicating this method blindly, let's look at how addMarker is used.
+            // It is used in line 693: layerToggleControl.addMarker(marker);
+            // I should change addMarker to accept data or the date string.
+        }
+
+        // Modified addMarker to store date
+        addMarker(marker, dateStr) { 
+            this.markers.push({ marker: marker, date: new Date(dateStr) }); 
+        }
+
+        // Updated toggleMarkers to use both visibility flag and time filter
+        updateMarkerVisibility() {
+            if (!this.markersVisible) {
+                this.markers.forEach(item => item.marker.getElement().style.display = 'none');
+                if (this.legendContainer) this.legendContainer.style.display = 'none';
+                return;
+            }
+
+            if (this.legendContainer) this.legendContainer.style.display = 'block';
+            
+            const now = new Date();
+            let startDate;
+            if (this.currentMarkerTimeRange === 'one_week') {
+                startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            } else if (this.currentMarkerTimeRange === 'two_weeks') {
+                startDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+            } else if (this.currentMarkerTimeRange === 'month') {
+                const temp = new Date(now);
+                temp.setMonth(temp.getMonth() - 1);
+                startDate = temp;
+            } else {
+                 startDate = new Date(0); // Show all
+            }
+
+            this.markers.forEach(item => {
+                if (item.date >= startDate) {
+                    item.marker.getElement().style.display = 'block';
+                } else {
+                    item.marker.getElement().style.display = 'none';
+                }
+            });
         }
 
         isMouseOverButton() {
@@ -250,17 +332,14 @@ document.addEventListener('DOMContentLoaded', function () {
             this.markersVisible = !this.markersVisible;
             if (this.markersVisible) {
                 this.markersButton.classList.add('active');
-                this.markers.forEach(marker => marker.getElement().style.display = 'block');
-                if (this.legendContainer) this.legendContainer.style.display = 'block';
             } else {
                 this.markersButton.classList.remove('active');
-                this.markers.forEach(marker => marker.getElement().style.display = 'none');
-                if (this.legendContainer) this.legendContainer.style.display = 'none';
             }
+            this.updateMarkerVisibility();
         }
         
         setLegend(container) { this.legendContainer = container; }
-        addMarker(marker) { this.markers.push(marker); }
+
 
         toggleArcgis() {
             this.arcgisVisible = !this.arcgisVisible;
@@ -350,10 +429,44 @@ document.addEventListener('DOMContentLoaded', function () {
             this.categoryMenu.style.cssText = `position: absolute; background-color: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 1000; min-width: 150px; padding: 8px 0; display: none; top: 100%; left: 0;`;
             this.categoryMenu.onclick = (e) => e.stopPropagation();
 
-            // 时间范围部分
+            // 故障点时间范围
+            const markerTitle = document.createElement('div');
+            markerTitle.className = 'dropdown-item';
+            markerTitle.innerHTML = '<strong>故障点时间范围</strong>';
+            markerTitle.style.borderBottom = '1px solid #eee';
+            this.categoryMenu.appendChild(markerTitle);
+
+            const markerTimeRanges = [
+                { range: 'one_week', text: '一周' },
+                { range: 'two_weeks', text: '两周' },
+                { range: 'month', text: '一个月' }
+            ];
+
+            markerTimeRanges.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'dropdown-item marker-time-range-item'; 
+                div.setAttribute('data-marker-range', item.range);
+                div.textContent = item.text;
+                // Check if active (default is one_week)
+                if (item.range === layerToggleControl.currentMarkerTimeRange) div.classList.add('active'); 
+                
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    layerToggleControl.currentMarkerTimeRange = item.range;
+                    layerToggleControl.updateMarkerVisibility();
+                    this.updateMarkerTimeRangeUI();
+                };
+                this.categoryMenu.appendChild(div);
+            });
+
+             const sep1 = document.createElement('div');
+             sep1.style.cssText = 'height: 1px; background-color: #eee; margin: 8px 0;';
+             this.categoryMenu.appendChild(sep1);
+
+            // 热力图时间范围
             const trTitle = document.createElement('div');
             trTitle.className = 'dropdown-item';
-            trTitle.innerHTML = '<strong>时间范围</strong>';
+            trTitle.innerHTML = '<strong>热力图时间范围</strong>';
             trTitle.style.borderBottom = '1px solid #eee';
             this.categoryMenu.appendChild(trTitle);
             
@@ -371,6 +484,7 @@ document.addEventListener('DOMContentLoaded', function () {
                  div.onclick = (e) => {
                      e.stopPropagation();
                      layerToggleControl.selectTimeRange(item.range);
+                     this.updateTimeRangeUI(); // Update immediate UI feedback
                  };
                  this.categoryMenu.appendChild(div);
             });
@@ -382,7 +496,7 @@ document.addEventListener('DOMContentLoaded', function () {
              // 全选/全不选
              const allBtn = document.createElement('div');
              allBtn.className = 'dropdown-item';
-             allBtn.innerHTML = '<strong>全选/全不选</strong>';
+             allBtn.innerHTML = '<strong>热力图全选/全不选</strong>';
              allBtn.onclick = (e) => { e.stopPropagation(); this.toggleAllCategories(); };
              this.categoryMenu.appendChild(allBtn);
 
@@ -429,7 +543,20 @@ document.addEventListener('DOMContentLoaded', function () {
         showCategoryMenu() { 
             this.hideCategoryMenu(); 
             this.categoryMenu.style.display = 'block'; 
-            this.updateTimeRangeUI(); // Use shared method
+            this.updateTimeRangeUI();
+            this.updateMarkerTimeRangeUI(); // Update marker UI
+        }
+
+        updateMarkerTimeRangeUI() {
+            if (!this.categoryMenu) return;
+            const items = this.categoryMenu.querySelectorAll('.dropdown-item[data-marker-range]');
+            items.forEach(item => {
+                if (item.getAttribute('data-marker-range') === layerToggleControl.currentMarkerTimeRange) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
         }
 
         updateTimeRangeUI() {
@@ -689,9 +816,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div><b>恢复:</b> ${m.recovery_time}</div>
                 </div>`;
              
+             
              const marker = mapBase.addMarker(m.lng, m.lat, { color: color, popup: content });
-             layerToggleControl.addMarker(marker);
+             // 传递发生时间用于筛选
+             layerToggleControl.addMarker(marker, m.occurrence_time);
         });
+
+        // 初始化只显示一周
+        layerToggleControl.updateMarkerVisibility();
 
         // 图例
         const legendItems = Object.keys(faultCategoryColors).map(k => ({

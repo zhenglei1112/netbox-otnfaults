@@ -76,8 +76,8 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 'category': category_key  # 新增：故障分类
             })
 
-        # 标记点数据：上一周发生的故障（优化查询，预取相关数据）
-        marker_faults = faults.filter(fault_occurrence_time__gte=last_week_start).select_related(
+        # 标记点数据：使用与热力图相同的本年度数据，以便前端进行更长时间范围的筛选（如1个月）
+        marker_faults = faults.filter(fault_occurrence_time__gte=current_year_start).select_related(
             'province', 'interruption_location_a'
         ).prefetch_related(
             'interruption_location', 'images'
