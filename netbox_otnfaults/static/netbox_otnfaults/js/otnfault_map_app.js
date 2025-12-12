@@ -800,24 +800,96 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn('ArcGIS图层加载失败', e);
         }
 
+        // 定义全局弹窗切换函数
+        window.toggleFaultPopup = function(id) {
+            const details = document.getElementById(`popup-details-${id}`);
+            const icon = document.getElementById(`popup-icon-${id}`);
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                icon.className = 'mdi mdi-chevron-up'; // 假设使用了 MDI 图标，或者用字符
+                icon.innerHTML = '▲'; 
+            } else {
+                details.style.display = 'none';
+                icon.className = 'mdi mdi-chevron-down';
+                icon.innerHTML = '▼';
+            }
+        };
+
         // 添加标记
-        markerData.forEach(m => {
+        markerData.forEach((m, index) => {
              const category = m.category || 'other';
              const color = faultCategoryColors[category] || faultCategoryColors['other'];
-             const content = `
-                <div style="font-size:13px; max-width:300px;">
-                    <h6 style="border-bottom:1px solid #eee; padding-bottom:5px;">
-                        <a href="${m.url}" target="_blank">${m.number}</a>
-                        <span style="background:${color}; color:#fff; padding:2px 5px; border-radius:3px; font-size:11px; margin-left:5px;">${faultCategoryNames[category]}</span>
+             const uniqueId = `fault-${index}-${m.number}`;
+             
+             // 构建弹窗内容
+             let popupHtml = `
+                <div style="font-size:13px; max-width:350px; font-family: sans-serif;">
+                    <h6 style="border-bottom:1px solid #eee; padding-bottom:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span>
+                            <a href="${m.url}" target="_blank" style="font-weight:bold; color:#007bff; text-decoration:none;">${m.number}</a>
+                            <span style="background:${color}; color:#fff; padding:2px 6px; border-radius:3px; font-size:11px; margin-left:5px; vertical-align:middle;">${m.category_display || faultCategoryNames[category]}</span>
+                        </span>
+                        <span style="background:${m.status_color || '#6c757d'}; color:#fff; padding:2px 6px; border-radius:3px; font-size:11px;">${m.status}</span>
                     </h6>
-                    <div><b>A端:</b> ${m.a_site || '-'}</div>
-                    <div><b>Z端:</b> ${m.z_sites || '-'}</div>
-                    <div><b>发生:</b> ${m.occurrence_time}</div>
-                    <div><b>恢复:</b> ${m.recovery_time}</div>
-                </div>`;
+                    
+                    <!-- 精简信息 -->
+                    <table class="table table-sm table-borderless" style="margin-bottom:0; font-size:12px; width:100%;">
+                        <tr><td style="width:70px; color:#666; font-weight:bold;">A端站点:</td><td>${m.a_site}</td></tr>
+                        ${(m.z_sites && m.z_sites !== '未指定') ? `<tr><td style="color:#666; font-weight:bold;">Z端站点:</td><td>${m.z_sites}</td></tr>` : ''}
+                        <tr><td style="color:#666; font-weight:bold;">中断时间:</td><td>${m.occurrence_time}</td></tr>
+                        <tr><td style="color:#666; font-weight:bold;">故障历时:</td><td>${m.fault_duration}</td></tr>
+                    </table>
+
+                     <!-- 照片信息 (精简模式常驻显示) -->
+                     ${(m.has_images && m.images.length > 0) ? `
+                        <div style="margin-top:5px; margin-bottom:5px;">
+                            <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                                ${m.images.map(img => {
+                                    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(img.url);
+                                    return isImage ? 
+                                        `<a href="${img.url}" target="_blank" title="${img.name}"><img src="${img.url}" style="width:50px; height:50px; object-fit:cover; border-radius:3px; border:1px solid #ddd;" /></a>` :
+                                        `<a href="${img.url}" target="_blank" style="font-size:11px;">📄 ${img.name}</a>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                     ` : ''}
+
+                    <!-- 展开按钮 -->
+                    <div style="text-align:center; border-top:1px solid #eee; margin-top:5px; padding-top:5px; cursor:pointer; color:#007bff;" onclick="window.toggleFaultPopup('${uniqueId}')">
+                        <span id="popup-icon-${uniqueId}">▼</span> 更多详情
+                    </div>
+
+                    <!-- 详细信息 (默认隐藏) -->
+                    <div id="popup-details-${uniqueId}" style="display:none; border-top:1px dashed #eee; margin-top:5px; padding-top:5px;">
+                        <table class="table table-sm table-borderless" style="margin-bottom:0; font-size:12px; width:100%;">
+                            <tr><td style="width:70px; color:#666; font-weight:bold;">省份:</td><td>${m.province}</td></tr>
+                            <tr><td style="color:#666; font-weight:bold;">恢复时间:</td><td>${m.recovery_time}</td></tr>
+                            <tr><td style="color:#666; font-weight:bold;">故障原因:</td><td>${m.reason}</td></tr>
+                            <tr><td style="color:#666; font-weight:bold;">故障详情/处理过程:</td><td>${m.fault_details}</td></tr>
+                        </table>
+             `;
+
+             // 光缆故障特定字段 (放在详细信息中)
+             if (category === 'fiber') {
+                 popupHtml += `
+                    <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee;">
+                        <div style="font-weight:bold; margin-bottom:4px; color:#333;">光缆故障信息</div>
+                        <table class="table table-sm table-borderless" style="margin-bottom:0; font-size:12px; width:100%;">
+                            <tr><td style="width:70px; color:#666;">资源类型:</td><td>${m.resource_type}</td></tr>
+                            <tr><td style="color:#666;">路由属性:</td><td>${m.cable_route}</td></tr>
+                            <tr><td style="color:#666;">中断部位:</td><td>${m.cable_break_location}</td></tr>
+                            <tr><td style="color:#666;">恢复方式:</td><td>${m.recovery_mode}</td></tr>
+                            <tr><td style="color:#666;">维护方式:</td><td>${m.maintenance_mode}</td></tr>
+                            <tr><td style="color:#666;">处理单位:</td><td>${m.handling_unit}</td></tr>
+                            <tr><td style="color:#666;">处理人:</td><td>${m.handler}</td></tr>
+                        </table>
+                    </div>
+                 `;
+             }
+
+             popupHtml += `</div></div></div>`; // Close details, then wrapper
              
-             
-             const marker = mapBase.addMarker(m.lng, m.lat, { color: color, popup: content });
+             const marker = mapBase.addMarker(m.lng, m.lat, { color: color, popup: popupHtml });
              // 传递发生时间用于筛选
              layerToggleControl.addMarker(marker, m.occurrence_time);
         });

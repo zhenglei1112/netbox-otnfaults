@@ -119,21 +119,40 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 'url': fault.get_absolute_url(),
                 'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}",
                 'category': category_key,  # 添加分类字段
-                
+                'category_display': fault.get_fault_category_display() or '未知类型', # 分类显示名
+
                 # 新增字段：省份、A端站点、Z端站点
                 'province': fault.province.name if fault.province else '未指定',
                 'a_site': fault.interruption_location_a.name if fault.interruption_location_a else '未指定',
                 'z_sites': z_sites_str,
                 
+                # 新增字段：状态
+                'status': fault.get_fault_status_display() or '未知状态',
+                'status_color': fault.get_fault_status_color(), # 也可以传颜色
+
                 # 新增字段：时间信息
                 'occurrence_time': occurrence_time_str,
                 'recovery_time': recovery_time_str,
                 'fault_duration': fault_duration_str,
                 
-                # 新增字段：故障详情
+                # 新增字段：故障原因
+                'reason': fault.get_interruption_reason_display() or '-',
+
+                # 新增字段：故障详情和处理过程
                 'fault_details': fault.fault_details or '无详细描述',
-                
+                'process': fault.fault_details or '无处理过程', # 为了兼容前端请求的"处理过程"，暂用fault_details，如果未来有单独字段可分离
+
+                # 新增字段：光缆故障特定信息
+                'resource_type': fault.get_resource_type_display() or '-',
+                'cable_route': fault.get_cable_route_display() or '-',
+                'cable_break_location': fault.get_cable_break_location_display() or '-',
+                'recovery_mode': fault.get_recovery_mode_display() or '-',
+                'maintenance_mode': fault.get_maintenance_mode_display() or '-',
+                'handling_unit': fault.handling_unit.name if fault.handling_unit else '-',
+                'handler': fault.handler or '-',
+
                 # 新增字段：照片信息
+                'images': [{'name': img.name, 'url': img.image.url} for img in fault.images.all()] if hasattr(fault, 'images') else [],
                 'has_images': fault.images.exists() if hasattr(fault, 'images') else False,
                 'image_count': fault.images.count() if hasattr(fault, 'images') else 0
             })
