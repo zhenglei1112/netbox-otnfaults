@@ -429,7 +429,11 @@ document.addEventListener('DOMContentLoaded', function () {
         showCategoryMenu() { 
             this.hideCategoryMenu(); 
             this.categoryMenu.style.display = 'block'; 
-            // 同步更新时间范围高亮
+            this.updateTimeRangeUI(); // Use shared method
+        }
+
+        updateTimeRangeUI() {
+             if (!this.categoryMenu) return;
              const timeRangeItems = this.categoryMenu.querySelectorAll('.dropdown-item[data-range]');
              timeRangeItems.forEach(item => {
                  if (item.getAttribute('data-range') === layerToggleControl.currentTimeRange) item.classList.add('active');
@@ -502,6 +506,7 @@ document.addEventListener('DOMContentLoaded', function () {
         this.currentTimeRange = range;
         this.updateButtonTitle(range);
         categoryFilterControl.reloadHeatmapData();
+        categoryFilterControl.updateTimeRangeUI(); // Update UI
     };
 
 
@@ -527,11 +532,45 @@ document.addEventListener('DOMContentLoaded', function () {
         markerData.forEach(m => bounds.extend([m.lng, m.lat]));
         if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 50 });
 
+        // Helper to get theme link color using canvas to normalize format (MapLibre compatibility)
+        const getThemeColor = (fallback) => {
+            try {
+                // 1. Get computed color from dummy anchor
+                const temp = document.createElement('a');
+                temp.href = '#';
+                temp.style.visibility = 'hidden';
+                temp.style.position = 'absolute';
+                document.body.appendChild(temp);
+                const computedColor = getComputedStyle(temp).color;
+                document.body.removeChild(temp);
+
+                // 2. Normalize using Canvas to force RGBA
+                if (computedColor) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 1; 
+                    canvas.height = 1;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = computedColor;
+                    ctx.fillRect(0,0,1,1);
+                    const [r, g, b, a] = ctx.getImageData(0,0,1,1).data;
+                    // Standardize to rgba(r, g, b, a) where a is 0-1
+                    return `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`;
+                }
+                
+                return fallback;
+            } catch (e) {
+                console.warn('Failed to resolve theme color', e);
+                return fallback;
+            }
+        };
+        const themeLinkColor = getThemeColor('#00cc66');
+        console.log('Resolved Theme Link Color (normalized RGBA):', themeLinkColor);
+
         // ArcGIS 图层
         try {
             const layersConfig = [
-                { id: 'arcgis-otn-lines-2', urlId: 2, type: 'line', color: '#00cc66', width: 3, opacity: 0.8 },
-                { id: 'arcgis-otn-lines-3', urlId: 3, type: 'line', color: '#00cc66', width: 3, opacity: 0.7 }
+                { id: 'arcgis-otn-lines-2', urlId: 2, type: 'line', color: themeLinkColor, width: 3, opacity: 0.8 },
+                { id: 'arcgis-otn-lines-3', urlId: 3, type: 'line', color: themeLinkColor, width: 3, opacity: 0.7 }
             ];
             
             layersConfig.forEach(l => {
