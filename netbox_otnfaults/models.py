@@ -20,12 +20,119 @@ class FaultCategoryChoices(ChoiceSet):
     CATEGORY_DEVICE = 'device'
     CATEGORY_OTHER = 'other'
 
+
     CHOICES = [
         (CATEGORY_POWER, '电力故障', 'orange'),
         (CATEGORY_FIBER, '光缆故障', 'red'),
         (CATEGORY_PIGTAIL, '空调故障', 'blue'),
         (CATEGORY_DEVICE, '设备故障', 'green'),
         (CATEGORY_OTHER, '其他故障', 'gray'),
+    ]
+
+
+class UrgencyChoices(ChoiceSet):
+    key = 'OtnFault.urgency'
+
+    HIGH = 'high'
+    MEDIUM = 'medium'
+    LOW = 'low'
+
+    CHOICES = [
+        (HIGH, '高', 'red'),
+        (MEDIUM, '中', 'orange'),
+        (LOW, '低', 'yellow'),
+    ]
+
+
+class MaintenanceModeChoices(ChoiceSet):
+    key = 'OtnFault.maintenance_mode'
+
+    OUTSOURCED = 'outsourced'
+    COORDINATED = 'coordinated'
+    SELF_MAINTAINED = 'self_maintained'
+
+    CHOICES = [
+        (OUTSOURCED, '代维', 'blue'),
+        (COORDINATED, '协调', 'green'),
+        (SELF_MAINTAINED, '自维', 'purple'),
+    ]
+
+
+class ResourceTypeChoices(ChoiceSet):
+    key = 'OtnFault.resource_type'
+
+    SELF_BUILT = 'self_built'
+    COORDINATED = 'coordinated'
+    LEASED = 'leased'
+
+    CHOICES = [
+        (SELF_BUILT, '自建光缆', 'green'),
+        (COORDINATED, '协调资源', 'blue'),
+        (LEASED, '租赁纤芯', 'purple'),
+    ]
+
+
+class CableRouteChoices(ChoiceSet):
+    key = 'OtnFault.cable_route'
+
+    HIGHWAY = 'highway'
+    NON_HIGHWAY = 'non_highway'
+
+    CHOICES = [
+        (HIGHWAY, '高速公路', 'green'),
+        (NON_HIGHWAY, '非高速', 'orange'),
+    ]
+
+
+class FaultStatusChoices(ChoiceSet):
+    key = 'OtnFault.fault_status'
+
+    PROCESSING = 'processing'
+    TEMPORARY_RECOVERY = 'temporary_recovery'
+    SUSPENDED = 'suspended'
+    CLOSED = 'closed'
+
+    CHOICES = [
+        (PROCESSING, '处理中', 'orange'),
+        (TEMPORARY_RECOVERY, '临时恢复', 'blue'),
+        (SUSPENDED, '挂起', 'yellow'),
+        (CLOSED, '已关闭', 'green'),
+    ]
+
+
+class CableBreakLocationChoices(ChoiceSet):
+    key = 'OtnFault.cable_break_location'
+
+    PIGTAIL = 'pigtail'
+    LOCAL_CABLE = 'local_cable'
+    LONG_HAUL_CABLE = 'long_haul_cable'
+
+    CHOICES = [
+        (PIGTAIL, '尾纤', 'yellow'),
+        (LOCAL_CABLE, '出局缆', 'orange'),
+        (LONG_HAUL_CABLE, '长途光缆', 'red'),
+    ]
+
+
+class RecoveryModeChoices(ChoiceSet):
+    key = 'OtnFault.recovery_mode'
+
+    FUSION_SPLICING = 'fusion_splicing'
+    TAIL_FIBER_REPLACEMENT = 'tail_fiber_replacement'
+    PROCESSING = 'processing'
+    FIBER_ADJUSTMENT = 'fiber_adjustment'
+    AUTOMATIC = 'automatic'
+    UNKNOWN = 'unknown'
+    NOT_PROVIDED = 'not_provided'
+
+    CHOICES = [
+        (FUSION_SPLICING, '熔接恢复', 'red'),
+        (TAIL_FIBER_REPLACEMENT, '更换尾纤恢复', 'orange'),
+        (PROCESSING, '处理恢复', 'yellow'),
+        (FIBER_ADJUSTMENT, '调纤恢复', 'green'),
+        (AUTOMATIC, '自动恢复', 'blue'),
+        (UNKNOWN, '无法查明', 'gray'),
+        (NOT_PROVIDED, '未提供', 'light-gray'),
     ]
 
 
@@ -122,15 +229,11 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     )
     
     # 2) 紧急程度，为选择型字段，分为高、中、低，按照颜色显示，高为红色，中为橙色，低为黄色，默认值为低，必填
-    URGENCY_CHOICES = (
-        ('high', '高'),
-        ('medium', '中'),
-        ('low', '低'),
-    )
+    # 2) 紧急程度，为选择型字段，分为高、中、低，按照颜色显示，高为红色，中为橙色，低为黄色，默认值为低，必填
     urgency = models.CharField(
         max_length=10,
-        choices=URGENCY_CHOICES,
-        default='low',
+        choices=UrgencyChoices,
+        default=UrgencyChoices.LOW,
         verbose_name='紧急程度'
     )
     
@@ -160,14 +263,10 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     )
     
     # 6) 维护方式，为选择型字段，分为代维、协调、自维
-    MAINTENANCE_MODE_CHOICES = (
-        ('outsourced', '代维'),
-        ('coordinated', '协调'),
-        ('self_maintained', '自维'),
-    )
+    # 6) 维护方式，为选择型字段，分为代维、协调、自维
     maintenance_mode = models.CharField(
         max_length=20,
-        choices=MAINTENANCE_MODE_CHOICES,
+        choices=MaintenanceModeChoices,
         blank=True,
         null=True,
         verbose_name='维护方式'
@@ -238,28 +337,21 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     )
     
     # 15) 资源类型，为选择性字段，分为自建光缆、协调资源、租赁纤芯三类
-    RESOURCE_TYPE_CHOICES = (
-        ('self_built', '自建光缆'),
-        ('coordinated', '协调资源'),
-        ('leased', '租赁纤芯'),
-    )
+    # 15) 资源类型，为选择性字段，分为自建光缆、协调资源、租赁纤芯三类
     resource_type = models.CharField(
         max_length=20,
-        choices=RESOURCE_TYPE_CHOICES,
+        choices=ResourceTypeChoices,
         blank=True,
         null=True,
         verbose_name='资源类型'
     )
     
     # 16) 光缆路由属性，为选择性字段，分为高速公路、非高速两类，默认值为高速公路，可空
-    CABLE_ROUTE_CHOICES = (
-        ('highway', '高速公路'),
-        ('non_highway', '非高速'),
-    )
+    # 16) 光缆路由属性，为选择性字段，分为高速公路、非高速两类，默认值为高速公路，可空
     cable_route = models.CharField(
         max_length=20,
-        choices=CABLE_ROUTE_CHOICES,
-        default='highway',
+        choices=CableRouteChoices,
+        default=CableRouteChoices.HIGHWAY,
         blank=True,
         null=True,
         verbose_name='光缆路由属性'
@@ -274,48 +366,31 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     )
     
     # 18) 处理状态，为选择型字段，分为处理中、临时恢复、挂起、关闭
-    FAULT_STATUS_CHOICES = (
-        ('processing', '处理中'),
-        ('temporary_recovery', '临时恢复'),
-        ('suspended', '挂起'),
-        ('closed', '已关闭'),
-    )
+    # 18) 处理状态，为选择型字段，分为处理中、临时恢复、挂起、关闭
     fault_status = models.CharField(
         max_length=20,
-        choices=FAULT_STATUS_CHOICES,
-        default='processing',
+        choices=FaultStatusChoices,
+        default=FaultStatusChoices.PROCESSING,
         blank=True,
         null=True,
         verbose_name='处理状态'
     )
     
     # 19) 光缆中断部位，为选择型字段，分为尾纤、出局缆、长途光缆
-    CABLE_BREAK_LOCATION_CHOICES = (
-        ('pigtail', '尾纤'),
-        ('local_cable', '出局缆'),
-        ('long_haul_cable', '长途光缆'),
-    )
+    # 19) 光缆中断部位，为选择型字段，分为尾纤、出局缆、长途光缆
     cable_break_location = models.CharField(
         max_length=20,
-        choices=CABLE_BREAK_LOCATION_CHOICES,
+        choices=CableBreakLocationChoices,
         blank=True,
         null=True,
         verbose_name='光缆中断部位'
     )
     
     # 20) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
-    RECOVERY_MODE_CHOICES = (
-        ('fusion_splicing', '熔接恢复'),
-        ('tail_fiber_replacement', '更换尾纤恢复'),
-        ('processing', '处理恢复'),
-        ('fiber_adjustment', '调纤恢复'),
-        ('automatic', '自动恢复'),
-        ('unknown', '无法查明'),
-        ('not_provided', '未提供'),
-    )
+    # 20) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
     recovery_mode = models.CharField(
         max_length=30,
-        choices=RECOVERY_MODE_CHOICES,
+        choices=RecoveryModeChoices,
         blank=True,
         null=True,
         verbose_name='恢复方式'
@@ -370,70 +445,31 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
 
     def get_urgency_color(self):
         """获取紧急程度的颜色"""
-        urgency_colors = {
-            'high': 'red',
-            'medium': 'orange', 
-            'low': 'yellow'
-        }
-        return urgency_colors.get(self.urgency, 'gray')
+        return UrgencyChoices.colors.get(self.urgency)
 
     def get_maintenance_mode_color(self):
         """获取维护方式的颜色"""
-        maintenance_mode_colors = {
-            'outsourced': 'blue',
-            'coordinated': 'green',
-            'self_maintained': 'purple'
-        }
-        return maintenance_mode_colors.get(self.maintenance_mode, 'gray')
+        return MaintenanceModeChoices.colors.get(self.maintenance_mode)
 
     def get_cable_break_location_color(self):
         """获取光缆中断部位的颜色"""
-        cable_break_location_colors = {
-            'pigtail': 'yellow',
-            'local_cable': 'orange',
-            'long_haul_cable': 'red'
-        }
-        return cable_break_location_colors.get(self.cable_break_location, 'gray')
+        return CableBreakLocationChoices.colors.get(self.cable_break_location)
 
     def get_recovery_mode_color(self):
         """获取恢复方式的颜色"""
-        recovery_mode_colors = {
-            'fusion_splicing': 'red',
-            'tail_fiber_replacement': 'orange',
-            'processing': 'yellow',
-            'fiber_adjustment': 'green',
-            'automatic': 'blue',
-            'unknown': 'gray',
-            'not_provided': 'light-gray'
-        }
-        return recovery_mode_colors.get(self.recovery_mode, 'gray')
+        return RecoveryModeChoices.colors.get(self.recovery_mode)
 
     def get_resource_type_color(self):
         """获取资源类型的颜色"""
-        resource_type_colors = {
-            'self_built': 'green',
-            'coordinated': 'blue',
-            'leased': 'purple'
-        }
-        return resource_type_colors.get(self.resource_type, 'gray')
+        return ResourceTypeChoices.colors.get(self.resource_type)
 
     def get_cable_route_color(self):
         """获取光缆路由属性的颜色"""
-        cable_route_colors = {
-            'highway': 'green',
-            'non_highway': 'orange'
-        }
-        return cable_route_colors.get(self.cable_route, 'gray')
+        return CableRouteChoices.colors.get(self.cable_route)
 
     def get_fault_status_color(self):
         """获取处理状态的颜色"""
-        fault_status_colors = {
-            'processing': 'orange',      # 处理中 - 橙色
-            'temporary_recovery': 'blue', # 临时恢复 - 蓝色
-            'suspended': 'yellow',       # 挂起 - 黄色
-            'closed': 'green',           # 关闭 - 绿色
-        }
-        return fault_status_colors.get(self.fault_status, 'gray')
+        return FaultStatusChoices.colors.get(self.fault_status)
 
     def clean(self):
         super().clean()

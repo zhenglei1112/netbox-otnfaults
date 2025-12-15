@@ -1,5 +1,9 @@
 from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm, NetBoxModelImportForm
-from .models import OtnFault, OtnFaultImpact, FaultCategoryChoices
+from .models import (
+    OtnFault, OtnFaultImpact, FaultCategoryChoices, UrgencyChoices, 
+    MaintenanceModeChoices, ResourceTypeChoices, CableRouteChoices,
+    FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices
+)
 from django import forms
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField
 from utilities.forms.widgets import DateTimePicker
@@ -291,7 +295,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         label='故障原因'
     )
     urgency = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.URGENCY_CHOICES),
+        choices=add_blank_choice(UrgencyChoices),
         required=False,
         label='紧急程度'
     )
@@ -302,32 +306,32 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     )
 
     maintenance_mode = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.MAINTENANCE_MODE_CHOICES),
+        choices=add_blank_choice(MaintenanceModeChoices),
         required=False,
         label='维护方式'
     )
     resource_type = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.RESOURCE_TYPE_CHOICES),
+        choices=add_blank_choice(ResourceTypeChoices),
         required=False,
         label='资源类型'
     )
     cable_route = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.CABLE_ROUTE_CHOICES),
+        choices=add_blank_choice(CableRouteChoices),
         required=False,
         label='光缆路由属性'
     )
     cable_break_location = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.CABLE_BREAK_LOCATION_CHOICES),
+        choices=add_blank_choice(CableBreakLocationChoices),
         required=False,
         label='光缆中断部位'
     )
     recovery_mode = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.RECOVERY_MODE_CHOICES),
+        choices=add_blank_choice(RecoveryModeChoices),
         required=False,
         label='恢复方式'
     )
     fault_status = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.FAULT_STATUS_CHOICES),
+        choices=add_blank_choice(FaultStatusChoices),
         required=False,
         label='处理状态'
     )
@@ -457,7 +461,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         label='故障原因'
     )
     urgency = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.URGENCY_CHOICES),
+        choices=add_blank_choice(UrgencyChoices),
         required=False,
         label='紧急程度'
     )
@@ -468,32 +472,32 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     )
 
     maintenance_mode = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.MAINTENANCE_MODE_CHOICES),
+        choices=add_blank_choice(MaintenanceModeChoices),
         required=False,
         label='维护方式'
     )
     resource_type = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.RESOURCE_TYPE_CHOICES),
+        choices=add_blank_choice(ResourceTypeChoices),
         required=False,
         label='资源类型'
     )
     cable_route = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.CABLE_ROUTE_CHOICES),
+        choices=add_blank_choice(CableRouteChoices),
         required=False,
         label='光缆路由属性'
     )
     cable_break_location = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.CABLE_BREAK_LOCATION_CHOICES),
+        choices=add_blank_choice(CableBreakLocationChoices),
         required=False,
         label='光缆中断部位'
     )
     recovery_mode = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.RECOVERY_MODE_CHOICES),
+        choices=add_blank_choice(RecoveryModeChoices),
         required=False,
         label='恢复方式'
     )
     fault_status = forms.ChoiceField(
-        choices=add_blank_choice(OtnFault.FAULT_STATUS_CHOICES),
+        choices=add_blank_choice(FaultStatusChoices),
         required=False,
         label='处理状态'
     )
