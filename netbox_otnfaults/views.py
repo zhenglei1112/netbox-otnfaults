@@ -2,6 +2,7 @@ from netbox.views import generic
 from django.shortcuts import render
 from utilities.views import register_model_view
 from .models import OtnFault, OtnFaultImpact
+from dcim.models import Site
 from .forms import OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm, OtnFaultImportForm, OtnFaultImpactImportForm
 from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet
 from .tables import OtnFaultTable, OtnFaultImpactTable
@@ -160,6 +161,23 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
         return render(request, 'netbox_otnfaults/otnfault_map_globe.html', {
             'heatmap_data': json.dumps(heatmap_data, cls=DjangoJSONEncoder),
             'marker_data': json.dumps(marker_data, cls=DjangoJSONEncoder),
+            'sites_data': json.dumps([
+                {
+                    'id': site.pk,
+                    'name': site.name,
+                    'latitude': float(site.latitude),
+                    'longitude': float(site.longitude),
+                    'url': site.get_absolute_url(),
+                    'status': site.get_status_display(),
+                    'status_color': site.get_status_color(),
+                    'tenant': site.tenant.name if site.tenant else None,
+                    'region': site.region.name if site.region else None,
+                    'group': site.group.name if site.group else None,
+                    'facility': site.facility,
+                    'description': site.description
+                }
+                for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False)
+            ], cls=DjangoJSONEncoder),
             'apikey': 'e0109253-b502-41de-9dd2-8a80bb3b1a09',
             'current_time_range': time_range  # 传递给模板，用于显示当前选择
         })

@@ -45,9 +45,10 @@
   window.OTNFaultMapConfig = {
       heatmapData: {{ heatmap_data| safe }},
       markerData: {{ marker_data| safe }},
+      sitesData: {{ sites_data| safe }},
       apiKey: "{{ apikey }}"
   };
 </script>
 <script src="{% static 'netbox_otnfaults/js/maplibregl_base.js' %}"></script>
-<script src="{% static 'netbox_otnfaults/js/otnfault_map_app.js' %}?v=6"></script>
+<script src="{% static 'netbox_otnfaults/js/otnfault_map_app.js' %}?v=8"></script>
 {% endblock %}

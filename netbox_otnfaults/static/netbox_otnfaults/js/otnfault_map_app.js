@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const config = window.OTNFaultMapConfig;
     let heatmapData = config.heatmapData;
     let markerData = config.markerData;
+    let sitesData = config.sitesData;
     const apiKey = config.apiKey;
 
     // 验证数据
@@ -19,6 +20,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!Array.isArray(markerData)) {
         console.warn('marker_data 不是有效的数组，使用空数组');
         markerData = [];
+    }
+    if (!Array.isArray(sitesData)) {
+        console.warn('sitesData 不是有效的数组，使用空数组');
+        sitesData = [];
     }
 
     // 初始化地图基础类
@@ -348,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         updateArcgisLayersVisibility() {
              if (!this.arcgisVisible) {
-                ['arcgis-province-layer', 'arcgis-otn-points-0', 'arcgis-otn-points-1', 'arcgis-otn-lines-2', 'arcgis-otn-lines-3', 'arcgis-otn-labels-0', 'arcgis-otn-labels-1'].forEach(layerId => {
+                ['arcgis-province-layer', 'arcgis-otn-lines-2', 'arcgis-otn-lines-3', 'netbox-sites-layer', 'netbox-sites-labels'].forEach(layerId => {
                     mapBase.setLayoutProperty(layerId, 'visibility', 'none');
                 });
                 this.arcgisButton.classList.remove('active');
@@ -363,7 +368,7 @@ document.addEventListener('DOMContentLoaded', function () {
              if (this.map.getLayer('arcgis-otn-lines-3')) mapBase.setLayoutProperty('arcgis-otn-lines-3', 'visibility', 'visible');
 
              const pointVisibility = isProvincialView ? 'visible' : 'none';
-             ['arcgis-otn-points-0', 'arcgis-otn-points-1', 'arcgis-otn-labels-0', 'arcgis-otn-labels-1'].forEach(layerId => {
+             ['netbox-sites-layer', 'netbox-sites-labels'].forEach(layerId => {
                  if (this.map.getLayer(layerId)) mapBase.setLayoutProperty(layerId, 'visibility', pointVisibility);
              });
              
@@ -718,56 +723,85 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
 
-            // 点图层
-             const pointsConfig = [
-                { id: 'arcgis-otn-points-0', urlId: 0, color: '#007bff', radius: [6, 4, 10, 8, 15, 12] },
-                { id: 'arcgis-otn-points-1', urlId: 1, color: '#00aaff', radius: [6, 3, 10, 6, 15, 10] }
-            ];
-            
-            pointsConfig.forEach(p => {
-                const srcId = p.id.replace('points', 'layer');
-                mapBase.addGeoJsonSource(srcId, `http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/${p.urlId}/query?where=1%3D1&outFields=*&f=geojson`, { promoteId: 'OBJECTID' });
-                mapBase.addLayer({
-                    id: p.id, type: 'circle', source: srcId,
-                    paint: {
-                        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, p.radius[1], 10, p.radius[3], 15, p.radius[5]],
-                        'circle-color': p.color, 'circle-stroke-width': 1, 'circle-stroke-color': '#fff'
-                    }
-                });
-                
-                // 标签
-                mapBase.addLayer({
-                    id: p.id.replace('points', 'labels'), type: 'symbol', source: srcId,
-                    layout: {
-                        'text-field': ['coalesce', ['get', 'O_name'], ['get', 'O_NAME'], ['get', 'name'], ''],
-                        'text-font': ['Arial Unicode MS Bold', 'sans-serif'], 'text-size': 13,
-                        'text-offset': [0, -1.5], 'text-anchor': 'bottom'
-                    },
-                    paint: { 'text-color': '#fff', 'text-halo-color': 'rgba(0,0,0,0.8)', 'text-halo-width': 2 }
-                });
+            // NetBox 站点图层
+            // 创建GeoJSON数据源
+            const siteFeatures = sitesData.map(site => ({
+                type: 'Feature',
+                properties: {
+                    id: site.id,
+                    name: site.name,
+                    url: site.url,
+                    status: site.status,
+                    status_color: site.status_color,
+                    tenant: site.tenant || '-',
+                    region: site.region || '-',
+                    group: site.group || '-',
+                    facility: site.facility || '-',
+                    description: site.description || ''
+                },
+                geometry: {
+                    type: 'Point',
+                    coordinates: [site.longitude, site.latitude]
+                }
+            }));
 
-                // 交互
-                let hoveredStateId = null;
-                map.on('mouseenter', p.id, (e) => {
-                     map.getCanvas().style.cursor = 'pointer';
-                     if (e.features.length > 0) {
-                         if (hoveredStateId !== null) map.setFeatureState({ source: srcId, id: hoveredStateId }, { hover: false });
-                         hoveredStateId = e.features[0].id;
-                         map.setFeatureState({ source: srcId, id: hoveredStateId }, { hover: true });
-                     }
-                });
-                map.on('mouseleave', p.id, () => {
-                     map.getCanvas().style.cursor = '';
-                     if (hoveredStateId !== null) map.setFeatureState({ source: srcId, id: hoveredStateId }, { hover: false });
-                     hoveredStateId = null;
-                });
-                 map.on('click', p.id, (e) => {
-                     const props = e.features[0].properties;
-                     let content = '<h6>OTN网络节点</h6><table class="table table-sm">';
-                     for (let k in props) if (props[k] !== null) content += `<tr><th>${k}</th><td>${props[k]}</td></tr>`;
-                     content += '</table>';
-                     new maplibregl.Popup().setLngLat(e.lngLat).setHTML(content).addTo(map);
-                 });
+            mapBase.addGeoJsonSource('netbox-sites', { type: 'FeatureCollection', features: siteFeatures });
+
+            // 站点点图层
+            mapBase.addLayer({
+                id: 'netbox-sites-layer',
+                type: 'circle',
+                source: 'netbox-sites',
+                paint: {
+                    'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 10, 6, 15, 10],
+                    'circle-color': '#00aaff', // 使用之前的蓝色系
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': '#fff'
+                }
+            });
+
+            // 站点标签图层
+            mapBase.addLayer({
+                id: 'netbox-sites-labels',
+                type: 'symbol',
+                source: 'netbox-sites',
+                layout: {
+                    'text-field': ['get', 'name'],
+                    'text-font': ['Arial Unicode MS Bold', 'sans-serif'],
+                    'text-size': 13,
+                    'text-offset': [0, -1.5],
+                    'text-anchor': 'bottom'
+                },
+                paint: {
+                    'text-color': '#fff',
+                    'text-halo-color': 'rgba(0,0,0,0.8)',
+                    'text-halo-width': 2
+                }
+            });
+
+            // 站点交互
+            let hoveredSiteId = null;
+            map.on('mouseenter', 'netbox-sites-layer', (e) => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            map.on('mouseleave', 'netbox-sites-layer', () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            map.on('click', 'netbox-sites-layer', (e) => {
+                const props = e.features[0].properties;
+                let content = `
+                <h6>${props.name}</h6>
+                <table class="table table-sm table-striped">
+                    <tr><th>地区</th><td>${props.region || '-'}</td></tr>
+                    <tr><th>状态</th><td><span class="badge" style="background-color: #${props.status_color || '6c757d'}">${props.status || '-'}</span></td></tr>
+                    <tr><td colspan="2"><a href="${props.url}" target="_blank">查看详情</a></td></tr>
+                </table>`;
+                
+                new maplibregl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(content)
+                    .addTo(map);
             });
 
             // 热力图图层
