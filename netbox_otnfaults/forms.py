@@ -111,41 +111,7 @@ class OtnFaultForm(NetBoxModelForm):
             field_order.insert(0, 'fault_number_display')
             self.order_fields(field_order)
 
-    def clean(self):
-        cleaned_data = super().clean()
-        
-        if cleaned_data is None:
-            return cleaned_data
-            
-        # 时间字段顺序验证
-        time_fields = [
-            ('fault_occurrence_time', '故障中断时间'),
-            ('dispatch_time', '处理派发时间'),
-            ('departure_time', '维修出发时间'),
-            ('arrival_time', '到达现场时间'),
-            ('fault_recovery_time', '故障恢复时间')
-        ]
-        
-        # 收集所有非空时间字段
-        times = []
-        for field_name, field_label in time_fields:
-            time_value = cleaned_data.get(field_name)
-            if time_value:
-                times.append((field_name, field_label, time_value))
-        
-        # 检查时间顺序：后续时间不应早于前面的任何时间
-        for i in range(len(times)):
-            for j in range(i + 1, len(times)):
-                field_name_i, field_label_i, time_i = times[i]
-                field_name_j, field_label_j, time_j = times[j]
-                
-                if time_j < time_i:
-                    self.add_error(
-                        field_name_j,
-                        f'{field_label_j}需晚于{field_label_i}'
-                    )
-        
-        return cleaned_data
+
 
 
 class OtnFaultImportForm(NetBoxModelImportForm):

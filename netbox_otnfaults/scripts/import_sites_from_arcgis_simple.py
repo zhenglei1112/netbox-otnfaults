@@ -3,8 +3,8 @@ NetBox自定义脚本：从ArcGIS FeatureServer导入站点信息
 
 功能：
 1. 从两个ArcGIS FeatureServer端点获取点信息
-   - http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/0
-   - http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/1
+   - http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/0
+   - http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/1
 2. 提取每个点的O_NAME（站点名称）、O_LAT（纬度）、O_LNG（经度）
 3. 在NetBox中查找站点（使用O_NAME）
 4. 如果站点不存在，则创建新站点：
@@ -59,8 +59,8 @@ class ImportSitesFromArcGIS(Script):
         super().__init__()
         # ArcGIS端点URL
         self.endpoints = [
-            "http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/0/query?where=1%3D1&outFields=O_NAME,O_LAT,O_LNG&returnGeometry=true&f=json",
-            "http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/1/query?where=1%3D1&outFields=O_NAME,O_LAT,O_LNG&returnGeometry=true&f=json"
+            "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/0/query?where=1%3D1&outFields=O_NAME,O_LAT,O_LNG&returnGeometry=true&f=json",
+            "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/1/query?where=1%3D1&outFields=O_NAME,O_LAT,O_LNG&returnGeometry=true&f=json"
         ]
     
     def generate_random_slug(self, length=6):

@@ -174,8 +174,8 @@ class RandomizeFaultCoordinates(Script):
     def run(self, data, commit):
         # ArcGIS服务URL（GeoJSON格式）
         ARCGIS_URLS = [
-            "http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/2/query?where=1%3D1&outFields=*&f=geojson",
-            "http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/3/query?where=1%3D1&outFields=*&f=geojson"
+            "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/2/query?where=1%3D1&outFields=*&f=geojson",
+            "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/3/query?where=1%3D1&outFields=*&f=geojson"
         ]
         
         # 1. 获取ArcGIS线段数据

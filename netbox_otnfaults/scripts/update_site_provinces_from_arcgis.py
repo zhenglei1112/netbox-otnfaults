@@ -9,7 +9,7 @@ NetBox自定义脚本：根据站点经纬度更新省份地区信息
 5. 更新站点的地区（region）属性
 
 ArcGIS服务：
-- http://192.168.70.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0
+- http://192.168.30.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0
   这是一个全国省份的面图层，包含PR_NAME字段（省份名称）
 
 使用方式：
@@ -73,7 +73,7 @@ class UpdateSiteProvincesFromArcGIS(Script):
     def __init__(self):
         super().__init__()
         # ArcGIS省份面图层服务URL
-        self.arcgis_url = "http://192.168.70.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0"
+        self.arcgis_url = "http://192.168.30.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0"
     
     def build_spatial_query_url(self, longitude, latitude):
         """

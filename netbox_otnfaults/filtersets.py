@@ -14,6 +14,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'timeout_reason', 'resource_type', 'cable_route',
             'handler', 'cable_break_location', 'recovery_mode', 'comments',
+            'fault_status',
         )
 
     def search(self, queryset, name, value):
@@ -31,5 +32,6 @@ class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
     class Meta:
         model = OtnFaultImpact
         fields = (
-            'id', 'otn_fault', 'impacted_service',
+            'id', 'otn_fault', 'impacted_service', 'service_interruption_time',
+            'service_recovery_time', 'comments',
         )

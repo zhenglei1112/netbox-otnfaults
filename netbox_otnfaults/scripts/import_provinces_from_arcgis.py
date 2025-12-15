@@ -3,7 +3,7 @@ NetBox自定义脚本：从ArcGIS FeatureServer导入省份信息到地区模型
 
 功能：
 1. 从ArcGIS FeatureServer获取全国省份数据
-   - http://192.168.70.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0
+   - http://192.168.30.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0
 2. 提取每个省份的PR_Name（省份名称）
 3. 在NetBox中查找地区（使用名称）
 4. 如果地区不存在，则创建新地区：
@@ -56,7 +56,7 @@ class ImportProvincesFromArcGIS(Script):
     def __init__(self):
         super().__init__()
         # ArcGIS端点URL - 全国省份图
-        self.endpoint = "http://192.168.70.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0/query?where=1%3D1&outFields=PR_Name&returnGeometry=false&f=json"
+        self.endpoint = "http://192.168.30.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0/query?where=1%3D1&outFields=PR_Name&returnGeometry=false&f=json"
     
     def generate_random_slug(self, length=6):
         """
