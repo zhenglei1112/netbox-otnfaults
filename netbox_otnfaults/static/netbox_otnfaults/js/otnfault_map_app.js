@@ -701,7 +701,7 @@ document.addEventListener('DOMContentLoaded', function () {
             ];
             
             layersConfig.forEach(l => {
-                mapBase.addGeoJsonSource(l.id.replace('lines', 'layer'), `http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/${l.urlId}/query?where=1%3D1&outFields=*&f=geojson`, { promoteId: 'OBJECTID' });
+                mapBase.addGeoJsonSource(l.id.replace('lines', 'layer'), `http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/${l.urlId}/query?where=1%3D1&outFields=*&f=geojson`, { promoteId: 'OBJECTID' });
                 mapBase.addLayer({
                     id: l.id, type: l.type, source: l.id.replace('lines', 'layer'),
                     paint: { 'line-color': l.color, 'line-width': l.width, 'line-opacity': l.opacity }
@@ -726,7 +726,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             pointsConfig.forEach(p => {
                 const srcId = p.id.replace('points', 'layer');
-                mapBase.addGeoJsonSource(srcId, `http://192.168.70.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/${p.urlId}/query?where=1%3D1&outFields=*&f=geojson`, { promoteId: 'OBJECTID' });
+                mapBase.addGeoJsonSource(srcId, `http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/${p.urlId}/query?where=1%3D1&outFields=*&f=geojson`, { promoteId: 'OBJECTID' });
                 mapBase.addLayer({
                     id: p.id, type: 'circle', source: srcId,
                     paint: {
@@ -786,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // 省份图层
-            mapBase.addGeoJsonSource('arcgis-province-source', 'http://192.168.70.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson', { promoteId: 'OBJECTID' });
+            mapBase.addGeoJsonSource('arcgis-province-source', 'http://192.168.30.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson', { promoteId: 'OBJECTID' });
             mapBase.addLayer({
                  id: 'arcgis-province-layer', type: 'line', source: 'arcgis-province-source',
                  paint: { 'line-color': '#E3CF57', 'line-width': 1, 'line-opacity': 0.5 }
