@@ -62,17 +62,7 @@
           <th scope="row">描述</th>
           <td>{{ object.description|default:"—" }}</td>
         </tr>
-        <tr>
-            <th scope="row">空间几何数据</th>
-            <td>
-                {% if object.geometry %}
-                <span class="badge bg-secondary">已包含数据</span>
-                <pre style="max-height: 100px; overflow-y: auto;">{{ object.geometry }}</pre>
-                {% else %}
-                —
-                {% endif %}
-            </td>
-        </tr>
+
       </table>
     </div>
   </div>
