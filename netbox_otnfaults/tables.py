@@ -1,7 +1,7 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from netbox.tables import NetBoxTable, columns
-from .models import OtnFault, OtnFaultImpact
+from .models import OtnFault, OtnFaultImpact, OtnPath
 
 class OtnFaultTable(NetBoxTable):
     fault_number = tables.Column(
@@ -122,4 +122,37 @@ class OtnFaultImpactTable(NetBoxTable):
         default_columns = (
             'otn_fault', 'impacted_service',
             'service_interruption_time', 'service_duration', 'tags',
+        )
+
+class OtnPathTable(NetBoxTable):
+    name = tables.Column(
+        linkify=True,
+        verbose_name='名称'
+    )
+    cable_type = columns.ChoiceFieldColumn(
+        verbose_name='光缆类型'
+    )
+    site_a = tables.Column(
+        linkify=True,
+        verbose_name='A端站点'
+    )
+    site_z = tables.Column(
+        linkify=True,
+        verbose_name='Z端站点'
+    )
+    calculated_length = tables.Column(
+        verbose_name='计算长度'
+    )
+    tags = columns.TagColumn(
+        url_name='plugins:netbox_otnfaults:otnpath_list'
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = OtnPath
+        fields = (
+            'pk', 'name', 'cable_type', 'site_a', 'site_z',
+            'calculated_length', 'description', 'comments', 'tags', 'actions',
+        )
+        default_columns = (
+            'name', 'cable_type', 'site_a', 'site_z', 'calculated_length', 'tags',
         )

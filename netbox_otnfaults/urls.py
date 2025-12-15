@@ -26,4 +26,15 @@ urlpatterns = [
     path('impacts/<int:pk>/edit/', views.OtnFaultImpactEditView.as_view(), name='otnfaultimpact_edit'),
     path('impacts/<int:pk>/delete/', views.OtnFaultImpactDeleteView.as_view(), name='otnfaultimpact_delete'),
     path('impacts/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='otnfaultimpact_changelog', kwargs={'model': models.OtnFaultImpact}),
+
+    # 光缆路径 (OtnPath)
+    path('paths/', views.OtnPathListView.as_view(), name='otnpath_list'),
+    path('paths/add/', views.OtnPathEditView.as_view(), name='otnpath_add'),
+    path('paths/import/', views.OtnPathBulkImportView.as_view(), name='otnpath_bulk_import'),
+    path('paths/edit/', views.OtnPathBulkEditView.as_view(), name='otnpath_bulk_edit'),
+    path('paths/bulk-delete/', views.OtnPathBulkDeleteView.as_view(), name='otnpath_bulk_delete'),
+    path('paths/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'otnpath'))),
+    path('paths/<int:pk>/edit/', views.OtnPathEditView.as_view(), name='otnpath_edit'),
+    path('paths/<int:pk>/delete/', views.OtnPathDeleteView.as_view(), name='otnpath_delete'),
+    path('paths/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='otnpath_changelog', kwargs={'model': models.OtnPath}),
 ]

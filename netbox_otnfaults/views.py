@@ -1,11 +1,15 @@
 from netbox.views import generic
 from django.shortcuts import render
 from utilities.views import register_model_view
-from .models import OtnFault, OtnFaultImpact
+from .models import OtnFault, OtnFaultImpact, OtnPath
 from dcim.models import Site
-from .forms import OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm, OtnFaultImportForm, OtnFaultImpactImportForm
-from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet
-from .tables import OtnFaultTable, OtnFaultImpactTable
+from .forms import (
+    OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
+    OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm, OtnFaultImportForm, OtnFaultImpactImportForm,
+    OtnPathForm, OtnPathFilterForm, OtnPathImportForm, OtnPathBulkEditForm
+)
+from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet
+from .tables import OtnFaultTable, OtnFaultImpactTable, OtnPathTable
 from django.utils import timezone
 from datetime import timedelta
 from django.views.generic import View
@@ -390,3 +394,45 @@ class OtnFaultImpactBulkEditView(generic.BulkEditView):
 class OtnFaultImpactDeleteView(generic.ObjectDeleteView):
     """故障影响业务删除视图"""
     queryset = OtnFaultImpact.objects.all()
+
+class OtnPathListView(generic.ObjectListView):
+    """光缆路径列表视图"""
+    queryset = OtnPath.objects.all()
+    table = OtnPathTable
+    filterset = OtnPathFilterSet
+    filterset_form = OtnPathFilterForm
+
+@register_model_view(OtnPath)
+class OtnPathView(generic.ObjectView):
+    """光缆路径详情视图"""
+    queryset = OtnPath.objects.all()
+
+class OtnPathEditView(generic.ObjectEditView):
+    """光缆路径编辑视图"""
+    queryset = OtnPath.objects.all()
+    form = OtnPathForm
+
+class OtnPathDeleteView(generic.ObjectDeleteView):
+    """光缆路径删除视图"""
+    queryset = OtnPath.objects.all()
+
+class OtnPathBulkImportView(generic.BulkImportView):
+    """光缆路径批量导入视图"""
+    queryset = OtnPath.objects.all()
+    model = OtnPath
+    model_form = OtnPathImportForm
+    table = OtnPathTable
+
+class OtnPathBulkDeleteView(generic.BulkDeleteView):
+    """光缆路径批量删除视图"""
+    queryset = OtnPath.objects.all()
+    table = OtnPathTable
+
+@register_model_view(OtnPath, 'bulk_edit', path='edit', detail=False)
+class OtnPathBulkEditView(generic.BulkEditView):
+    """光缆路径批量编辑视图"""
+    queryset = OtnPath.objects.all()
+    filterset = OtnPathFilterSet
+    table = OtnPathTable
+    form = OtnPathBulkEditForm
+

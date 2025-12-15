@@ -23,4 +23,15 @@ menu_items = (
             ),
         )
     ),
+    PluginMenuItem(
+        link='plugins:netbox_otnfaults:otnpath_list',
+        link_text='路径管理',
+        buttons=(
+            PluginMenuButton(
+                link='plugins:netbox_otnfaults:otnpath_add',
+                title='添加',
+                icon_class='mdi mdi-plus-thick',
+            ),
+        )
+    ),
 )

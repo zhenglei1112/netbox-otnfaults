@@ -1,5 +1,5 @@
 from netbox.filtersets import NetBoxModelFilterSet
-from .models import OtnFault, OtnFaultImpact
+from .models import OtnFault, OtnFaultImpact, OtnPath
 from django.db.models import Q
 
 class OtnFaultFilterSet(NetBoxModelFilterSet):
@@ -34,4 +34,21 @@ class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
         fields = (
             'id', 'otn_fault', 'impacted_service', 'service_interruption_time',
             'service_recovery_time', 'comments',
+        )
+
+class OtnPathFilterSet(NetBoxModelFilterSet):
+    class Meta:
+        model = OtnPath
+        fields = (
+            'id', 'name', 'cable_type', 'site_a', 'site_z', 
+            'calculated_length', 'description',
+        )
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(name__icontains=value) |
+            Q(description__icontains=value) |
+            Q(comments__icontains=value)
         )

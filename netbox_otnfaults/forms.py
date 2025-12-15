@@ -2,7 +2,8 @@ from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm, NetBoxModelI
 from .models import (
     OtnFault, OtnFaultImpact, FaultCategoryChoices, UrgencyChoices, 
     MaintenanceModeChoices, ResourceTypeChoices, CableRouteChoices,
-    FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices
+    FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices,
+    OtnPath, CableTypeChoices
 )
 from django import forms
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField
@@ -576,4 +577,94 @@ class OtnFaultImpactFilterForm(NetBoxModelFilterSetForm):
         queryset=Tenant.objects.all(),
         required=False,
         label='影响业务'
+    )
+
+class OtnPathForm(NetBoxModelForm):
+    site_a = DynamicModelChoiceField(
+        queryset=Site.objects.all(),
+        label='A端站点'
+    )
+    site_z = DynamicModelChoiceField(
+        queryset=Site.objects.all(),
+        label='Z端站点'
+    )
+    comments = CommentField(
+        label='评论'
+    )
+
+    class Meta:
+        model = OtnPath
+        fields = (
+            'name', 'cable_type', 'site_a', 'site_z', 'geometry',
+            'calculated_length', 'description', 'comments', 'tags',
+        )
+
+class OtnPathImportForm(NetBoxModelImportForm):
+    site_a = CSVModelChoiceField(
+        queryset=Site.objects.all(),
+        to_field_name='name',
+        help_text='A端站点名称'
+    )
+    site_z = CSVModelChoiceField(
+        queryset=Site.objects.all(),
+        to_field_name='name',
+        help_text='Z端站点名称'
+    )
+
+    class Meta:
+        model = OtnPath
+        fields = (
+            'name', 'cable_type', 'site_a', 'site_z', 'geometry',
+            'calculated_length', 'description', 'comments', 'tags',
+        )
+
+class OtnPathBulkEditForm(NetBoxModelBulkEditForm):
+    model = OtnPath
+    cable_type = forms.ChoiceField(
+        choices=add_blank_choice(CableTypeChoices),
+        required=False,
+        label='光缆类型'
+    )
+    calculated_length = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        label='计算长度'
+    )
+    description = forms.CharField(
+        required=False,
+        widget=forms.Textarea,
+        label='描述'
+    )
+    comments = CommentField(
+        label='评论'
+    )
+
+    fieldsets = (
+        ('光缆路径', (
+            'cable_type', 'calculated_length', 'description', 'comments',
+        )),
+    )
+    nullable_fields = (
+        'geometry', 'calculated_length', 'description', 'comments',
+    )
+
+
+class OtnPathFilterForm(NetBoxModelFilterSetForm):
+    model = OtnPath
+    tag = TagFilterField(OtnPath)
+    cable_type = forms.ChoiceField(
+        choices=add_blank_choice(CableTypeChoices),
+        required=False,
+        label='光缆类型'
+    )
+    site_a = DynamicModelChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        label='A端站点'
+    )
+    site_z = DynamicModelChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        label='Z端站点'
     )

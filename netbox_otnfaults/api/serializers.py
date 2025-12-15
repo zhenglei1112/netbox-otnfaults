@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from netbox.api.serializers import NetBoxModelSerializer, WritableNestedSerializer
-from ..models import OtnFault, OtnFaultImpact
+from ..models import OtnFault, OtnFaultImpact, OtnPath
 from django.contrib.auth import get_user_model
 from dcim.models import Site, Region
 from tenancy.models import Tenant
@@ -114,3 +114,15 @@ class OtnFaultImpactSerializer(NetBoxModelSerializer):
             'service_interruption_time', 'service_recovery_time',
         )
         read_only_fields = ('service_duration', 'journal_entries')
+
+class OtnPathSerializer(NetBoxModelSerializer):
+    site_a = NestedSiteSerializer()
+    site_z = NestedSiteSerializer()
+
+    class Meta:
+        model = OtnPath
+        fields = (
+            'id', 'url', 'display', 'name', 'cable_type', 'site_a', 'site_z',
+            'geometry', 'calculated_length', 'description', 'comments', 'tags',
+            'custom_fields', 'created', 'last_updated',
+        )

@@ -574,3 +574,72 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
             
             return f"{days}天{hours}小时{minutes}分{seconds}秒（{total_hours:.2f}小时）"
         return None
+
+
+class CableTypeChoices(ChoiceSet):
+    key = 'OtnPath.cable_type'
+
+    TYPE_96 = '96'
+    TYPE_114 = '114'
+
+    CHOICES = [
+        (TYPE_96, '96芯', 'blue'),
+        (TYPE_114, '114芯', 'green'),
+    ]
+
+
+class OtnPath(NetBoxModel):
+    name = models.CharField(
+        max_length=100,
+        verbose_name='名称'
+    )
+    cable_type = models.CharField(
+        max_length=20,
+        choices=CableTypeChoices,
+        verbose_name='光缆类型'
+    )
+    site_a = models.ForeignKey(
+        to='dcim.Site',
+        on_delete=models.PROTECT,
+        related_name='otn_paths_a',
+        verbose_name='A端站点'
+    )
+    site_z = models.ForeignKey(
+        to='dcim.Site',
+        on_delete=models.PROTECT,
+        related_name='otn_paths_z',
+        verbose_name='Z端站点'
+    )
+    geometry = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name='空间几何数据',
+        help_text='符合 GeoJSON LineString 格式的坐标数组'
+    )
+    calculated_length = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='计算长度',
+        help_text='单位: 米'
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name='描述'
+    )
+    comments = models.TextField(blank=True, verbose_name='评论')
+
+    class Meta:
+        ordering = ('name',)
+        verbose_name = '光缆路径'
+        verbose_name_plural = '光缆路径'
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse('plugins:netbox_otnfaults:otnpath', args=[self.pk])
+
+    def get_cable_type_color(self):
+        return CableTypeChoices.colors.get(self.cable_type)

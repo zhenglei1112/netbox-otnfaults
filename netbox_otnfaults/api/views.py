@@ -5,9 +5,9 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from datetime import timedelta
 import json
-from ..models import OtnFault, OtnFaultImpact
-from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer
-from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet
+from ..models import OtnFault, OtnFaultImpact, OtnPath
+from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer
+from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet
 
 class OtnFaultViewSet(NetBoxModelViewSet):
     queryset = OtnFault.objects.all()
@@ -18,6 +18,11 @@ class OtnFaultImpactViewSet(NetBoxModelViewSet):
     queryset = OtnFaultImpact.objects.all()
     serializer_class = OtnFaultImpactSerializer
     filterset_class = OtnFaultImpactFilterSet
+
+class OtnPathViewSet(NetBoxModelViewSet):
+    queryset = OtnPath.objects.all()
+    serializer_class = OtnPathSerializer
+    filterset_class = OtnPathFilterSet
 
 import logging
 
