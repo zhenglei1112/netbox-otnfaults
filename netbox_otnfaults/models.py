@@ -278,7 +278,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         ('processing', '处理中'),
         ('temporary_recovery', '临时恢复'),
         ('suspended', '挂起'),
-        ('closed', '关闭'),
+        ('closed', '已关闭'),
     )
     fault_status = models.CharField(
         max_length=20,
