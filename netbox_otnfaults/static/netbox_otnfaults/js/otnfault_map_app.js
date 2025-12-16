@@ -979,7 +979,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         let percent = (countVal / maxCountNum) * 100;
                         if (percent > 100) percent = 100;
                         
-                        console.log(`[StatsDebug] ${item.name}: ${countVal}/${maxCountNum} = ${percent}%`);
+
 
                         const progressWrapper = document.createElement('div');
                         progressWrapper.style.cssText = 'height: 4px; background-color: #f0f0f0; border-radius: 2px; margin-top: 3px; overflow: hidden;';

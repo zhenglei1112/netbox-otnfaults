@@ -120,8 +120,6 @@ class NetBoxMapBase {
         const style = this.map.getStyle();
         if (!style || !style.layers) return;
 
-        console.log('Map Layers Breakdown:', style.layers.map(l => l.id)); // DEBUG: 打印所有图层ID
-
         style.layers.forEach(layer => {
             // 匹配常见的行政边界图层名称模式 (admin, boundary)
             if ((layer.id.indexOf('admin') !== -1 || layer.id.indexOf('boundary') !== -1) && layer.type === 'line') {
@@ -144,8 +142,6 @@ class NetBoxMapBase {
                 // 设置为明显的深灰色，确保不透明
                 this.map.setPaintProperty(layer.id, 'line-color', '#555555');
                 this.map.setPaintProperty(layer.id, 'line-opacity', 1.0);
-                
-                console.log(`Emphasizing layer: ${layer.id}`); // DEBUG: 记录被修改的图层
             }
         });
     }
