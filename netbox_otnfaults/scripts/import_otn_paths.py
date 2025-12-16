@@ -2,6 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from extras.scripts import Script
 from netbox_otnfaults.models import OtnPath, CableTypeChoices
 from dcim.models import Site
+from django.db.models import Q
 import requests
 import math
 from decimal import Decimal
@@ -91,6 +92,19 @@ class ImportOtnPaths(Script):
         return nearest_site_name, min_dist
 
     def run(self, data, commit):
+        # Ensure 'Unspecified' site exists
+        unspecified_site, _ = Site.objects.get_or_create(
+            slug='unspecified',
+            defaults={
+                'name': '未指定',
+                'status': 'active'
+            }
+        )
+        if unspecified_site.name != '未指定':
+             # If it existed but with different name (unlikely if slug matched), just use it. 
+             # Or if we want to enforce the name, we could update it, but let's leave it.
+             pass
+
         # 1. Fetch Point Data (Sites)
         point_urls = [
             "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/0",
@@ -141,30 +155,47 @@ class ImportOtnPaths(Script):
                     site_a_name, dist_a = self.find_nearest_site(start_point, all_point_features)
                     site_z_name, dist_z = self.find_nearest_site(end_point, all_point_features)
 
-                    # Threshold check (100m)
-                    if dist_a > 100:
-                        self.log_debug(f"Start point mismatch: nearest is {site_a_name} at {dist_a:.2f}m (skipping)")
-                        continue
-                    if dist_z > 100:
-                        self.log_debug(f"End point mismatch: nearest is {site_z_name} at {dist_z:.2f}m (skipping)")
-                        continue
+                    nb_site_a = None
+                    nb_site_z = None
 
-                    if not site_a_name or not site_z_name:
-                        continue
+                    # Resolve Site A
+                    if dist_a > 100 or not site_a_name:
+                        nb_site_a = unspecified_site
+                    else:
+                        try:
+                            nb_site_a = Site.objects.get(name=site_a_name)
+                        except Site.DoesNotExist:
+                            nb_site_a = unspecified_site
+                        except Site.MultipleObjectsReturned:
+                            self.log_warning(f"Multiple NetBox Sites found for name: {site_a_name}, defaulting to Unspecified")
+                            nb_site_a = unspecified_site
+
+                    # Resolve Site Z
+                    if dist_z > 100 or not site_z_name:
+                        nb_site_z = unspecified_site
+                    else:
+                        try:
+                            nb_site_z = Site.objects.get(name=site_z_name)
+                        except Site.DoesNotExist:
+                            nb_site_z = unspecified_site
+                        except Site.MultipleObjectsReturned:
+                            self.log_warning(f"Multiple NetBox Sites found for name: {site_z_name}, defaulting to Unspecified")
+                            nb_site_z = unspecified_site
                     
-                    # Resolve NetBox sites
-                    try:
-                        nb_site_a = Site.objects.get(name=site_a_name)
-                        nb_site_z = Site.objects.get(name=site_z_name)
-                    except Site.DoesNotExist:
-                        self.log_warning(f"NetBox Site not found: {site_a_name} or {site_z_name}")
-                        continue
-                    except Site.MultipleObjectsReturned:
-                        self.log_warning(f"Multiple NetBox Sites found: {site_a_name} or {site_z_name}")
-                        continue
+                    # Construct OtnPath Name
+                    # Use site A and Z names, which might be '未指定'
+                    path_name = f"{nb_site_a.name}-{nb_site_z.name}"
 
-                    # Construct OtnPath
-                    path_name = f"{site_a_name}-{site_z_name}"
+                    # Check for existing duplicate path (Bidirectional)
+                    # A-Z or Z-A should be considered same path logic
+                    existing_path = OtnPath.objects.filter(
+                        Q(site_a=nb_site_a, site_z=nb_site_z) | 
+                        Q(site_a=nb_site_z, site_z=nb_site_a)
+                    ).first()
+
+                    if existing_path:
+                        self.log_warning(f"Path already exists between {nb_site_a.name} and {nb_site_z.name} (ID: {existing_path.pk}). Skipping.")
+                        continue
                     
                     # Calculate Length
                     length_m = 0.0
@@ -190,7 +221,7 @@ class ImportOtnPaths(Script):
                         geometry=path  # Save the single path array [coord, coord, ...]
                     )
                     
-                    self.log_success(f"Prepared OtnPath: {path_name} (Length: {length_m:.2f}m, Type: {cable_type_choice})")
+                    self.log_success(f"Prepared OtnPath: {path_name} (Length: {length_m:.2f}m)")
                     
                     if commit:
                         try:
