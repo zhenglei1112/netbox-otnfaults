@@ -85,7 +85,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
         marker_faults = faults.filter(fault_occurrence_time__gte=current_year_start).select_related(
             'province', 'interruption_location_a'
         ).prefetch_related(
-            'interruption_location', 'images'
+            'interruption_location', 'images', 'impacts', 'impacts__impacted_service'
         )
         
         marker_data = []
@@ -109,6 +109,10 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             # 获取Z端站点名称列表（ManyToMany关系）
             z_sites = list(fault.interruption_location.all().values_list('name', flat=True))
             z_sites_str = '、'.join(z_sites) if z_sites else '未指定'
+
+            # 获取影响业务（从 OtnFaultImpact 反向查询）
+            impacted_businesses = [impact.impacted_service.name for impact in fault.impacts.all() if impact.impacted_service]
+            impacted_business_str = '、'.join(impacted_businesses) if impacted_businesses else '无重保/影响业务'
             
             # 格式化时间
             occurrence_time_str = fault.fault_occurrence_time.strftime('%Y-%m-%d %H:%M:%S') if fault.fault_occurrence_time else '未记录'
@@ -130,6 +134,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 'province': fault.province.name if fault.province else '未指定',
                 'a_site': fault.interruption_location_a.name if fault.interruption_location_a else '未指定',
                 'z_sites': z_sites_str,
+                'impacted_business': impacted_business_str,
                 
                 # 新增字段：状态
                 'status': fault.get_fault_status_display() or '未知状态',

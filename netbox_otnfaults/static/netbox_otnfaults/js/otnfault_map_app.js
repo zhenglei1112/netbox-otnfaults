@@ -919,6 +919,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <table class="table table-sm table-borderless" style="margin-bottom:0; font-size:12px; width:100%;">
                         <tr><td style="width:70px; color:#666; font-weight:bold;">A端站点:</td><td>${m.a_site}</td></tr>
                         ${(m.z_sites && m.z_sites !== '未指定') ? `<tr><td style="color:#666; font-weight:bold;">Z端站点:</td><td>${m.z_sites}</td></tr>` : ''}
+                        <tr><td style="color:#666; font-weight:bold;">影响业务:</td><td>${m.impacted_business}</td></tr>
                         <tr><td style="color:#666; font-weight:bold;">中断时间:</td><td>${m.occurrence_time}</td></tr>
                         <tr><td style="color:#666; font-weight:bold;">故障历时:</td><td>${m.fault_duration}</td></tr>
                     </table>
