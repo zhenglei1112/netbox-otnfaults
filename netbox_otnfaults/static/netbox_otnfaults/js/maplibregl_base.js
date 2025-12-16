@@ -159,8 +159,8 @@ class NetBoxMapBase {
     /**
      * 添加图层
      */
-    addLayer(config) {
-        this.map.addLayer(config);
+    addLayer(config, beforeId) {
+        this.map.addLayer(config, beforeId);
     }
 
     /**

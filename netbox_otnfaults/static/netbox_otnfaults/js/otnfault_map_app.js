@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
             this.arcgisButton = document.createElement('button');
             this.arcgisButton.className = 'maplibregl-ctrl-icon toggle-button arcgis-toggle';
             this.arcgisButton.innerHTML = svgIcons.network;
-            this.arcgisButton.title = 'OTN网络图层';
+            this.arcgisButton.title = '传输网络图层'; // Updated title
             this.arcgisButton.onclick = () => this.toggleArcgis();
 
             if (this.arcgisVisible) {
@@ -353,7 +353,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         updateArcgisLayersVisibility() {
              if (!this.arcgisVisible) {
-                ['arcgis-province-layer', 'arcgis-otn-lines-2', 'arcgis-otn-lines-3', 'netbox-sites-layer', 'netbox-sites-labels'].forEach(layerId => {
+                if (this.map.getLayer('otn-paths-layer')) mapBase.setLayoutProperty('otn-paths-layer', 'visibility', 'none');
+
+                ['netbox-sites-layer', 'netbox-sites-labels'].forEach(layerId => {
                     mapBase.setLayoutProperty(layerId, 'visibility', 'none');
                 });
                 this.arcgisButton.classList.remove('active');
@@ -363,9 +365,7 @@ document.addEventListener('DOMContentLoaded', function () {
              const currentZoom = this.map.getZoom();
              const isProvincialView = currentZoom >= 5;
 
-             if (this.map.getLayer('arcgis-province-layer')) mapBase.setLayoutProperty('arcgis-province-layer', 'visibility', 'visible');
-             if (this.map.getLayer('arcgis-otn-lines-2')) mapBase.setLayoutProperty('arcgis-otn-lines-2', 'visibility', 'visible');
-             if (this.map.getLayer('arcgis-otn-lines-3')) mapBase.setLayoutProperty('arcgis-otn-lines-3', 'visibility', 'visible');
+             if (this.map.getLayer('otn-paths-layer')) mapBase.setLayoutProperty('otn-paths-layer', 'visibility', 'visible');
 
              const pointVisibility = isProvincialView ? 'visible' : 'none';
              ['netbox-sites-layer', 'netbox-sites-labels'].forEach(layerId => {
@@ -698,30 +698,86 @@ document.addEventListener('DOMContentLoaded', function () {
         const themeLinkColor = getThemeColor('#00cc66');
         console.log('Resolved Theme Link Color (normalized RGBA):', themeLinkColor);
 
-        // ArcGIS 图层
-        try {
-            const layersConfig = [
-                { id: 'arcgis-otn-lines-2', urlId: 2, type: 'line', color: themeLinkColor, width: 3, opacity: 0.8 },
-                { id: 'arcgis-otn-lines-3', urlId: 3, type: 'line', color: themeLinkColor, width: 3, opacity: 0.7 }
-            ];
-            
-            layersConfig.forEach(l => {
-                mapBase.addGeoJsonSource(l.id.replace('lines', 'layer'), `http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/${l.urlId}/query?where=1%3D1&outFields=*&f=geojson`, { promoteId: 'OBJECTID' });
-                mapBase.addLayer({
-                    id: l.id, type: l.type, source: l.id.replace('lines', 'layer'),
-                    paint: { 'line-color': l.color, 'line-width': l.width, 'line-opacity': l.opacity }
+        // OtnPath 图层 (NetBox Internal)
+        fetch('/api/plugins/otnfaults/paths/?limit=0', {
+            headers: {
+                'Authorization': `Token ${apiKey}`, // Assuming apiKey can be used as token or is handled by session cookies if same domain
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const results = data.results || [];
+            const pathFeatures = results
+                .filter(path => path.geometry) // Only process paths with geometry
+                .map(path => {
+                    let geometry = path.geometry;
+                    // Handle raw coordinate array format (e.g. [[lng, lat], ...])
+                    if (Array.isArray(geometry)) {
+                        geometry = {
+                            type: 'LineString',
+                            coordinates: geometry
+                        };
+                    }
+                    
+                    return {
+                        type: 'Feature',
+                        properties: {
+                            id: path.id,
+                            name: path.name,
+                            cable_type: path.cable_type?.label || path.cable_type,
+                            description: path.description
+                        },
+                        geometry: geometry
+                    };
                 });
-                // 添加悬停/点击交互
-                map.on('mouseenter', l.id, () => map.getCanvas().style.cursor = 'pointer');
-                map.on('mouseleave', l.id, () => map.getCanvas().style.cursor = '');
-                map.on('click', l.id, (e) => {
-                     const props = e.features[0].properties;
-                     let content = '<h6>OTN网络线路</h6><table class="table table-sm">';
-                     for (let k in props) if (props[k] !== null) content += `<tr><th>${k}</th><td>${props[k]}</td></tr>`;
-                     content += '</table>';
-                     new maplibregl.Popup().setLngLat(e.lngLat).setHTML(content).addTo(map);
-                });
+
+            mapBase.addGeoJsonSource('otn-paths', {
+                type: 'FeatureCollection',
+                features: pathFeatures
             });
+
+            // Find the first symbol layer to place the path layer under labels
+            const layers = map.getStyle().layers;
+            let firstSymbolId;
+            for (const layer of layers) {
+                if (layer.type === 'symbol') {
+                    firstSymbolId = layer.id;
+                    break;
+                }
+            }
+
+            mapBase.addLayer({
+                id: 'otn-paths-layer',
+                type: 'line',
+                source: 'otn-paths',
+                paint: {
+                    'line-color': themeLinkColor,
+                    'line-width': 3,
+                    'line-opacity': 0.8
+                },
+                layout: {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                }
+            }, firstSymbolId);
+
+            // 移除弹窗逻辑 (No click/hover listener for otn-paths-layer as requested)
+            
+            // 自适应包含路径
+             if (pathFeatures.length > 0) {
+                 const pathBounds = new maplibregl.LngLatBounds();
+                 pathFeatures.forEach(f => {
+                     // Handle LineString coordinates
+                     if (f.geometry.type === 'LineString') {
+                        f.geometry.coordinates.forEach(coord => pathBounds.extend(coord));
+                     }
+                 });
+                 // We don't necessarily force fit bounds here as we have faults and sites too, 
+                 // but it's good data availability check.
+             }
+        })
+        .catch(error => console.error('Error fetching OTN paths:', error));
 
             // NetBox 站点图层
             // 创建GeoJSON数据源
@@ -830,9 +886,7 @@ document.addEventListener('DOMContentLoaded', function () {
              layerToggleControl.updateArcgisLayersVisibility();
              map.on('zoom', () => { if (layerToggleControl.arcgisVisible) layerToggleControl.updateArcgisLayersVisibility(); });
 
-        } catch (e) {
-            console.warn('ArcGIS图层加载失败', e);
-        }
+
 
         // 定义全局弹窗切换函数
         window.toggleFaultPopup = function(id) {
