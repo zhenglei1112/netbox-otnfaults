@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
             this.markersVisible = true;
             this.arcgisVisible = true;
             this.markers = [];            this.currentTimeRange = 'year';
-            this.currentMarkerTimeRange = 'one_week'; // Default marker filter
+            this.currentMarkerTimeRange = 'one_week'; // 默认故障点筛选
             this.menuHovered = false;
             this.lastMouseX = 0;
             this.lastMouseY = 0;
@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
             this.arcgisButton = document.createElement('button');
             this.arcgisButton.className = 'maplibregl-ctrl-icon toggle-button arcgis-toggle';
             this.arcgisButton.innerHTML = svgIcons.network;
-            this.arcgisButton.title = '传输网络图层'; // Updated title
+            this.arcgisButton.title = '传输网络图层'; // 更新标题
             this.arcgisButton.onclick = () => this.toggleArcgis();
 
             if (this.arcgisVisible) {
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const now = new Date();
             let startDate;
             
-            // Calculate start date based on range
+            // 根据范围计算开始日期
             if (range === 'one_week') {
                 startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             } else if (range === 'two_weeks') {
@@ -179,49 +179,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 temp.setMonth(temp.getMonth() - 1);
                 startDate = temp;
             } else {
-                // Fallback or 'all', though UI only offers valid options
+                // 回退 or 'all'，尽管 UI 仅提供有效选项
                 startDate = new Date(now.getFullYear(), 0, 1); 
             }
 
-            // Filter markers
-            this.markers.forEach(markerWrapper => {
-                // Assuming markerWrapper is the object we pushed: { marker: ..., data: ... } 
-                // Wait, previous code pushed just the mapboxgl marker object.
-                // We need to attach data to the marker object to filter it.
-                // Let's check how markers are added. 
-                // In generic init: layerToggleControl.addMarker(marker); 
-                // We need to store data with the marker.
-                
-                // Inspecting line 692: const marker = mapBase.addMarker(...)
-                // The marker object itself doesn't easily hold custom data unless we added it on creation.
-                // We need to modify the addMarker usage in the main loop to store the time data.
-                
-                // BUT, looking at the code I'm editing, I can just attach the element display style logic here 
-                // IF I had access to the data. 
-                // I will modify the addMarker method and the main loop to pass data.
-            });
+            // 过滤标记
+                // 数据访问现在通过地图筛选器或源更新处理
+                // 无需直接访问 DOM 标记
+
             
-            // Re-implementing filter logic requires data access. 
-            // Instead of complicating this method blindly, let's look at how addMarker is used.
-            // It is used in line 693: layerToggleControl.addMarker(marker);
-            // I should change addMarker to accept data or the date string.
+            // 重新实现筛选逻辑需访问数据。
+            // 简单的盲目复杂化此方法不如看看 addMarker 是如何使用的。
+            // 它在 693 行被使用：layerToggleControl.addMarker(marker);
+            // 我应该更改 addMarker 以接受数据或日期字符串。
         }
 
-        // Modified addMarker to store date
+        // 已弃用：addMarker 和 DOM 操作
         addMarker(marker, dateStr) { 
-            this.markers.push({ marker: marker, date: new Date(dateStr) }); 
+             // WebGL 实现无需操作
         }
 
-        // Updated toggleMarkers to use both visibility flag and time filter
         updateMarkerVisibility() {
-            if (!this.markersVisible) {
-                this.markers.forEach(item => item.marker.getElement().style.display = 'none');
-                if (this.legendContainer) this.legendContainer.style.display = 'none';
-                return;
-            }
+            // 更新 WebGL 图层筛选器
+            if (!this.map || !this.map.getLayer('fault-markers-layer')) return;
 
-            if (this.legendContainer) this.legendContainer.style.display = 'block';
-            
             const now = new Date();
             let startDate;
             if (this.currentMarkerTimeRange === 'one_week') {
@@ -236,13 +217,27 @@ document.addEventListener('DOMContentLoaded', function () {
                  startDate = new Date(0); // Show all
             }
 
-            this.markers.forEach(item => {
-                if (item.date >= startDate) {
-                    item.marker.getElement().style.display = 'block';
-                } else {
-                    item.marker.getElement().style.display = 'none';
+            const visibility = this.markersVisible ? 'visible' : 'none';
+            mapBase.setLayoutProperty('fault-markers-layer', 'visibility', visibility);
+            
+            if (this.markersVisible) {
+                // 应用时间筛选
+                const startTime = startDate.getTime();
+                const filter = ['all', 
+                    ['>=', ['get', 'timestamp'], startTime]
+                ];
+                
+                // 应用分类筛选（如果可用）
+                if (window.categoryFilterControl) {
+                    const selected = window.categoryFilterControl.selectedCategories;
+                    filter.push(['in', ['get', 'category'], ['literal', selected]]);
                 }
-            });
+
+                this.map.setFilter('fault-markers-layer', filter);
+                if (this.legendContainer) this.legendContainer.style.display = 'block';
+            } else {
+                if (this.legendContainer) this.legendContainer.style.display = 'none';
+            }
         }
 
         isMouseOverButton() {
@@ -435,11 +430,12 @@ document.addEventListener('DOMContentLoaded', function () {
         createCategoryMenu() {
             this.categoryMenu = document.createElement('div');
             this.categoryMenu.className = 'category-filter-menu dropdown-menu';
-            // Absolute positioning relative to the map container
-            // REMOVED max-height and overflow-y per user request to avoid scrollbar
+            this.categoryMenu.className = 'category-filter-menu dropdown-menu';
+            // 相对于地图容器绝对定位
+            // 根据用户请求移除了 max-height 和 overflow-y 以避免滚动条
             this.categoryMenu.style.cssText = 'display: none; position: absolute; z-index: 99999; width: 220px; background-color: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); padding: 8px 0;'; 
             
-            // Append to Map Container to support Fullscreen mode
+            // 附加到地图容器以支持全屏模式
             this.map.getContainer().appendChild(this.categoryMenu);
 
             this.categoryMenu.onclick = (e) => e.stopPropagation();
@@ -462,7 +458,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 div.className = 'dropdown-item marker-time-range-item'; 
                 div.setAttribute('data-marker-range', item.range);
                 div.textContent = item.text;
-                // Check if active (default is one_week)
+                // 检查是否激活（默认为一周）
                 if (item.range === layerToggleControl.currentMarkerTimeRange) div.classList.add('active'); 
                 
                 div.onclick = (e) => {
@@ -499,7 +495,7 @@ document.addEventListener('DOMContentLoaded', function () {
                  div.onclick = (e) => {
                      e.stopPropagation();
                      layerToggleControl.selectTimeRange(item.range);
-                     this.updateTimeRangeUI(); // Update immediate UI feedback
+                     this.updateTimeRangeUI(); // 更新即时 UI 反馈
                  };
                  this.categoryMenu.appendChild(div);
             });
@@ -565,14 +561,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const relTop = btnRect.top - mapRect.top;
             const relLeft = btnRect.left - mapRect.left;
             
-            // User Request: Pop up at the "Top-Right" of the filter button
-            // Meaning: Right side of the button, aligned with the top edge
+            // 用户请求：在筛选按钮的“右上角”弹出
+            // 意思是：按钮右侧，与顶部边缘对齐
             this.categoryMenu.style.left = `${relLeft + btnRect.width + 5}px`; // 5px gap
             this.categoryMenu.style.top = `${relTop}px`;
             
             this.categoryMenu.style.display = 'block'; 
             this.updateTimeRangeUI();
-            this.updateMarkerTimeRangeUI(); // Update marker UI
+            this.updateMarkerTimeRangeUI(); // 更新标记 UI
         }
 
         updateMarkerTimeRangeUI() {
@@ -600,7 +596,17 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleCategory(cat, checked) {
             if (checked) { if (!this.selectedCategories.includes(cat)) this.selectedCategories.push(cat); }
             else { this.selectedCategories = this.selectedCategories.filter(c => c !== cat); }
+            
+            this.triggerUpdates();
+        }
+        
+        triggerUpdates() {
             this.reloadHeatmapData();
+            // 通过 LayerToggleControl 更新标记图层筛选器
+            if (window.layerToggleControl) { // 检查全局变量或通过本地作用域访问（如果可能）
+                // 实际上 layerToggleControl 在同一作用域中
+                layerToggleControl.updateMarkerVisibility();
+            }
         }
         
         toggleAllCategories() {
@@ -612,7 +618,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const cb = document.getElementById(`category-${cat}`);
                 if (cb) cb.checked = this.selectedCategories.includes(cat);
             });
-            this.reloadHeatmapData();
+            this.triggerUpdates();
         }
 
         reloadHeatmapData() {
@@ -656,7 +662,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const categoryFilterControl = new CategoryFilterControl();
     window.categoryFilterControl = categoryFilterControl; // 全局访问，用于同步
     mapBase.addControl(categoryFilterControl, 'top-left');
-    // Add LayerToggleControl AFTER CategoryFilterControl so it appears BELOW it
+    // 在 CategoryFilterControl 之后添加 LayerToggleControl，以使其显示在它下方
     mapBase.addControl(layerToggleControl, 'top-left');
     
     // 覆盖 layerToggleControl 的方法以调用我们的刷新
@@ -666,7 +672,7 @@ document.addEventListener('DOMContentLoaded', function () {
         this.currentTimeRange = range;
         this.updateButtonTitle(range);
         categoryFilterControl.reloadHeatmapData();
-        categoryFilterControl.updateTimeRangeUI(); // Update UI
+        categoryFilterControl.updateTimeRangeUI(); // 更新 UI
     };
 
     // 统计控件类
@@ -677,7 +683,7 @@ document.addEventListener('DOMContentLoaded', function () {
             this.panel = null;
             this.faults = [];
             this.stats = { sites: [], paths: [] };
-            this.expanded = false; // Initial state: Collapsed
+            this.expanded = false; // 初始状态：折叠
         }
 
         onAdd(map) {
@@ -688,13 +694,13 @@ document.addEventListener('DOMContentLoaded', function () {
             // Container styles (transparent wrapper)
             this.container.style.cssText = `
                 pointer-events: auto;
-                margin: 0 0 40px 10px; /* Positioned at bottom-left, slightly above scale/attrib if any */
+                margin: 0 0 40px 10px; /* 位于左下角，略高于比例尺/属性（如果有） */
                 display: flex;
                 flex-direction: column;
                 align-items: flex-start;
             `;
 
-            // 1. Toggle Button (Visible when collapsed)
+            // 1. 切换按钮（折叠时可见）
             this.toggleBtn = document.createElement('button');
             this.toggleBtn.className = 'btn btn-sm btn-light border';
             this.toggleBtn.title = '查看高发故障统计';
@@ -708,7 +714,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 background-color: var(--bs-body-bg, #ffffff);
             `;
-            // Icon: Top-Right Arrow (↗)
+            // 图标：右上箭头 (↗)
             this.toggleBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none;"><path d="M7 17L17 7M17 7H7M17 7V17"></path></svg>`;
             
             this.toggleBtn.onclick = () => {
@@ -716,7 +722,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 this.renderVisibility();
             };
 
-            // 2. Content Panel (Visible when expanded)
+            // 2. 内容面板（展开时可见）
             this.panel = document.createElement('div');
             this.panel.style.cssText = `
                 background-color: var(--bs-body-bg, #ffffff);
@@ -743,7 +749,7 @@ document.addEventListener('DOMContentLoaded', function () {
             closeBtn.className = 'btn btn-sm btn-link p-0';
             closeBtn.title = '收起';
             closeBtn.style.cssText = 'color: var(--bs-secondary-text); text-decoration: none;';
-            // Icon: Bottom-Left Arrow (↙)
+            // 图标：左下箭头 (↙)
             closeBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none;"><path d="M17 7L7 17M7 17V7M7 17H17"></path></svg>`;
             
             closeBtn.onclick = (e) => {
@@ -763,8 +769,11 @@ document.addEventListener('DOMContentLoaded', function () {
             this.container.appendChild(this.toggleBtn);
             this.container.appendChild(this.panel);
             
-            this.update(); // Initial calculation and render
-            this.renderVisibility(); // Set initial visibility state
+            this.container.appendChild(this.toggleBtn);
+            this.container.appendChild(this.panel);
+            
+            this.update(); // 初始计算和渲染
+            this.renderVisibility(); // 设置初始可见性状态
             
             return this.container;
         }
@@ -868,7 +877,9 @@ document.addEventListener('DOMContentLoaded', function () {
         renderContent() {
             this.content.innerHTML = '';
 
-            // Filter Info Sub-header (Global for the panel)
+            this.content.innerHTML = '';
+
+            // 筛选信息副标题（面板全局）
             const filterInfoDiv = document.createElement('div');
             filterInfoDiv.style.cssText = 'font-size: 11px; color: #6c757d; margin-bottom: 10px; padding: 0 4px;';
             
@@ -882,7 +893,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const trKey = layerToggleControl.currentTimeRange || 'year';
             const timeText = timeRangeMap[trKey] || '本年度';
 
-            // 2. Get Category Text
+            // 2. 获取分类文本
             const allCats = Object.keys(faultCategoryNames);
             const selectedCats = categoryFilterControl ? categoryFilterControl.selectedCategories : [];
             let catText = '';
@@ -895,11 +906,11 @@ document.addEventListener('DOMContentLoaded', function () {
             filterInfoDiv.textContent = `${timeText}，${catText}`;
             this.content.appendChild(filterInfoDiv);
             
-            // Icons (SVG)
+            // 图标 (SVG)
             const icons = {
-                // Site: House Icon with 2 lines (matched to reference)
+                // 站点：带两条线的房屋图标（匹配参考图）
                 site: `<svg viewBox="0 0 1024 1024" style="width:14px;height:14px;fill:var(--bs-danger);"><path d="M512 44.23L45.42 411.58h41.01v568.19h851.14V411.58h41.01L512 44.23z m-212.78 454.55h425.57v85.11H299.22v-85.11z m0 198.6h425.57v85.11H299.22v-85.11z" /></svg>`,
-                // Path: Network/Molecule Icon (matched to reference)
+                // 路径：网络/分子图标（匹配参考图）
                 path: `<svg viewBox="0 0 1024 1024" style="width:14px;height:14px;fill:var(--bs-primary);"><path d="M512 512m-128 0a128 128 0 1 0 256 0 128 128 0 1 0-256 0Z"/><path d="M512 128m-96 0a96 96 0 1 0 192 0 96 96 0 1 0-192 0Z"/><path d="M192 768m-96 0a96 96 0 1 0 192 0 96 96 0 1 0-192 0Z"/><path d="M832 768m-96 0a96 96 0 1 0 192 0 96 96 0 1 0-192 0Z"/><path d="M512 384V224" stroke="currentColor" stroke-width="64" stroke-linecap="round"/><path d="M370.4 679.6L274.5 768" stroke="currentColor" stroke-width="64" stroke-linecap="round"/><path d="M653.6 679.6l95.9 88.4" stroke="currentColor" stroke-width="64" stroke-linecap="round"/></svg>`
             };
 
@@ -921,8 +932,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     const ul = document.createElement('ul');
                     ul.style.cssText = 'list-style: none; padding: 0; margin: 0;';
                     
-                    // Find max count for progress bar percentage
-                    // Use the first item (max value) as 100% baseline to maximize visual differentiation
+                    
+                    // 查找最大计数以计算进度条百分比
+                    // 使用第一项（最大值）作为 100% 基准，以最大化视觉差异
                     const maxVal = items.length > 0 ? items[0].count : 0;
                     const maxCount = maxVal > 0 ? maxVal : 1;
 
@@ -930,7 +942,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         const li = document.createElement('li');
                         li.style.cssText = 'padding: 6px 0; border-bottom: 1px dashed var(--bs-border-color); cursor: pointer; display: flex; align-items: center;';
                         
-                        // 1. Ranking Badge (Neutral 1-5)
+                        // 1. 排名徽章（中性 1-5）
                         const rankBadge = document.createElement('div');
                         rankBadge.textContent = index + 1;
                         rankBadge.style.cssText = `
@@ -943,7 +955,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             margin-right: 8px; flex-shrink: 0;
                         `;
                         
-                        // 3. Content (Name + Progress Bar)
+                        
+                        // 3. 内容（名称 + 进度条）
                         const contentDiv = document.createElement('div');
                         contentDiv.style.cssText = 'flex: 1; min-width: 0;';
                         
@@ -965,8 +978,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         
                         const progressBar = document.createElement('div');
                         progressBar.style.height = '100%';
-                        // Use CSS vars with fallbacks
-                        // Updated to use NetBox theme link color as requested
+                        // 使用带回退的 CSS 变量
+                        // 根据请求更新为使用 NetBox 主题链接颜色
                         const barColor = 'var(--bs-link-color, #0097a7)';
                         progressBar.style.backgroundColor = barColor;
                         progressBar.style.width = `${percent}%`;
@@ -976,7 +989,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         contentDiv.appendChild(nameDiv);
                         contentDiv.appendChild(progressWrapper);
 
-                        // 4. Count Badge
+                        // 4. 计数徽章
                         const countSpan = document.createElement('span');
                         countSpan.textContent = `${item.count}次`;
                         countSpan.style.cssText = 'margin-left: 10px; font-size: 11px; color: var(--bs-secondary-color); white-space: nowrap;';
@@ -1010,7 +1023,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 this.map.flyTo({
                     center: [site.longitude, site.latitude],
                     zoom: 12,
-                    speed: 1.5
+                    speed: 1.2, // 稍慢一点以获得更平滑的效果
+                    curve: 1.42,
+                    essential: true // 强制动画
                 });
                  new maplibregl.Popup({ closeOnClick: true })
                     .setLngLat([site.longitude, site.latitude])
@@ -1021,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         flyToPath(pathItem) {
             if (pathItem.geometry) {
-                // Highlight Path
+                // 高亮路径
                 const highlightSource = this.map.getSource('otn-paths-highlight');
                 if (highlightSource) {
                     highlightSource.setData({
@@ -1036,7 +1051,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     pathItem.geometry.coordinates.forEach(c => bounds.extend(c));
                 }
                 if (!bounds.isEmpty()) {
-                    this.map.fitBounds(bounds, { padding: 100 });
+                    this.map.fitBounds(bounds, { 
+                        padding: 100,
+                        duration: 1500, // 动画持续时间（毫秒）
+                        essential: true
+                    });
                 }
             }
         }
@@ -1071,10 +1090,10 @@ document.addEventListener('DOMContentLoaded', function () {
         markerData.forEach(m => bounds.extend([m.lng, m.lat]));
         if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 50 });
 
-        // Helper to get theme link color using canvas to normalize format (MapLibre compatibility)
+        // 获取主题链接颜色的辅助函数，使用 canvas 归一化格式（兼容 MapLibre）
         const getThemeColor = (fallback) => {
             try {
-                // 1. Get computed color from dummy anchor
+                // 1. 从虚拟锚点获取计算颜色
                 const temp = document.createElement('a');
                 temp.href = '#';
                 temp.style.visibility = 'hidden';
@@ -1092,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ctx.fillStyle = computedColor;
                     ctx.fillRect(0,0,1,1);
                     const [r, g, b, a] = ctx.getImageData(0,0,1,1).data;
-                    // Standardize to rgba(r, g, b, a) where a is 0-1
+                    // 标准化为 rgba(r, g, b, a)，其中 a 为 0-1
                     return `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`;
                 }
                 
@@ -1108,7 +1127,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // OtnPath 图层 (NetBox Internal)
         fetch('/api/plugins/otnfaults/paths/?limit=0', {
             headers: {
-                'Authorization': `Token ${apiKey}`, // Assuming apiKey can be used as token or is handled by session cookies if same domain
+                'Authorization': `Token ${apiKey}`, // 假设 apiKey 可用作令牌，或如果是同域则由会话 cookie 处理
                 'Content-Type': 'application/json'
             }
         })
@@ -1116,10 +1135,10 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(data => {
             const results = data.results || [];
             const pathFeatures = results
-                .filter(path => path.geometry) // Only process paths with geometry
+                .filter(path => path.geometry) // 仅处理带几何信息的路径
                 .map(path => {
                     let geometry = path.geometry;
-                    // Handle raw coordinate array format (e.g. [[lng, lat], ...])
+                    // 处理原始坐标数组格式 (例如 [[lng, lat], ...])
                     if (Array.isArray(geometry)) {
                         geometry = {
                             type: 'LineString',
@@ -1141,9 +1160,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     };
                 });
 
-            // Store globally for stats matching
+            // 全局存储以进行统计匹配
             window.OTNPathsMetadata = pathFeatures;
-            // Update stats now that we have paths
+            // 现有路径，更新统计
             if (window.faultStatisticsControl) window.faultStatisticsControl.update();
 
             mapBase.addGeoJsonSource('otn-paths', {
@@ -1151,7 +1170,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 features: pathFeatures
             });
 
-            // Find the first symbol layer to place the path layer under labels
+            // 查找第一个符号图层以将路径图层放置在标签下方
             const layers = map.getStyle().layers;
             let firstSymbolId;
             for (const layer of layers) {
@@ -1197,19 +1216,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            // 移除弹窗逻辑 (No click/hover listener for otn-paths-layer as requested)
+            // 移除弹窗逻辑 (根据请求，不为 otn-paths-layer 添加点击/悬停监听器)
             
             // 自适应包含路径
              if (pathFeatures.length > 0) {
                  const pathBounds = new maplibregl.LngLatBounds();
                  pathFeatures.forEach(f => {
-                     // Handle LineString coordinates
+                     // 处理 LineString 坐标
                      if (f.geometry.type === 'LineString') {
                         f.geometry.coordinates.forEach(coord => pathBounds.extend(coord));
                      }
                  });
-                 // We don't necessarily force fit bounds here as we have faults and sites too, 
-                 // but it's good data availability check.
+                 // 我们不一定在这里强制自适应边界...
              }
         })
         .catch(error => console.error('Error fetching OTN paths:', error));
@@ -1333,14 +1351,82 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         };
 
-        // 添加标记
-        markerData.forEach((m, index) => {
-             const category = m.category || 'other';
-             const color = faultCategoryColors[category] || faultCategoryColors['other'];
-             const uniqueId = `fault-${index}-${m.number}`;
-             
-             // 构建弹窗内容
-             let popupHtml = `
+        // 生成标记数据源 (FeatureCollection)
+        const markerFeatures = markerData.map(m => {
+            return {
+                type: 'Feature',
+                properties: {
+                    id: m.number, // 或唯一 ID
+                    category: m.category || 'other',
+                    status_color: m.status_color,
+                    occurrence_time: m.occurrence_time,
+                    timestamp: m.occurrence_time ? new Date(m.occurrence_time).getTime() : 0,
+                    // 存储弹窗的其他属性
+                    raw_data: JSON.stringify(m) // 轻松传递所有数据
+                },
+                geometry: {
+                    type: 'Point',
+                    coordinates: [m.lng, m.lat]
+                }
+            };
+        });
+
+            // 1. 加载图标图像（简单圆形/大头针）
+            // 创建动态 SVG 图像
+            const img = new Image(24, 24);
+            img.onload = () => {
+                map.addImage('fault-marker-icon', img, { sdf: true });
+                
+                // 2. 添加数据源
+                mapBase.addGeoJsonSource('fault-markers-source', {
+                    type: 'FeatureCollection',
+                    features: markerFeatures
+                });
+
+                // 3. 添加图层
+                // 查找一个图层以将标记放置在其上方（例如热力图）但如果可能位于标签下方
+                // 实际上，标记应位于最顶层。
+                mapBase.addLayer({
+                id: 'fault-markers-layer',
+                type: 'symbol',
+                source: 'fault-markers-source',
+                layout: {
+                    'icon-image': 'fault-marker-icon',
+                    'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.6, 10, 0.8, 15, 1],
+                    'icon-allow-overlap': true,
+                    'visibility': 'visible'
+                },
+                paint: {
+                    'icon-color': [
+                        'match',
+                        ['get', 'category'],
+                        'power', faultCategoryColors['power'],
+                        'fiber', faultCategoryColors['fiber'],
+                        'pigtail', faultCategoryColors['pigtail'],
+                        'device', faultCategoryColors['device'],
+                        faultCategoryColors['other'] // default
+                    ],
+                    'icon-halo-color': '#fff',
+                    'icon-halo-width': 1
+                }
+            });
+
+            // 4. 初始化筛选器
+            layerToggleControl.updateMarkerVisibility();
+        };
+        // 创建用于 SDF 着色的白色 SVG
+        const svgString = `<svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" fill="black" fill-opacity="0.3"/></svg>`;
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+
+        // 交互逻辑: 点击
+        map.on('click', 'fault-markers-layer', (e) => {
+            const props = e.features[0].properties;
+            const m = JSON.parse(props.raw_data || '{}');
+            const category = m.category || 'other';
+            const color = faultCategoryColors[category] || faultCategoryColors['other'];
+            const uniqueId = `fault-${m.number}`;
+
+            let popupHtml = `
                 <div style="font-size:13px; max-width:350px; font-family: sans-serif;">
                     <h6 style="border-bottom:1px solid #eee; padding-bottom:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                         <span>
@@ -1350,7 +1436,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         <span style="background:${m.status_color || '#6c757d'}; color:#fff; padding:2px 6px; border-radius:3px; font-size:11px;">${m.status}</span>
                     </h6>
                     
-                    <!-- 精简信息 -->
                     <table class="table table-sm table-borderless" style="margin-bottom:0; font-size:12px; width:100%;">
                         <tr><td style="width:70px; color:#666; font-weight:bold;">A端站点:</td><td>${m.a_site}</td></tr>
                         ${(m.z_sites && m.z_sites !== '未指定') ? `<tr><td style="color:#666; font-weight:bold;">Z端站点:</td><td>${m.z_sites}</td></tr>` : ''}
@@ -1359,8 +1444,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <tr><td style="color:#666; font-weight:bold;">故障历时:</td><td>${m.fault_duration}</td></tr>
                     </table>
 
-                     <!-- 照片信息 (精简模式常驻显示) -->
-                     ${(m.has_images && m.images.length > 0) ? `
+                     ${(m.has_images && m.images && m.images.length > 0) ? `
                         <div style="margin-top:5px; margin-bottom:5px;">
                             <div style="display:flex; flex-wrap:wrap; gap:5px;">
                                 ${m.images.map(img => {
@@ -1373,12 +1457,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                      ` : ''}
 
-                    <!-- 展开按钮 -->
                     <div style="text-align:center; border-top:1px solid #eee; margin-top:5px; padding-top:5px; cursor:pointer; color:#007bff;" onclick="window.toggleFaultPopup('${uniqueId}')">
                         <span id="popup-icon-${uniqueId}">▼</span> 更多详情
                     </div>
 
-                    <!-- 详细信息 (默认隐藏) -->
                     <div id="popup-details-${uniqueId}" style="display:none; border-top:1px dashed #eee; margin-top:5px; padding-top:5px;">
                         <table class="table table-sm table-borderless" style="margin-bottom:0; font-size:12px; width:100%;">
                             <tr><td style="width:70px; color:#666; font-weight:bold;">省份:</td><td>${m.province}</td></tr>
@@ -1387,8 +1469,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             <tr><td style="color:#666; font-weight:bold;">故障详情/处理过程:</td><td>${m.fault_details}</td></tr>
                         </table>
              `;
-
-             // 光缆故障特定字段 (放在详细信息中)
+             
              if (category === 'fiber') {
                  popupHtml += `
                     <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee;">
@@ -1406,15 +1487,21 @@ document.addEventListener('DOMContentLoaded', function () {
                  `;
              }
 
-             popupHtml += `</div></div></div>`; // Close details, then wrapper
-             
-             const marker = mapBase.addMarker(m.lng, m.lat, { color: color, popup: popupHtml });
-             // 传递发生时间用于筛选
-             layerToggleControl.addMarker(marker, m.occurrence_time);
+             popupHtml += `</div></div></div>`;
+            
+            new maplibregl.Popup()
+                .setLngLat(e.lngLat)
+                .setHTML(popupHtml)
+                .addTo(map);
         });
 
-        // 初始化只显示一周
-        layerToggleControl.updateMarkerVisibility();
+        // 交互逻辑: 鼠标悬停
+        map.on('mouseenter', 'fault-markers-layer', () => {
+             map.getCanvas().style.cursor = 'pointer';
+        });
+        map.on('mouseleave', 'fault-markers-layer', () => {
+             map.getCanvas().style.cursor = '';
+        });
 
         // 图例
         const legendItems = Object.keys(faultCategoryColors).map(k => ({
