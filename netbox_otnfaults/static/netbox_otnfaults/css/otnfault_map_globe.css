@@ -73,7 +73,7 @@
 
 /* 强制覆盖 maplibre 可能的默认背景图片 */
 .maplibregl-ctrl-group button.maplibregl-ctrl-icon {
-    background-image: none !important;
+  background-image: none !important;
 }
 
 .maplibregl-ctrl-group button:hover {
@@ -112,11 +112,10 @@
 
 /* 针对特定 Toggle 按钮的增强选择器，防止被覆盖 */
 .layer-toggle-control .toggle-button.active {
-    background-color: var(--bs-link-color, #0097a7) !important;
-    border-color: var(--bs-link-color, #0097a7) !important;
-    color: var(--bs-body-bg, #ffffff) !important;
+  background-color: var(--bs-link-color, #0097a7) !important;
+  border-color: var(--bs-link-color, #0097a7) !important;
+  color: var(--bs-body-bg, #ffffff) !important;
 }
-
 
 /* 热力图时间范围菜单样式 */
 .heatmap-time-range-menu {
@@ -160,82 +159,83 @@
   color: var(--bs-body-color, #212529) !important;
   opacity: 1 !important; /* 强制不透明 */
   box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+  z-index: 9999 !important; /* Ensure it is on top */
 }
 
 .category-filter-menu .dropdown-item {
-    color: var(--bs-body-color, #212529) !important;
-    transition: all 0.2s ease;
+  color: var(--bs-body-color, #212529) !important;
+  transition: all 0.2s ease;
 }
 
 .category-filter-menu .dropdown-item:hover {
-    background-color: var(--bs-tertiary-bg, #f8f9fa) !important;
+  background-color: var(--bs-tertiary-bg, #f8f9fa) !important;
 }
 
 /* 选中状态：使用 NetBox 主题色 */
 .category-filter-menu .dropdown-item.active {
-    background-color: var(--bs-link-color, #0097a7) !important;
-    color: var(--bs-body-bg, #ffffff) !important;
+  background-color: var(--bs-link-color, #0097a7) !important;
+  color: var(--bs-body-bg, #ffffff) !important;
 }
 
 /* 确保选中状态下的 hover 仍然保持高亮 */
 .category-filter-menu .dropdown-item.active:hover {
-    background-color: var(--bs-link-hover-color, #007986) !important;
-    color: var(--bs-body-bg, #ffffff) !important;
+  background-color: var(--bs-link-hover-color, #007986) !important;
+  color: var(--bs-body-bg, #ffffff) !important;
 }
 
 /* 复选框颜色跟随主题 */
 .category-filter-menu input[type="checkbox"] {
-    accent-color: var(--bs-link-color, #0097a7);
-    width: 14px;
-    height: 14px;
-    cursor: pointer;
+  accent-color: var(--bs-link-color, #0097a7);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
 }
 
 /* 弹出框样式适配 */
 .maplibregl-popup-content {
-    background-color: var(--bs-body-bg, #ffffff) !important;
-    color: var(--bs-body-color, #212529) !important;
-    border: 1px solid var(--bs-border-color, #dee2e6) !important;
-    opacity: 1 !important; /* 强制不透明 */
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+  background-color: var(--bs-body-bg, #ffffff) !important;
+  color: var(--bs-body-color, #212529) !important;
+  border: 1px solid var(--bs-border-color, #dee2e6) !important;
+  opacity: 1 !important; /* 强制不透明 */
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
 }
 
 .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-    border-top-color: var(--bs-body-bg, #ffffff) !important;
+  border-top-color: var(--bs-body-bg, #ffffff) !important;
 }
 .maplibregl-popup-anchor-top .maplibregl-popup-tip {
-    border-bottom-color: var(--bs-body-bg, #ffffff) !important;
+  border-bottom-color: var(--bs-body-bg, #ffffff) !important;
 }
 .maplibregl-popup-anchor-left .maplibregl-popup-tip {
-    border-right-color: var(--bs-body-bg, #ffffff) !important;
+  border-right-color: var(--bs-body-bg, #ffffff) !important;
 }
 .maplibregl-popup-anchor-right .maplibregl-popup-tip {
-    border-left-color: var(--bs-body-bg, #ffffff) !important;
+  border-left-color: var(--bs-body-bg, #ffffff) !important;
 }
 
 /* 链接颜色 */
 .maplibregl-popup-content a {
-    color: var(--bs-link-color, #0097a7) !important;
-    text-decoration: none;
+  color: var(--bs-link-color, #0097a7) !important;
+  text-decoration: none;
 }
 .maplibregl-popup-content a:hover {
-    color: var(--bs-link-hover-color, #007986) !important;
-    text-decoration: underline;
+  color: var(--bs-link-hover-color, #007986) !important;
+  text-decoration: underline;
 }
 
 /* 表格样式 */
 .maplibregl-popup-content table {
-    color: var(--bs-body-color);
+  color: var(--bs-body-color);
 }
 .maplibregl-popup-content th,
 .maplibregl-popup-content td {
-    border-color: var(--bs-border-color);
+  border-color: var(--bs-border-color);
 }
 
 /* 图例样式 */
 .fault-legend {
-    background: var(--bs-body-bg, #ffffff) !important;
-    color: var(--bs-body-color, #212529) !important;
-    border: 1px solid var(--bs-border-color, #dee2e6) !important;
-    opacity: 0.8; 
+  background: var(--bs-body-bg, #ffffff) !important;
+  color: var(--bs-body-color, #212529) !important;
+  border: 1px solid var(--bs-border-color, #dee2e6) !important;
+  opacity: 0.8;
 }

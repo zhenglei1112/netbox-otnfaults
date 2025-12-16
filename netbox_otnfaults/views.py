@@ -133,7 +133,9 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 # 新增字段：省份、A端站点、Z端站点
                 'province': fault.province.name if fault.province else '未指定',
                 'a_site': fault.interruption_location_a.name if fault.interruption_location_a else '未指定',
+                'a_site_id': fault.interruption_location_a.pk if fault.interruption_location_a else None,
                 'z_sites': z_sites_str,
+                'z_site_ids': list(fault.interruption_location.all().values_list('pk', flat=True)),
                 'impacted_business': impacted_business_str,
                 
                 # 新增字段：状态

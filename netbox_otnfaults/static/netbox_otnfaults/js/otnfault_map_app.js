@@ -377,7 +377,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const layerToggleControl = new LayerToggleControl();
-    mapBase.addControl(layerToggleControl, 'top-left');
+    // Move addControl to after CategoryFilterControl to ensure Filter is on top
+    // mapBase.addControl(layerToggleControl, 'top-left');
 
     
     // 分类筛选控件
@@ -426,20 +427,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
         onRemove() {
              this.container.parentNode.removeChild(this.container);
+             if (this.categoryMenu && this.categoryMenu.parentNode) {
+                 this.categoryMenu.parentNode.removeChild(this.categoryMenu);
+             }
         }
 
         createCategoryMenu() {
             this.categoryMenu = document.createElement('div');
-            this.categoryMenu.className = 'category-filter-menu';
-            this.categoryMenu.style.cssText = `position: absolute; background-color: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 1000; min-width: 150px; padding: 8px 0; display: none; top: 100%; left: 0;`;
+            this.categoryMenu.className = 'category-filter-menu dropdown-menu';
+            // Absolute positioning relative to the map container
+            // REMOVED max-height and overflow-y per user request to avoid scrollbar
+            this.categoryMenu.style.cssText = 'display: none; position: absolute; z-index: 99999; width: 220px; background-color: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); padding: 8px 0;'; 
+            
+            // Append to Map Container to support Fullscreen mode
+            this.map.getContainer().appendChild(this.categoryMenu);
+
             this.categoryMenu.onclick = (e) => e.stopPropagation();
 
-            // 故障点时间范围
-            const markerTitle = document.createElement('div');
-            markerTitle.className = 'dropdown-item';
-            markerTitle.innerHTML = '<strong>故障点时间范围</strong>';
-            markerTitle.style.borderBottom = '1px solid #eee';
-            this.categoryMenu.appendChild(markerTitle);
+            // 标题
+            const title = document.createElement('div');
+            title.className = 'dropdown-item';
+            title.innerHTML = '<strong>故障点时间范围</strong>';
+            title.style.borderBottom = '1px solid #eee';
+            this.categoryMenu.appendChild(title);
 
             const markerTimeRanges = [
                 { range: 'one_week', text: '一周' },
@@ -547,6 +557,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         showCategoryMenu() { 
             this.hideCategoryMenu(); 
+            
+            // Calculate position relative to Map Container
+            const mapRect = this.map.getContainer().getBoundingClientRect();
+            const btnRect = this.filterButton.getBoundingClientRect();
+
+            const relTop = btnRect.top - mapRect.top;
+            const relLeft = btnRect.left - mapRect.left;
+            
+            // User Request: Pop up at the "Top-Right" of the filter button
+            // Meaning: Right side of the button, aligned with the top edge
+            this.categoryMenu.style.left = `${relLeft + btnRect.width + 5}px`; // 5px gap
+            this.categoryMenu.style.top = `${relTop}px`;
+            
             this.categoryMenu.style.display = 'block'; 
             this.updateTimeRangeUI();
             this.updateMarkerTimeRangeUI(); // Update marker UI
@@ -618,6 +641,9 @@ document.addEventListener('DOMContentLoaded', function () {
              if (map.getSource('faults')) map.getSource('faults').setData({ type: 'FeatureCollection', features: features });
              
              this.updateButtonTitle();
+
+             // Update Stats
+             if (window.faultStatisticsControl) window.faultStatisticsControl.update();
         }
         
         updateButtonTitle() {
@@ -630,6 +656,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const categoryFilterControl = new CategoryFilterControl();
     window.categoryFilterControl = categoryFilterControl; // 全局访问，用于同步
     mapBase.addControl(categoryFilterControl, 'top-left');
+    // Add LayerToggleControl AFTER CategoryFilterControl so it appears BELOW it
+    mapBase.addControl(layerToggleControl, 'top-left');
     
     // 覆盖 layerToggleControl 的方法以调用我们的刷新
     const originalReload = layerToggleControl.reloadHeatmapData.bind(layerToggleControl);
@@ -640,6 +668,385 @@ document.addEventListener('DOMContentLoaded', function () {
         categoryFilterControl.reloadHeatmapData();
         categoryFilterControl.updateTimeRangeUI(); // Update UI
     };
+
+    // 统计控件类
+    class FaultStatisticsControl {
+        constructor() {
+            this.container = null;
+            this.toggleBtn = null;
+            this.panel = null;
+            this.faults = [];
+            this.stats = { sites: [], paths: [] };
+            this.expanded = false; // Initial state: Collapsed
+        }
+
+        onAdd(map) {
+            this.map = map;
+            this.container = document.createElement('div');
+            this.container.className = 'maplibregl-ctrl fault-stats-control';
+            
+            // Container styles (transparent wrapper)
+            this.container.style.cssText = `
+                pointer-events: auto;
+                margin: 0 0 40px 10px; /* Positioned at bottom-left, slightly above scale/attrib if any */
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+            `;
+
+            // 1. Toggle Button (Visible when collapsed)
+            this.toggleBtn = document.createElement('button');
+            this.toggleBtn.className = 'btn btn-sm btn-light border';
+            this.toggleBtn.title = '查看高发故障统计';
+            this.toggleBtn.style.cssText = `
+                width: 32px;
+                height: 32px;
+                padding: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                background-color: var(--bs-body-bg, #ffffff);
+            `;
+            // Icon: Top-Right Arrow (↗)
+            this.toggleBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none;"><path d="M7 17L17 7M17 7H7M17 7V17"></path></svg>`;
+            
+            this.toggleBtn.onclick = () => {
+                this.expanded = true;
+                this.renderVisibility();
+            };
+
+            // 2. Content Panel (Visible when expanded)
+            this.panel = document.createElement('div');
+            this.panel.style.cssText = `
+                background-color: var(--bs-body-bg, #ffffff);
+                color: var(--bs-body-color, #212529);
+                border: 1px solid var(--bs-border-color, #dee2e6);
+                border-radius: 4px;
+                padding: 10px;
+                width: 300px;
+                /* max-height: 400px; REMOVED per user request */
+                /* overflow-y: auto; REMOVED per user request */
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                font-size: 12px;
+                display: none; /* Initially hidden */
+            `;
+
+            // Header with Close Button
+            const header = document.createElement('div');
+            header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--bs-border-color); padding-bottom: 5px;';
+            
+            const title = document.createElement('strong');
+            title.textContent = '高发故障统计';
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'btn btn-sm btn-link p-0';
+            closeBtn.title = '收起';
+            closeBtn.style.cssText = 'color: var(--bs-secondary-text); text-decoration: none;';
+            // Icon: Bottom-Left Arrow (↙)
+            closeBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none;"><path d="M17 7L7 17M7 17V7M7 17H17"></path></svg>`;
+            
+            closeBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.expanded = false;
+                this.renderVisibility();
+            };
+
+            header.appendChild(title);
+            header.appendChild(closeBtn);
+            this.panel.appendChild(header);
+
+            // Content Area
+            this.content = document.createElement('div');
+            this.panel.appendChild(this.content);
+
+            this.container.appendChild(this.toggleBtn);
+            this.container.appendChild(this.panel);
+            
+            this.update(); // Initial calculation and render
+            this.renderVisibility(); // Set initial visibility state
+            
+            return this.container;
+        }
+
+        renderVisibility() {
+            if (this.expanded) {
+                this.toggleBtn.style.display = 'none';
+                this.panel.style.display = 'block';
+            } else {
+                this.toggleBtn.style.display = 'flex';
+                this.panel.style.display = 'none';
+            }
+        }
+
+        onRemove() {
+            if (this.container && this.container.parentNode) {
+                this.container.parentNode.removeChild(this.container);
+            }
+            this.map = undefined;
+        }
+
+        update() {
+            if (!this.container) return;
+            this.calculateStats();
+            this.renderContent();
+        }
+
+        calculateStats() {
+            // 获取当前的过滤条件
+            const timeRange = layerToggleControl.currentTimeRange;
+            const selectedCategories = categoryFilterControl ? categoryFilterControl.selectedCategories : [];
+            const markers = markerData || []; // markerData 包含完整信息
+
+            const now = new Date();
+            let startDate;
+            if (timeRange === 'month') startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+            else if (timeRange === 'three_months') startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+            else startDate = new Date(now.getFullYear(), 0, 1);
+
+            // 过滤故障
+            const filteredFaults = markers.filter(fault => {
+                if (!fault.occurrence_time) return false;
+                const faultDate = new Date(fault.occurrence_time);
+                if (faultDate < startDate) return false;
+                
+                const category = fault.category || 'other';
+                return selectedCategories.includes(category);
+            });
+
+            // 统计
+            const siteCounts = {};
+            const pathCounts = {};
+            
+            // 辅助：获取 Site ID -> Info 映射
+            if (!this.siteMap) {
+                this.siteMap = {};
+                (sitesData || []).forEach(s => this.siteMap[s.id] = s);
+            }
+
+            // 辅助：获取 Path 映射 (从全局 window.OTNPathsMetadata)
+            const paths = window.OTNPathsMetadata || [];
+
+            filteredFaults.forEach(fault => {
+                if (!fault.z_site_ids || fault.z_site_ids.length === 0) {
+                    // 单站点故障
+                    const siteId = fault.a_site_id;
+                    if (siteId) {
+                        if (!siteCounts[siteId]) siteCounts[siteId] = { id: siteId, name: fault.a_site, count: 0 };
+                        siteCounts[siteId].count++;
+                    }
+                } else {
+                    // 多站点（路径）故障
+                    fault.z_site_ids.forEach(zId => {
+                        // 查找路径
+                        const aId = fault.a_site_id;
+                        if (!aId) return;
+
+                        // 在路径库中查找匹配的
+                        const path = paths.find(p => {
+                            const pA = p.properties.site_a_id;
+                            const pZ = p.properties.site_z_id;
+                            return (pA === aId && pZ === zId) || (pA === zId && pZ === aId);
+                        });
+
+                        if (path) {
+                            const pathId = path.properties.id;
+                            if (!pathCounts[pathId]) pathCounts[pathId] = { id: pathId, name: path.properties.name, count: 0, geometry: path.geometry };
+                            pathCounts[pathId].count++;
+                        } else {
+                            // 未找到路径模型，忽略或记录为未知
+                        }
+                    });
+                }
+            });
+
+            // 排序并取 Top 5
+            this.stats.sites = Object.values(siteCounts).sort((a, b) => b.count - a.count).slice(0, 5);
+            this.stats.paths = Object.values(pathCounts).sort((a, b) => b.count - a.count).slice(0, 5);
+        }
+
+        renderContent() {
+            this.content.innerHTML = '';
+
+            // Filter Info Sub-header (Global for the panel)
+            const filterInfoDiv = document.createElement('div');
+            filterInfoDiv.style.cssText = 'font-size: 11px; color: #6c757d; margin-bottom: 10px; padding: 0 4px;';
+            
+            // 1. Get Time Range Text
+            const timeRangeMap = {
+                'one_week': '一周',
+                'month': '一个月',
+                'three_months': '三个月', 
+                'year': '一年'
+            };
+            const trKey = layerToggleControl.currentTimeRange || 'year';
+            const timeText = timeRangeMap[trKey] || '本年度';
+
+            // 2. Get Category Text
+            const allCats = Object.keys(faultCategoryNames);
+            const selectedCats = categoryFilterControl ? categoryFilterControl.selectedCategories : [];
+            let catText = '';
+            if (selectedCats.length === allCats.length) {
+                catText = '全部故障';
+            } else {
+                catText = selectedCats.map(c => faultCategoryNames[c]).join('、');
+            }
+
+            filterInfoDiv.textContent = `${timeText}，${catText}`;
+            this.content.appendChild(filterInfoDiv);
+            
+            // Icons (SVG)
+            const icons = {
+                // Site: House Icon with 2 lines (matched to reference)
+                site: `<svg viewBox="0 0 1024 1024" style="width:14px;height:14px;fill:var(--bs-danger);"><path d="M512 44.23L45.42 411.58h41.01v568.19h851.14V411.58h41.01L512 44.23z m-212.78 454.55h425.57v85.11H299.22v-85.11z m0 198.6h425.57v85.11H299.22v-85.11z" /></svg>`,
+                // Path: Network/Molecule Icon (matched to reference)
+                path: `<svg viewBox="0 0 1024 1024" style="width:14px;height:14px;fill:var(--bs-primary);"><path d="M512 512m-128 0a128 128 0 1 0 256 0 128 128 0 1 0-256 0Z"/><path d="M512 128m-96 0a96 96 0 1 0 192 0 96 96 0 1 0-192 0Z"/><path d="M192 768m-96 0a96 96 0 1 0 192 0 96 96 0 1 0-192 0Z"/><path d="M832 768m-96 0a96 96 0 1 0 192 0 96 96 0 1 0-192 0Z"/><path d="M512 384V224" stroke="currentColor" stroke-width="64" stroke-linecap="round"/><path d="M370.4 679.6L274.5 768" stroke="currentColor" stroke-width="64" stroke-linecap="round"/><path d="M653.6 679.6l95.9 88.4" stroke="currentColor" stroke-width="64" stroke-linecap="round"/></svg>`
+            };
+
+            const createSection = (title, items, type) => {
+                const section = document.createElement('div');
+                section.style.marginBottom = '15px';
+                
+                const titleEl = document.createElement('h6');
+                titleEl.textContent = title;
+                titleEl.style.cssText = 'font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--bs-border-color); padding-bottom: 4px;';
+                section.appendChild(titleEl);
+
+                if (items.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.textContent = '无数据';
+                    empty.style.color = 'var(--bs-secondary-color)';
+                    section.appendChild(empty);
+                } else {
+                    const ul = document.createElement('ul');
+                    ul.style.cssText = 'list-style: none; padding: 0; margin: 0;';
+                    
+                    // Find max count for progress bar percentage
+                    // Use the first item (max value) as 100% baseline to maximize visual differentiation
+                    const maxVal = items.length > 0 ? items[0].count : 0;
+                    const maxCount = maxVal > 0 ? maxVal : 1;
+
+                    items.forEach((item, index) => {
+                        const li = document.createElement('li');
+                        li.style.cssText = 'padding: 6px 0; border-bottom: 1px dashed var(--bs-border-color); cursor: pointer; display: flex; align-items: center;';
+                        
+                        // 1. Ranking Badge (Neutral 1-5)
+                        const rankBadge = document.createElement('div');
+                        rankBadge.textContent = index + 1;
+                        rankBadge.style.cssText = `
+                            width: 18px; height: 18px; 
+                            background-color: #e9ecef; 
+                            color: #495057; 
+                            border-radius: 50%; 
+                            display: flex; align-items: center; justify-content: center; 
+                            font-size: 10px; font-weight: bold;
+                            margin-right: 8px; flex-shrink: 0;
+                        `;
+                        
+                        // 3. Content (Name + Progress Bar)
+                        const contentDiv = document.createElement('div');
+                        contentDiv.style.cssText = 'flex: 1; min-width: 0;';
+                        
+                        const nameDiv = document.createElement('div');
+                        nameDiv.textContent = item.name;
+                        nameDiv.title = item.name;
+                        nameDiv.style.cssText = 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;';
+                        
+                        // Progress Bar
+                        const countVal = Number(item.count) || 0;
+                        const maxCountNum = Number(maxCount) || 1;
+                        let percent = (countVal / maxCountNum) * 100;
+                        if (percent > 100) percent = 100;
+                        
+                        console.log(`[StatsDebug] ${item.name}: ${countVal}/${maxCountNum} = ${percent}%`);
+
+                        const progressWrapper = document.createElement('div');
+                        progressWrapper.style.cssText = 'height: 4px; background-color: #f0f0f0; border-radius: 2px; margin-top: 3px; overflow: hidden;';
+                        
+                        const progressBar = document.createElement('div');
+                        progressBar.style.height = '100%';
+                        // Use CSS vars with fallbacks
+                        // Updated to use NetBox theme link color as requested
+                        const barColor = 'var(--bs-link-color, #0097a7)';
+                        progressBar.style.backgroundColor = barColor;
+                        progressBar.style.width = `${percent}%`;
+                        
+                        progressWrapper.appendChild(progressBar);
+
+                        contentDiv.appendChild(nameDiv);
+                        contentDiv.appendChild(progressWrapper);
+
+                        // 4. Count Badge
+                        const countSpan = document.createElement('span');
+                        countSpan.textContent = `${item.count}次`;
+                        countSpan.style.cssText = 'margin-left: 10px; font-size: 11px; color: var(--bs-secondary-color); white-space: nowrap;';
+
+                        li.appendChild(rankBadge);
+                        // li.appendChild(iconWrapper); // Removed
+                        li.appendChild(contentDiv);
+                        li.appendChild(countSpan);
+                        
+                        li.onclick = () => {
+                            if (type === 'site') this.flyToSite(item.id);
+                            else this.flyToPath(item);
+                        };
+                        li.onmouseenter = () => li.style.backgroundColor = 'var(--bs-tertiary-bg)';
+                        li.onmouseleave = () => li.style.backgroundColor = 'transparent';
+
+                        ul.appendChild(li);
+                    });
+                    section.appendChild(ul);
+                }
+                return section;
+            };
+
+            this.content.appendChild(createSection('故障高发站点 (Top 5)', this.stats.sites, 'site'));
+            this.content.appendChild(createSection('故障高发路径 (Top 5)', this.stats.paths, 'path'));
+        }
+
+        flyToSite(siteId) {
+            const site = this.siteMap[siteId];
+            if (site) {
+                this.map.flyTo({
+                    center: [site.longitude, site.latitude],
+                    zoom: 12,
+                    speed: 1.5
+                });
+                 new maplibregl.Popup({ closeOnClick: true })
+                    .setLngLat([site.longitude, site.latitude])
+                    .setHTML(`<strong>${site.name}</strong>`)
+                    .addTo(this.map);
+            }
+        }
+
+        flyToPath(pathItem) {
+            if (pathItem.geometry) {
+                // Highlight Path
+                const highlightSource = this.map.getSource('otn-paths-highlight');
+                if (highlightSource) {
+                    highlightSource.setData({
+                        type: 'Feature',
+                        geometry: pathItem.geometry
+                    });
+                    mapBase.setLayoutProperty('otn-paths-highlight-layer', 'visibility', 'visible');
+                }
+
+                const bounds = new maplibregl.LngLatBounds();
+                if (pathItem.geometry.type === 'LineString') {
+                    pathItem.geometry.coordinates.forEach(c => bounds.extend(c));
+                }
+                if (!bounds.isEmpty()) {
+                    this.map.fitBounds(bounds, { padding: 100 });
+                }
+            }
+        }
+    }
+
+    const faultStatisticsControl = new FaultStatisticsControl();
+    window.faultStatisticsControl = faultStatisticsControl;
+    mapBase.addControl(faultStatisticsControl, 'bottom-left');
+
+
 
 
     // 3. 地图加载逻辑
@@ -726,11 +1133,18 @@ document.addEventListener('DOMContentLoaded', function () {
                             id: path.id,
                             name: path.name,
                             cable_type: path.cable_type?.label || path.cable_type,
-                            description: path.description
+                            description: path.description,
+                            site_a_id: path.site_a.id, // Ensure we have these for matching
+                            site_z_id: path.site_z.id
                         },
                         geometry: geometry
                     };
                 });
+
+            // Store globally for stats matching
+            window.OTNPathsMetadata = pathFeatures;
+            // Update stats now that we have paths
+            if (window.faultStatisticsControl) window.faultStatisticsControl.update();
 
             mapBase.addGeoJsonSource('otn-paths', {
                 type: 'FeatureCollection',
@@ -761,6 +1175,27 @@ document.addEventListener('DOMContentLoaded', function () {
                     'line-cap': 'round'
                 }
             }, firstSymbolId);
+
+            // 添加高亮图层
+            mapBase.addGeoJsonSource('otn-paths-highlight', {
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: [] }
+            });
+            mapBase.addLayer({
+                id: 'otn-paths-highlight-layer',
+                type: 'line',
+                source: 'otn-paths-highlight',
+                paint: {
+                    'line-color': '#FFD700', // Gold
+                    'line-width': 6,
+                    'line-opacity': 0.8
+                },
+                layout: {
+                    'line-join': 'round',
+                    'line-cap': 'round',
+                    'visibility': 'none'
+                }
+            });
 
             // 移除弹窗逻辑 (No click/hover listener for otn-paths-layer as requested)
             

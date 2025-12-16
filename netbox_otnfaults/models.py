@@ -585,7 +585,7 @@ class CableTypeChoices(ChoiceSet):
 
     CHOICES = [
         (TYPE_96, '96芯', 'blue'),
-        (TYPE_114, '114芯', 'green'),
+        (TYPE_114, '144芯', 'green'),
     ]
 
 
