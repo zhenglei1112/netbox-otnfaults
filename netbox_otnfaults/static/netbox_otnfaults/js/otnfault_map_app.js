@@ -40,6 +40,14 @@ document.addEventListener('DOMContentLoaded', function () {
         NetBoxMapBase.showError('map', '地图初始化失败: ' + error.message);
         return;
     }
+    
+    // 等待样式加载完成后应用自定义样式
+    map.on('load', () => {
+        // 强化中国省界
+        mapBase.emphasizeChinaBoundaries();
+        // 确保语言为中文（如果尚未设置）
+        mapBase.setLanguageToChinese();
+    });
 
     // 访问通用图标
     const svgIcons = mapBase.svgIcons;

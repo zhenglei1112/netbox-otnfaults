@@ -109,6 +109,48 @@ class NetBoxMapBase {
     }
 
     /**
+     * 强化中国边界显示
+     * 尝试找到省级边界图层并加深加粗
+     */
+    /**
+     * 强化中国边界显示
+     * 尝试找到省级边界图层并加深加粗
+     */
+    emphasizeChinaBoundaries() {
+        const style = this.map.getStyle();
+        if (!style || !style.layers) return;
+
+        console.log('Map Layers Breakdown:', style.layers.map(l => l.id)); // DEBUG: 打印所有图层ID
+
+        style.layers.forEach(layer => {
+            // 匹配常见的行政边界图层名称模式 (admin, boundary)
+            if ((layer.id.indexOf('admin') !== -1 || layer.id.indexOf('boundary') !== -1) && layer.type === 'line') {
+                
+                // 排除可能是国界 (level-0, level-2) 的图层，专注更细粒度的边界
+                // 如果图层ID包含 '0' 或 '2' 但不包含 'province'，跳过（可选策略，先全量尝试）
+                
+                // 强制确保可见
+                if (this.map.getLayoutProperty(layer.id, 'visibility') === 'none') {
+                     this.map.setLayoutProperty(layer.id, 'visibility', 'visible');
+                }
+
+                this.map.setPaintProperty(layer.id, 'line-width', [
+                    'interpolate', ['linear'], ['zoom'],
+                    3, 0.5,
+                    5, 2.0,  // 增加到 2.0
+                    10, 4.0
+                ]);
+                
+                // 设置为明显的深灰色，确保不透明
+                this.map.setPaintProperty(layer.id, 'line-color', '#555555');
+                this.map.setPaintProperty(layer.id, 'line-opacity', 1.0);
+                
+                console.log(`Emphasizing layer: ${layer.id}`); // DEBUG: 记录被修改的图层
+            }
+        });
+    }
+
+    /**
      * 过滤地图标签（隐藏道路、小城镇）
      */
     filterLabels() {
