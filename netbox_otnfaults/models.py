@@ -551,6 +551,7 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         ordering = ('-service_interruption_time',)
         verbose_name = '故障影响业务'
         verbose_name_plural = '故障影响业务'
+        unique_together = ('otn_fault', 'impacted_service')
 
     def __str__(self):
         return f"{self.otn_fault} - {self.impacted_service}"
