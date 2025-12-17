@@ -41,7 +41,8 @@
       heatmapData: {{ heatmap_data| safe }},
       markerData: {{ marker_data| safe }},
       sitesData: {{ sites_data| safe }},
-      apiKey: "{{ apikey }}"
+      apiKey: "{{ apikey }}",
+      faultListUrl: "{% url 'plugins:netbox_otnfaults:otnfault_list' %}"
   };
 </script>
 <script src="{% static 'netbox_otnfaults/js/maplibregl_base.js' %}"></script>

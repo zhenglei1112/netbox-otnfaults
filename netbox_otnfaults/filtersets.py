@@ -1,8 +1,12 @@
 from netbox.filtersets import NetBoxModelFilterSet
 from .models import OtnFault, OtnFaultImpact, OtnPath
 from django.db.models import Q
+import django_filters
 
 class OtnFaultFilterSet(NetBoxModelFilterSet):
+    bidirectional_pair = django_filters.CharFilter(method='filter_bidirectional_pair', label='双向站点对筛选 (id1,id2)')
+    single_site_a_id = django_filters.NumberFilter(method='filter_single_site_a_id', label='单站点故障筛选 (A端站点ID)')
+
     class Meta:
         model = OtnFault
         fields = (
@@ -27,6 +31,24 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             Q(timeout_reason__icontains=value) |
             Q(comments__icontains=value)
         )
+
+    def filter_bidirectional_pair(self, queryset, name, value):
+        try:
+            ids = [int(v) for v in value.split(',')]
+            if len(ids) != 2:
+                return queryset.none()
+            id1, id2 = ids
+            return queryset.filter(
+                Q(interruption_location_a_id=id1, interruption_location=id2) |
+                Q(interruption_location_a_id=id2, interruption_location=id1)
+            ).distinct()
+        except (ValueError, TypeError):
+            return queryset.none()
+
+    def filter_single_site_a_id(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(interruption_location_a_id=value, interruption_location__isnull=True)
 
 class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
     class Meta:

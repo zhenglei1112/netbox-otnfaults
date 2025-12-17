@@ -691,7 +691,9 @@ document.addEventListener('DOMContentLoaded', function () {
             this.panel = null;
             this.faults = [];
             this.stats = { sites: [], paths: [] };
+            this.stats = { sites: [], paths: [] };
             this.expanded = false; // 初始状态：折叠
+            this.currentSitePopup = null; // 追踪当前的站点弹窗
         }
 
         onAdd(map) {
@@ -1028,6 +1030,12 @@ document.addEventListener('DOMContentLoaded', function () {
         flyToSite(siteId) {
             const site = this.siteMap[siteId];
             if (site) {
+                // 如果已有弹窗，先移除
+                if (this.currentSitePopup) {
+                    this.currentSitePopup.remove();
+                    this.currentSitePopup = null;
+                }
+
                 this.map.flyTo({
                     center: [site.longitude, site.latitude],
                     zoom: 12,
@@ -1035,16 +1043,133 @@ document.addEventListener('DOMContentLoaded', function () {
                     curve: 1.42,
                     essential: true // 强制动画
                 });
-                 new maplibregl.Popup({ closeOnClick: true })
+                
+                // --- 计算统计信息 ---
+                const timeRange = layerToggleControl.currentTimeRange;
+                const now = new Date();
+                let startDate;
+                let rangeText = "";
+
+                const timeRangeMap = {
+                    'one_week': '一周内',
+                    'month': '一个月内',
+                    'three_months': '三个月内', 
+                    'year': '一年内'
+                };
+                rangeText = timeRangeMap[timeRange] || '本年内'; // Default fallback
+
+                if (timeRange === 'month') {
+                    startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+                } else if (timeRange === 'three_months') {
+                    startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+                } else {
+                    startDate = new Date(now.getFullYear(), 0, 1);
+                }
+
+                const markers = markerData || [];
+                const selectedCategories = categoryFilterControl ? categoryFilterControl.selectedCategories : [];
+                
+                // 生成过滤上下文文本 (Sub-title)
+                const allCats = Object.keys(faultCategoryNames);
+                let catText = '';
+                if (selectedCategories.length === allCats.length) {
+                    catText = '全部故障';
+                } else {
+                    catText = selectedCategories.map(c => faultCategoryNames[c]).join('、');
+                }
+                const filterContextText = `${rangeText}，${catText}`;
+
+
+                const siteFaults = markers.filter(fault => {
+                    if (fault.a_site_id !== siteId) return false; // 仅计算作为 A 端站点的故障
+                    
+                    // 1. 故障定义一致性：仅统计单站点故障 (无 Z 端)，与 Top 5 列表保持一致
+                    if (fault.z_site_ids && fault.z_site_ids.length > 0) return false;
+
+                    // 2. 时间范围筛选
+                    if (!fault.occurrence_time) return false;
+                    const faultDate = new Date(fault.occurrence_time);
+                    if (faultDate < startDate) return false;
+
+                    // 3. 分类筛选一致性
+                    const category = fault.category || 'other';
+                    return selectedCategories.includes(category);
+                });
+
+                const count = siteFaults.length;
+                let totalDurationSeconds = 0;
+                let validDurationCount = 0;
+
+                siteFaults.forEach(f => {
+                    if (f.occurrence_time && f.recovery_time) {
+                         const start = new Date(f.occurrence_time);
+                         const end = new Date(f.recovery_time);
+                         if (end > start) {
+                             totalDurationSeconds += (end - start) / 1000;
+                             validDurationCount++;
+                         }
+                    }
+                });
+
+                const totalHours = (totalDurationSeconds / 3600);
+                const avgHours = count > 0 ? (totalHours / count) : 0;
+                
+                // 格式化数字 (保留2位小数)
+                const totalHoursStr = totalHours.toFixed(2);
+                const avgHoursStr = avgHours.toFixed(2);
+                
+                // --- 构建 HTML ---
+                const summaryHtml = `
+                    <div style="font-size:12px; color:#555; margin-bottom:8px;">
+                        发生故障 <b>${count}</b> 次，平均时长 <b>${avgHoursStr}</b> 小时，总计时长 <b>${totalHoursStr}</b> 小时
+                    </div>
+                `;
+                
+                const detailUrl = window.OTNFaultMapConfig.faultListUrl 
+                    ? `${window.OTNFaultMapConfig.faultListUrl}?single_site_a_id=${site.id}` 
+                    : '#';
+
+                const popupHtml = `
+                    <div style="width: 380px; max-width: none; font-family: sans-serif;">
+                         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; padding-bottom:4px; border-bottom:1px solid #eee;">
+                            <strong style="margin-right: 10px; font-size: 14px; word-break: break-word; line-height: 1.4;">${site.name}</strong>
+                             <a href="${detailUrl}" target="_blank" title="查看故障详情" style="color: var(--bs-primary); text-decoration: none; white-space: nowrap; flex-shrink: 0; font-size: 13px; margin-top: 2px;">
+                                <i class="mdi mdi-text-box-search-outline"></i> 详情
+                            </a>
+                        </div>
+                        <div style="font-size: 11px; color: #888; margin-bottom: 8px;">
+                            ${filterContextText}
+                        </div>
+                        ${count > 0 ? summaryHtml : '<div style="font-size:12px; color:#999;">无故障数据</div>'}
+                    </div>
+                `;
+
+                // 创建新弹窗并将引用存储
+                 this.currentSitePopup = new maplibregl.Popup({ 
+                     closeOnClick: true,
+                     maxWidth: '400px' // explicit max-width to allow wider content
+                 })
                     .setLngLat([site.longitude, site.latitude])
-                    .setHTML(`<strong>${site.name}</strong>`)
+                    .setHTML(popupHtml)
                     .addTo(this.map);
+                
+                // 监听弹窗关闭事件以清除引用
+                this.currentSitePopup.on('close', () => {
+                    this.currentSitePopup = null;
+                });
             }
         }
 
         flyToPath(pathItem) {
+            // 如果已有站点弹窗，先移除
+            if (this.currentSitePopup) {
+                this.currentSitePopup.remove();
+                this.currentSitePopup = null;
+            }
+
+            // 1. 高亮与飞行动画
+            let centerLngLat = null;
             if (pathItem.geometry) {
-                // 高亮路径
                 const highlightSource = this.map.getSource('otn-paths-highlight');
                 if (highlightSource) {
                     highlightSource.setData({
@@ -1059,12 +1184,136 @@ document.addEventListener('DOMContentLoaded', function () {
                     pathItem.geometry.coordinates.forEach(c => bounds.extend(c));
                 }
                 if (!bounds.isEmpty()) {
+                    centerLngLat = bounds.getCenter();
                     this.map.fitBounds(bounds, { 
                         padding: 100,
                         duration: 1500, // 动画持续时间（毫秒）
                         essential: true
                     });
                 }
+            }
+
+            // 2. 计算统计信息
+            // 获取完整元数据以拿到 A/Z 端口
+            const allPaths = window.OTNPathsMetadata || [];
+            const pathMeta = allPaths.find(p => p.properties.id === pathItem.id);
+            
+            if (pathMeta && centerLngLat) {
+                const pSiteA = pathMeta.properties.site_a_id;
+                const pSiteZ = pathMeta.properties.site_z_id;
+
+                const timeRange = layerToggleControl.currentTimeRange;
+                const now = new Date();
+                let startDate;
+                let rangeText = "";
+
+                const timeRangeMap = {
+                    'one_week': '一周内',
+                    'month': '一个月内',
+                    'three_months': '三个月内', 
+                    'year': '一年内'
+                };
+                rangeText = timeRangeMap[timeRange] || '本年内';
+
+                if (timeRange === 'month') {
+                    startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+                } else if (timeRange === 'three_months') {
+                    startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+                } else {
+                    startDate = new Date(now.getFullYear(), 0, 1);
+                }
+
+                const markers = markerData || [];
+                const selectedCategories = categoryFilterControl ? categoryFilterControl.selectedCategories : [];
+
+                // 生成过滤上下文文本
+                const allCats = Object.keys(faultCategoryNames);
+                let catText = '';
+                if (selectedCategories.length === allCats.length) {
+                    catText = '全部故障';
+                } else {
+                    catText = selectedCategories.map(c => faultCategoryNames[c]).join('、');
+                }
+                const filterContextText = `${rangeText}，${catText}`;
+
+                const pathFaults = markers.filter(fault => {
+                    // 1. 分类筛选
+                    const category = fault.category || 'other';
+                    if (!selectedCategories.includes(category)) return false;
+
+                    // 2. 时间筛选
+                    if (!fault.occurrence_time) return false;
+                    const faultDate = new Date(fault.occurrence_time);
+                    if (faultDate < startDate) return false;
+
+                    // 3. 路径匹配 (双向)
+                    const fA = fault.a_site_id;
+                    const fZs = fault.z_site_ids || [];
+                    
+                    // 正向: 故障A = 路径A 且 故障Z包含 路径Z
+                    const forward = (fA === pSiteA && fZs.includes(pSiteZ));
+                    // 反向: 故障A = 路径Z 且 故障Z包含 路径A
+                    const reverse = (fA === pSiteZ && fZs.includes(pSiteA));
+
+                    return forward || reverse;
+                });
+
+                const count = pathFaults.length;
+                let totalDurationSeconds = 0;
+                pathFaults.forEach(f => {
+                    if (f.occurrence_time && f.recovery_time) {
+                         const start = new Date(f.occurrence_time);
+                         const end = new Date(f.recovery_time);
+                         if (end > start) {
+                             totalDurationSeconds += (end - start) / 1000;
+                         }
+                    }
+                });
+
+                const totalHours = (totalDurationSeconds / 3600);
+                const avgHours = count > 0 ? (totalHours / count) : 0;
+                
+                const totalHoursStr = totalHours.toFixed(2);
+                const avgHoursStr = avgHours.toFixed(2);
+
+                const summaryHtml = `
+                    <div style="font-size:12px; color:#555; margin-bottom:8px;">
+                        发生故障 <b>${count}</b> 次，平均时长 <b>${avgHoursStr}</b> 小时，总计时长 <b>${totalHoursStr}</b> 小时
+                    </div>
+                `;
+
+                // 详情链接 (使用双向筛选)
+                let detailUrl = '#';
+                if (window.OTNFaultMapConfig.faultListUrl) {
+                    detailUrl = `${window.OTNFaultMapConfig.faultListUrl}?bidirectional_pair=${pSiteA},${pSiteZ}`;
+                }
+
+                const popupHtml = `
+                    <div style="width: 380px; max-width: none; font-family: sans-serif;">
+                         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; padding-bottom:4px; border-bottom:1px solid #eee;">
+                            <strong style="margin-right: 10px; font-size: 14px; word-break: break-word; line-height: 1.4;">${pathItem.name}</strong>
+                             <a href="${detailUrl}" target="_blank" title="查看故障详情" style="color: var(--bs-primary); text-decoration: none; white-space: nowrap; flex-shrink: 0; font-size: 13px; margin-top: 2px;">
+                                <i class="mdi mdi-text-box-search-outline"></i> 详情
+                            </a>
+                        </div>
+                        <div style="font-size: 11px; color: #888; margin-bottom: 8px;">
+                            ${filterContextText}
+                        </div>
+                        ${count > 0 ? summaryHtml : '<div style="font-size:12px; color:#999;">无故障数据</div>'}
+                    </div>
+                `;
+
+                this.currentSitePopup = new maplibregl.Popup({ 
+                    closeOnClick: true,
+                    maxWidth: '400px'
+                })
+                    .setLngLat(centerLngLat)
+                    .setHTML(popupHtml)
+                    .addTo(this.map);
+                
+                this.currentSitePopup.on('close', () => {
+                    this.currentSitePopup = null;
+                });
             }
         }
     }
