@@ -32,8 +32,8 @@ class NetBoxMapBase {
             container: containerId,
             style: 'https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=' + apiKey,
             center: center,
-            zoom: zoom,
-            projection: 'globe'  // 使用地球模式
+            zoom: zoom
+            // 注意: globe 投影需要在样式加载后通过 setProjection 设置
         });
 
         return this.map;

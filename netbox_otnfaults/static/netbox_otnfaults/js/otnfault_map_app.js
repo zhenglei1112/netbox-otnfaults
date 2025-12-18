@@ -109,6 +109,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // 3. 地图加载逻辑：添加图层和源
     map.on('load', () => {
         
+        // 设置 globe 投影（需要在样式加载后设置）
+        map.setProjection({ type: 'globe' });
+        console.log('已设置 globe 投影模式');
+        
         // --- 热力图图层 ---
         mapBase.addGeoJsonSource('fault-heatmap', heatmapData);
 
@@ -218,15 +222,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 type: 'Feature',
                 properties: {
                     id: m.id || Math.random().toString(36).substr(2, 9),
+                    number: m.number || '未知编号',
                     title: m.details || m.number || '未命名故障',
                     site: m.a_site || '未指定',
+                    zSites: m.z_sites || '',
                     status: m.status || '',
+                    statusColor: m.status_color || 'secondary',
                     category: category,
                     categoryName: FAULT_CATEGORY_NAMES[category] || category,
                     date: dateStr,
                     isoDate: isoDateStr,
+                    recoveryTime: m.recovery_time || '未恢复',
+                    faultDuration: m.fault_duration || '未知',
+                    reason: m.reason || '-',
                     url: m.url || '#',
                     color: color,
+                    hasImages: m.has_images || false,
+                    imageCount: m.image_count || 0,
+                    images: JSON.stringify(m.images || []),
                     // 原始数据备份，用于统计等
                     raw: m
                 },
@@ -401,14 +414,84 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 // 创建或更新弹出窗口
                 const props = feature.properties;
+                
+                // 提取历时中的小时数（格式：xxx.xx小时）
+                let durationHtml = '';
+                if (props.faultDuration && props.faultDuration !== '未知') {
+                    // 从 "x天x小时x分x秒（xx.xx小时）" 格式中提取小时数
+                    const hourMatch = props.faultDuration.match(/（([\d.]+)小时）/);
+                    const hours = hourMatch ? hourMatch[1] : props.faultDuration;
+                    durationHtml = `<div class="popup-row"><span class="popup-label">历时</span><span>${hours}小时</span></div>`;
+                }
+                
+                // Z端站点（仅在非空时显示）
+                const zSitesHtml = props.zSites && props.zSites !== '未指定' ? 
+                    `<div class="popup-row"><span class="popup-label">Z端</span><span>${props.zSites}</span></div>` : '';
+                
+                // 图片（若有）
+                let imagesHtml = '';
+                if (props.hasImages) {
+                    try {
+                        const images = typeof props.images === 'string' ? JSON.parse(props.images) : props.images;
+                        if (images && images.length > 0) {
+                            const thumbnails = images.slice(0, 3).map(img => 
+                                `<a href="${img.url}" target="_blank" title="${img.name}"><img src="${img.url}" style="width:40px;height:40px;object-fit:cover;border-radius:3px;" alt="${img.name}"></a>`
+                            ).join('');
+                            const moreText = images.length > 3 ? `<span class="text-muted small">+${images.length - 3}</span>` : '';
+                            imagesHtml = `<div class="popup-row" style="align-items:flex-start;"><span class="popup-label">图片</span><div class="d-flex gap-1 flex-wrap">${thumbnails}${moreText}</div></div>`;
+                        }
+                    } catch (e) {
+                        console.warn('解析图片数据失败:', e);
+                    }
+                }
+                
+                // NetBox 颜色映射：将后端传递的颜色名转换为 Bootstrap 类名
+                // 故障类型颜色：power=orange, fiber=red, pigtail=blue, device=green, other=gray
+                // 故障状态颜色：processing=orange, temporary_recovery=blue, suspended=yellow, closed=green
+                const categoryColorMap = {
+                    'power': '#f5a623',    // orange
+                    'fiber': '#dc3545',    // red
+                    'pigtail': '#0d6efd',  // blue
+                    'device': '#198754',   // green
+                    'other': '#6c757d'     // gray
+                };
+                const statusColorMap = {
+                    'orange': '#f5a623',
+                    'blue': '#0d6efd',
+                    'yellow': '#ffc107',
+                    'green': '#198754',
+                    'gray': '#6c757d',
+                    'red': '#dc3545',
+                    'secondary': '#6c757d'
+                };
+                
+                const categoryBgColor = categoryColorMap[props.category] || '#6c757d';
+                const statusBgColor = statusColorMap[props.statusColor] || '#6c757d';
+                
                 const popupContent = `
+                    <style>
+                        .fault-popup { font-size: 13px; line-height: 1.5; }
+                        .fault-popup .popup-sites { font-weight: 600; color: #212529; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid #dee2e6; }
+                        .fault-popup .popup-badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; color: #fff !important; }
+                        .fault-popup .popup-badges { display: flex; gap: 6px; margin-bottom: 8px; }
+                        .fault-popup .popup-row { display: flex; margin-bottom: 4px; }
+                        .fault-popup .popup-label { color: #6c757d; min-width: 52px; flex-shrink: 0; }
+                        .fault-popup .popup-row span:last-child { color: #212529; }
+                        .fault-popup .popup-footer { padding-top: 6px; margin-top: 6px; border-top: 1px solid #dee2e6; }
+                        .fault-popup .popup-footer a { font-weight: 600; color: var(--bs-link-color, #0097a7); text-decoration: none; transition: color 0.15s ease-in-out; }
+                        .fault-popup .popup-footer a:hover { color: var(--bs-link-hover-color, #007c8a); text-decoration: underline; }
+                    </style>
                     <div class="fault-popup">
-                        <h6 class="mb-2 border-bottom pb-1">${props.title}</h6>
-                        <div class="mb-1"><b>站点:</b> ${props.site}</div>
-                        <div class="mb-1"><b>状态:</b> <span class="badge bg-secondary">${props.status}</span></div>
-                        <div class="mb-1"><b>分类:</b> ${props.categoryName}</div>
-                        <div class="mb-2"><b>时间:</b> ${props.date}</div>
-                        <a href="${props.url}" target="_blank" class="btn btn-xs btn-outline-primary w-100">查看详情</a>
+                        <div class="popup-sites">${props.site}${props.zSites && props.zSites !== '未指定' ? ' —— ' + props.zSites : ''}</div>
+                        <div class="popup-badges"><span class="popup-badge" style="background-color: ${categoryBgColor};">${props.categoryName}</span><span class="popup-badge" style="background-color: ${statusBgColor};">${props.status}</span></div>
+                        <div class="popup-row"><span class="popup-label">中断</span><span>${props.date}</span></div>
+                        <div class="popup-row"><span class="popup-label">恢复</span><span>${props.recoveryTime}</span></div>
+                        ${durationHtml}
+                        <div class="popup-row"><span class="popup-label">原因</span><span>${props.reason}</span></div>
+                        ${imagesHtml}
+                        <div class="popup-footer">
+                            <a href="${props.url}" target="_blank">${props.number}</a>
+                        </div>
                     </div>
                 `;
                 
