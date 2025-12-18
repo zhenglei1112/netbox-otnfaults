@@ -92,10 +92,9 @@ document.addEventListener('DOMContentLoaded', function () {
     window.layerToggleControl = layerToggleControl; // 全局引用
     // 注意：位置稍后添加以确保层级
     
-    // 分类筛选控件
-    const categoryFilterControl = new CategoryFilterControl();
-    window.categoryFilterControl = categoryFilterControl;
-    mapBase.addControl(categoryFilterControl, 'top-right');
+    // 分类筛选已整合到 LayerToggleControl 中
+    // 设置别名以保持兼容性
+    window.categoryFilterControl = layerToggleControl;
 
     // 故障统计面板
     const faultStatisticsControl = new FaultStatisticsControl();
@@ -804,15 +803,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log(`Debug Data Range: Min=${minDate.toISOString()}, Max=${maxDate.toISOString()}`);
             }
         }
-        const categoryControl = window.categoryFilterControl;
+        // 故障类型筛选已整合到 layerToggleControl 中
         const statsControl = window.faultStatisticsControl;
         
-        if (!layerControl || !categoryControl) return;
+        if (!layerControl) return;
         
         // 使用有效模式（智能模式会根据时间范围和缩放级别自动选择）
         const mode = layerControl.getEffectiveMode ? layerControl.getEffectiveMode() : layerControl.currentMode; // 'points' | 'heatmap'
         const timeRange = layerControl.currentTimeRange;
-        const selectedCategories = categoryControl.getSelectedCategories();
+        const selectedCategories = layerControl.getSelectedCategories ? layerControl.getSelectedCategories() : [];
         
         // --- 1. 计算时间过滤条件 (Days) ---
         let maxDays = 3650; // 默认很大

@@ -2,8 +2,9 @@
  * 视图控制控件 (ViewControl)
  * 统一管理：
  * 1. 视图模式：智能 (Smart) / 故障点 (Points) / 热力图 (Heatmap)
- * 2. 时间范围：1周, 2周, 1月, 3月, 1年
- * 3. 基础图层开关
+ * 2. 时间范围：1周, 2周, 1月, 3月, 1年（滑动条）
+ * 3. 故障类型筛选：光缆、电力、空调、设备、其他
+ * 4. 基础图层开关
  */
 class LayerToggleControl {
     constructor(options) {
@@ -11,8 +12,20 @@ class LayerToggleControl {
         
         // 默认状态
         this.currentMode = 'smart'; // 'smart' | 'points' | 'heatmap'
-        this.currentTimeRange = '1week'; // Default to 1 week as requested
+        this.currentTimeRange = '1week'; // Default to 1 week
         this.arcgisVisible = true; // 网络拓扑可见性
+        
+        // 故障类型筛选（整合自 CategoryFilterControl）
+        this.selectedCategories = ['power', 'fiber', 'pigtail', 'device', 'other'];
+        
+        // 时间范围选项（用于滑动条）
+        this.timeRangeOptions = [
+            { label: '1周', value: '1week' },
+            { label: '2周', value: '2weeks' },
+            { label: '1月', value: '1month' },
+            { label: '3月', value: '3months' },
+            { label: '1年', value: '1year' }
+        ];
     }
 
     onAdd(map) {
@@ -74,7 +87,6 @@ class LayerToggleControl {
         menu.className = 'heatmap-time-range-menu view-control-menu'; 
         
         // Ensure menu is appended to container so mouseleave works for both button and menu
-        // But maplibregl controls often overflow, so we must be careful with Z-index
         this.container.appendChild(menu);
         this.menu = menu;
 
@@ -99,15 +111,13 @@ class LayerToggleControl {
                     c.classList.remove('active');
                     c.style.borderColor = '#dee2e6';
                     c.style.backgroundColor = '#fff';
-                    // 重置标题颜色
                     const label = c.querySelector('.mode-card-label');
                     if (label) label.style.color = '#212529';
                 });
                 // 高亮选中的卡片
                 card.classList.add('active');
-                card.style.borderColor = '#0d6efd';  // 直接使用颜色值
+                card.style.borderColor = '#0d6efd';
                 card.style.backgroundColor = 'rgba(13, 110, 253, 0.08)';
-                // 更新标题颜色
                 const selectedLabel = card.querySelector('.mode-card-label');
                 if (selectedLabel) selectedLabel.style.color = '#0d6efd';
                 this.setMode(mode.value);
@@ -119,23 +129,19 @@ class LayerToggleControl {
 
         this.addDivider(menu);
 
-        // 2. 时间范围选择
+        // 2. 时间范围选择（滑动条）
         this.addHeader(menu, '时间范围');
-        const timeOptions = [
-            { label: '最近1周', value: '1week' },
-            { label: '最近2周', value: '2weeks' },
-            { label: '最近1月', value: '1month' },
-            { label: '最近3月', value: '3months' },
-            { label: '最近1年', value: '1year' }
-        ];
-
-        timeOptions.forEach(opt => {
-            this.createMenuOption(menu, 'time-range', opt.value, opt.label, this.currentTimeRange === opt.value, (val) => this.setTimeRange(val));
-        });
+        this.createTimeSlider(menu);
 
         this.addDivider(menu);
 
-        // 3. 其他图层
+        // 3. 故障类型筛选（整合自 CategoryFilterControl）
+        this.addHeader(menu, '故障类型');
+        this.createCategoryFilter(menu);
+
+        this.addDivider(menu);
+
+        // 4. 其他图层
         this.addHeader(menu, '其他图层');
         this.createCheckbox(menu, '显示网络拓扑', this.arcgisVisible, (checked) => {
             this.arcgisVisible = checked;
@@ -147,14 +153,10 @@ class LayerToggleControl {
         menu.style.left = '0';
         
         // Prevent menu click from propagating to map
-        // And prevent it from triggering container mouseleave prematurely if gaps exist (though structure avoids this)
         menu.onmouseenter = () => {
              if (this.hideTimer) clearTimeout(this.hideTimer);
         };
     }
-
-    // Deprecated exact method, keeping signature or logic if needed by previous calls
-    // But createMenu is now internal logic called by showMenu
     
     /* --- UI Helpers --- */
     addHeader(container, text) {
@@ -176,18 +178,12 @@ class LayerToggleControl {
 
     /**
      * 创建模式选择卡片
-     * @param {string} value - 模式值
-     * @param {string} label - 模式标签
-     * @param {string} desc - 模式描述
-     * @param {boolean} active - 是否选中
-     * @returns {HTMLElement} 卡片元素
      */
     createModeCard(value, label, desc, active) {
         const card = document.createElement('div');
         card.className = 'mode-card' + (active ? ' active' : '');
         card.dataset.mode = value;
         
-        // 卡片样式 - 使用直接颜色值确保正确显示
         const activeBorderColor = '#0d6efd';
         const activeBgColor = 'rgba(13, 110, 253, 0.08)';
         const inactiveBorderColor = '#dee2e6';
@@ -206,7 +202,6 @@ class LayerToggleControl {
             transition: all 0.15s ease-in-out;
         `;
         
-        // 标题 - 添加类名便于后续查询和更新
         const labelEl = document.createElement('div');
         labelEl.className = 'mode-card-label';
         labelEl.style.cssText = `
@@ -217,7 +212,6 @@ class LayerToggleControl {
         `;
         labelEl.innerText = label;
         
-        // 描述
         const descEl = document.createElement('div');
         descEl.className = 'mode-card-desc';
         descEl.style.cssText = `
@@ -229,7 +223,6 @@ class LayerToggleControl {
         card.appendChild(labelEl);
         card.appendChild(descEl);
         
-        // 悬停效果
         card.onmouseenter = () => {
             if (!card.classList.contains('active')) {
                 card.style.borderColor = '#86b7fe';
@@ -246,51 +239,200 @@ class LayerToggleControl {
         return card;
     }
 
-    createRadioButton(container, groupName, value, label, checked, onChange) {
+    /**
+     * 创建时间范围滑动条
+     */
+    createTimeSlider(container) {
         const wrapper = document.createElement('div');
-        wrapper.className = 'form-check'; // Bootstrap style
+        wrapper.style.cssText = 'padding: 8px 16px 16px 16px;';
         
-        const input = document.createElement('input');
-        input.type = 'radio';
-        input.className = 'form-check-input';
-        input.name = groupName;
-        input.value = value;
-        input.id = `${groupName}-${value}`;
-        input.checked = checked;
+        // 滑动条容器
+        const sliderContainer = document.createElement('div');
+        sliderContainer.style.cssText = 'position: relative;';
         
-        const lbl = document.createElement('label');
-        lbl.className = 'form-check-label';
-        lbl.htmlFor = input.id;
-        lbl.innerText = label;
-        lbl.style.cursor = 'pointer';
-
-        wrapper.appendChild(input);
-        wrapper.appendChild(lbl);
-        
-        input.onchange = () => onChange(value);
-        
-        container.appendChild(wrapper);
-    }
-
-    createMenuOption(container, groupName, value, label, checked, onChange) {
-        const item = document.createElement('div');
-        item.className = 'dropdown-item d-flex align-items-center gap-2';
-        item.style.cursor = 'pointer';
-        
-        item.innerHTML = `
-            <input type="radio" name="${groupName}" value="${value}" ${checked ? 'checked' : ''} style="pointer-events: none;">
-            <span>${label}</span>
+        // 范围输入
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '0';
+        slider.max = String(this.timeRangeOptions.length - 1);
+        slider.value = String(this.timeRangeOptions.findIndex(opt => opt.value === this.currentTimeRange));
+        slider.className = 'time-range-slider';
+        slider.style.cssText = `
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, var(--bs-link-color, #0d6efd) 0%, var(--bs-link-color, #0d6efd) ${(parseInt(slider.value) / (this.timeRangeOptions.length - 1)) * 100}%, #dee2e6 ${(parseInt(slider.value) / (this.timeRangeOptions.length - 1)) * 100}%, #dee2e6 100%);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
         `;
         
-        item.onclick = (e) => {
-            e.stopPropagation();
-            // Update UI
-            container.querySelectorAll(`input[name="${groupName}"]`).forEach(el => el.checked = false);
-            item.querySelector('input').checked = true;
-            onChange(value);
+        // 刻度标签容器
+        const ticksContainer = document.createElement('div');
+        ticksContainer.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            font-size: 10px;
+            color: var(--bs-secondary-color);
+        `;
+        
+        this.timeRangeOptions.forEach((opt, index) => {
+            const tick = document.createElement('span');
+            tick.innerText = opt.label;
+            tick.style.cssText = `
+                flex: 1;
+                text-align: center;
+                cursor: pointer;
+                transition: color 0.15s;
+            `;
+            // 高亮当前选中
+            if (opt.value === this.currentTimeRange) {
+                tick.style.color = 'var(--bs-link-color, #0d6efd)';
+                tick.style.fontWeight = '600';
+            }
+            tick.onclick = (e) => {
+                e.stopPropagation();
+                slider.value = String(index);
+                this.handleSliderChange(slider, ticksContainer);
+            };
+            ticksContainer.appendChild(tick);
+        });
+        
+        // 滑动条变化事件
+        slider.oninput = () => {
+            this.handleSliderChange(slider, ticksContainer);
         };
         
-        container.appendChild(item);
+        sliderContainer.appendChild(slider);
+        wrapper.appendChild(sliderContainer);
+        wrapper.appendChild(ticksContainer);
+        container.appendChild(wrapper);
+        
+        // 保存引用以便更新
+        this.timeSlider = slider;
+        this.ticksContainer = ticksContainer;
+    }
+    
+    /**
+     * 处理滑动条变化
+     */
+    handleSliderChange(slider, ticksContainer) {
+        const index = parseInt(slider.value);
+        const selectedOption = this.timeRangeOptions[index];
+        
+        // 更新滑动条背景渐变
+        const percent = (index / (this.timeRangeOptions.length - 1)) * 100;
+        slider.style.background = `linear-gradient(to right, var(--bs-link-color, #0d6efd) 0%, var(--bs-link-color, #0d6efd) ${percent}%, #dee2e6 ${percent}%, #dee2e6 100%)`;
+        
+        // 更新刻度标签高亮
+        const ticks = ticksContainer.querySelectorAll('span');
+        ticks.forEach((tick, i) => {
+            if (i === index) {
+                tick.style.color = 'var(--bs-link-color, #0d6efd)';
+                tick.style.fontWeight = '600';
+            } else {
+                tick.style.color = 'var(--bs-secondary-color)';
+                tick.style.fontWeight = 'normal';
+            }
+        });
+        
+        // 设置时间范围
+        this.setTimeRange(selectedOption.value);
+    }
+
+    /**
+     * 创建故障类型筛选区域
+     */
+    createCategoryFilter(container) {
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'padding: 4px 12px 8px 12px;';
+        
+        // 全选复选框
+        const allItem = document.createElement('label');
+        allItem.className = 'd-flex align-items-center gap-2 mb-2';
+        allItem.style.cssText = 'cursor: pointer; font-size: 12px;';
+        
+        const allCheckbox = document.createElement('input');
+        allCheckbox.type = 'checkbox';
+        allCheckbox.checked = this.selectedCategories.length === 5;
+        allCheckbox.className = 'form-check-input mt-0';
+        allCheckbox.id = 'layer-cat-all';
+        
+        const allLabel = document.createElement('span');
+        allLabel.innerText = '全选';
+        allLabel.style.fontWeight = '500';
+        
+        allItem.appendChild(allCheckbox);
+        allItem.appendChild(allLabel);
+        
+        allItem.onclick = (e) => {
+            e.stopPropagation();
+            if (e.target !== allCheckbox) allCheckbox.checked = !allCheckbox.checked;
+            this.toggleAllCategories(allCheckbox.checked);
+        };
+        
+        wrapper.appendChild(allItem);
+        
+        // 分类网格（2列布局）
+        const grid = document.createElement('div');
+        grid.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px;';
+        
+        const categories = [
+            { key: 'fiber', name: '光缆', color: FAULT_CATEGORY_COLORS.fiber },
+            { key: 'power', name: '电力', color: FAULT_CATEGORY_COLORS.power },
+            { key: 'pigtail', name: '空调', color: FAULT_CATEGORY_COLORS.pigtail },
+            { key: 'device', name: '设备', color: FAULT_CATEGORY_COLORS.device },
+            { key: 'other', name: '其他', color: FAULT_CATEGORY_COLORS.other }
+        ];
+        
+        categories.forEach(cat => {
+            const item = document.createElement('label');
+            item.className = 'd-flex align-items-center gap-2';
+            item.style.cssText = 'cursor: pointer; font-size: 12px;';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = this.selectedCategories.includes(cat.key);
+            checkbox.className = 'form-check-input mt-0';
+            checkbox.dataset.category = cat.key;
+            
+            const colorDot = document.createElement('span');
+            colorDot.style.cssText = `
+                width: 10px;
+                height: 10px;
+                background-color: ${cat.color};
+                border-radius: 50%;
+                display: inline-block;
+            `;
+            
+            const label = document.createElement('span');
+            label.innerText = cat.name;
+            
+            item.appendChild(checkbox);
+            item.appendChild(colorDot);
+            item.appendChild(label);
+            
+            item.onclick = (e) => {
+                e.stopPropagation();
+                if (e.target !== checkbox) checkbox.checked = !checkbox.checked;
+                this.toggleCategory(cat.key, checkbox.checked);
+                
+                // 更新全选状态
+                const allChecked = this.selectedCategories.length === 5;
+                allCheckbox.checked = allChecked;
+            };
+            
+            grid.appendChild(item);
+        });
+        
+        wrapper.appendChild(grid);
+        container.appendChild(wrapper);
+        
+        // 保存引用
+        this.categoryWrapper = wrapper;
+        this.allCategoryCheckbox = allCheckbox;
     }
 
     createCheckbox(container, label, checked, onChange) {
@@ -337,6 +479,47 @@ class LayerToggleControl {
         this.triggerGlobalUpdate();
     }
 
+    /**
+     * 切换单个故障类型
+     */
+    toggleCategory(cat, checked) {
+        if (checked) {
+            if (!this.selectedCategories.includes(cat)) {
+                this.selectedCategories.push(cat);
+            }
+        } else {
+            this.selectedCategories = this.selectedCategories.filter(c => c !== cat);
+        }
+        console.log('Category toggled:', cat, checked, 'Selected:', this.selectedCategories);
+        this.triggerGlobalUpdate();
+    }
+
+    /**
+     * 全选/反选故障类型
+     */
+    toggleAllCategories(checked) {
+        // 更新所有复选框
+        if (this.categoryWrapper) {
+            const checkboxes = this.categoryWrapper.querySelectorAll('input[data-category]');
+            checkboxes.forEach(cb => cb.checked = checked);
+        }
+        
+        if (checked) {
+            this.selectedCategories = ['power', 'fiber', 'pigtail', 'device', 'other'];
+        } else {
+            this.selectedCategories = [];
+        }
+        console.log('All categories toggled:', checked, 'Selected:', this.selectedCategories);
+        this.triggerGlobalUpdate();
+    }
+
+    /**
+     * 获取选中的故障类型列表
+     */
+    getSelectedCategories() {
+        return this.selectedCategories;
+    }
+
     triggerGlobalUpdate() {
         // 触发全局更新逻辑 (在 otnfault_map_app.js 中定义)
         if (window.updateMapState) {
@@ -348,28 +531,19 @@ class LayerToggleControl {
     
     /**
      * 获取当前有效的显示模式
-     * 在智能模式下，根据时间范围和缩放级别自动选择：
-     * - 时间范围为一周或两周时：显示故障点
-     * - 其他时间范围：显示热力图
-     * - 地图缩放级别 > 7 时：显示故障点
-     * @returns {string} 'points' | 'heatmap'
+     * 在智能模式下，根据时间范围和缩放级别自动选择
      */
     getEffectiveMode() {
-        // 非智能模式直接返回当前模式
         if (this.currentMode !== 'smart') {
             return this.currentMode;
         }
         
-        // 智能模式逻辑
         const zoom = this.map ? this.map.getZoom() : 0;
         
-        // 条件 1: 缩放级别 > 7 时显示故障点
         if (zoom > 7) {
             return 'points';
         }
         
-        // 条件 2: 根据时间范围决定
-        // 一周或两周 -> 故障点, 其他 -> 热力图
         if (this.currentTimeRange === '1week' || this.currentTimeRange === '2weeks') {
             return 'points';
         }

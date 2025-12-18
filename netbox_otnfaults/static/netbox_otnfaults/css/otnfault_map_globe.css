@@ -167,10 +167,18 @@
 }
 
 /* Popup Tips */
-.maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--bs-body-bg, #ffffff) !important; }
-.maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--bs-body-bg, #ffffff) !important; }
-.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--bs-body-bg, #ffffff) !important; }
-.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--bs-body-bg, #ffffff) !important; }
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: var(--bs-body-bg, #ffffff) !important;
+}
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: var(--bs-body-bg, #ffffff) !important;
+}
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--bs-body-bg, #ffffff) !important;
+}
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--bs-body-bg, #ffffff) !important;
+}
 
 /* Links in Popups */
 .maplibregl-popup-content a {
@@ -201,4 +209,63 @@
 .clickable-stat-row:hover {
   background-color: var(--bs-tertiary-bg);
   border-radius: 4px;
+}
+
+/* --- Time Range Slider --- */
+.time-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Slider Track - WebKit */
+.time-range-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+}
+
+/* Slider Thumb - WebKit */
+.time-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bs-link-color, #0d6efd);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  margin-top: -5px;
+  transition: transform 0.15s ease;
+}
+
+.time-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+/* Slider Thumb - Firefox */
+.time-range-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bs-link-color, #0d6efd);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.time-range-slider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+}
+
+/* Slider Track - Firefox */
+.time-range-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: #dee2e6;
 }

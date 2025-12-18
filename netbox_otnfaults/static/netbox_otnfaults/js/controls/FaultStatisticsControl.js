@@ -4,7 +4,7 @@
 class FaultStatisticsControl {
     constructor() {
         this.container = null;
-        this.minimized = false; // 初始状态为展开
+        this.minimized = true; // 初始状态为收起
         this.currentPopup = null;
     }
 
@@ -30,11 +30,11 @@ class FaultStatisticsControl {
         const headerIcon = this.container.querySelector('.toggle-icon');
         
         if (this.minimized) {
-            contentDiv.style.display = 'none';
-            headerIcon.className = 'mdi mdi-chevron-up toggle-icon';
+            if (contentDiv) contentDiv.style.display = 'none';
+            if (headerIcon) headerIcon.className = 'mdi mdi-chevron-up toggle-icon';
         } else {
-            contentDiv.style.display = 'block';
-            headerIcon.className = 'mdi mdi-chevron-down toggle-icon';
+            if (contentDiv) contentDiv.style.display = 'block';
+            if (headerIcon) headerIcon.className = 'mdi mdi-chevron-down toggle-icon';
         }
     }
 
@@ -232,29 +232,26 @@ class FaultStatisticsControl {
             }
         }
 
+        // 初始图标根据 minimized 状态设置
+        const toggleIconClass = this.minimized ? 'mdi mdi-chevron-up toggle-icon' : 'mdi mdi-chevron-down toggle-icon';
+        const contentDisplay = this.minimized ? 'none' : 'block';
+        
         this.container.innerHTML = `
             <div class="card shadow-sm" style="width: 240px; opacity: 0.95;">
                 <div class="card-header py-2 d-flex justify-content-between align-items-center bg-body-tertiary" 
                      style="cursor: pointer;" onclick="this.closest('.fault-statistics')._control.toggleMinimize(event)">
                     <span class="fw-bold mb-0" style="font-size: 14px;">故障统计</span>
-                    <i class="mdi mdi-chevron-down toggle-icon"></i>
+                    <i class="${toggleIconClass}"></i>
                 </div>
                 <div class="card-header py-1 bg-body text-body-secondary" style="font-size: 11px; border-top: 1px solid var(--bs-border-color);">
                      <span>筛选: ${timeRangeText} · ${categoryText}</span>
                 </div>
-                <div class="card-body p-2 stats-content" style="font-size: 13px;">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                         <div class="d-flex align-items-center">
-                            <span class="me-2">总故障数:</span>
-                            <span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${stats.total}</span>
-                        </div>
-                        <div class="border-end mx-2" style="height: 14px;"></div>
-                        <div class="d-flex align-items-center">
-                            <span class="me-2">平均时长:</span>
-                            <span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${stats.avgDuration}小时</span>
-                        </div>
-                    </div>
-                    
+                <div class="stats-summary px-2 py-2 bg-body" style="font-size: 12px; border-top: 1px solid var(--bs-border-color);">
+                    <span>故障数: </span><span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${stats.total}</span>
+                    <span class="mx-2 text-body-secondary">|</span>
+                    <span>平均: </span><span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${stats.avgDuration}小时</span>
+                </div>
+                <div class="card-body p-2 stats-content" style="font-size: 13px; display: ${contentDisplay}; border-top: 1px solid var(--bs-border-color);">
                     ${this.createSection('Top 5 故障站点', stats.topSites, 'site')}
                     ${this.createSection('Top 5 故障路径', stats.topPaths, 'path')}
                 </div>
