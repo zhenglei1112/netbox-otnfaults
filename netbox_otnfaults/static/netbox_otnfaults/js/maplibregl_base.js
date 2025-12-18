@@ -23,7 +23,7 @@ class NetBoxMapBase {
      * @param {Array} center - 中心点 [经度, 纬度]
      * @param {number} zoom - 缩放级别
      */
-    init(containerId, apiKey, center = [105.0, 35.0], zoom = 4) {
+    init(containerId, apiKey, center = [112.53, 33.00], zoom = 4.2) {
         if (typeof maplibregl === 'undefined') {
             throw new Error('MapLibre GL 库未加载。');
         }
@@ -32,7 +32,8 @@ class NetBoxMapBase {
             container: containerId,
             style: 'https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=' + apiKey,
             center: center,
-            zoom: zoom
+            zoom: zoom,
+            projection: 'globe'  // 使用地球模式
         });
 
         return this.map;
@@ -57,8 +58,8 @@ class NetBoxMapBase {
         class HomeControl {
             constructor(options) {
                 this.options = options || {};
-                this.initialCenter = [105.0, 35.0];
-                this.initialZoom = 4;
+                this.initialCenter = [112.53, 33.00]; // 南阳市中心
+                this.initialZoom = 4.2;
             }
 
             onAdd(map) {

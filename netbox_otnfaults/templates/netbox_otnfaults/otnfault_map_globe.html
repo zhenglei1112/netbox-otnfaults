@@ -45,6 +45,18 @@
       faultListUrl: "{% url 'plugins:netbox_otnfaults:otnfault_list' %}"
   };
 </script>
+
+<!-- Base -->
 <script src="{% static 'netbox_otnfaults/js/maplibregl_base.js' %}"></script>
-<script src="{% static 'netbox_otnfaults/js/otnfault_map_app.js' %}?v=8"></script>
+
+<!-- Utils -->
+<script src="{% static 'netbox_otnfaults/js/utils/api.js' %}"></script>
+
+<!-- Controls -->
+<script src="{% static 'netbox_otnfaults/js/controls/LayerToggleControl.js' %}"></script>
+<script src="{% static 'netbox_otnfaults/js/controls/CategoryFilterControl.js' %}"></script>
+<script src="{% static 'netbox_otnfaults/js/controls/FaultStatisticsControl.js' %}"></script>
+
+<!-- App (Main) -->
+<script src="{% static 'netbox_otnfaults/js/otnfault_map_app.js' %}?v=9"></script>
 {% endblock %}

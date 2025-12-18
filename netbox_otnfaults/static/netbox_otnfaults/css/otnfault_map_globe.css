@@ -1,3 +1,5 @@
+/* MapLibre Globle Styles */
+
 #map {
   position: relative;
   height: 600px;
@@ -53,7 +55,7 @@
   display: none !important;
 }
 
-/* 统一地图按钮样式 */
+/* --- Control Group Buttons --- */
 .maplibregl-ctrl-group button {
   background-color: var(--bs-body-bg, #ffffff);
   border: 1px solid var(--bs-border-color, #dee2e6);
@@ -67,11 +69,10 @@
   justify-content: center;
   transition: all 0.2s ease;
   color: var(--bs-body-color, #212529);
-  opacity: 1 !important; /* 强制不透明 */
   padding: 0;
 }
 
-/* 强制覆盖 maplibre 可能的默认背景图片 */
+/* Override default background image from maplibre */
 .maplibregl-ctrl-group button.maplibregl-ctrl-icon {
   background-image: none !important;
 }
@@ -82,8 +83,8 @@
   color: var(--bs-body-color, #212529);
 }
 
-/* 激活状态：使用 NetBox 链接颜色（绿色/蓝色） */
-.maplibregl-ctrl-group button.active {
+/* Active State (已取消按钮选中状态) */
+/* .maplibregl-ctrl-group button.active {
   background-color: var(--bs-link-color, #0097a7) !important;
   color: var(--bs-body-bg, #ffffff) !important;
   border-color: var(--bs-link-color, #0097a7) !important;
@@ -93,149 +94,111 @@
   background-color: var(--bs-link-hover-color, #007986) !important;
   border-color: var(--bs-link-hover-color, #007986) !important;
   color: var(--bs-body-bg, #ffffff) !important;
-}
+} */
 
-/* SVG图标样式 */
+/* Icons */
 .maplibregl-ctrl-group button svg {
   width: 20px;
   height: 20px;
   stroke: currentColor;
-  stroke-width: 2px; /* 确保线条足够粗 */
+  stroke-width: 2px;
   fill: none;
-  display: block; /* 确保显示 */
+  display: block;
 }
 
-/* 激活状态下SVG图标颜色：跟随文字颜色（即背景色） */
-.maplibregl-ctrl-group button.active svg {
-  stroke: currentColor;
-}
-
-/* 针对特定 Toggle 按钮的增强选择器，防止被覆盖 */
-.layer-toggle-control .toggle-button.active {
-  background-color: var(--bs-link-color, #0097a7) !important;
-  border-color: var(--bs-link-color, #0097a7) !important;
-  color: var(--bs-body-bg, #ffffff) !important;
-}
-
-/* 热力图时间范围菜单样式 */
+/* --- Layer Toggle Menu --- */
 .heatmap-time-range-menu {
   position: absolute;
-  background-color: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
+  background-color: var(--bs-body-bg, #ffffff) !important;
+  opacity: 1 !important;
+  border: 1px solid var(--bs-border-color) !important;
   border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
   z-index: 1000;
-  min-width: 120px;
+  min-width: 140px;
   padding: 4px 0;
-  display: none;
-  color: var(--bs-body-color);
+  color: var(--bs-body-color, #212529) !important;
 }
 
-.dropdown-item {
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--bs-body-color);
-}
-
-.dropdown-item:hover {
-  background-color: var(--bs-tertiary-bg);
-}
-
-.dropdown-item.active {
-  background-color: var(--bs-link-color);
-  color: var(--bs-body-bg);
-}
-
-.heatmap-button-container {
-  position: relative;
-  display: inline-block;
-}
-
-/* 故障分类菜单样式 */
+/* --- Category Filter Menu --- */
 .category-filter-menu {
   background-color: var(--bs-body-bg, #ffffff) !important;
   border: 1px solid var(--bs-border-color, #dee2e6) !important;
   color: var(--bs-body-color, #212529) !important;
-  opacity: 1 !important; /* 强制不透明 */
   box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-  z-index: 9999 !important; /* Ensure it is on top */
+  z-index: 9999;
 }
 
-.category-filter-menu .dropdown-item {
-  color: var(--bs-body-color, #212529) !important;
+/* Dropdown items usually managed by bootstrap classes, but enforcing map style */
+.category-filter-menu .dropdown-item,
+.heatmap-time-range-menu .dropdown-item {
+  color: var(--bs-body-color, #212529);
   transition: all 0.2s ease;
-}
-
-.category-filter-menu .dropdown-item:hover {
-  background-color: var(--bs-tertiary-bg, #f8f9fa) !important;
-}
-
-/* 选中状态：使用 NetBox 主题色 */
-.category-filter-menu .dropdown-item.active {
-  background-color: var(--bs-link-color, #0097a7) !important;
-  color: var(--bs-body-bg, #ffffff) !important;
-}
-
-/* 确保选中状态下的 hover 仍然保持高亮 */
-.category-filter-menu .dropdown-item.active:hover {
-  background-color: var(--bs-link-hover-color, #007986) !important;
-  color: var(--bs-body-bg, #ffffff) !important;
-}
-
-/* 复选框颜色跟随主题 */
-.category-filter-menu input[type="checkbox"] {
-  accent-color: var(--bs-link-color, #0097a7);
-  width: 14px;
-  height: 14px;
+  padding: 6px 16px;
   cursor: pointer;
 }
 
-/* 弹出框样式适配 */
+.category-filter-menu .dropdown-item:hover,
+.heatmap-time-range-menu .dropdown-item:hover {
+  background-color: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.category-filter-menu .dropdown-item.active,
+.heatmap-time-range-menu .dropdown-item.active {
+  background-color: var(--bs-link-color, #0097a7);
+  color: var(--bs-body-bg, #ffffff);
+}
+
+/* Inputs */
+.category-filter-menu input[type="checkbox"],
+.heatmap-time-range-menu input[type="checkbox"],
+.heatmap-time-range-menu input[type="radio"] {
+  accent-color: var(--bs-link-color, #0097a7);
+  cursor: pointer;
+}
+
+/* --- Popup Styles --- */
 .maplibregl-popup-content {
   background-color: var(--bs-body-bg, #ffffff) !important;
   color: var(--bs-body-color, #212529) !important;
-  border: 1px solid var(--bs-border-color, #dee2e6) !important;
-  opacity: 1 !important; /* 强制不透明 */
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  padding: 10px;
 }
 
-.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-  border-top-color: var(--bs-body-bg, #ffffff) !important;
-}
-.maplibregl-popup-anchor-top .maplibregl-popup-tip {
-  border-bottom-color: var(--bs-body-bg, #ffffff) !important;
-}
-.maplibregl-popup-anchor-left .maplibregl-popup-tip {
-  border-right-color: var(--bs-body-bg, #ffffff) !important;
-}
-.maplibregl-popup-anchor-right .maplibregl-popup-tip {
-  border-left-color: var(--bs-body-bg, #ffffff) !important;
-}
+/* Popup Tips */
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--bs-body-bg, #ffffff) !important; }
+.maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--bs-body-bg, #ffffff) !important; }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--bs-body-bg, #ffffff) !important; }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--bs-body-bg, #ffffff) !important; }
 
-/* 链接颜色 */
+/* Links in Popups */
 .maplibregl-popup-content a {
-  color: var(--bs-link-color, #0097a7) !important;
+  color: var(--bs-link-color, #0097a7);
   text-decoration: none;
 }
 .maplibregl-popup-content a:hover {
-  color: var(--bs-link-hover-color, #007986) !important;
+  color: var(--bs-link-hover-color, #007986);
   text-decoration: underline;
 }
 
-/* 表格样式 */
+/* --- Tables in Popups --- */
 .maplibregl-popup-content table {
   color: var(--bs-body-color);
+  width: 100%;
 }
 .maplibregl-popup-content th,
 .maplibregl-popup-content td {
   border-color: var(--bs-border-color);
+  padding: 2px 4px;
 }
 
-/* 图例样式 */
-.fault-legend {
-  background: var(--bs-body-bg, #ffffff) !important;
-  color: var(--bs-body-color, #212529) !important;
-  border: 1px solid var(--bs-border-color, #dee2e6) !important;
-  opacity: 0.8;
+/* --- Fault Statistics Panel --- */
+.fault-statistics {
+  margin: 0 0 10px 10px !important; /* Position tweak */
+  z-index: 10;
+}
+.clickable-stat-row:hover {
+  background-color: var(--bs-tertiary-bg);
+  border-radius: 4px;
 }
