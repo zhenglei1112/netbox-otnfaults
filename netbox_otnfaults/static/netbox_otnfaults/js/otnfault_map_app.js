@@ -101,6 +101,11 @@ document.addEventListener('DOMContentLoaded', function () {
     window.faultStatisticsControl = faultStatisticsControl;
     mapBase.addControl(faultStatisticsControl, 'bottom-left');
     
+    // 故障点图例控件（右下角，仅在故障点模式下显示）
+    const faultLegendControl = new FaultLegendControl();
+    window.faultLegendControl = faultLegendControl;
+    mapBase.addControl(faultLegendControl, 'bottom-right');
+    
     // 添加图层控制 (放在左上角，确保在其他左侧控件之前)
     mapBase.addControl(layerToggleControl, 'top-left');
 
@@ -935,6 +940,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (mode === 'heatmap') {
             if (map.getLayer('fault-heatmap-layer')) map.moveLayer('fault-heatmap-layer');
             if (map.getLayer('fault-point-layer')) map.moveLayer('fault-point-layer');
+        }
+        
+        // --- 2.5. 控制图例可见性 ---
+        // 故障点图例仅在故障点模式下显示，热力图模式下隐藏
+        if (window.faultLegendControl) {
+            window.faultLegendControl.updateVisibility(mode);
         }
         
         // --- 3. 更新统计面板 ---
