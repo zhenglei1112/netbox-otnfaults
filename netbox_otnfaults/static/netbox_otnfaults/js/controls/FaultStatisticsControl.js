@@ -155,14 +155,26 @@ class FaultStatisticsControl {
                 siteCounts[f.a_site] = (siteCounts[f.a_site] || 0) + 1;
             }
 
-            // 统计路径
-            // 假设我们能构建唯一路径标识
-             if (f.a_site && f.z_sites) {
-                 const key = `${f.a_site} <-> ${f.z_sites}`; 
-                 if (!pathCounts[key]) {
-                      pathCounts[key] = { count: 0, a_site: f.a_site, z_site: f.z_sites }; // 保存元数据供飞行动画使用
+            // 统计路径（仅统计光缆故障且A、Z端都有值的故障）
+            // 路径故障必须满足：1) 故障类型为光缆（fiber）2) A端有值 3) Z端有值
+             if (f.a_site && f.z_sites && f.category === 'fiber') {
+                 // 规范化路径key：使用字典序排序，确保A->Z和Z->A被视为同一条路径
+                 const siteA = f.a_site;
+                 const siteZ = f.z_sites;
+                 
+                 // 使用字典序较小的作为key的第一个站点
+                 const [site1, site2] = siteA < siteZ ? [siteA, siteZ] : [siteZ, siteA];
+                 const normalizedKey = `${site1} <-> ${site2}`;
+                 
+                 if (!pathCounts[normalizedKey]) {
+                      pathCounts[normalizedKey] = { 
+                          count: 0, 
+                          a_site: site1,  // 保存规范化后的站点顺序
+                          z_site: site2,
+                          displayName: normalizedKey  // 显示名称
+                      };
                  }
-                 pathCounts[key].count++;
+                 pathCounts[normalizedKey].count++;
              }
              
              // 统计时长
@@ -377,37 +389,150 @@ class FaultStatisticsControl {
     }
     
     // 定位到路径
-    // pathItemKey 是 "A <-> Z" 字符串，这里我们需要解析它
-    // 实际上上面的 onclick 传递了 name，我们可以重新在 paths 中查找
+    // pathItemKey 是 "A <-> Z" 字符串（站点名称），需要：
+    // 1. 根据站点名称获取站点ID
+    // 2. 用站点ID在光缆路径模型中匹配（考虑AZ与ZA双向）
+    // 3. fly to并高亮路径
+    // 4. 弹窗中提供详情链接（使用bidirectional_pair筛选器）
     flyToPath(pathName) {
-        // 解析 A 和 Z
-        // 格式 "A <-> Z"
-        const parts = pathName.split(' <-> ');
-        if (parts.length !== 2) return;
-        const siteA = parts[0];
-        const siteZ = parts[1];
+        console.log('[flyToPath] 开始定位路径:', pathName);
         
-        // 在 OTNPathsMetadata 中查找
-        const paths = window.OTNPathsMetadata || [];
-        const targetPath = paths.find(p => {
-             // 简单的名称匹配，可能不严谨，最好用 ID
-             const props = p.properties;
-             return (props.a_site === siteA && props.z_site === siteZ) || 
-                    (props.a_site === siteZ && props.z_site === siteA);
-        });
-
-        if (targetPath) {
-             // 计算 Bounds
-             const coords = targetPath.geometry.coordinates; // LineString
-             const bounds = new maplibregl.LngLatBounds();
-             coords.forEach(c => bounds.extend(c));
-             
-             this.map.fitBounds(bounds, { padding: 100, speed: 2.5 }); // Adjusted speed
-             
-              // 高亮
-             if (this.map.getSource('otn-paths-highlight')) {
-                this.map.getSource('otn-paths-highlight').setData(targetPath);
-             }
+        // 解析 A 和 Z 站点名称
+        const parts = pathName.split(' <-> ');
+        if (parts.length !== 2) {
+            console.warn('[flyToPath] 路径名称格式错误:', pathName);
+            return;
         }
+        const siteAName = parts[0].trim();
+        const siteZName = parts[1].trim();
+        console.log('[flyToPath] 解析的站点名称: A端=', siteAName, ', Z端=', siteZName);
+        
+        // 获取站点数据
+        const sites = window.OTNFaultMapConfig.sitesData || [];
+        const paths = window.OTNPathsMetadata || [];
+        
+        // 根据站点名称查找站点对象（获取ID）
+        const siteAObj = sites.find(s => s.name === siteAName);
+        const siteZObj = sites.find(s => s.name === siteZName);
+        
+        console.log('[flyToPath] 站点查找结果:',
+            'A端:', siteAObj ? `${siteAObj.name}(id=${siteAObj.id})` : '未找到',
+            'Z端:', siteZObj ? `${siteZObj.name}(id=${siteZObj.id})` : '未找到'
+        );
+        
+        if (!siteAObj || !siteZObj) {
+            console.warn('[flyToPath] 无法找到站点对象，无法匹配路径');
+            return;
+        }
+        
+        // 在光缆路径模型中匹配（使用站点名称，考虑AZ与ZA双向）
+        // 路径模型中的a_site和z_site是站点名称
+        const targetPath = paths.find(p => {
+            const props = p.properties;
+            if (!props.a_site || !props.z_site) return false;
+            
+            // 双向匹配：A-Z 或 Z-A
+            const match = (props.a_site === siteAName && props.z_site === siteZName) ||
+                          (props.a_site === siteZName && props.z_site === siteAName);
+            return match;
+        });
+        
+        // 清理已有弹窗
+        const existingPopups = document.getElementsByClassName('maplibregl-popup');
+        while (existingPopups.length > 0) {
+            existingPopups[0].remove();
+        }
+        if (this.currentPopup) {
+            this.currentPopup.remove();
+            this.currentPopup = null;
+        }
+
+        // 构建故障列表详情链接（使用bidirectional_pair筛选器，自动处理AZ与ZA双向）
+        const faultListUrl = window.OTNFaultMapConfig.faultListUrl || '/plugins/netbox_otnfaults/faults/';
+        const detailUrl = `${faultListUrl}?bidirectional_pair=${siteAObj.id},${siteZObj.id}`;
+        
+        if (!targetPath) {
+            // 未找到匹配的光缆路径，使用站点坐标定位
+            console.warn('[flyToPath] 未在光缆路径模型中找到匹配的路径，使用站点坐标定位');
+            console.log('[flyToPath] 尝试匹配的站点对:', siteAName, '<->', siteZName);
+            
+            // 计算两个站点的中心点
+            const centerLng = (siteAObj.longitude + siteZObj.longitude) / 2;
+            const centerLat = (siteAObj.latitude + siteZObj.latitude) / 2;
+            
+            // fly to中心点
+            this.map.flyTo({
+                center: [centerLng, centerLat],
+                zoom: 8,
+                speed: 2.5
+            });
+            
+            // 显示弹窗（标注无对应光缆路径）
+            this.currentPopup = new maplibregl.Popup({ maxWidth: '320px' })
+                    .setLngLat([centerLng, centerLat])
+                    .setHTML(`
+                        <div style="min-width: 200px;">
+                            <h6 class="mb-2" style="border-bottom: 1px solid var(--bs-border-color); padding-bottom: 8px;">
+                                ${pathName}
+                            </h6>
+                            <p class="text-body-secondary mb-1" style="font-size: 12px;">
+                                <strong>A端:</strong> ${siteAName}<br>
+                                <strong>Z端:</strong> ${siteZName}
+                            </p>
+                            <p class="text-warning mb-2" style="font-size: 11px;">
+                                <i class="mdi mdi-alert-outline"></i> 无对应光缆路径记录
+                            </p>
+                            <a href="${detailUrl}" class="btn btn-primary btn-sm w-100" target="_blank">
+                                <i class="mdi mdi-format-list-bulleted"></i> 查看详细
+                            </a>
+                        </div>
+                    `)
+                    .addTo(this.map);
+             
+            this.currentPopup.on('close', () => {
+                this.currentPopup = null;
+            });
+            return;
+        }
+        
+        console.log('[flyToPath] 匹配成功，路径:', targetPath.properties.name);
+
+        // 计算路径边界并fly to
+        const coords = targetPath.geometry.coordinates;
+        const bounds = new maplibregl.LngLatBounds();
+        coords.forEach(c => bounds.extend(c));
+        
+        this.map.fitBounds(bounds, { padding: 100, speed: 2.5 });
+        
+        // 高亮路径
+        if (this.map.getSource('otn-paths-highlight')) {
+            this.map.getSource('otn-paths-highlight').setData(targetPath);
+        }
+
+        // 在路径中心显示弹窗
+        const center = bounds.getCenter();
+        
+        this.currentPopup = new maplibregl.Popup({ maxWidth: '320px' })
+                .setLngLat(center)
+                .setHTML(`
+                    <div style="min-width: 200px;">
+                        <h6 class="mb-2" style="border-bottom: 1px solid var(--bs-border-color); padding-bottom: 8px;">
+                            ${targetPath.properties.name || pathName}
+                        </h6>
+                        <p class="text-body-secondary mb-1" style="font-size: 12px;">
+                            <strong>A端:</strong> ${siteAName}<br>
+                            <strong>Z端:</strong> ${siteZName}
+                        </p>
+                        <p class="text-body-secondary mb-2" style="font-size: 12px;">故障高发光缆路径</p>
+                        <a href="${detailUrl}" class="btn btn-primary btn-sm w-100" target="_blank">
+                            <i class="mdi mdi-format-list-bulleted"></i> 查看详细
+                        </a>
+                    </div>
+                `)
+                .addTo(this.map);
+         
+        this.currentPopup.on('close', () => {
+            this.currentPopup = null;
+        });
     }
 }

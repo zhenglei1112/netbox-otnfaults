@@ -62,8 +62,11 @@ const OTNFaultMapAPI = {
                         properties: {
                             id: path.id,
                             name: path.name,
-                            a_site: path.a_site,
-                            z_site: path.z_site,
+                            // site_a 和 site_z 是嵌套对象，需要提取 name 和 id
+                            a_site: path.site_a ? path.site_a.name : null,
+                            z_site: path.site_z ? path.site_z.name : null,
+                            a_site_id: path.site_a ? path.site_a.id : null,
+                            z_site_id: path.site_z ? path.site_z.id : null,
                             site_list: path.site_list,
                             admin_status: path.admin_status,
                             operational_status: path.operational_status,
