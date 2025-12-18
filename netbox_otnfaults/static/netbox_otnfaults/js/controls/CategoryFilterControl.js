@@ -8,7 +8,7 @@ const FAULT_CATEGORY_COLORS = {
 };
 
 const FAULT_CATEGORY_NAMES = {
-    'power': '电力故障', 'fiber': '光缆故障', 'pigtail': '尾纤故障', 'device': '设备故障', 'other': '其他故障'
+    'power': '电力故障', 'fiber': '光缆故障', 'pigtail': '空调故障', 'device': '设备故障', 'other': '其他故障'
 };
 
 // 挂载到 window 对象，确保全局可访问
