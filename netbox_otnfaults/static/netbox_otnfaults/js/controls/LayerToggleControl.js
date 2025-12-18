@@ -1,7 +1,7 @@
 /**
  * 视图控制控件 (ViewControl)
  * 统一管理：
- * 1. 视图模式：故障点 (Points) / 热力图 (Heatmap)
+ * 1. 视图模式：智能 (Smart) / 故障点 (Points) / 热力图 (Heatmap)
  * 2. 时间范围：1周, 2周, 1月, 3月, 1年
  * 3. 基础图层开关
  */
@@ -10,7 +10,7 @@ class LayerToggleControl {
         this.options = options || {};
         
         // 默认状态
-        this.currentMode = 'points'; // 'points' | 'heatmap'
+        this.currentMode = 'smart'; // 'smart' | 'points' | 'heatmap'
         this.currentTimeRange = '1week'; // Default to 1 week as requested
         this.arcgisVisible = true; // 网络拓扑可见性
     }
@@ -78,13 +78,43 @@ class LayerToggleControl {
         this.container.appendChild(menu);
         this.menu = menu;
 
-        // 1. 视图模式选择
+        // 1. 视图模式选择（卡片式UI）
         this.addHeader(menu, '视图模式');
         const modeGroup = document.createElement('div');
-        modeGroup.className = 'view-mode-group px-3 py-1 d-flex gap-2';
+        modeGroup.className = 'view-mode-cards';
+        modeGroup.style.cssText = 'display: flex; gap: 8px; padding: 8px 12px;';
         
-        this.createRadioButton(modeGroup, 'view-mode', 'points', '故障点', this.currentMode === 'points', (val) => this.setMode(val));
-        this.createRadioButton(modeGroup, 'view-mode', 'heatmap', '热力图', this.currentMode === 'heatmap', (val) => this.setMode(val));
+        const modes = [
+            { value: 'smart', label: '智能', desc: '自动切换' },
+            { value: 'points', label: '故障点', desc: '显示标记' },
+            { value: 'heatmap', label: '热力图', desc: '密度分布' }
+        ];
+        
+        modes.forEach(mode => {
+            const card = this.createModeCard(mode.value, mode.label, mode.desc, this.currentMode === mode.value);
+            card.onclick = (e) => {
+                e.stopPropagation();
+                // 更新所有卡片样式（移除选中状态）
+                modeGroup.querySelectorAll('.mode-card').forEach(c => {
+                    c.classList.remove('active');
+                    c.style.borderColor = '#dee2e6';
+                    c.style.backgroundColor = '#fff';
+                    // 重置标题颜色
+                    const label = c.querySelector('.mode-card-label');
+                    if (label) label.style.color = '#212529';
+                });
+                // 高亮选中的卡片
+                card.classList.add('active');
+                card.style.borderColor = '#0d6efd';  // 直接使用颜色值
+                card.style.backgroundColor = 'rgba(13, 110, 253, 0.08)';
+                // 更新标题颜色
+                const selectedLabel = card.querySelector('.mode-card-label');
+                if (selectedLabel) selectedLabel.style.color = '#0d6efd';
+                this.setMode(mode.value);
+            };
+            modeGroup.appendChild(card);
+        });
+        
         menu.appendChild(modeGroup);
 
         this.addDivider(menu);
@@ -142,6 +172,78 @@ class LayerToggleControl {
         divider.style.borderTop = '1px solid var(--bs-border-color)';
         divider.style.margin = '4px 0';
         container.appendChild(divider);
+    }
+
+    /**
+     * 创建模式选择卡片
+     * @param {string} value - 模式值
+     * @param {string} label - 模式标签
+     * @param {string} desc - 模式描述
+     * @param {boolean} active - 是否选中
+     * @returns {HTMLElement} 卡片元素
+     */
+    createModeCard(value, label, desc, active) {
+        const card = document.createElement('div');
+        card.className = 'mode-card' + (active ? ' active' : '');
+        card.dataset.mode = value;
+        
+        // 卡片样式 - 使用直接颜色值确保正确显示
+        const activeBorderColor = '#0d6efd';
+        const activeBgColor = 'rgba(13, 110, 253, 0.08)';
+        const inactiveBorderColor = '#dee2e6';
+        const inactiveBgColor = '#fff';
+        
+        card.style.cssText = `
+            flex: 1;
+            min-width: 70px;
+            padding: 8px 12px;
+            border: 2px solid ${active ? activeBorderColor : inactiveBorderColor};
+            border-radius: 8px;
+            background-color: ${active ? activeBgColor : inactiveBgColor};
+            cursor: pointer;
+            text-align: center;
+            white-space: nowrap;
+            transition: all 0.15s ease-in-out;
+        `;
+        
+        // 标题 - 添加类名便于后续查询和更新
+        const labelEl = document.createElement('div');
+        labelEl.className = 'mode-card-label';
+        labelEl.style.cssText = `
+            font-size: 13px;
+            font-weight: 600;
+            color: ${active ? '#0d6efd' : '#212529'};
+            margin-bottom: 2px;
+        `;
+        labelEl.innerText = label;
+        
+        // 描述
+        const descEl = document.createElement('div');
+        descEl.className = 'mode-card-desc';
+        descEl.style.cssText = `
+            font-size: 10px;
+            color: #6c757d;
+        `;
+        descEl.innerText = desc;
+        
+        card.appendChild(labelEl);
+        card.appendChild(descEl);
+        
+        // 悬停效果
+        card.onmouseenter = () => {
+            if (!card.classList.contains('active')) {
+                card.style.borderColor = '#86b7fe';
+                card.style.backgroundColor = 'rgba(13, 110, 253, 0.04)';
+            }
+        };
+        card.onmouseleave = () => {
+            if (!card.classList.contains('active')) {
+                card.style.borderColor = inactiveBorderColor;
+                card.style.backgroundColor = inactiveBgColor;
+            }
+        };
+        
+        return card;
     }
 
     createRadioButton(container, groupName, value, label, checked, onChange) {
@@ -242,6 +344,37 @@ class LayerToggleControl {
         } else {
              console.warn('window.updateMapState is not defined');
         }
+    }
+    
+    /**
+     * 获取当前有效的显示模式
+     * 在智能模式下，根据时间范围和缩放级别自动选择：
+     * - 时间范围为一周或两周时：显示故障点
+     * - 其他时间范围：显示热力图
+     * - 地图缩放级别 > 7 时：显示故障点
+     * @returns {string} 'points' | 'heatmap'
+     */
+    getEffectiveMode() {
+        // 非智能模式直接返回当前模式
+        if (this.currentMode !== 'smart') {
+            return this.currentMode;
+        }
+        
+        // 智能模式逻辑
+        const zoom = this.map ? this.map.getZoom() : 0;
+        
+        // 条件 1: 缩放级别 > 7 时显示故障点
+        if (zoom > 7) {
+            return 'points';
+        }
+        
+        // 条件 2: 根据时间范围决定
+        // 一周或两周 -> 故障点, 其他 -> 热力图
+        if (this.currentTimeRange === '1week' || this.currentTimeRange === '2weeks') {
+            return 'points';
+        }
+        
+        return 'heatmap';
     }
     
     updateArcgisLayersVisibility() {

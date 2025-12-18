@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
             source: 'fault-heatmap',
             maxzoom: 9,
             layout: {
-                'visibility': 'none'  // 初始隐藏，默认模式是 points
+                'visibility': 'none'  // 初始隐藏，智能模式下默认时间范围为一周，显示故障点
             },
             paint: {
                 'heatmap-weight': [
@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function () {
             source: 'fault-heatmap',
             minzoom: 7,
             layout: {
-                'visibility': 'none'  // 初始隐藏，默认模式是 points
+                'visibility': 'none'  // 初始隐藏，由 updateMapState 控制
             },
             paint: {
                 'circle-radius': [
@@ -809,7 +809,8 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (!layerControl || !categoryControl) return;
         
-        const mode = layerControl.currentMode; // 'points' | 'heatmap'
+        // 使用有效模式（智能模式会根据时间范围和缩放级别自动选择）
+        const mode = layerControl.getEffectiveMode ? layerControl.getEffectiveMode() : layerControl.currentMode; // 'points' | 'heatmap'
         const timeRange = layerControl.currentTimeRange;
         const selectedCategories = categoryControl.getSelectedCategories();
         
@@ -958,10 +959,21 @@ document.addEventListener('DOMContentLoaded', function () {
         window.updateMapState();
     }, 500);
     
-    // 监听缩放事件，确保故障图层始终在最上层
+    // 监听缩放事件，智能模式需要重新计算有效模式
     map.on('zoomend', () => {
         const layerControl = window.layerToggleControl;
-        const mode = layerControl ? layerControl.currentMode : 'points';
+        if (!layerControl) return;
+        
+        // 智能模式下，缩放变化可能导致显示模式切换，需要重新调用 updateMapState
+        if (layerControl.currentMode === 'smart') {
+            if (window.updateMapState) {
+                window.updateMapState();
+            }
+            return;
+        }
+        
+        // 非智能模式，只需确保图层在正确的层级
+        const mode = layerControl.currentMode;
         
         if (mode === 'points' && map.getLayer('fault-points-layer')) {
             map.moveLayer('fault-points-layer');
