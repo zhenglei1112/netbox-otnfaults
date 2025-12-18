@@ -149,9 +149,11 @@ class FaultStatisticsControl {
         const pathCounts = {};
         
         faults.forEach(f => {
-            // 统计站点
-            if (f.a_site) siteCounts[f.a_site] = (siteCounts[f.a_site] || 0) + 1;
-            // if (f.z_sites) ... (Z端可能是列表，这里简化)
+            // 统计站点（只统计A端有值且Z端为空的故障，与 single_site_a_id 过滤器逻辑一致）
+            const hasZSites = f.z_site_ids && f.z_site_ids.length > 0;
+            if (f.a_site && !hasZSites) {
+                siteCounts[f.a_site] = (siteCounts[f.a_site] || 0) + 1;
+            }
 
             // 统计路径
             // 假设我们能构建唯一路径标识
@@ -349,10 +351,22 @@ class FaultStatisticsControl {
                 speed: 2.5 // Adjusted speed
             });
             
+            // 构建故障列表详情链接（使用 single_site_a_id 筛选：A端站点为此站点且Z端为空）
+            const faultListUrl = window.OTNFaultMapConfig.faultListUrl || '/plugins/netbox_otnfaults/faults/';
+            const detailUrl = `${faultListUrl}?single_site_a_id=${target.id}`;
+            
             // 可以触发 Popup
-            this.currentPopup = new maplibregl.Popup()
+            this.currentPopup = new maplibregl.Popup({ maxWidth: '320px' })
                     .setLngLat([target.longitude, target.latitude])
-                    .setHTML(`<b>${target.name}</b><br>位于此处的故障高发站点`)
+                    .setHTML(`
+                        <div style="min-width: 200px;">
+                            <h6 class="mb-2" style="border-bottom: 1px solid var(--bs-border-color); padding-bottom: 8px;">${target.name}</h6>
+                            <p class="text-body-secondary mb-2" style="font-size: 12px;">故障高发站点（非线路故障）</p>
+                            <a href="${detailUrl}" class="btn btn-primary btn-sm w-100" target="_blank">
+                                <i class="mdi mdi-format-list-bulleted"></i> 显示详细信息
+                            </a>
+                        </div>
+                    `)
                     .addTo(this.map);
              
              // Cleanup on close
