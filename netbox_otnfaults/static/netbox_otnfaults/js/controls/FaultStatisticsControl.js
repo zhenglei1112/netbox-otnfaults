@@ -367,17 +367,38 @@ class FaultStatisticsControl {
             const faultListUrl = window.OTNFaultMapConfig.faultListUrl || '/plugins/netbox_otnfaults/faults/';
             const detailUrl = `${faultListUrl}?single_site_a_id=${target.id}`;
             
-            // 可以触发 Popup
-            this.currentPopup = new maplibregl.Popup({ maxWidth: '320px' })
+            // 触发美化的弹窗
+            this.currentPopup = new maplibregl.Popup({ maxWidth: '260px', className: 'stats-popup' })
                     .setLngLat([target.longitude, target.latitude])
                     .setHTML(`
-                        <div style="min-width: 200px;">
-                            <h6 class="mb-2" style="border-bottom: 1px solid var(--bs-border-color); padding-bottom: 8px;">${target.name}</h6>
-                            <p class="text-body-secondary mb-2" style="font-size: 12px;">故障高发站点（非线路故障）</p>
-                            <a href="${detailUrl}" class="btn btn-primary btn-sm w-100" target="_blank">
-                                <i class="mdi mdi-format-list-bulleted"></i> 显示详细信息
-                            </a>
+                        <div class="stats-popup-content">
+                            <div class="stats-popup-header">
+                                <div class="stats-popup-title">
+                                    <i class="mdi mdi-map-marker"></i>
+                                    <span>${target.name}</span>
+                                </div>
+                                <a href="${detailUrl}" class="stats-popup-link" target="_blank" title="查看详情">
+                                    <i class="mdi mdi-open-in-new"></i>
+                                </a>
+                            </div>
+                            <div class="stats-popup-body">
+                                <span class="stats-tag stats-tag-warning">故障高发站点</span>
+                                <span class="stats-tag-sub">非线路故障</span>
+                            </div>
                         </div>
+                        <style>
+                            .stats-popup .maplibregl-popup-content { padding: 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+                            .stats-popup-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }
+                            .stats-popup-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: #212529; }
+                            .stats-popup-title i { color: #0d6efd; font-size: 16px; }
+                            .stats-popup-link { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #6c757d; border-radius: 4px; transition: all 0.15s; }
+                            .stats-popup-link:hover { background: #e9ecef; color: #0d6efd; }
+                            .stats-popup-link i { font-size: 14px; }
+                            .stats-popup-body { padding: 8px 10px; display: flex; align-items: center; gap: 8px; }
+                            .stats-tag { font-size: 11px; padding: 2px 6px; border-radius: 3px; font-weight: 500; }
+                            .stats-tag-warning { background: #fff3cd; color: #856404; }
+                            .stats-tag-sub { font-size: 11px; color: #6c757d; }
+                        </style>
                     `)
                     .addTo(this.map);
              
@@ -468,24 +489,43 @@ class FaultStatisticsControl {
             });
             
             // 显示弹窗（标注无对应光缆路径）
-            this.currentPopup = new maplibregl.Popup({ maxWidth: '320px' })
+            this.currentPopup = new maplibregl.Popup({ maxWidth: '260px', className: 'stats-popup' })
                     .setLngLat([centerLng, centerLat])
                     .setHTML(`
-                        <div style="min-width: 200px;">
-                            <h6 class="mb-2" style="border-bottom: 1px solid var(--bs-border-color); padding-bottom: 8px;">
-                                ${pathName}
-                            </h6>
-                            <p class="text-body-secondary mb-1" style="font-size: 12px;">
-                                <strong>A端:</strong> ${siteAName}<br>
-                                <strong>Z端:</strong> ${siteZName}
-                            </p>
-                            <p class="text-warning mb-2" style="font-size: 11px;">
-                                <i class="mdi mdi-alert-outline"></i> 无对应光缆路径记录
-                            </p>
-                            <a href="${detailUrl}" class="btn btn-primary btn-sm w-100" target="_blank">
-                                <i class="mdi mdi-format-list-bulleted"></i> 查看详细
-                            </a>
+                        <div class="stats-popup-content">
+                            <div class="stats-popup-header">
+                                <div class="stats-popup-title">
+                                    <i class="mdi mdi-transit-connection-variant" style="color: #dc3545;"></i>
+                                    <span>故障路径</span>
+                                </div>
+                                <a href="${detailUrl}" class="stats-popup-link" target="_blank" title="查看详情">
+                                    <i class="mdi mdi-open-in-new"></i>
+                                </a>
+                            </div>
+                            <div class="stats-popup-body">
+                                <div class="stats-popup-sites">
+                                    <span><i class="mdi mdi-alpha-a-circle-outline"></i> ${siteAName}</span>
+                                    <span class="stats-popup-arrow">→</span>
+                                    <span><i class="mdi mdi-alpha-z-circle-outline"></i> ${siteZName}</span>
+                                </div>
+                                <span class="stats-tag stats-tag-warning">无对应光缆路径</span>
+                            </div>
                         </div>
+                        <style>
+                            .stats-popup .maplibregl-popup-content { padding: 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+                            .stats-popup-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }
+                            .stats-popup-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: #212529; }
+                            .stats-popup-title i { font-size: 16px; }
+                            .stats-popup-link { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #6c757d; border-radius: 4px; transition: all 0.15s; }
+                            .stats-popup-link:hover { background: #e9ecef; color: #0d6efd; }
+                            .stats-popup-link i { font-size: 14px; }
+                            .stats-popup-body { padding: 8px 10px; }
+                            .stats-popup-sites { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #495057; margin-bottom: 6px; flex-wrap: wrap; }
+                            .stats-popup-sites i { color: #0d6efd; font-size: 14px; }
+                            .stats-popup-arrow { color: #adb5bd; }
+                            .stats-tag { font-size: 11px; padding: 2px 6px; border-radius: 3px; font-weight: 500; }
+                            .stats-tag-warning { background: #fff3cd; color: #856404; }
+                        </style>
                     `)
                     .addTo(this.map);
              
@@ -512,22 +552,43 @@ class FaultStatisticsControl {
         // 在路径中心显示弹窗
         const center = bounds.getCenter();
         
-        this.currentPopup = new maplibregl.Popup({ maxWidth: '320px' })
+        this.currentPopup = new maplibregl.Popup({ maxWidth: '260px', className: 'stats-popup' })
                 .setLngLat(center)
                 .setHTML(`
-                    <div style="min-width: 200px;">
-                        <h6 class="mb-2" style="border-bottom: 1px solid var(--bs-border-color); padding-bottom: 8px;">
-                            ${targetPath.properties.name || pathName}
-                        </h6>
-                        <p class="text-body-secondary mb-1" style="font-size: 12px;">
-                            <strong>A端:</strong> ${siteAName}<br>
-                            <strong>Z端:</strong> ${siteZName}
-                        </p>
-                        <p class="text-body-secondary mb-2" style="font-size: 12px;">故障高发光缆路径</p>
-                        <a href="${detailUrl}" class="btn btn-primary btn-sm w-100" target="_blank">
-                            <i class="mdi mdi-format-list-bulleted"></i> 查看详细
-                        </a>
+                    <div class="stats-popup-content">
+                        <div class="stats-popup-header">
+                            <div class="stats-popup-title">
+                                <i class="mdi mdi-vector-polyline" style="color: #198754;"></i>
+                                <span>${targetPath.properties.name || '光缆路径'}</span>
+                            </div>
+                            <a href="${detailUrl}" class="stats-popup-link" target="_blank" title="查看详情">
+                                <i class="mdi mdi-open-in-new"></i>
+                            </a>
+                        </div>
+                        <div class="stats-popup-body">
+                            <div class="stats-popup-sites">
+                                <span><i class="mdi mdi-alpha-a-circle-outline"></i> ${siteAName}</span>
+                                <span class="stats-popup-arrow">→</span>
+                                <span><i class="mdi mdi-alpha-z-circle-outline"></i> ${siteZName}</span>
+                            </div>
+                            <span class="stats-tag stats-tag-danger">故障高发路径</span>
+                        </div>
                     </div>
+                    <style>
+                        .stats-popup .maplibregl-popup-content { padding: 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+                        .stats-popup-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }
+                        .stats-popup-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: #212529; }
+                        .stats-popup-title i { font-size: 16px; }
+                        .stats-popup-link { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #6c757d; border-radius: 4px; transition: all 0.15s; }
+                        .stats-popup-link:hover { background: #e9ecef; color: #0d6efd; }
+                        .stats-popup-link i { font-size: 14px; }
+                        .stats-popup-body { padding: 8px 10px; }
+                        .stats-popup-sites { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #495057; margin-bottom: 6px; flex-wrap: wrap; }
+                        .stats-popup-sites i { color: #0d6efd; font-size: 14px; }
+                        .stats-popup-arrow { color: #adb5bd; }
+                        .stats-tag { font-size: 11px; padding: 2px 6px; border-radius: 3px; font-weight: 500; }
+                        .stats-tag-danger { background: #f8d7da; color: #721c24; }
+                    </style>
                 `)
                 .addTo(this.map);
          
