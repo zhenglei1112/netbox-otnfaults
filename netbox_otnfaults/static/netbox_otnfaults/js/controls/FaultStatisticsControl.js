@@ -511,8 +511,8 @@ class FaultStatisticsControl {
      */
     renderLineChart(monthlyStats) {
         const width = 260;
-        const height = 65;  // 紧凑高度
-        const padding = { top: 5, right: 5, bottom: 15, left: 22 };
+        const height = 58;  // 紧凑高度
+        const padding = { top: 3, right: 3, bottom: 12, left: 18 };  // 减少空白
         const chartWidth = width - padding.left - padding.right;
         const chartHeight = height - padding.top - padding.bottom;
         
@@ -583,7 +583,6 @@ class FaultStatisticsControl {
     renderTimeStatsHtml(stats, label, monthlyStats) {
         const items = [
             { key: '1week', text: '1周内' },
-            { key: '2weeks', text: '2周内' },
             { key: '1month', text: '1月内' },
             { key: '3months', text: '3月内' },
             { key: '1year', text: '1年内' }
