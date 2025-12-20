@@ -7,6 +7,7 @@ from .models import (
 )
 from django import forms
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField
+from utilities.forms.rendering import FieldSet
 from utilities.forms.widgets import DateTimePicker
 from dcim.models import Site, Region
 from tenancy.models import Tenant
@@ -413,6 +414,26 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
 class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     tag = TagFilterField(OtnFault)
     model = OtnFault
+    
+    fieldsets = (
+        FieldSet('q', 'filter_id', 'tag'),
+        FieldSet(
+            'fault_status', 'urgency', 'province', 'interruption_location_a', 
+            'interruption_location', 'interruption_longitude', 'interruption_latitude',
+            'fault_category', 'interruption_reason', 'fault_occurrence_time', 
+            'fault_recovery_time', 'first_report_source', 'line_manager', 
+            'duty_officer', 'fault_details',
+            name='故障信息'
+        ),
+        FieldSet(
+            'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
+            'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
+            'departure_time', 'arrival_time', 'timeout',
+            'timeout_reason', 'handler', 'comments',
+            name='光缆中断补充信息'
+        ),
+    )
+    
     duty_officer = DynamicModelChoiceField(
         queryset=get_user_model().objects.all(),
         required=False,
