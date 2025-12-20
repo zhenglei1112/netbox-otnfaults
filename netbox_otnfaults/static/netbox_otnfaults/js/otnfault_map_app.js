@@ -910,37 +910,154 @@ document.addEventListener('DOMContentLoaded', function () {
                 const pathFeature = features.find(f => f.layer.id === 'otn-paths-labels');
                 
                 if (siteFeature) {
-                    // Show Site Popup
-                     const props = siteFeature.properties;
-                    let content = `
-                    <h6>${props.name}</h6>
-                    <table class="table table-sm table-striped">
-                        <tr><td>区域:</td><td>${props.region}</td></tr>
-                        <tr><td>状态:</td><td>${props.status}</td></tr>
-                    </table>
-                    <a href="${props.url}" target="_blank">查看详情</a>`;
+                    // Show Site Popup - 使用与 Top5 故障站点一致的卡片式布局
+                    const props = siteFeature.properties;
+                    const siteName = props.name;
+                    const siteId = props.id;
                     
-                    new maplibregl.Popup()
-                        .setLngLat(siteFeature.geometry.coordinates) // Use feature coordinates for point
+                    // 构建故障列表详情链接
+                    const faultListUrl = window.OTNFaultMapConfig.faultListUrl || '/plugins/netbox_otnfaults/faults/';
+                    const detailUrl = siteId ? `${faultListUrl}?single_site_a_id=${siteId}` : props.url;
+                    
+                    // 获取统计数据（复用 FaultStatisticsControl 的方法）
+                    let timeStatsHtml = '';
+                    if (window.faultStatisticsControl) {
+                        const timeStats = window.faultStatisticsControl.calculateSiteTimeStats(siteName);
+                        const monthlyStats = window.faultStatisticsControl.calculateSiteMonthlyStats(siteName);
+                        timeStatsHtml = window.faultStatisticsControl.renderTimeStatsHtml(timeStats, '此站点', monthlyStats);
+                    }
+                    
+                    const content = `
+                        <div class="stats-popup-content">
+                            <div class="stats-popup-header">
+                                <div class="stats-popup-title">
+                                    <i class="mdi mdi-map-marker"></i>
+                                    <span>${siteName}</span>
+                                </div>
+                                <a href="${detailUrl}" class="stats-popup-link" target="_blank" title="查看详情">
+                                    <i class="mdi mdi-open-in-new"></i>
+                                </a>
+                            </div>
+                            <div class="stats-popup-body">
+                                <div class="stats-popup-info">
+                                    ${props.region ? `<span><i class="mdi mdi-earth"></i> ${props.region}</span>` : ''}
+                                    ${props.status ? `<span><i class="mdi mdi-check-circle"></i> ${props.status}</span>` : ''}
+                                </div>
+                            </div>
+                            ${timeStatsHtml}
+                        </div>
+                        <style>
+                            .stats-popup .maplibregl-popup-content { padding: 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+                            .stats-popup-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; padding-right: 28px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }
+                            .stats-popup-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: #212529; }
+                            .stats-popup-title i { color: #0d6efd; font-size: 16px; }
+                            .stats-popup-link { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #6c757d; border-radius: 4px; transition: all 0.15s; }
+                            .stats-popup-link:hover { background: #e9ecef; color: #0d6efd; }
+                            .stats-popup-link i { font-size: 14px; }
+                            .stats-popup-body { padding: 8px 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e9ecef; }
+                            .stats-popup-info { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #6c757d; }
+                            .stats-popup-info span { display: flex; align-items: center; gap: 3px; }
+                            .stats-popup-info i { font-size: 12px; }
+                            .stats-time-section { padding: 8px 10px; }
+                            .stats-time-title { font-size: 11px; font-weight: 600; color: #495057; margin-bottom: 6px; }
+                            .stats-time-grid { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
+                            .stats-time-item { display: flex; align-items: center; gap: 2px; font-size: 11px; color: #6c757d; }
+                            .stats-time-label { color: #6c757d; }
+                            .stats-time-value { font-weight: 700; color: #0097a7; font-size: 12px; }
+                            .stats-time-unit { color: #6c757d; }
+                            .stats-chart-section { padding: 0 10px 8px 10px; }
+                            .stats-chart-title { font-size: 10px; color: #6c757d; margin-bottom: 4px; }
+                            .stats-line-chart { display: block; }
+                        </style>
+                    `;
+                    
+                    new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
+                        .setLngLat(siteFeature.geometry.coordinates)
                         .setHTML(content)
                         .addTo(map);
                 } else if (pathFeature) {
-                    // Show Path Popup
+                    // Show Path Popup - 使用与 Top5 故障路径一致的卡片式布局
                     const props = pathFeature.properties;
+                    const pathName = props.name;
+                    const siteAName = props.a_site || '-';
+                    const siteZName = props.z_site || '-';
+                    
                     // Highlight
                     map.getSource('otn-paths-highlight').setData(pathFeature);
+                    
+                    // 获取站点ID用于构建详情链接
+                    const sites = window.OTNFaultMapConfig.sitesData || [];
+                    const siteAObj = sites.find(s => s.name === siteAName);
+                    const siteZObj = sites.find(s => s.name === siteZName);
+                    
+                    // 构建故障列表详情链接
+                    const faultListUrl = window.OTNFaultMapConfig.faultListUrl || '/plugins/netbox_otnfaults/faults/';
+                    let detailUrl = faultListUrl;
+                    if (siteAObj && siteZObj) {
+                        detailUrl = `${faultListUrl}?bidirectional_pair=${siteAObj.id},${siteZObj.id}`;
+                    }
+                    
+                    // 获取统计数据（复用 FaultStatisticsControl 的方法）
+                    let timeStatsHtml = '';
+                    if (window.faultStatisticsControl && siteAName !== '-' && siteZName !== '-') {
+                        const timeStats = window.faultStatisticsControl.calculatePathTimeStats(siteAName, siteZName);
+                        const monthlyStats = window.faultStatisticsControl.calculatePathMonthlyStats(siteAName, siteZName);
+                        timeStatsHtml = window.faultStatisticsControl.renderTimeStatsHtml(timeStats, '此线路', monthlyStats);
+                    }
     
-                    let content = `
-                        <h6>${props.name}</h6>
-                        <table class="table table-sm mb-0">
-                            <tr><td>状态:</td><td>${props.operational_status}</td></tr>
-                            <tr><td>A端:</td><td>${props.a_site || '-'}</td></tr>
-                            <tr><td>Z端:</td><td>${props.z_site || '-'}</td></tr>
-                            <tr><td>长度:</td><td>${props.total_length || '-'} km</td></tr>
-                        </table>
+                    const content = `
+                        <div class="stats-popup-content">
+                            <div class="stats-popup-header">
+                                <div class="stats-popup-title">
+                                    <i class="mdi mdi-vector-polyline" style="color: #198754;"></i>
+                                    <span>${pathName || '光缆路径'}</span>
+                                </div>
+                                <a href="${detailUrl}" class="stats-popup-link" target="_blank" title="查看详情">
+                                    <i class="mdi mdi-open-in-new"></i>
+                                </a>
+                            </div>
+                            <div class="stats-popup-body">
+                                <div class="stats-popup-sites">
+                                    <span><i class="mdi mdi-alpha-a-circle-outline"></i> ${siteAName}</span>
+                                    <span class="stats-popup-arrow">→</span>
+                                    <span><i class="mdi mdi-alpha-z-circle-outline"></i> ${siteZName}</span>
+                                </div>
+                                <div class="stats-popup-meta">
+                                    ${props.total_length ? `<span><i class="mdi mdi-ruler"></i> ${props.total_length} km</span>` : ''}
+                                    ${props.operational_status ? `<span><i class="mdi mdi-information"></i> ${props.operational_status}</span>` : ''}
+                                </div>
+                            </div>
+                            ${timeStatsHtml}
+                        </div>
+                        <style>
+                            .stats-popup .maplibregl-popup-content { padding: 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+                            .stats-popup-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; padding-right: 28px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }
+                            .stats-popup-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: #212529; }
+                            .stats-popup-title i { font-size: 16px; }
+                            .stats-popup-link { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #6c757d; border-radius: 4px; transition: all 0.15s; }
+                            .stats-popup-link:hover { background: #e9ecef; color: #0d6efd; }
+                            .stats-popup-link i { font-size: 14px; }
+                            .stats-popup-body { padding: 8px 10px; border-bottom: 1px solid #e9ecef; }
+                            .stats-popup-sites { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #495057; margin-bottom: 6px; flex-wrap: wrap; }
+                            .stats-popup-sites i { color: #0d6efd; font-size: 14px; }
+                            .stats-popup-arrow { color: #adb5bd; }
+                            .stats-popup-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #6c757d; }
+                            .stats-popup-meta span { display: flex; align-items: center; gap: 3px; }
+                            .stats-popup-meta i { font-size: 12px; }
+                            .stats-time-section { padding: 8px 10px; }
+                            .stats-time-title { font-size: 11px; font-weight: 600; color: #495057; margin-bottom: 6px; }
+                            .stats-time-grid { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
+                            .stats-time-item { display: flex; align-items: center; gap: 2px; font-size: 11px; color: #6c757d; }
+                            .stats-time-label { color: #6c757d; }
+                            .stats-time-value { font-weight: 700; color: #0097a7; font-size: 12px; }
+                            .stats-time-unit { color: #6c757d; }
+                            .stats-chart-section { padding: 0 10px 8px 10px; }
+                            .stats-chart-title { font-size: 10px; color: #6c757d; margin-bottom: 4px; }
+                            .stats-line-chart { display: block; }
+                        </style>
                     `;
-                    new maplibregl.Popup()
-                        .setLngLat(e.lngLat) // Use click location for line
+                    new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
+                        .setLngLat(e.lngLat)
                         .setHTML(content)
                         .addTo(map);
                 }
