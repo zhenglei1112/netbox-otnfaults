@@ -58,21 +58,9 @@ class SearchControl {
         this.input.className = 'search-input';
         this.input.placeholder = '搜索站点或路径...';
         
-        // 清除按钮
-        const clearBtn = document.createElement('span');
-        clearBtn.className = 'search-clear';
-        clearBtn.innerHTML = '<i class="mdi mdi-close"></i>';
-        clearBtn.style.display = 'none';
-        clearBtn.onclick = () => {
-            this.input.value = '';
-            clearBtn.style.display = 'none';
-            this.hideResults();
-        };
-        
         // 输入事件（防抖）
         this.input.oninput = () => {
             const value = this.input.value.trim();
-            clearBtn.style.display = value ? 'flex' : 'none';
             
             clearTimeout(this.debounceTimer);
             this.debounceTimer = setTimeout(() => {
@@ -90,8 +78,6 @@ class SearchControl {
         
         wrapper.appendChild(icon);
         wrapper.appendChild(this.input);
-        wrapper.appendChild(clearBtn);
-        this.clearBtn = clearBtn;
         
         // 结果列表容器
         this.resultList = document.createElement('div');

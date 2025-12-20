@@ -657,10 +657,6 @@ class FaultStatisticsControl {
                                     <i class="mdi mdi-open-in-new"></i>
                                 </a>
                             </div>
-                            <div class="stats-popup-body">
-                                <span class="stats-tag stats-tag-warning">故障高发站点</span>
-                                <span class="stats-tag-sub">非线路故障</span>
-                            </div>
                             ${timeStatsHtml}
                         </div>
                         <style>
@@ -852,11 +848,12 @@ class FaultStatisticsControl {
             this.map.getSource('otn-paths-highlight').setData(targetPath);
         }
 
-        // 在路径中心显示弹窗
-        const center = bounds.getCenter();
+        // 在路径线上的中点显示弹窗
+        const midIndex = Math.floor(coords.length / 2);
+        const midPoint = coords[midIndex];
         
         this.currentPopup = new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
-                .setLngLat(center)
+                .setLngLat(midPoint)
                 .setHTML(`
                     <div class="stats-popup-content">
                         <div class="stats-popup-header">
@@ -874,7 +871,6 @@ class FaultStatisticsControl {
                                 <span class="stats-popup-arrow">→</span>
                                 <span><i class="mdi mdi-alpha-z-circle-outline"></i> ${siteZName}</span>
                             </div>
-                            <span class="stats-tag stats-tag-danger">故障高发路径</span>
                         </div>
                         ${timeStatsHtml}
                     </div>
