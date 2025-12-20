@@ -106,7 +106,12 @@ document.addEventListener('DOMContentLoaded', function () {
     window.faultLegendControl = faultLegendControl;
     mapBase.addControl(faultLegendControl, 'bottom-right');
     
-    // 添加图层控制 (放在左上角，确保在其他左侧控件之前)
+    // 搜索控件（左上角，视图设置按钮右侧）
+    const searchControl = new SearchControl();
+    window.searchControl = searchControl;
+    mapBase.addControl(searchControl, 'top-left');
+    
+    // 添加图层控制 (放在左上角，搜索控件左侧)
     mapBase.addControl(layerToggleControl, 'top-left');
 
 
