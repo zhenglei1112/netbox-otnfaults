@@ -1,4 +1,5 @@
 
+// 故障类型颜色（用于仅需要类型区分的场景，如筛选器）
 const FAULT_CATEGORY_COLORS = {
     'power': '#ff0000',    // 红色
     'fiber': '#ffa500',    // 橙色
@@ -11,9 +12,26 @@ const FAULT_CATEGORY_NAMES = {
     'power': '电力故障', 'fiber': '光缆故障', 'pigtail': '空调故障', 'device': '设备故障', 'other': '其他故障'
 };
 
+// 故障状态颜色（与 models.py 中 FaultStatusChoices 对应）
+const FAULT_STATUS_COLORS = {
+    'processing': '#f5a623',       // 处理中 - 橙色
+    'temporary_recovery': '#0d6efd', // 临时恢复 - 蓝色
+    'suspended': '#ffc107',        // 挂起 - 黄色
+    'closed': '#198754'            // 已关闭 - 绿色
+};
+
+const FAULT_STATUS_NAMES = {
+    'processing': '处理中',
+    'temporary_recovery': '临时恢复',
+    'suspended': '挂起',
+    'closed': '已关闭'
+};
+
 // 挂载到 window 对象，确保全局可访问
 window.FAULT_CATEGORY_COLORS = FAULT_CATEGORY_COLORS;
 window.FAULT_CATEGORY_NAMES = FAULT_CATEGORY_NAMES;
+window.FAULT_STATUS_COLORS = FAULT_STATUS_COLORS;
+window.FAULT_STATUS_NAMES = FAULT_STATUS_NAMES;
 
 
 /**

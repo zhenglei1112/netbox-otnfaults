@@ -140,6 +140,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 
                 # 新增字段：状态
                 'status': fault.get_fault_status_display() or '未知状态',
+                'status_key': fault.fault_status or 'processing',  # 状态键值，用于前端图标匹配
                 'status_color': fault.get_fault_status_color(), # 也可以传颜色
 
                 # 新增字段：时间信息

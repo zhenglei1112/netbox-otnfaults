@@ -216,11 +216,16 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('原始 markerData:', markerData);
         const faultFeatures = markerData.map(m => {
             const category = m.category || 'other';
-            const color = FAULT_CATEGORY_COLORS[category] || FAULT_CATEGORY_COLORS['other'];
+            const categoryColor = FAULT_CATEGORY_COLORS[category] || FAULT_CATEGORY_COLORS['other'];
             const dateStr = m.occurrence_time || '';
             const isoDateStr = dateStr.replace(' ', 'T');
             
-            // console.log(`故障点转换: id=${m.id}, category=${category}, date=${dateStr}, lng=${m.lng}, lat=${m.lat}`);
+            // 获取故障状态键（用于图标匹配）
+            // 使用后端传递的 status_key 字段
+            const statusKey = m.status_key || 'processing';
+            const statusColorHex = FAULT_STATUS_COLORS[statusKey] || FAULT_STATUS_COLORS['processing'];
+            
+            // console.log(`故障点转换: id=${m.id}, category=${category}, statusKey=${statusKey}, date=${dateStr}`);
             
             return {
                 type: 'Feature',
@@ -231,7 +236,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     site: m.a_site || '未指定',
                     zSites: m.z_sites || '',
                     status: m.status || '',
+                    statusKey: statusKey,  // 状态键，用于图标匹配
                     statusColor: m.status_color || 'secondary',
+                    statusColorHex: statusColorHex,  // 状态对应的实际颜色
                     category: category,
                     categoryName: FAULT_CATEGORY_NAMES[category] || category,
                     date: dateStr,
@@ -240,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     faultDuration: m.fault_duration || '未知',
                     reason: m.reason || '-',
                     url: m.url || '#',
-                    color: color,
+                    color: categoryColor,  // 保留类型颜色用于其他用途
                     hasImages: m.has_images || false,
                     imageCount: m.image_count || 0,
                     images: JSON.stringify(m.images || []),
@@ -269,12 +276,28 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // --- 先加载图标，完成后再创建图层 ---
         const loadIconsAndCreateLayer = () => {
+            // 故障状态列表
+            const statusKeys = Object.keys(FAULT_STATUS_COLORS);
+            // 故障类型列表
+            const categoryKeys = Object.keys(FAULT_CATEGORY_COLORS);
+            
+            // 总图标数 = 类型数 * 状态数 + 默认图标
+            const totalIcons = categoryKeys.length * statusKeys.length + 1;
             let iconsLoaded = 0;
-            const totalIcons = Object.keys(FAULT_CATEGORY_COLORS).length + 1; // 所有分类图标 + 默认图标
             
             // 图标全部加载完成后的回调：创建图层
             const onAllIconsLoaded = () => {
                 console.log('所有故障点图标已加载，开始创建图层...');
+                
+                // 构建 icon-image 匹配表达式
+                // 使用 concat 表达式组合 category 和 status
+                const iconImageExpression = [
+                    'concat',
+                    'fault-marker-',
+                    ['get', 'category'],
+                    '-',
+                    ['coalesce', ['get', 'statusKey'], 'processing']
+                ];
                 
                 // 创建 Symbol Layer 显示故障点
                 mapBase.addLayer({
@@ -282,19 +305,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     type: 'symbol',
                     source: 'fault-points',
                     layout: {
-                        'icon-image': [
-                            'match',
-                            ['get', 'category'],
-                            ...Object.keys(FAULT_CATEGORY_COLORS).flatMap(cat => [cat, `fault-marker-${cat}`]),
-                            'fault-marker' // 默认图标
-                        ],
+                        'icon-image': iconImageExpression,
                         'icon-size': 1.0,
                         'icon-allow-overlap': true,
                         'icon-ignore-placement': true
                     },
                     paint: {
-                        // 注意：icon-color 仅对 SDF 图标有效，普通 SVG 图标无效
-                        // 我们已经通过不同颜色的图标变体实现了颜色区分
+                        // 注意：icon-color 仅对 SDF 图标有效，普通 Canvas 图标无效
                     }
                 });
                 
@@ -320,51 +337,186 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             };
             
-            // 使用 Canvas 绘制地图标记图标
-            const createMarkerIcon = (color) => {
-                const size = 48;  // 增大图标尺寸
+            // 为不同故障类型创建不同形状的图标（具有象形意义）
+            // category: 'fiber'=光纤波浪线, 'power'=闪电, 'pigtail'=雪花, 'device'=芯片, 'other'=警告三角
+            const createMarkerIcon = (category, color) => {
+                const size = 48;
                 const canvas = document.createElement('canvas');
                 canvas.width = size;
                 canvas.height = size;
                 const ctx = canvas.getContext('2d');
                 
-                // 绘制水滴形状的标记
-                ctx.beginPath();
-                // 水滴形状：上半部分是圆形，下半部分是尖角
                 const centerX = size / 2;
-                const topY = 8;
-                const radius = 14;  // 增大半径
+                const centerY = size / 2;
                 
-                // 上半部分圆弧
-                ctx.arc(centerX, topY + radius, radius, Math.PI, 0, false);
-                // 下半部分三角形（尖角）
-                ctx.lineTo(centerX, size - 4);
-                ctx.lineTo(centerX - radius, topY + radius);
-                ctx.closePath();
-                
-                // 填充颜色
+                // 先绘制圆形背景
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 18, 0, Math.PI * 2);
                 ctx.fillStyle = color;
                 ctx.fill();
-                
-                // 白色边框
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 
-                // 中心白点
-                ctx.beginPath();
-                ctx.arc(centerX, topY + radius, 4, 0, Math.PI * 2);  // 增大白点
+                // 在圆形背景上绘制白色图标
+                ctx.strokeStyle = 'white';
                 ctx.fillStyle = 'white';
-                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                switch(category) {
+                    case 'fiber':
+                        // 光纤图标：波浪线表示光纤/光缆
+                        ctx.beginPath();
+                        ctx.lineWidth = 2.5;
+                        // 绘制波浪线（光纤传输的形象）
+                        ctx.moveTo(centerX - 10, centerY);
+                        ctx.bezierCurveTo(
+                            centerX - 6, centerY - 6,
+                            centerX - 2, centerY + 6,
+                            centerX + 2, centerY
+                        );
+                        ctx.bezierCurveTo(
+                            centerX + 6, centerY - 6,
+                            centerX + 10, centerY,
+                            centerX + 10, centerY
+                        );
+                        ctx.stroke();
+                        // 两端的小圆点表示连接器
+                        ctx.beginPath();
+                        ctx.arc(centerX - 10, centerY, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.arc(centerX + 10, centerY, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                        
+                    case 'power':
+                        // 闪电图标：电力故障
+                        ctx.beginPath();
+                        ctx.moveTo(centerX + 2, centerY - 10);
+                        ctx.lineTo(centerX - 4, centerY);
+                        ctx.lineTo(centerX, centerY);
+                        ctx.lineTo(centerX - 2, centerY + 10);
+                        ctx.lineTo(centerX + 4, centerY);
+                        ctx.lineTo(centerX, centerY);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                        
+                    case 'pigtail':
+                        // 雪花图标：空调故障（制冷）
+                        ctx.lineWidth = 2;
+                        // 中心点
+                        const armLength = 9;
+                        // 绘制6条主臂
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i * 60) * Math.PI / 180;
+                            const x1 = centerX;
+                            const y1 = centerY;
+                            const x2 = centerX + Math.cos(angle) * armLength;
+                            const y2 = centerY + Math.sin(angle) * armLength;
+                            
+                            // 主臂
+                            ctx.beginPath();
+                            ctx.moveTo(x1, y1);
+                            ctx.lineTo(x2, y2);
+                            ctx.stroke();
+                            
+                            // 在主臂末端添加小分支
+                            const branchLen = 3;
+                            const branchAngle1 = angle + Math.PI / 4;
+                            const branchAngle2 = angle - Math.PI / 4;
+                            const midX = centerX + Math.cos(angle) * (armLength * 0.6);
+                            const midY = centerY + Math.sin(angle) * (armLength * 0.6);
+                            
+                            ctx.beginPath();
+                            ctx.moveTo(midX, midY);
+                            ctx.lineTo(midX + Math.cos(branchAngle1) * branchLen, midY + Math.sin(branchAngle1) * branchLen);
+                            ctx.stroke();
+                            
+                            ctx.beginPath();
+                            ctx.moveTo(midX, midY);
+                            ctx.lineTo(midX + Math.cos(branchAngle2) * branchLen, midY + Math.sin(branchAngle2) * branchLen);
+                            ctx.stroke();
+                        }
+                        break;
+                        
+                    case 'device':
+                        // 芯片/服务器图标：设备故障
+                        const chipSize = 12;
+                        const pinLen = 3;
+                        
+                        // 主体正方形
+                        ctx.fillRect(centerX - chipSize/2, centerY - chipSize/2, chipSize, chipSize);
+                        
+                        // 四边的引脚
+                        ctx.lineWidth = 1.5;
+                        // 上边引脚
+                        for (let i = -1; i <= 1; i++) {
+                            ctx.beginPath();
+                            ctx.moveTo(centerX + i * 4, centerY - chipSize/2);
+                            ctx.lineTo(centerX + i * 4, centerY - chipSize/2 - pinLen);
+                            ctx.stroke();
+                        }
+                        // 下边引脚
+                        for (let i = -1; i <= 1; i++) {
+                            ctx.beginPath();
+                            ctx.moveTo(centerX + i * 4, centerY + chipSize/2);
+                            ctx.lineTo(centerX + i * 4, centerY + chipSize/2 + pinLen);
+                            ctx.stroke();
+                        }
+                        // 左边引脚
+                        for (let i = -1; i <= 1; i++) {
+                            ctx.beginPath();
+                            ctx.moveTo(centerX - chipSize/2, centerY + i * 4);
+                            ctx.lineTo(centerX - chipSize/2 - pinLen, centerY + i * 4);
+                            ctx.stroke();
+                        }
+                        // 右边引脚
+                        for (let i = -1; i <= 1; i++) {
+                            ctx.beginPath();
+                            ctx.moveTo(centerX + chipSize/2, centerY + i * 4);
+                            ctx.lineTo(centerX + chipSize/2 + pinLen, centerY + i * 4);
+                            ctx.stroke();
+                        }
+                        
+                        // 中心小方块（表示核心）
+                        ctx.fillStyle = color;
+                        ctx.fillRect(centerX - 2, centerY - 2, 4, 4);
+                        break;
+                        
+                    case 'other':
+                    default:
+                        // 警告三角形：其他故障
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, centerY - 9);
+                        ctx.lineTo(centerX + 9, centerY + 7);
+                        ctx.lineTo(centerX - 9, centerY + 7);
+                        ctx.closePath();
+                        ctx.stroke();
+                        ctx.lineWidth = 1;
+                        
+                        // 感叹号
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, centerY - 4);
+                        ctx.lineTo(centerX, centerY + 2);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY + 5, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                }
                 
                 return ctx.getImageData(0, 0, size, size);
             };
             
             // 添加图标到地图
-            const addIconToMap = (name, color) => {
+            const addIconToMap = (name, category, color) => {
                 try {
                     if (!map.hasImage(name)) {
-                        const imageData = createMarkerIcon(color);
+                        const imageData = createMarkerIcon(category, color);
                         map.addImage(name, imageData, { pixelRatio: 2 });
                         console.log(`图标已创建: ${name}`);
                     }
@@ -375,14 +527,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             };
             
-            // 创建默认图标
-            const defaultColor = FAULT_CATEGORY_COLORS[Object.keys(FAULT_CATEGORY_COLORS)[0]];
-            addIconToMap('fault-marker', defaultColor);
+            // 创建默认图标（使用 other 类型 + processing 状态）
+            const defaultColor = FAULT_STATUS_COLORS['processing'];
+            addIconToMap('fault-marker', 'other', defaultColor);
             
-            // 创建各分类颜色的图标变体
-            Object.keys(FAULT_CATEGORY_COLORS).forEach(category => {
-                const color = FAULT_CATEGORY_COLORS[category];
-                addIconToMap(`fault-marker-${category}`, color);
+            // 为每个类型-状态组合创建图标
+            categoryKeys.forEach(category => {
+                statusKeys.forEach(status => {
+                    const color = FAULT_STATUS_COLORS[status];
+                    const iconName = `fault-marker-${category}-${status}`;
+                    addIconToMap(iconName, category, color);
+                });
             });
         };
         
@@ -829,12 +984,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         
-        // 调试配置
-        const DEBUG_MODE = true; // 启用调试模式，使用调试时间
-        const DEBUG_DATE = '2025-12-05 12:00:00'; // 调试模式固定时间
+        // 调试配置（全局变量，可被其他模块使用）
+        window.OTN_DEBUG_MODE = true; // 启用调试模式，使用调试时间
+        window.OTN_DEBUG_DATE = '2025-12-05 12:00:00'; // 调试模式固定时间
         
-        const now = DEBUG_MODE ? new Date(DEBUG_DATE) : new Date();
-        if (DEBUG_MODE) {
+        const now = window.OTN_DEBUG_MODE ? new Date(window.OTN_DEBUG_DATE) : new Date();
+        if (window.OTN_DEBUG_MODE) {
             console.log(`[Debug] Mode ON. Current Time Fixed to: ${now.toLocaleString()}`);
         }
 
