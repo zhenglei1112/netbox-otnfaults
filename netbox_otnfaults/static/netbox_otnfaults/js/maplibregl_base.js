@@ -20,10 +20,15 @@ class NetBoxMapBase {
      * 初始化地图
      * @param {string} containerId - 地图容器的 HTML ID
      * @param {string} apiKey - Stadia Maps API 密钥
-     * @param {Array} center - 中心点 [经度, 纬度]
-     * @param {number} zoom - 缩放级别
+     * @param {Array} center - 中心点 [经度, 纬度]，默认使用全局配置
+     * @param {number} zoom - 缩放级别，默认使用全局配置
      */
-    init(containerId, apiKey, center = [112.53, 33.00], zoom = 4.2) {
+    init(containerId, apiKey, center, zoom) {
+        // 使用传入的配置或全局配置
+        const config = window.OTNFaultMapConfig || {};
+        center = center || config.mapCenter || [112.53, 33.00];
+        zoom = zoom || config.mapZoom || 4.2;
+        
         if (typeof maplibregl === 'undefined') {
             throw new Error('MapLibre GL 库未加载。');
         }
@@ -58,8 +63,10 @@ class NetBoxMapBase {
         class HomeControl {
             constructor(options) {
                 this.options = options || {};
-                this.initialCenter = [112.53, 33.00]; // 南阳市中心
-                this.initialZoom = 4.2;
+                // 使用全局配置的中心点和缩放级别
+                const config = window.OTNFaultMapConfig || {};
+                this.initialCenter = config.mapCenter || [112.53, 33.00];
+                this.initialZoom = config.mapZoom || 4.2;
             }
 
             onAdd(map) {

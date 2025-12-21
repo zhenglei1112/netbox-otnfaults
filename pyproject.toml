@@ -4,32 +4,43 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netbox-otnfaults"
-version = "0.1"
+version = "0.1.0"
 authors = [
-  { name="Your Name", email="your.email@example.com" },
+  { name="OTN Faults Team", email="otnfaults@example.com" },
 ]
 
 description = "OTN Network Fault Registration plugin for Netbox"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
+keywords = ["netbox", "plugin", "otn", "fault-management", "network", "maplibre"]
+license = {text = "MIT"}
 
 dependencies = [
-    'Django',
+    'Django>=4.2',
 ]
 
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "Topic :: System :: Networking :: Monitoring",
 ]
 
 [project.optional-dependencies]
-dev = ["check-manifest", "ruff"]
+dev = ["check-manifest", "ruff", "pytest", "pytest-django"]
 
 [project.urls]
-"Homepage" = "https://github.com/your-username/netbox-otnfaults"
-"Bug Tracker" = "https://github.com/your-username/netbox-otnfaults/issues"
+"Homepage" = "https://github.com/your-org/netbox-otnfaults"
+"Bug Tracker" = "https://github.com/your-org/netbox-otnfaults/issues"
+"Documentation" = "https://github.com/your-org/netbox-otnfaults/wiki"
+"Changelog" = "https://github.com/your-org/netbox-otnfaults/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
 packages = [
@@ -38,3 +49,4 @@ packages = [
 package-data = { "netbox_otnfaults" = ["**/*", "templates/**"] }
 exclude-package-data = { netbox_otnfaults = ["tests/*"] }
 license-files = ["LICENSE"]
+

@@ -16,6 +16,12 @@ from django.views.generic import View
 from django.contrib.auth.mixins import PermissionRequiredMixin
 import json
 from django.core.serializers.json import DjangoJSONEncoder
+from django.conf import settings
+
+
+def get_plugin_settings():
+    """获取插件配置"""
+    return settings.PLUGINS_CONFIG.get('netbox_otnfaults', {})
 
 class OtnFaultListView(generic.ObjectListView):
     """OTN故障列表视图"""
@@ -170,6 +176,9 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 'image_count': fault.images.count() if hasattr(fault, 'images') else 0
             })
 
+        # 获取插件配置
+        plugin_settings = get_plugin_settings()
+        
         return render(request, 'netbox_otnfaults/otnfault_map_globe.html', {
             'heatmap_data': json.dumps(heatmap_data, cls=DjangoJSONEncoder),
             'marker_data': json.dumps(marker_data, cls=DjangoJSONEncoder),
@@ -190,7 +199,9 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 }
                 for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False)
             ], cls=DjangoJSONEncoder),
-            'apikey': 'e0109253-b502-41de-9dd2-8a80bb3b1a09',
+            'apikey': plugin_settings.get('map_api_key', ''),
+            'map_center': json.dumps(plugin_settings.get('map_default_center', [112.53, 33.00])),
+            'map_zoom': plugin_settings.get('map_default_zoom', 4.2),
             'current_time_range': time_range  # 传递给模板，用于显示当前选择
         })
 

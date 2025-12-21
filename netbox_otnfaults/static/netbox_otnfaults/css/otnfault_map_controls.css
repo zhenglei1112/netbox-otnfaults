@@ -1,0 +1,343 @@
+/**
+ * OTN Fault Map 控件样式
+ * 提取自 LayerToggleControl.js 和 FaultStatisticsControl.js
+ */
+
+/* =================================
+   LayerToggleControl 样式
+   ================================= */
+
+/* 视图控制菜单 */
+.view-control-menu {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    z-index: 1000;
+    min-width: 280px;
+    background-color: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 视图模式卡片容器 */
+.view-mode-cards {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+}
+
+/* 视图模式卡片 */
+.mode-card {
+    flex: 1;
+    min-width: 70px;
+    padding: 8px 12px;
+    border: 2px solid var(--bs-border-color, #dee2e6);
+    border-radius: 8px;
+    background-color: var(--bs-body-bg, #fff);
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+    transition: all 0.15s ease-in-out;
+}
+
+.mode-card:hover:not(.active) {
+    border-color: var(--bs-primary-border-subtle, #86b7fe);
+    background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.04);
+}
+
+.mode-card.active {
+    border-color: var(--bs-primary, #0d6efd);
+    background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.08);
+}
+
+.mode-card-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--bs-body-color, #212529);
+    margin-bottom: 2px;
+}
+
+.mode-card.active .mode-card-label {
+    color: var(--bs-primary, #0d6efd);
+}
+
+.mode-card-desc {
+    font-size: 10px;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+/* 时间范围滑动条 */
+.time-range-slider {
+    width: 100%;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(to right, var(--bs-primary, #0d6efd) 0%, #dee2e6 100%);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+
+.time-range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--bs-primary, #0d6efd);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.time-range-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--bs-primary, #0d6efd);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* =================================
+   FaultStatisticsControl 弹窗样式
+   ================================= */
+
+.stats-popup .maplibregl-popup-content {
+    padding: 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.stats-popup-content {
+    font-size: 13px;
+}
+
+.stats-popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    padding-right: 28px;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border-bottom: 1px solid var(--bs-border-color, #e9ecef);
+    border-radius: 8px 8px 0 0;
+}
+
+.stats-popup-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--bs-body-color, #212529);
+}
+
+.stats-popup-title i {
+    color: var(--bs-primary, #0d6efd);
+    font-size: 16px;
+}
+
+.stats-popup-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--bs-secondary-color, #6c757d);
+    border-radius: 4px;
+    transition: all 0.15s;
+    text-decoration: none;
+}
+
+.stats-popup-link:hover {
+    background: var(--bs-tertiary-bg, #e9ecef);
+    color: var(--bs-primary, #0d6efd);
+}
+
+.stats-popup-link i {
+    font-size: 14px;
+}
+
+.stats-popup-body {
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--bs-border-color, #e9ecef);
+}
+
+.stats-popup-sites {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.stats-popup-arrow {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+/* 统计标签 */
+.stats-tag {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.stats-tag-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.stats-tag-sub {
+    font-size: 11px;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+/* 时间统计区域 */
+.stats-time-section {
+    padding: 8px 10px;
+}
+
+.stats-time-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--bs-secondary-color, #495057);
+    margin-bottom: 6px;
+}
+
+.stats-time-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-bottom: 8px;
+}
+
+.stats-time-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 11px;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.stats-time-label {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.stats-time-value {
+    font-weight: 700;
+    color: var(--bs-link-color, #0097a7);
+    font-size: 12px;
+}
+
+.stats-time-unit {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+/* 图表区域 */
+.stats-chart-section {
+    padding: 0 10px 8px 10px;
+}
+
+.stats-chart-title {
+    font-size: 10px;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-bottom: 4px;
+}
+
+.stats-line-chart {
+    display: block;
+}
+
+/* 图表数据点悬停效果 */
+.stats-line-chart .chart-point circle {
+    transition: r 0.15s ease-in-out;
+}
+
+.stats-line-chart .chart-point:hover circle {
+    r: 5;
+}
+
+/* =================================
+   故障点弹窗样式
+   ================================= */
+
+.fault-popup {
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.fault-popup .popup-sites {
+    font-weight: 600;
+    color: var(--bs-body-color, #212529);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.fault-popup .popup-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #fff !important;
+}
+
+.fault-popup .popup-badges {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.fault-popup .popup-row {
+    display: flex;
+    margin-bottom: 4px;
+}
+
+.fault-popup .popup-label {
+    color: var(--bs-secondary-color, #6c757d);
+    min-width: 52px;
+    flex-shrink: 0;
+}
+
+.fault-popup .popup-row span:last-child {
+    color: var(--bs-body-color, #212529);
+}
+
+.fault-popup .popup-footer {
+    padding-top: 6px;
+    margin-top: 6px;
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.fault-popup .popup-footer a {
+    font-weight: 600;
+    color: var(--bs-link-color, #0097a7);
+    text-decoration: none;
+    transition: color 0.15s ease-in-out;
+}
+
+.fault-popup .popup-footer a:hover {
+    color: var(--bs-link-hover-color, #007c8a);
+    text-decoration: underline;
+}
+
+/* =================================
+   可点击统计行
+   ================================= */
+
+.clickable-stat-row {
+    transition: background-color 0.15s ease-in-out;
+    padding: 4px;
+    margin: -4px;
+    border-radius: 4px;
+}
+
+.clickable-stat-row:hover {
+    background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.05);
+}

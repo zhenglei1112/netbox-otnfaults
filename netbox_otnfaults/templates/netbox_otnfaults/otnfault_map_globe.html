@@ -35,6 +35,10 @@
   rel="stylesheet"
   href="{% static 'netbox_otnfaults/css/otnfault_map_globe.css' %}"
 />
+<link
+  rel="stylesheet"
+  href="{% static 'netbox_otnfaults/css/otnfault_map_controls.css' %}"
+/>
 
 <script>
   window.OTNFaultMapConfig = {
@@ -42,12 +46,21 @@
       markerData: {{ marker_data| safe }},
       sitesData: {{ sites_data| safe }},
       apiKey: "{{ apikey }}",
-      faultListUrl: "{% url 'plugins:netbox_otnfaults:otnfault_list' %}"
+      faultListUrl: "{% url 'plugins:netbox_otnfaults:otnfault_list' %}",
+      mapCenter: {{ map_center| safe }},
+      mapZoom: {{ map_zoom }}
   };
 </script>
 
 <!-- Base -->
 <script src="{% static 'netbox_otnfaults/js/maplibregl_base.js' %}"></script>
+
+<!-- Core -->
+<script src="{% static 'netbox_otnfaults/js/core/config.js' %}"></script>
+
+<!-- Services -->
+<script src="{% static 'netbox_otnfaults/js/services/FaultDataService.js' %}"></script>
+<script src="{% static 'netbox_otnfaults/js/services/PopupTemplates.js' %}"></script>
 
 <!-- Utils -->
 <script src="{% static 'netbox_otnfaults/js/utils/api.js' %}"></script>
