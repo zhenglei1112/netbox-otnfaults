@@ -172,6 +172,107 @@ class PopupTemplates {
                 </div>
                 ${timeStatsHtml || ''}
             </div>
+            ${PopupTemplates.statsPopupStyles()}
         `;
     }
+    
+    /**
+     * 生成统计站点弹窗 HTML（用于 FaultStatisticsControl 的 flyToSite）
+     * @param {Object} params - 参数对象
+     * @returns {string} HTML 字符串
+     */
+    static statsSitePopup({ siteName, detailUrl, timeStatsHtml }) {
+        return `
+            <div class="stats-popup-content">
+                <div class="stats-popup-header">
+                    <div class="stats-popup-title">
+                        <i class="mdi mdi-map-marker"></i>
+                        <span>${siteName}</span>
+                    </div>
+                    <a href="${detailUrl}" class="stats-popup-link" target="_blank" title="查看详情">
+                        <i class="mdi mdi-open-in-new"></i>
+                    </a>
+                </div>
+                ${timeStatsHtml || ''}
+            </div>
+            ${PopupTemplates.statsPopupStyles()}
+        `;
+    }
+    
+    /**
+     * 生成统计路径弹窗 HTML（用于 FaultStatisticsControl 的 flyToPath - 匹配成功）
+     * @param {Object} params - 参数对象
+     * @returns {string} HTML 字符串
+     */
+    static statsPathPopup({ popupTitle, siteAName, siteZName, detailUrl, timeStatsHtml }) {
+        return `
+            <div class="stats-popup-content">
+                <div class="stats-popup-header">
+                    <div class="stats-popup-title">
+                        <i class="mdi mdi-vector-polyline" style="color: #198754;"></i>
+                        <span>${popupTitle}</span>
+                    </div>
+                    <a href="${detailUrl}" class="stats-popup-link" target="_blank" title="查看详情">
+                        <i class="mdi mdi-open-in-new"></i>
+                    </a>
+                </div>
+                <div class="stats-popup-body">
+                    <div class="stats-popup-sites">
+                        <span><i class="mdi mdi-alpha-a-circle-outline"></i> ${siteAName}</span>
+                        <span class="stats-popup-arrow">→</span>
+                        <span><i class="mdi mdi-alpha-z-circle-outline"></i> ${siteZName}</span>
+                    </div>
+                </div>
+                ${timeStatsHtml || ''}
+            </div>
+            ${PopupTemplates.statsPopupStyles()}
+        `;
+    }
+    
+    /**
+     * 返回统计弹窗的公共 CSS 样式（避免重复内联）
+     * @returns {string} style 标签 HTML
+     */
+    static statsPopupStyles() {
+        // 使用缓存，只在第一次调用时注入样式
+        if (!PopupTemplates._stylesInjected) {
+            PopupTemplates._stylesInjected = true;
+            return `
+                <style id="stats-popup-styles">
+                    .stats-popup .maplibregl-popup-content { padding: 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+                    .stats-popup-content { font-family: inherit; }
+                    .stats-popup-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; padding-right: 28px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }
+                    .stats-popup-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: #212529; }
+                    .stats-popup-title i { color: #0d6efd; font-size: 16px; }
+                    .stats-popup-title-link { color: inherit; text-decoration: none; }
+                    .stats-popup-title-link:hover { color: #0d6efd; text-decoration: underline; }
+                    .stats-popup-link { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #6c757d; border-radius: 4px; transition: all 0.15s; }
+                    .stats-popup-link:hover { background: #e9ecef; color: #0d6efd; }
+                    .stats-popup-link i { font-size: 14px; }
+                    .stats-popup-body { padding: 8px 10px; border-bottom: 1px solid #e9ecef; }
+                    .stats-popup-info { display: flex; gap: 12px; font-size: 11px; color: #6c757d; }
+                    .stats-popup-sites { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #495057; margin-bottom: 6px; flex-wrap: wrap; }
+                    .stats-popup-sites i { color: #0d6efd; font-size: 14px; }
+                    .stats-popup-arrow { color: #adb5bd; }
+                    .stats-popup-meta { display: flex; gap: 12px; font-size: 11px; color: #6c757d; }
+                    .stats-tag { font-size: 11px; padding: 2px 6px; border-radius: 3px; font-weight: 500; }
+                    .stats-tag-warning { background: #fff3cd; color: #856404; }
+                    .stats-tag-danger { background: #f8d7da; color: #721c24; }
+                    .stats-tag-sub { font-size: 11px; color: #6c757d; }
+                    .stats-time-section { padding: 8px 10px; }
+                    .stats-time-title { font-size: 11px; font-weight: 600; color: #495057; margin-bottom: 6px; }
+                    .stats-time-grid { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
+                    .stats-time-item { display: flex; align-items: center; gap: 2px; font-size: 11px; color: #6c757d; }
+                    .stats-time-label { color: #6c757d; }
+                    .stats-time-value { font-weight: 700; color: #0097a7; font-size: 12px; }
+                    .stats-time-unit { color: #6c757d; }
+                    .stats-chart-section { padding: 0 10px 8px 10px; }
+                    .stats-chart-title { font-size: 10px; color: #6c757d; margin-bottom: 4px; }
+                    .stats-line-chart { display: block; }
+                </style>
+            `;
+        }
+        return '';
+    }
 }
+

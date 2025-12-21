@@ -579,36 +579,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 // 创建或更新弹出窗口
                 const props = feature.properties;
                 
-                // 提取历时中的小时数（格式：xxx.xx小时）
-                let durationHtml = '';
-                if (props.faultDuration && props.faultDuration !== '未知') {
-                    // 从 "x天x小时x分x秒（xx.xx小时）" 格式中提取小时数
-                    const hourMatch = props.faultDuration.match(/（([\d.]+)小时）/);
-                    const hours = hourMatch ? hourMatch[1] : props.faultDuration;
-                    durationHtml = `<div class="popup-row"><span class="popup-label">历时</span><span>${hours}小时</span></div>`;
-                }
-                
-                // Z端站点（仅在非空时显示）
-                const zSitesHtml = props.zSites && props.zSites !== '未指定' ? 
-                    `<div class="popup-row"><span class="popup-label">Z端</span><span>${props.zSites}</span></div>` : '';
-                
-                // 图片（若有）
-                let imagesHtml = '';
-                if (props.hasImages) {
-                    try {
-                        const images = typeof props.images === 'string' ? JSON.parse(props.images) : props.images;
-                        if (images && images.length > 0) {
-                            const thumbnails = images.slice(0, 3).map(img => 
-                                `<a href="${img.url}" target="_blank" title="${img.name}"><img src="${img.url}" style="width:40px;height:40px;object-fit:cover;border-radius:3px;" alt="${img.name}"></a>`
-                            ).join('');
-                            const moreText = images.length > 3 ? `<span class="text-muted small">+${images.length - 3}</span>` : '';
-                            imagesHtml = `<div class="popup-row" style="align-items:flex-start;"><span class="popup-label">图片</span><div class="d-flex gap-1 flex-wrap">${thumbnails}${moreText}</div></div>`;
-                        }
-                    } catch (e) {
-                        console.warn('解析图片数据失败:', e);
-                    }
-                }
-                
                 // 使用 PopupTemplates 服务生成弹窗内容
                 const popupContent = PopupTemplates.faultPopup(props);
                 
