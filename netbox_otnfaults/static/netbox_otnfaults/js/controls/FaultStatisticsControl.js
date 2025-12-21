@@ -59,6 +59,34 @@ class FaultStatisticsControl {
         this.update();
     }
 
+    // ========== 公共工具方法 ==========
+    
+    /**
+     * 将 Z 端站点字符串拆分为数组
+     * @param {string} zSitesStr - Z端站点字符串，可能用"、"分隔
+     * @returns {string[]} 站点名称数组
+     */
+    splitZSites(zSitesStr) {
+        if (!zSitesStr || typeof zSitesStr !== 'string') return [];
+        return zSitesStr.split('、').map(s => s.trim()).filter(s => s.length > 0);
+    }
+
+    /**
+     * 检查故障是否匹配指定的路径（双向匹配）
+     * @param {string} faultASite - 故障的A端站点名称
+     * @param {string} faultZSites - 故障的Z端站点字符串（可能包含多个用"、"分隔）
+     * @param {string} targetASite - 目标A端站点名称
+     * @param {string} targetZSite - 目标Z端站点名称（单个）
+     * @returns {boolean} 是否匹配
+     */
+    matchesPath(faultASite, faultZSites, targetASite, targetZSite) {
+        if (!faultASite || !faultZSites) return false;
+        const zSitesList = this.splitZSites(faultZSites);
+        // 双向匹配：A匹配且Z包含目标，或者反向匹配
+        return (faultASite === targetASite && zSitesList.includes(targetZSite)) ||
+               (faultASite === targetZSite && zSitesList.includes(targetASite));
+    }
+
     // 计算统计数据
     calculateStats() {
         // 如果有显式设置的数据列表，则使用它
@@ -90,28 +118,28 @@ class FaultStatisticsControl {
             if (props.site_name) {
                 siteCounts[props.site_name] = (siteCounts[props.site_name] || 0) + 1;
             }
-            // 路径 (a_site -> z_site)
-            // 处理一对多情况：z_site_name可能包含多个站点（用"、"分隔）
-            const aSiteName = props.a_site_name || '?';
-            const zSiteNameRaw = props.z_site_name || '?';
-            const zSitesList = zSiteNameRaw.split('、').map(s => s.trim()).filter(s => s.length > 0);
-            
-            // 为每个Z端站点分别创建路径统计
-            zSitesList.forEach(zSiteName => {
-                // 规范化路径key：使用字典序排序
-                const [site1, site2] = aSiteName < zSiteName ? [aSiteName, zSiteName] : [zSiteName, aSiteName];
-                const pathName = `${site1} <-> ${site2}`;
+            // 路径 (a_site -> z_site)：仅统计光缆故障
+            if (props.category === 'fiber') {
+                const aSiteName = props.a_site_name || '?';
+                const zSitesList = this.splitZSites(props.z_site_name);
                 
-                if (!pathCounts[pathName]) {
-                    pathCounts[pathName] = {
-                        count: 0,
-                        pathId: props.otn_path_id, // 假设关联了路径ID
-                        a_site: site1,
-                        z_site: site2
-                    };
-                }
-                pathCounts[pathName].count++;
-            });
+                // 为每个Z端站点分别创建路径统计
+                zSitesList.forEach(zSiteName => {
+                    // 规范化路径key：使用字典序排序
+                    const [site1, site2] = aSiteName < zSiteName ? [aSiteName, zSiteName] : [zSiteName, aSiteName];
+                    const pathName = `${site1} <-> ${site2}`;
+                    
+                    if (!pathCounts[pathName]) {
+                        pathCounts[pathName] = {
+                            count: 0,
+                            pathId: props.otn_path_id,
+                            a_site: site1,
+                            z_site: site2
+                        };
+                    }
+                    pathCounts[pathName].count++;
+                });
+            }
             
             // 统计时长
             if (props.fault_occurrence_time && props.fault_recovery_time) {
@@ -167,11 +195,9 @@ class FaultStatisticsControl {
             }
 
             // 统计路径（仅统计光缆故障且A、Z端都有值的故障）
-            // 路径故障必须满足：1) 故障类型为光缆（fiber）2) A端有值 3) Z端有值
              if (f.a_site && f.z_sites && f.category === 'fiber') {
                  const siteA = f.a_site;
-                 // 处理一对多情况：z_sites可能包含多个站点（用"、"分隔）
-                 const zSitesList = f.z_sites.split('、').map(s => s.trim()).filter(s => s.length > 0);
+                 const zSitesList = this.splitZSites(f.z_sites);
                  
                  // 为每个Z端站点分别创建路径统计
                  zSitesList.forEach(siteZ => {
@@ -182,9 +208,9 @@ class FaultStatisticsControl {
                      if (!pathCounts[normalizedKey]) {
                           pathCounts[normalizedKey] = { 
                               count: 0, 
-                              a_site: site1,  // 保存规范化后的站点顺序
+                              a_site: site1,
                               z_site: site2,
-                              displayName: normalizedKey  // 显示名称
+                              displayName: normalizedKey
                           };
                      }
                      pathCounts[normalizedKey].count++;
@@ -417,25 +443,16 @@ class FaultStatisticsControl {
         
         markerData.forEach(m => {
             // 路径统计：光缆故障且匹配站点对（双向匹配）
-            // 处理一对多情况：z_sites可能包含多个站点（用"、"分隔）
-            if (m.category === 'fiber' && m.a_site && m.z_sites && m.occurrence_time) {
-                const zSitesList = m.z_sites.split('、').map(s => s.trim()).filter(s => s.length > 0);
+            if (m.category === 'fiber' && m.occurrence_time && this.matchesPath(m.a_site, m.z_sites, siteAName, siteZName)) {
+                const occTime = new Date(m.occurrence_time);
+                const timeDiff = now - occTime;
                 
-                // 检查是否匹配（A端匹配且Z端包含目标站点，或反向匹配）
-                const matchAZ = (m.a_site === siteAName && zSitesList.includes(siteZName));
-                const matchZA = (m.a_site === siteZName && zSitesList.includes(siteAName));
-                
-                if (matchAZ || matchZA) {
-                    const occTime = new Date(m.occurrence_time);
-                    const timeDiff = now - occTime;
-                    
-                    // 累积统计各时间范围
-                    if (timeDiff <= ranges['1week']) stats['1week']++;
-                    if (timeDiff <= ranges['2weeks']) stats['2weeks']++;
-                    if (timeDiff <= ranges['1month']) stats['1month']++;
-                    if (timeDiff <= ranges['3months']) stats['3months']++;
-                    if (timeDiff <= ranges['1year']) stats['1year']++;
-                }
+                // 累积统计各时间范围
+                if (timeDiff <= ranges['1week']) stats['1week']++;
+                if (timeDiff <= ranges['2weeks']) stats['2weeks']++;
+                if (timeDiff <= ranges['1month']) stats['1month']++;
+                if (timeDiff <= ranges['3months']) stats['3months']++;
+                if (timeDiff <= ranges['1year']) stats['1year']++;
             }
         });
         
@@ -504,22 +521,14 @@ class FaultStatisticsControl {
         }
         
         markerData.forEach(m => {
-            // 处理一对多情况：z_sites可能包含多个站点（用"、"分隔）
-            if (m.category === 'fiber' && m.a_site && m.z_sites && m.occurrence_time) {
-                const zSitesList = m.z_sites.split('、').map(s => s.trim()).filter(s => s.length > 0);
+            // 路径统计：光缆故障且匹配站点对（双向匹配）
+            if (m.category === 'fiber' && m.occurrence_time && this.matchesPath(m.a_site, m.z_sites, siteAName, siteZName)) {
+                const occTime = new Date(m.occurrence_time);
+                const occYear = occTime.getFullYear();
+                const occMonth = occTime.getMonth() + 1;
                 
-                // 检查是否匹配（A端匹配且Z端包含目标站点，或反向匹配）
-                const matchAZ = (m.a_site === siteAName && zSitesList.includes(siteZName));
-                const matchZA = (m.a_site === siteZName && zSitesList.includes(siteAName));
-                
-                if (matchAZ || matchZA) {
-                    const occTime = new Date(m.occurrence_time);
-                    const occYear = occTime.getFullYear();
-                    const occMonth = occTime.getMonth() + 1;
-                    
-                    const match = monthlyStats.find(s => s.year === occYear && s.month === occMonth);
-                    if (match) match.count++;
-                }
+                const match = monthlyStats.find(s => s.year === occYear && s.month === occMonth);
+                if (match) match.count++;
             }
         });
         
@@ -819,10 +828,8 @@ class FaultStatisticsControl {
             
             // 查找匹配的故障记录，获取站点ID
             const matchingFault = markerData.find(m => {
-                if (m.category !== 'fiber' || !m.a_site || !m.z_sites) return false;
-                const zList = m.z_sites.split('、').map(s => s.trim());
-                return (m.a_site === siteAName && zList.includes(siteZName)) ||
-                       (m.a_site === siteZName && zList.includes(siteAName));
+                if (m.category !== 'fiber') return false;
+                return this.matchesPath(m.a_site, m.z_sites, siteAName, siteZName);
             });
             
             if (matchingFault) {
@@ -831,7 +838,7 @@ class FaultStatisticsControl {
                     if (!siteAId) siteAId = matchingFault.a_site_id;
                     if (!siteZId && matchingFault.z_site_ids && matchingFault.z_site_ids.length > 0) {
                         // 找到对应 siteZName 的 ID
-                        const zList = matchingFault.z_sites.split('、').map(s => s.trim());
+                        const zList = this.splitZSites(matchingFault.z_sites);
                         const zIndex = zList.indexOf(siteZName);
                         if (zIndex >= 0 && matchingFault.z_site_ids[zIndex]) {
                             siteZId = matchingFault.z_site_ids[zIndex];
@@ -841,7 +848,7 @@ class FaultStatisticsControl {
                     // 反向匹配
                     if (!siteZId) siteZId = matchingFault.a_site_id;
                     if (!siteAId && matchingFault.z_site_ids && matchingFault.z_site_ids.length > 0) {
-                        const zList = matchingFault.z_sites.split('、').map(s => s.trim());
+                        const zList = this.splitZSites(matchingFault.z_sites);
                         const zIndex = zList.indexOf(siteAName);
                         if (zIndex >= 0 && matchingFault.z_site_ids[zIndex]) {
                             siteAId = matchingFault.z_site_ids[zIndex];
