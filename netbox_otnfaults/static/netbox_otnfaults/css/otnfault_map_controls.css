@@ -414,3 +414,22 @@
     font-weight: 600;
     white-space: nowrap;
 }
+
+/* =================================
+   故障点弹窗 - 图片缩略图
+   ================================= */
+
+.fault-popup-thumbnail {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    cursor: pointer;
+    transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.fault-popup-thumbnail:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
