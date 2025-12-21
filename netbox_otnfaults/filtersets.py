@@ -38,9 +38,10 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             if len(ids) != 2:
                 return queryset.none()
             id1, id2 = ids
+            # interruption_location 是 ManyToMany 字段，使用 __in 查询检查是否包含该站点
             return queryset.filter(
-                Q(interruption_location_a_id=id1, interruption_location=id2) |
-                Q(interruption_location_a_id=id2, interruption_location=id1)
+                Q(interruption_location_a_id=id1, interruption_location__in=[id2]) |
+                Q(interruption_location_a_id=id2, interruption_location__in=[id1])
             ).distinct()
         except (ValueError, TypeError):
             return queryset.none()
