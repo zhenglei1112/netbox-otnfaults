@@ -39,7 +39,10 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
                 return queryset.none()
             id1, id2 = ids
             # interruption_location 是 ManyToMany 字段，使用 __in 查询检查是否包含该站点
+            # 只筛选光缆故障 (fault_category='fiber')
             return queryset.filter(
+                fault_category='fiber'
+            ).filter(
                 Q(interruption_location_a_id=id1, interruption_location__in=[id2]) |
                 Q(interruption_location_a_id=id2, interruption_location__in=[id1])
             ).distinct()

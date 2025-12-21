@@ -52,15 +52,15 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
         current_year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
         last_week_start = now - timedelta(days=7)
 
-        # 获取所有有经纬度的故障
-        faults = OtnFault.objects.exclude(
+        # 获取本年度所有故障（不再限制必须有经纬度）
+        all_faults = OtnFault.objects.filter(fault_occurrence_time__gte=current_year_start)
+        
+        # 热力图数据：只包含有真实经纬度的故障
+        heatmap_faults = all_faults.exclude(
             interruption_longitude__isnull=True
         ).exclude(
             interruption_latitude__isnull=True
         )
-
-        # 热力图数据：传递本年度全部故障数据（包含发生时间，用于前端筛选）
-        heatmap_faults = faults.filter(fault_occurrence_time__gte=current_year_start)
         heatmap_data = []
         for fault in heatmap_faults:
             # 获取故障分类，转换为前端可识别的键
@@ -87,8 +87,8 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 'category': category_key  # 新增：故障分类
             })
 
-        # 标记点数据：使用与热力图相同的本年度数据，以便前端进行更长时间范围的筛选（如1个月）
-        marker_faults = faults.filter(fault_occurrence_time__gte=current_year_start).select_related(
+        # 标记点数据：包含所有本年度故障，无经纬度时使用A端站点坐标
+        marker_faults = all_faults.select_related(
             'province', 'interruption_location_a'
         ).prefetch_related(
             'interruption_location', 'images', 'impacts', 'impacts__impacted_service'
@@ -127,9 +127,23 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             # 获取故障历时（使用模型的计算属性）
             fault_duration_str = fault.fault_duration if hasattr(fault, 'fault_duration') and fault.fault_duration else '无法计算'
             
+            # 计算经纬度：优先使用故障自身的经纬度，否则使用A端站点的经纬度
+            if fault.interruption_latitude is not None and fault.interruption_longitude is not None:
+                lat = float(fault.interruption_latitude)
+                lng = float(fault.interruption_longitude)
+                coords_from_site = False
+            elif fault.interruption_location_a and fault.interruption_location_a.latitude and fault.interruption_location_a.longitude:
+                lat = float(fault.interruption_location_a.latitude)
+                lng = float(fault.interruption_location_a.longitude)
+                coords_from_site = True
+            else:
+                # 既无故障经纬度也无A端站点经纬度，跳过此故障
+                continue
+            
             marker_data.append({
-                'lat': float(fault.interruption_latitude),
-                'lng': float(fault.interruption_longitude),
+                'lat': lat,
+                'lng': lng,
+                'coords_from_site': coords_from_site,  # 标记坐标是否来自站点
                 'number': fault.fault_number,
                 'url': fault.get_absolute_url(),
                 'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}",
