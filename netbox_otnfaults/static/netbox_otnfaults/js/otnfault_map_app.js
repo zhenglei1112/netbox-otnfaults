@@ -256,6 +256,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     hasImages: m.has_images || false,
                     imageCount: m.image_count || 0,
                     images: JSON.stringify(m.images || []),
+                    impactsDetails: JSON.stringify(m.impacts_details || []),  // 影响业务详情
                     // 原始数据备份，用于统计等
                     raw: m
                 },

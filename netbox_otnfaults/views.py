@@ -120,6 +120,15 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             impacted_businesses = [impact.impacted_service.name for impact in fault.impacts.all() if impact.impacted_service]
             impacted_business_str = '、'.join(impacted_businesses) if impacted_businesses else '无重保/影响业务'
             
+            # 获取影响业务详情（包含业务名称和中断历时）
+            impacts_details = []
+            for impact in fault.impacts.all():
+                if impact.impacted_service:
+                    impacts_details.append({
+                        'name': impact.impacted_service.name,
+                        'duration_hours': impact.service_duration_hours  # 格式为 "xx.xx" 或 None
+                    })
+            
             # 格式化时间
             occurrence_time_str = fault.fault_occurrence_time.strftime('%Y-%m-%d %H:%M:%S') if fault.fault_occurrence_time else '未记录'
             recovery_time_str = fault.fault_recovery_time.strftime('%Y-%m-%d %H:%M:%S') if fault.fault_recovery_time else '未恢复'
@@ -157,6 +166,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 'z_sites': z_sites_str,
                 'z_site_ids': list(fault.interruption_location.all().values_list('pk', flat=True)),
                 'impacted_business': impacted_business_str,
+                'impacts_details': impacts_details,  # 包含业务名称和中断历时的详细列表
                 
                 # 新增字段：状态
                 'status': fault.get_fault_status_display() or '未知状态',

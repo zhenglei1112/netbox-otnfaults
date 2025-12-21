@@ -18,6 +18,25 @@ class PopupTemplates {
             durationHtml = `<div class="popup-row"><span class="popup-label">历时</span><span>${hours}小时</span></div>`;
         }
         
+        // 影响业务
+        let impactsHtml = '';
+        try {
+            const impacts = typeof props.impactsDetails === 'string' ? JSON.parse(props.impactsDetails) : props.impactsDetails;
+            if (impacts && impacts.length > 0) {
+                const impactItems = impacts.map(impact => {
+                    const durationText = impact.duration_hours ? `${impact.duration_hours}小时` : '-';
+                    return `<div class="popup-impact-item"><span class="popup-impact-name">${impact.name}</span><span class="popup-impact-duration">${durationText}</span></div>`;
+                }).join('');
+                impactsHtml = `
+                    <div class="popup-impacts">
+                        <div class="popup-impacts-title">影响业务</div>
+                        ${impactItems}
+                    </div>`;
+            }
+        } catch (e) {
+            console.warn('解析影响业务数据失败:', e);
+        }
+        
         // 图片
         let imagesHtml = '';
         if (props.hasImages) {
@@ -53,6 +72,7 @@ class PopupTemplates {
                 <div class="popup-row"><span class="popup-label">恢复</span><span>${props.recoveryTime}</span></div>
                 ${durationHtml}
                 <div class="popup-row"><span class="popup-label">原因</span><span>${props.reason}</span></div>
+                ${impactsHtml}
                 ${imagesHtml}
                 <div class="popup-footer">
                     <a href="${props.url}" target="_blank">${props.number}</a>

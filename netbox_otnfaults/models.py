@@ -576,6 +576,15 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
             return f"{days}天{hours}小时{minutes}分{seconds}秒（{total_hours:.2f}小时）"
         return None
 
+    @property
+    def service_duration_hours(self):
+        """返回业务中断历时的小时数，格式为 xx.xx"""
+        if self.service_interruption_time and self.service_recovery_time:
+            duration = self.service_recovery_time - self.service_interruption_time
+            total_hours = duration.total_seconds() / 3600
+            return f"{total_hours:.2f}"
+        return None
+
 
 class CableTypeChoices(ChoiceSet):
     key = 'OtnPath.cable_type'

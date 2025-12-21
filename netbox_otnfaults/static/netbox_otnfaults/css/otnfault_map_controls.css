@@ -374,3 +374,43 @@
 .clickable-stat-row:hover {
     background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.05);
 }
+
+/* =================================
+   故障点弹窗 - 影响业务区域
+   ================================= */
+
+.fault-popup .popup-impacts {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.fault-popup .popup-impacts-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-bottom: 4px;
+}
+
+.fault-popup .popup-impact-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 0;
+    font-size: 12px;
+}
+
+.fault-popup .popup-impact-name {
+    color: var(--bs-body-color, #212529);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 8px;
+}
+
+.fault-popup .popup-impact-duration {
+    color: var(--bs-link-color, #0097a7);
+    font-weight: 600;
+    white-space: nowrap;
+}
