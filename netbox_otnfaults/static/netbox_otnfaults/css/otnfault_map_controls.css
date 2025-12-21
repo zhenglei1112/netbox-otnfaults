@@ -4,6 +4,27 @@
  */
 
 /* =================================
+   MapLibre 控件样式覆盖
+   ================================= */
+
+/* 去掉控件组的外边框（box-shadow），只保留按钮之间的内边框 */
+.maplibregl-ctrl-group:not(:empty) {
+    box-shadow: none !important;
+    border: none !important;
+}
+
+/* 控件按钮去掉额外边框 */
+.maplibregl-ctrl-group button {
+    border: none !important;
+    outline: none !important;
+}
+
+/* 只保留按钮之间的分隔线 */
+.maplibregl-ctrl-group button + button {
+    border-top: 1px solid #ddd !important;
+}
+
+/* =================================
    LayerToggleControl 样式
    ================================= */
 
