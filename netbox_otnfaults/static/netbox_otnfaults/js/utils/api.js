@@ -62,6 +62,8 @@ const OTNFaultMapAPI = {
                         properties: {
                             id: path.id,
                             name: path.name,
+                            // 构建前端详情页 URL（非 API URL）
+                            url: `/plugins/otnfaults/paths/${path.id}/`,
                             // site_a 和 site_z 是嵌套对象，需要提取 name 和 id
                             a_site: path.site_a ? path.site_a.name : null,
                             z_site: path.site_z ? path.site_z.name : null,

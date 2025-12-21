@@ -65,21 +65,24 @@ class PopupTemplates {
      * 生成站点弹窗 HTML
      * @param {Object} params - 参数对象
      * @param {string} params.siteName - 站点名称
-     * @param {string} params.detailUrl - 详情链接
+     * @param {string} params.siteUrl - 站点对象链接（NetBox站点页面）
+     * @param {string} params.detailUrl - 详情链接（故障列表筛选）
      * @param {Object} params.props - 站点属性
      * @param {string} params.timeStatsHtml - 时间统计 HTML
      * @returns {string} HTML 字符串
      */
-    static sitePopup({ siteName, detailUrl, props, timeStatsHtml }) {
+    static sitePopup({ siteName, siteUrl, detailUrl, props, timeStatsHtml }) {
         const regionHtml = props.region ? `<span><i class="mdi mdi-earth"></i> ${props.region}</span>` : '';
         const statusHtml = props.status ? `<span><i class="mdi mdi-check-circle"></i> ${props.status}</span>` : '';
+        // 站点名称超链接（跳转至 NetBox 站点对象）
+        const siteNameHtml = siteUrl ? `<a href="${siteUrl}" target="_blank" class="stats-popup-title-link">${siteName}</a>` : `<span>${siteName}</span>`;
         
         return `
             <div class="stats-popup-content">
                 <div class="stats-popup-header">
                     <div class="stats-popup-title">
                         <i class="mdi mdi-map-marker"></i>
-                        <span>${siteName}</span>
+                        ${siteNameHtml}
                     </div>
                     <a href="${detailUrl}" class="stats-popup-link" target="_blank" title="查看详情">
                         <i class="mdi mdi-open-in-new"></i>
@@ -100,23 +103,27 @@ class PopupTemplates {
      * 生成路径弹窗 HTML
      * @param {Object} params - 参数对象
      * @param {string} params.pathName - 路径名称
+     * @param {string} params.pathUrl - 路径对象链接（NetBox路径页面）
      * @param {string} params.siteAName - A端站点名
      * @param {string} params.siteZName - Z端站点名
-     * @param {string} params.detailUrl - 详情链接
+     * @param {string} params.detailUrl - 详情链接（故障列表筛选）
      * @param {Object} params.props - 路径属性
      * @param {string} params.timeStatsHtml - 时间统计 HTML
      * @returns {string} HTML 字符串
      */
-    static pathPopup({ pathName, siteAName, siteZName, detailUrl, props, timeStatsHtml }) {
+    static pathPopup({ pathName, pathUrl, siteAName, siteZName, detailUrl, props, timeStatsHtml }) {
         const lengthHtml = props.total_length ? `<span><i class="mdi mdi-ruler"></i> ${props.total_length} km</span>` : '';
         const statusHtml = props.operational_status ? `<span><i class="mdi mdi-information"></i> ${props.operational_status}</span>` : '';
+        // 路径名称超链接（跳转至 NetBox 路径对象）
+        const pathNameDisplay = pathName || '光缆路径';
+        const pathNameHtml = pathUrl ? `<a href="${pathUrl}" target="_blank" class="stats-popup-title-link">${pathNameDisplay}</a>` : `<span>${pathNameDisplay}</span>`;
         
         return `
             <div class="stats-popup-content">
                 <div class="stats-popup-header">
                     <div class="stats-popup-title">
                         <i class="mdi mdi-vector-polyline" style="color: #198754;"></i>
-                        <span>${pathName || '光缆路径'}</span>
+                        ${pathNameHtml}
                     </div>
                     <a href="${detailUrl}" class="stats-popup-link" target="_blank" title="查看详情">
                         <i class="mdi mdi-open-in-new"></i>

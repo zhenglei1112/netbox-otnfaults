@@ -140,6 +140,18 @@
     font-size: 16px;
 }
 
+/* 弹窗标题超链接（站点名/路径名） */
+.stats-popup-title-link {
+    color: var(--bs-body-color, #212529);
+    text-decoration: none;
+    transition: color 0.15s ease-in-out;
+}
+
+.stats-popup-title-link:hover {
+    color: var(--bs-link-color, #0d6efd);
+    text-decoration: underline;
+}
+
 .stats-popup-link {
     display: flex;
     align-items: center;

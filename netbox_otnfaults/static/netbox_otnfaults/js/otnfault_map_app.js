@@ -886,7 +886,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     
                     // 使用 PopupTemplates 服务生成弹窗内容
-                    const content = PopupTemplates.sitePopup({ siteName, detailUrl, props, timeStatsHtml });
+                    const siteUrl = props.url || '#';  // NetBox 站点对象链接
+                    const content = PopupTemplates.sitePopup({ siteName, siteUrl, detailUrl, props, timeStatsHtml });
                     
                     new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
                         .setLngLat(siteFeature.geometry.coordinates)
@@ -923,7 +924,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
     
                     // 使用 PopupTemplates 服务生成弹窗内容
-                    const content = PopupTemplates.pathPopup({ pathName, siteAName, siteZName, detailUrl, props, timeStatsHtml });
+                    const pathUrl = props.url || '#';  // NetBox 路径对象链接
+                    const content = PopupTemplates.pathPopup({ pathName, pathUrl, siteAName, siteZName, detailUrl, props, timeStatsHtml });
                     
                     new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
                         .setLngLat(e.lngLat)
