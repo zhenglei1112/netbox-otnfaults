@@ -93,7 +93,7 @@ class FaultStatusChoices(ChoiceSet):
     CLOSED = 'closed'
 
     CHOICES = [
-        (PROCESSING, '处理中', 'orange'),
+        (PROCESSING, '处理中', 'red'),
         (TEMPORARY_RECOVERY, '临时恢复', 'blue'),
         (SUSPENDED, '挂起', 'yellow'),
         (CLOSED, '已关闭', 'green'),

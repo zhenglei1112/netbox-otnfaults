@@ -14,7 +14,7 @@ const FAULT_CATEGORY_NAMES = {
 
 // 故障状态颜色（与 models.py 中 FaultStatusChoices 对应）
 const FAULT_STATUS_COLORS = {
-    'processing': '#f5a623',       // 处理中 - 橙色
+    'processing': '#dc3545',       // 处理中 - 红色
     'temporary_recovery': '#0d6efd', // 临时恢复 - 蓝色
     'suspended': '#ffc107',        // 挂起 - 黄色
     'closed': '#198754'            // 已关闭 - 绿色
