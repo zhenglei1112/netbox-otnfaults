@@ -587,10 +587,17 @@ class FaultStatisticsControl {
             const monthlyStats = this.calculateSiteMonthlyStats(siteName);
             const timeStatsHtml = this.renderTimeStatsHtml(timeStats, '此站点', monthlyStats);
             
-            // 触发美化的弹窗（使用 PopupTemplates 生成内容）
-            const popupContent = PopupTemplates.statsSitePopup({
+            // 触发美化的弹窗（使用 PopupTemplates 生成内容，与地图点击弹窗保持一致）
+            const siteUrl = target.url || '#';  // NetBox 站点对象链接
+            const props = {
+                region: target.region || '',
+                status: target.status || ''
+            };
+            const popupContent = PopupTemplates.sitePopup({
                 siteName: target.name,
+                siteUrl,
                 detailUrl,
+                props,
                 timeStatsHtml
             });
             
@@ -793,12 +800,19 @@ class FaultStatisticsControl {
                 ? `光缆路径 (${matchedPaths.length}条)`
                 : (firstPath.properties.name || '光缆路径');
             
-            // 使用 PopupTemplates 生成弹窗内容
-            const pathPopupContent = PopupTemplates.statsPathPopup({
-                popupTitle,
+            // 使用 PopupTemplates 生成弹窗内容（与地图点击弹窗保持一致）
+            const pathUrl = firstPath.properties.url || '#';  // NetBox 路径对象链接
+            const pathProps = {
+                total_length: firstPath.properties.total_length || '',
+                operational_status: firstPath.properties.operational_status || ''
+            };
+            const pathPopupContent = PopupTemplates.pathPopup({
+                pathName: popupTitle,
+                pathUrl,
                 siteAName,
                 siteZName: siteZDisplay,
                 detailUrl,
+                props: pathProps,
                 timeStatsHtml
             });
             
