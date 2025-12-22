@@ -43,15 +43,16 @@ class NetBoxMapBase {
             // 注意: globe 投影需要在样式加载后通过 setProjection 设置
         };
 
+        // 始终注册 pmtiles 协议（用于加载路径数据）
+        if (typeof pmtiles !== 'undefined') {
+            const protocol = new pmtiles.Protocol();
+            maplibregl.addProtocol("pmtiles", protocol.tile);
+        } else {
+            console.warn('pmtiles 库未加载，路径数据可能无法正常加载');
+        }
+
         // 根据配置选择底图
         if (this.useLocalBasemap) {
-            // 注册 pmtiles 协议
-            if (typeof pmtiles !== 'undefined') {
-                const protocol = new pmtiles.Protocol();
-                maplibregl.addProtocol("pmtiles", protocol.tile);
-            } else {
-                console.warn('pmtiles 库未加载，无法使用本地底图');
-            }
             // 使用本地底图样式
             mapOptions.style = this._getLocalBasemapStyle(config);
         } else {
@@ -79,6 +80,7 @@ class NetBoxMapBase {
                     url: 'pmtiles://' + (config.localTilesUrl || 'http://192.168.30.177:8080/maps/china.pmtiles'),
                     attribution: '© OpenStreetMap'
                 }
+                // OTN 路径数据源现在统一在 otnfault_map_app.js 中添加
             },
             layers: [
                 // === 1. 背景 (海洋颜色) - 冷淡的灰蓝色 ===
@@ -171,6 +173,7 @@ class NetBoxMapBase {
                         "text-halo-blur": 0.5
                     }
                 }
+                // OTN 路径图层现在统一在 otnfault_map_app.js 中添加
             ]
         };
     }

@@ -656,88 +656,86 @@ document.addEventListener('DOMContentLoaded', function () {
         // --- 异步加载数据 ---
 
         
-        // 1. OTN 路径
-        OTNFaultMapAPI.fetchPaths(apiKey).then(pathFeatures => {
-            console.log('Loaded OTN Path Features:', pathFeatures);
-            
-            // 确保 pathFeatures 是有效数组
-            if (!Array.isArray(pathFeatures)) {
-                console.error('pathFeatures is not an array:', pathFeatures);
-                pathFeatures = [];
+        // 1. OTN 路径 - 统一使用 PMTiles 加载
+        console.log('使用 PMTiles 加载路径数据');
+        
+        // 获取 PMTiles 路径服务地址
+        const otnPathsPmtilesUrl = config.otnPathsPmtilesUrl || 'http://192.168.30.177:8080/maps/otn_paths.pmtiles';
+        
+        // 添加 PMTiles 路径数据源
+        map.addSource('otn_paths_pmtiles', {
+            type: 'vector',
+            url: 'pmtiles://' + otnPathsPmtilesUrl
+        });
+        
+        // 查找插入位置：在标签下方
+        const pathLayers = map.getStyle().layers;
+        let firstSymbolIdForPath;
+        for (const layer of pathLayers) {
+            if (layer.type === 'symbol') {
+                firstSymbolIdForPath = layer.id;
+                break;
             }
-            
-            // 全局存储以进行统计匹配
-            window.OTNPathsMetadata = pathFeatures;
-            
+        }
+        
+        // 路径显示图层
+        mapBase.addLayer({
+            id: 'otn-paths-layer',
+            type: 'line',
+            source: 'otn_paths_pmtiles',
+            'source-layer': 'otn_paths',
+            layout: {
+                'line-join': 'round',
+                'line-cap': 'round',
+                'visibility': 'visible'
+            },
+            paint: {
+                'line-color': '#00cc66',
+                'line-width': 2,
+                'line-opacity': 0.8
+            }
+        }, firstSymbolIdForPath);
+        
+        // 透明可点击区域图层
+        mapBase.addLayer({
+            id: 'otn-paths-labels',
+            type: 'line',
+            source: 'otn_paths_pmtiles',
+            'source-layer': 'otn_paths',
+            paint: {
+                'line-width': 10,
+                'line-opacity': 0
+            }
+        }, firstSymbolIdForPath);
+        
+        // 添加路径高亮源（仍需 GeoJSON 格式）
+        mapBase.addGeoJsonSource('otn-paths-highlight', {
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: [] }
+        });
+        
+        mapBase.addLayer({
+            id: 'otn-paths-highlight-layer',
+            type: 'line',
+            source: 'otn-paths-highlight',
+            paint: {
+                'line-color': '#FFD700',
+                'line-width': 4,
+                'line-opacity': 1
+            }
+        }, firstSymbolIdForPath);
+        
+        // 鼠标交互
+        map.on('mouseenter', 'otn-paths-labels', () => map.getCanvas().style.cursor = 'pointer');
+        map.on('mouseleave', 'otn-paths-labels', () => map.getCanvas().style.cursor = '');
+        
+        // 异步获取路径元数据用于统计功能
+        OTNFaultMapAPI.fetchPaths(apiKey).then(pathFeatures => {
+            console.log('Loaded OTN Path Metadata for statistics:', pathFeatures ? pathFeatures.length : 0);
+            window.OTNPathsMetadata = pathFeatures || [];
             // 更新统计
             if (window.faultStatisticsControl) window.faultStatisticsControl.update();
-
-            mapBase.addGeoJsonSource('otn-paths', {
-                type: 'FeatureCollection',
-                features: pathFeatures
-            });
-
-            // 查找插入位置：在标签下方
-            const layers = map.getStyle().layers;
-            let firstSymbolId;
-            for (const layer of layers) {
-                if (layer.type === 'symbol') {
-                    firstSymbolId = layer.id;
-                    break;
-                }
-            }
-
-            // 路径图层
-            // 获取主题颜色（简化处理，使用固定色或 CSS 变量无法直接在 JS paint properties 中使用，需预处理）
-            // 这里使用默认色
-            mapBase.addLayer({
-                id: 'otn-paths-layer',
-                type: 'line',
-                source: 'otn-paths',
-                layout: {
-                    'line-join': 'round',
-                    'line-cap': 'round',
-                    'visibility': 'visible'
-                },
-                paint: {
-                    'line-color': '#00cc66', // 默认绿色
-                    'line-width': 2,
-                    'line-opacity': 0.8
-                }
-            }, firstSymbolId);
-
-            // 路径交互：高亮和弹窗
-            mapBase.addGeoJsonSource('otn-paths-highlight', {
-                type: 'Feature',
-                geometry: { type: 'LineString', coordinates: [] }
-            });
-            mapBase.addLayer({
-                id: 'otn-paths-highlight-layer',
-                type: 'line',
-                source: 'otn-paths-highlight',
-                paint: {
-                    'line-color': '#FFD700', // Gold
-                    'line-width': 4,
-                    'line-opacity': 1
-                }
-            }, firstSymbolId);
-            
-            mapBase.addLayer({
-                id: 'otn-paths-labels', // 透明路径用于扩大点击区域
-                type: 'line',
-                source: 'otn-paths',
-                paint: {
-                    'line-width': 10,
-                    'line-opacity': 0
-                }
-            }, firstSymbolId);
-
-            // 鼠标交互
-            map.on('mouseenter', 'otn-paths-labels', () => map.getCanvas().style.cursor = 'pointer');
-            map.on('mouseleave', 'otn-paths-labels', () => map.getCanvas().style.cursor = '');
-            
-            // map.on('click', 'otn-paths-labels', ...) REMOVED for unified handler
-        }).catch(err => console.error('Failed to load paths:', err));
+        }).catch(err => console.warn('Failed to load path metadata:', err));
 
         // 2. 站点图层 (使用 sitesData 配置)
         if (sitesData && sitesData.length > 0) {
@@ -870,8 +868,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Show Path Popup - 使用 PopupTemplates 服务
                     const props = pathFeature.properties;
                     const pathName = props.name;
-                    const siteAName = props.a_site || '-';
-                    const siteZName = props.z_site || '-';
+                    // 兼容 PMTiles (site_a/site_z) 和 API (a_site/z_site) 两种属性名格式
+                    const siteAName = props.a_site || props.site_a || '-';
+                    const siteZName = props.z_site || props.site_z || '-';
                     
                     // Highlight
                     map.getSource('otn-paths-highlight').setData(pathFeature);
@@ -897,7 +896,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
     
                     // 使用 PopupTemplates 服务生成弹窗内容
-                    const pathUrl = props.url || '#';  // NetBox 路径对象链接
+                    // PMTiles 数据可能没有 url 属性，需要通过 id 构建
+                    const pathId = props.id;
+                    const pathUrl = props.url || (pathId ? `/plugins/otnfaults/paths/${pathId}/` : '#');
                     const content = PopupTemplates.pathPopup({ pathName, pathUrl, siteAName, siteZName, detailUrl, props, timeStatsHtml });
                     
                     new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
