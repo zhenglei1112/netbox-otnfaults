@@ -34,4 +34,8 @@ menu_items = (
             ),
         )
     ),
+    PluginMenuItem(
+        link='plugins:netbox_otnfaults:otnfault_map_globe',
+        link_text='故障分布图',
+    ),
 )

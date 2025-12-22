@@ -29,20 +29,152 @@ class NetBoxMapBase {
         center = center || config.mapCenter || [112.53, 33.00];
         zoom = zoom || config.mapZoom || 4.2;
         
+        // 记录是否使用本地底图（供后续方法判断）
+        this.useLocalBasemap = config.useLocalBasemap || false;
+        
         if (typeof maplibregl === 'undefined') {
             throw new Error('MapLibre GL 库未加载。');
         }
 
-        this.map = new maplibregl.Map({
+        let mapOptions = {
             container: containerId,
-            style: 'https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=' + apiKey,
             center: center,
             zoom: zoom
             // 注意: globe 投影需要在样式加载后通过 setProjection 设置
-        });
+        };
+
+        // 根据配置选择底图
+        if (this.useLocalBasemap) {
+            // 注册 pmtiles 协议
+            if (typeof pmtiles !== 'undefined') {
+                const protocol = new pmtiles.Protocol();
+                maplibregl.addProtocol("pmtiles", protocol.tile);
+            } else {
+                console.warn('pmtiles 库未加载，无法使用本地底图');
+            }
+            // 使用本地底图样式
+            mapOptions.style = this._getLocalBasemapStyle(config);
+        } else {
+            // 使用网络底图
+            mapOptions.style = 'https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=' + apiKey;
+        }
+
+        this.map = new maplibregl.Map(mapOptions);
 
         return this.map;
     }
+
+    /**
+     * 获取本地底图样式配置（样式来自 test.html）
+     * @param {Object} config - 全局配置对象
+     * @returns {Object} MapLibre GL 样式对象
+     */
+    _getLocalBasemapStyle(config) {
+        return {
+            version: 8,
+            glyphs: config.localGlyphsUrl || 'http://192.168.30.177:8080/maps/fonts/{fontstack}/{range}.pbf',
+            sources: {
+                'china_local': {
+                    type: 'vector',
+                    url: 'pmtiles://' + (config.localTilesUrl || 'http://192.168.30.177:8080/maps/china.pmtiles'),
+                    attribution: '© OpenStreetMap'
+                }
+            },
+            layers: [
+                // === 1. 背景 (海洋颜色) - 冷淡的灰蓝色 ===
+                {
+                    "id": "background",
+                    "type": "background",
+                    "paint": {"background-color": "#cbd2d3"}
+                },
+                // === 2. 陆地 - 极浅的暖灰色 ===
+                {
+                    "id": "landuse_base",
+                    "type": "fill",
+                    "source": "china_local",
+                    "source-layer": "landuse",
+                    "paint": {"fill-color": "#f5f5f0"}
+                },
+                // === 3. 绿地/公园 - 低饱和度浅绿 ===
+                {
+                    "id": "landuse_green",
+                    "type": "fill",
+                    "source": "china_local",
+                    "source-layer": "landuse",
+                    "filter": ["in", "class", "park", "grass", "wood", "scrub"],
+                    "paint": {
+                        "fill-color": "#dbece0",
+                        "fill-opacity": 0.6
+                    }
+                },
+                // === 4. 水系 - 与背景融合或稍深 ===
+                {
+                    "id": "water",
+                    "type": "fill",
+                    "source": "china_local",
+                    "source-layer": "water",
+                    "paint": {"fill-color": "#cbd2d3"}
+                },
+                // === 5. 道路 (底层描边) - 浅灰色 ===
+                {
+                    "id": "roads_casing",
+                    "type": "line",
+                    "source": "china_local",
+                    "source-layer": "transportation",
+                    "minzoom": 5,
+                    "paint": {
+                        "line-color": "#cfcfcf",
+                        "line-width": {"stops": [[5, 1], [10, 4], [15, 8]]}
+                    }
+                },
+                // === 6. 道路 (顶层填充) - 纯白色 ===
+                {
+                    "id": "roads_inner",
+                    "type": "line",
+                    "source": "china_local",
+                    "source-layer": "transportation",
+                    "minzoom": 5,
+                    "paint": {
+                        "line-color": "#ffffff",
+                        "line-width": {"stops": [[5, 0.5], [10, 2.5], [15, 6]]}
+                    }
+                },
+                // === 7. 边界线 - 柔和的虚线 ===
+                {
+                    "id": "boundary",
+                    "type": "line",
+                    "source": "china_local",
+                    "source-layer": "boundary",
+                    "paint": {
+                        "line-color": "#aeb0b5",
+                        "line-width": 1,
+                        "line-dasharray": [2, 2]
+                    }
+                },
+                // === 8. 城市名称 - 深蓝灰色，高可读性 ===
+                {
+                    "id": "place_label",
+                    "type": "symbol",
+                    "source": "china_local",
+                    "source-layer": "place",
+                    "minzoom": 3,
+                    "layout": {
+                        "text-field": "{name}",
+                        "text-size": {"stops": [[3, 10], [8, 14]]},
+                        "text-font": ["Open Sans Regular"],
+                        "text-max-width": 8
+                    },
+                    "paint": {
+                        "text-color": "#434850",
+                        "text-halo-color": "#ffffff",
+                        "text-halo-width": 2,
+                        "text-halo-blur": 0.5
+                    }
+                }
+            ]
+        };
+    }
+
 
     /**
      * 添加标准控件（导航、全屏）

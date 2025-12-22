@@ -226,6 +226,9 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             'apikey': plugin_settings.get('map_api_key', ''),
             'map_center': json.dumps(plugin_settings.get('map_default_center', [112.53, 33.00])),
             'map_zoom': plugin_settings.get('map_default_zoom', 4.2),
+            'use_local_basemap': plugin_settings.get('use_local_basemap', False),
+            'local_tiles_url': plugin_settings.get('local_tiles_url', ''),
+            'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
             'current_time_range': time_range  # 传递给模板，用于显示当前选择
         })
 

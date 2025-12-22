@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <title>China Map - Alidade Smooth Style</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    
+    <script src="libs/maplibre-gl.js"></script>
+    <link href="libs/maplibre-gl.css" rel="stylesheet" />
+    <script src="libs/pmtiles.js"></script>
+
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; background-color: #cbd2d3; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    const map = new maplibregl.Map({
+        container: 'map',
+        center: [105.0, 36.0], 
+        zoom: 4, 
+        hash: true,
+        style: {
+            version: 8,
+            // [已修改] 字体路径 IP: 192.168.30.177
+            "glyphs": "http://192.168.30.177:8080/maps/fonts/{fontstack}/{range}.pbf",
+            
+            sources: {
+                'china_local': {
+                    type: 'vector',
+                    // [已修改] 数据路径 IP: 192.168.30.177
+                    url: 'pmtiles://http://192.168.30.177:8080/maps/china.pmtiles',
+                    attribution: '© OpenStreetMap'
+                }
+            },
+            layers: [
+                // === 1. 背景 (海洋颜色) - 冷淡的灰蓝色 ===
+                {
+                    "id": "background",
+                    "type": "background",
+                    "paint": {"background-color": "#cbd2d3"}
+                },
+                
+                // === 2. 陆地 - 极浅的暖灰色 ===
+                {
+                    "id": "landuse_base",
+                    "type": "fill",
+                    "source": "china_local",
+                    "source-layer": "landuse", 
+                    "paint": {"fill-color": "#f5f5f0"}
+                },
+                
+                // === 3. 绿地/公园 - 低饱和度浅绿 ===
+                {
+                    "id": "landuse_green",
+                    "type": "fill",
+                    "source": "china_local",
+                    "source-layer": "landuse",
+                    "filter": ["in", "class", "park", "grass", "wood", "scrub"],
+                    "paint": {
+                        "fill-color": "#dbece0",
+                        "fill-opacity": 0.6
+                    }
+                },
+                
+                // === 4. 水系 - 与背景融合或稍深 ===
+                {
+                    "id": "water",
+                    "type": "fill",
+                    "source": "china_local",
+                    "source-layer": "water",
+                    "paint": {"fill-color": "#cbd2d3"}
+                },
+
+                // === 5. 道路 (底层描边) - 浅灰色 ===
+                {
+                    "id": "roads_casing",
+                    "type": "line",
+                    "source": "china_local",
+                    "source-layer": "transportation",
+                    "minzoom": 5,
+                    "paint": {
+                        "line-color": "#cfcfcf",
+                        "line-width": {
+                            "stops": [[5, 1], [10, 4], [15, 8]]
+                        }
+                    }
+                },
+                
+                // === 6. 道路 (顶层填充) - 纯白色 ===
+                {
+                    "id": "roads_inner",
+                    "type": "line",
+                    "source": "china_local",
+                    "source-layer": "transportation",
+                    "minzoom": 5,
+                    "paint": {
+                        "line-color": "#ffffff",
+                        "line-width": {
+                            "stops": [[5, 0.5], [10, 2.5], [15, 6]]
+                        }
+                    }
+                },
+
+                // === 7. 边界线 - 柔和的虚线 ===
+                {
+                    "id": "boundary",
+                    "type": "line",
+                    "source": "china_local",
+                    "source-layer": "boundary",
+                    "paint": {
+                        "line-color": "#aeb0b5",
+                        "line-width": 1,
+                        "line-dasharray": [2, 2]
+                    }
+                },
+
+                // === 8. 城市名称 - 深蓝灰色，高可读性 ===
+                {
+                    "id": "place_label",
+                    "type": "symbol",
+                    "source": "china_local",
+                    "source-layer": "place",
+                    "minzoom": 3,
+                    "layout": {
+                        "text-field": "{name}", 
+                        "text-size": {
+                            "stops": [[3, 10], [8, 14]]
+                        },
+                        "text-font": ["Open Sans Regular"], 
+                        "text-max-width": 8
+                    },
+                    "paint": {
+                        "text-color": "#434850",
+                        "text-halo-color": "#ffffff",
+                        "text-halo-width": 2,
+                        "text-halo-blur": 0.5
+                    }
+                }
+            ]
+        }
+    });
+
+    map.addControl(new maplibregl.NavigationControl());
+</script>
+</body>
+</html>

@@ -72,13 +72,15 @@ document.addEventListener('DOMContentLoaded', function () {
     map.on('load', () => {
         NetBoxMapBase.hideLoading('map');
 
-        // 强化中国省界
-        mapBase.emphasizeChinaBoundaries();
-        // 确保语言为中文
-        mapBase.setLanguageToChinese();
-        
-        // 过滤无关标签
-        mapBase.filterLabels();
+        // 仅网络底图执行后处理（本地底图样式已优化，无需处理）
+        if (!mapBase.useLocalBasemap) {
+            // 强化中国省界
+            mapBase.emphasizeChinaBoundaries();
+            // 确保语言为中文
+            mapBase.setLanguageToChinese();
+            // 过滤无关标签
+            mapBase.filterLabels();
+        }
     });
 
     // 添加通用控件

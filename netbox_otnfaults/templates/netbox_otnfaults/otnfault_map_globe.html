@@ -30,6 +30,9 @@
   rel="stylesheet"
 />
 <script src="{% static 'netbox_otnfaults/lib/maplibre-gl.js' %}"></script>
+{% if use_local_basemap %}
+<script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
+{% endif %}
 
 <link
   rel="stylesheet"
@@ -48,7 +51,10 @@
       apiKey: "{{ apikey }}",
       faultListUrl: "{% url 'plugins:netbox_otnfaults:otnfault_list' %}",
       mapCenter: {{ map_center| safe }},
-      mapZoom: {{ map_zoom }}
+      mapZoom: {{ map_zoom }},
+      useLocalBasemap: {{ use_local_basemap|yesno:"true,false" }},
+      localTilesUrl: "{{ local_tiles_url }}",
+      localGlyphsUrl: "{{ local_glyphs_url }}"
   };
 </script>
 
