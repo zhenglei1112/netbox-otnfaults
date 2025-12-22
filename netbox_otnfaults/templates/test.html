@@ -38,6 +38,11 @@
                     // [已修改] 数据路径 IP: 192.168.30.177
                     url: 'pmtiles://http://192.168.30.177:8080/maps/china.pmtiles',
                     attribution: '© OpenStreetMap'
+                },
+                // OtnPath 路径数据
+                'otn_paths': {
+                    type: 'vector',
+                    url: 'pmtiles://http://192.168.30.177:8080/maps/data/otn_paths.pmtiles'
                 }
             },
             layers: [
@@ -122,7 +127,22 @@
                     }
                 },
 
-                // === 8. 城市名称 - 深蓝灰色，高可读性 ===
+                // === 8. OtnPath 光缆路径 - 橙色醒目线条 ===
+                {
+                    "id": "otn_paths_line",
+                    "type": "line",
+                    "source": "otn_paths",
+                    "source-layer": "otn_paths",
+                    "paint": {
+                        "line-color": "#ff6b35",
+                        "line-width": {
+                            "stops": [[4, 1.5], [8, 2.5], [12, 4]]
+                        },
+                        "line-opacity": 0.8
+                    }
+                },
+
+                // === 9. 城市名称 - 深蓝灰色，高可读性 ===
                 {
                     "id": "place_label",
                     "type": "symbol",
