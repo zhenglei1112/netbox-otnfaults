@@ -1,7 +1,7 @@
 from netbox.views import generic
 from django.shortcuts import render
 from utilities.views import register_model_view
-from .models import OtnFault, OtnFaultImpact, OtnPath
+from .models import OtnFault, OtnFaultImpact, OtnPath, FaultCategoryChoices, FaultStatusChoices
 from dcim.models import Site
 from .forms import (
     OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
@@ -230,8 +230,46 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             'local_tiles_url': plugin_settings.get('local_tiles_url', ''),
             'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
             'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''), # 传递 OTN 路径 PMTiles URL
-            'current_time_range': time_range  # 传递给模板，用于显示当前选择
+            'current_time_range': time_range,  # 传递给模板，用于显示当前选择
+            'colors_config': json.dumps({
+                'category_colors': {
+                    val: self._get_hex_color(color)
+                    for val, label, color in FaultCategoryChoices.CHOICES
+                },
+                'category_names': {val: label for val, label, color in FaultCategoryChoices.CHOICES},
+                'status_colors': {
+                    val: self._get_hex_color(color)
+                    for val, label, color in FaultStatusChoices.CHOICES
+                },
+                'status_names': {val: label for val, label, color in FaultStatusChoices.CHOICES},
+                'popup_status_colors': {
+                    key: self._get_hex_color(key) 
+                    for key in ['orange', 'blue', 'yellow', 'green', 'gray', 'red', 'secondary']
+                }
+            }, cls=DjangoJSONEncoder)
         })
+
+    def _get_hex_color(self, color_name):
+        """Map standard NetBox/Bootstrap color names to Hex values."""
+        COLOR_MAP = {
+            'dark': '#343a40',
+            'gray': '#6c757d',
+            'light-gray': '#aaacae',
+            'blue': '#0d6efd',
+            'indigo': '#6610f2',
+            'purple': '#6f42c1',
+            'pink': '#d63384',
+            'red': '#dc3545',
+            'orange': '#f5a623', # Using the project's preferred orange
+            'yellow': '#ffc107',
+            'green': '#198754',
+            'teal': '#20c997',
+            'cyan': '#0dcaf0',
+            'white': '#ffffff',
+            'secondary': '#6c757d',
+        }
+        return COLOR_MAP.get(color_name, '#6c757d') # Default to gray
+
 
 @register_model_view(OtnFault)
 class OtnFaultView(generic.ObjectView):

@@ -3,8 +3,11 @@
  * 从 otnfault_map_app.js 和控件中提取
  */
 
+// 获取全局配置中的颜色设置，如果不存在则使用默认空对象（防止报错）
+const COLORS_CONFIG = (window.OTNFaultMapConfig && window.OTNFaultMapConfig.colorsConfig) || {};
+
 // 故障类型颜色映射
-const FAULT_CATEGORY_COLORS = {
+const FAULT_CATEGORY_COLORS = COLORS_CONFIG.category_colors || {
     power: '#f5a623',      // 电力故障 - 橙色
     fiber: '#dc3545',      // 光缆故障 - 红色
     pigtail: '#0d6efd',    // 空调故障 - 蓝色
@@ -13,7 +16,7 @@ const FAULT_CATEGORY_COLORS = {
 };
 
 // 故障类型名称映射
-const FAULT_CATEGORY_NAMES = {
+const FAULT_CATEGORY_NAMES = COLORS_CONFIG.category_names || {
     power: '电力故障',
     fiber: '光缆故障',
     pigtail: '空调故障',
@@ -22,7 +25,7 @@ const FAULT_CATEGORY_NAMES = {
 };
 
 // 故障状态颜色映射
-const FAULT_STATUS_COLORS = {
+const FAULT_STATUS_COLORS = COLORS_CONFIG.status_colors || {
     processing: '#dc3545',         // 处理中 - 红色
     temporary_recovery: '#0d6efd', // 临时恢复 - 蓝色
     suspended: '#ffc107',          // 挂起 - 黄色
@@ -30,38 +33,19 @@ const FAULT_STATUS_COLORS = {
 };
 
 // 故障状态名称映射
-const FAULT_STATUS_NAMES = {
+const FAULT_STATUS_NAMES = COLORS_CONFIG.status_names || {
     processing: '处理中',
     temporary_recovery: '临时恢复',
     suspended: '挂起',
     closed: '已关闭'
 };
 
-// 时间范围选项
-const TIME_RANGE_OPTIONS = [
-    { label: '1周', value: '1week', days: 7 },
-    { label: '2周', value: '2weeks', days: 14 },
-    { label: '1月', value: '1month', days: 30 },
-    { label: '3月', value: '3months', days: 90 },
-    { label: '1年', value: '1year', days: 365 }
-];
-
-// 默认地图配置（会被全局配置覆盖）
-const MAP_DEFAULT_CONFIG = {
-    center: [112.53, 33.00],
-    zoom: 4.2
-};
+// ... existing code ...
 
 // 弹窗颜色映射（用于故障点 hover 弹窗）
-const POPUP_CATEGORY_COLORS = {
-    power: '#f5a623',
-    fiber: '#dc3545',
-    pigtail: '#0d6efd',
-    device: '#198754',
-    other: '#6c757d'
-};
+const POPUP_CATEGORY_COLORS = FAULT_CATEGORY_COLORS; // 复用类型颜色
 
-const POPUP_STATUS_COLORS = {
+const POPUP_STATUS_COLORS = COLORS_CONFIG.popup_status_colors || {
     orange: '#f5a623',
     blue: '#0d6efd',
     yellow: '#ffc107',

@@ -53,7 +53,8 @@
       useLocalBasemap: {{ use_local_basemap|yesno:"true,false" }},
       localTilesUrl: "{{ local_tiles_url }}",
       localGlyphsUrl: "{{ local_glyphs_url }}",
-      otnPathsPmtilesUrl: "{{ otn_paths_pmtiles_url }}"
+      otnPathsPmtilesUrl: "{{ otn_paths_pmtiles_url }}",
+      colorsConfig: {{ colors_config| safe }}
   };
 </script>
 
