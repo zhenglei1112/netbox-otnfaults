@@ -1,5 +1,5 @@
 from netbox.plugins import PluginTemplateExtension
-from .models import OtnPath
+from .models import OtnPath, OtnFault
 from django.db.models import Q
 
 class SiteOtnPaths(PluginTemplateExtension):
@@ -22,4 +22,24 @@ class SiteOtnPaths(PluginTemplateExtension):
             'site_id': obj.pk,
         })
 
-template_extensions = [SiteOtnPaths]
+class SiteOtnFaults(PluginTemplateExtension):
+    """
+    在站点详情页注入故障统计信息。
+    """
+    model = 'dcim.site'
+    
+    def right_page(self):
+        obj = self.context['object']
+        
+        # 统计涉及该站点的故障数量 (A端或Z端)
+        faults_count = OtnFault.objects.filter(
+            Q(interruption_location_a=obj) | 
+            Q(interruption_location=obj)
+        ).distinct().count()
+        
+        return self.render('netbox_otnfaults/inc/site_otn_faults.html', extra_context={
+            'faults_count': faults_count,
+            'site_id': obj.pk,
+        })
+
+template_extensions = [SiteOtnPaths, SiteOtnFaults]

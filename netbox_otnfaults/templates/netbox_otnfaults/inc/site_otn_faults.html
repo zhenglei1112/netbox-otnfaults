@@ -1,16 +1,16 @@
-<div id="otn-paths-injection" style="display: none;">
-    {% if paths_count > 0 %}
-    <a href="{% url 'plugins:netbox_otnfaults:otnpath_list' %}?site={{ site_id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" id="unified-otn-path-link">
-        光缆路径
-        <span class="badge text-bg-primary rounded-pill">{{ paths_count }}</span>
+<div id="otn-faults-injection" style="display: none;">
+    {% if faults_count > 0 %}
+    <a href="{% url 'plugins:netbox_otnfaults:otnfault_list' %}?site={{ site_id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" id="unified-otn-fault-link">
+        故障
+        <span class="badge text-bg-primary rounded-pill">{{ faults_count }}</span>
     </a>
     {% endif %}
 </div>
 
 <script>
 (function() {
-    function injectOtnPaths() {
-        const injectionSource = document.getElementById('unified-otn-path-link');
+    function injectOtnFaults() {
+        const injectionSource = document.getElementById('unified-otn-fault-link');
         // REMOVED: if (!injectionSource) return; -> 即使没有注入源（数量为0），也需要执行移除逻辑
 
         // 查找页面上的所有卡片 (card)
@@ -33,11 +33,11 @@
         if (targetCard) {
             const listGroup = targetCard.querySelector('.list-group');
             if (listGroup) {
-                // 1. 移除现有的“光缆路径”条目（避免重复显示）
+                // 1. 移除现有的“故障”条目（避免重复显示）
                 const links = listGroup.querySelectorAll('a');
                 links.forEach(link => {
                     // 跳过我们自己注入的这个链接 (通过ID判断)
-                    if (link.id === 'unified-otn-path-link') return;
+                    if (link.id === 'unified-otn-fault-link') return;
 
                     const href = link.getAttribute('href');
                     const text = link.innerText.trim();
@@ -45,12 +45,12 @@
                     let shouldRemove = false;
 
                     // 条件 1: 通过 URL 路径判断
-                    // 默认插件链接通常包含 /plugins/otnfaults/ 且带有 path, site_a_id 或 site_z_id 参数
-                    if (href && href.includes('/plugins/otnfaults/') && (href.includes('path') || href.includes('site_a_id') || href.includes('site_z_id'))) {
+                    // 默认插件链接通常包含 /plugins/otnfaults/faults/ 且带有 interruption_location 参数
+                    if (href && href.includes('/plugins/otnfaults/faults/') && (href.includes('interruption_location_a_id') || href.includes('interruption_location_id'))) {
                         shouldRemove = true;
                     }
                     // 条件 2: 通过文本内容判断
-                    else if (text === 'Optical Path' || text === '光缆路径') {
+                    else if (text === 'Fault' || text === '故障') {
                         shouldRemove = true;
                     }
                     
@@ -76,7 +76,7 @@
                 }
                 
                 // 清理临时注入容器
-                const container = document.getElementById('otn-paths-injection');
+                const container = document.getElementById('otn-faults-injection');
                 if (container) container.remove();
             }
         }
@@ -84,9 +84,9 @@
 
     // 确保在 DOM 加载完成后执行
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', injectOtnPaths);
+        document.addEventListener('DOMContentLoaded', injectOtnFaults);
     } else {
-        injectOtnPaths();
+        injectOtnFaults();
     }
 })();
 </script>

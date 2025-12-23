@@ -6,6 +6,7 @@ import django_filters
 class OtnFaultFilterSet(NetBoxModelFilterSet):
     bidirectional_pair = django_filters.CharFilter(method='filter_bidirectional_pair', label='双向站点对筛选 (id1,id2)')
     single_site_a_id = django_filters.NumberFilter(method='filter_single_site_a_id', label='单站点故障筛选 (A端站点ID)')
+    site = django_filters.NumberFilter(method='filter_site', label='站点筛选 (A端或Z端)')
 
     class Meta:
         model = OtnFault
@@ -53,6 +54,17 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
         if not value:
             return queryset
         return queryset.filter(interruption_location_a_id=value, interruption_location__isnull=True)
+
+    def filter_site(self, queryset, name, value):
+        """
+        筛选涉及到指定站点的故障（作为A端或包含在Z端列表中）。
+        """
+        if not value:
+            return queryset
+        return queryset.filter(
+            Q(interruption_location_a_id=value) |
+            Q(interruption_location__id=value)
+        ).distinct()
 
 class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
     class Meta:
