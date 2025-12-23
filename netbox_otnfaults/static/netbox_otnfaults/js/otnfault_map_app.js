@@ -897,8 +897,10 @@ document.addEventListener('DOMContentLoaded', function () {
     
                     // 使用 PopupTemplates 服务生成弹窗内容
                     // PMTiles 数据可能没有 url 属性，需要通过 id 构建
+                    // 确保 pathId 是有效的数字ID（防止 PMTiles 数据不同步时使用路径名作为ID）
                     const pathId = props.id;
-                    const pathUrl = props.url || (pathId ? `/plugins/otnfaults/paths/${pathId}/` : '#');
+                    const isValidPathId = pathId && !isNaN(Number(pathId)) && Number(pathId) > 0;
+                    const pathUrl = props.url || (isValidPathId ? `/plugins/otnfaults/paths/${pathId}/` : '#');
                     const content = PopupTemplates.pathPopup({ pathName, pathUrl, siteAName, siteZName, detailUrl, props, timeStatsHtml });
                     
                     new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })

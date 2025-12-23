@@ -7,7 +7,7 @@ class SiteOtnPaths(PluginTemplateExtension):
     在站点详情页注入光缆路径统计信息。
     通过 right_page 方法在右侧面板显示。
     """
-    model = 'dcim.site'
+    models = ['dcim.site']  # NetBox 4.x: 使用 models (复数) 而非 model
     
     def right_page(self):
         obj = self.context['object']
@@ -26,7 +26,7 @@ class SiteOtnFaults(PluginTemplateExtension):
     """
     在站点详情页注入故障统计信息。
     """
-    model = 'dcim.site'
+    models = ['dcim.site']  # NetBox 4.x: 使用 models (复数) 而非 model
     
     def right_page(self):
         obj = self.context['object']
