@@ -1,5 +1,5 @@
 ---
-description: 自动验证部署
+description: 验证故障分布图功能
 ---
 
 # 部署验证工作流

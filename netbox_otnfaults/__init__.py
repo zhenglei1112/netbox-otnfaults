@@ -24,6 +24,7 @@ class OtnFaultsConfig(PluginConfig):
         'local_tiles_url': 'http://192.168.30.177:8080/maps/china.pmtiles',
         # 本地字体服务地址（仅 use_local_basemap=True 时生效）
         'local_glyphs_url': 'http://192.168.30.177:8080/maps/fonts/{fontstack}/{range}.pbf',
+        'otn_paths_pmtiles_url': 'http://192.168.30.177:8080/maps/otn_paths.pmtiles', # OTN路径PMTiles服务URL
     }
     
     # Netbox 4.x compatibility

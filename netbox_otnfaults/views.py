@@ -229,6 +229,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             'use_local_basemap': plugin_settings.get('use_local_basemap', False),
             'local_tiles_url': plugin_settings.get('local_tiles_url', ''),
             'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
+            'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''), # 传递 OTN 路径 PMTiles URL
             'current_time_range': time_range  # 传递给模板，用于显示当前选择
         })
 
