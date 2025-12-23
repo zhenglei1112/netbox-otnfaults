@@ -1,0 +1,88 @@
+<div id="otn-paths-injection" style="display: none;">
+    <a href="{% url 'plugins:netbox_otnfaults:otnpath_list' %}?site={{ site_id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" id="unified-otn-path-link">
+        光缆路径
+        <span class="badge text-bg-primary rounded-pill">{{ paths_count }}</span>
+    </a>
+</div>
+
+<script>
+(function() {
+    function injectOtnPaths() {
+        const injectionSource = document.getElementById('unified-otn-path-link');
+        if (!injectionSource) return;
+
+        // 查找页面上的所有卡片 (card)
+        const cards = document.querySelectorAll('.card');
+        let targetCard = null;
+
+        // 遍历查找包含 "Related Objects" 或 "相关对象" 的卡片
+        for (const card of cards) {
+            const header = card.querySelector('.card-header');
+            if (header) {
+                const text = header.innerText.trim();
+                // 兼容中英文环境
+                if (text === 'Related Objects' || text === '相关对象' || text.includes('Related Objects')) {
+                    targetCard = card;
+                    break;
+                }
+            }
+        }
+
+        if (targetCard) {
+            const listGroup = targetCard.querySelector('.list-group');
+            if (listGroup) {
+                // 1. 移除现有的“光缆路径”条目（避免重复显示）
+                const links = listGroup.querySelectorAll('a');
+                links.forEach(link => {
+                    // 跳过我们自己注入的这个链接 (通过ID判断)
+                    if (link.id === 'unified-otn-path-link') return;
+
+                    const href = link.getAttribute('href');
+                    const text = link.innerText.trim();
+                    
+                    let shouldRemove = false;
+
+                    // 条件 1: 通过 URL 路径判断
+                    // 默认插件链接通常包含 /plugins/otnfaults/ 且带有 path, site_a_id 或 site_z_id 参数
+                    if (href && href.includes('/plugins/otnfaults/') && (href.includes('path') || href.includes('site_a_id') || href.includes('site_z_id'))) {
+                        shouldRemove = true;
+                    }
+                    // 条件 2: 通过文本内容判断
+                    else if (text === 'Optical Path' || text === '光缆路径') {
+                        shouldRemove = true;
+                    }
+                    
+                    if (shouldRemove) {
+                        // 如果链接本身就是 list-group-item (NetBox 原生风格)，直接移除链接
+                        if (link.classList.contains('list-group-item')) {
+                            link.remove();
+                        } else {
+                            // 否则（旧风格或 wrapper），移除其父级 li 元素
+                            const listItem = link.closest('.list-group-item');
+                            if (listItem) {
+                                listItem.remove();
+                            }
+                        }
+                    }
+                });
+
+                // 2. 将我们统一后的新条目添加到列表中
+                listGroup.appendChild(injectionSource);
+                // 移除任何可能的内联 display 样式，确保可见性
+                injectionSource.style.removeProperty('display');
+                
+                // 清理临时注入容器
+                const container = document.getElementById('otn-paths-injection');
+                if (container) container.remove();
+            }
+        }
+    }
+
+    // 确保在 DOM 加载完成后执行
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', injectOtnPaths);
+    } else {
+        injectOtnPaths();
+    }
+})();
+</script>

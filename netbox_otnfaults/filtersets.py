@@ -63,11 +63,25 @@ class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
         )
 
 class OtnPathFilterSet(NetBoxModelFilterSet):
+    site = django_filters.NumberFilter(method='filter_site', label='站点筛选 (A端或Z端)')
+
     class Meta:
         model = OtnPath
         fields = (
             'id', 'name', 'cable_type', 'site_a', 'site_z', 
             'calculated_length', 'description',
+        )
+
+    def filter_site(self, queryset, name, value):
+        """
+        筛选 A 端或 Z 端为指定站点的光缆路径。
+        使用 Q 对象实现 OR 逻辑：(site_a_id == value) OR (site_z_id == value)
+        """
+        if not value:
+            return queryset
+        return queryset.filter(
+            Q(site_a_id=value) |
+            Q(site_z_id=value)
         )
 
     def search(self, queryset, name, value):
