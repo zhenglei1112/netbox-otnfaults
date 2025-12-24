@@ -295,6 +295,10 @@ class SearchControl {
                 type: 'Feature',
                 geometry: { type: 'LineString', coordinates: [] }
             });
+            // 停止流动动画
+            if (window.PathFlowAnimator) {
+                window.PathFlowAnimator.stop();
+            }
         }
         
         if (item.type === 'site') {

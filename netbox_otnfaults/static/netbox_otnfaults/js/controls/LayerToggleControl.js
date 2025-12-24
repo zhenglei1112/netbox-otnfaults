@@ -557,7 +557,8 @@ class LayerToggleControl {
         
         const layers = [
             'otn-paths-layer', 
-            'otn-paths-highlight-layer', 
+            'otn-paths-highlight-layer',
+            'otn-paths-highlight-outline',
             'otn-paths-labels',
             'netbox-sites-layer',
             'netbox-sites-labels'

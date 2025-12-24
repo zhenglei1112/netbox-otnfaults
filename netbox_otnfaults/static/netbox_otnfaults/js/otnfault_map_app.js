@@ -714,16 +714,184 @@ document.addEventListener('DOMContentLoaded', function () {
             geometry: { type: 'LineString', coordinates: [] }
         });
         
+        // 路径高亮底层：金色轮廓线
+        mapBase.addLayer({
+            id: 'otn-paths-highlight-outline',
+            type: 'line',
+            source: 'otn-paths-highlight',
+            paint: {
+                'line-color': '#FFD700',
+                'line-width': 6,
+                'line-opacity': 0.8
+            }
+        }, firstSymbolIdForPath);
+        
+        // 路径高亮顶层：保留作为底色背景
         mapBase.addLayer({
             id: 'otn-paths-highlight-layer',
             type: 'line',
             source: 'otn-paths-highlight',
             paint: {
                 'line-color': '#FFD700',
-                'line-width': 4,
-                'line-opacity': 1
+                'line-width': 5,
+                'line-opacity': 0.9
             }
         }, firstSymbolIdForPath);
+        
+        // === deck.gl 流动动画控制器 ===
+        const DeckGLFlowAnimator = {
+            overlay: null,
+            animationId: null,
+            isRunning: false,
+            currentTime: 0,
+            direction: 1,
+            maxTime: 100,
+            pathData: null,
+            tripsData: null,
+            
+            /**
+             * 将 GeoJSON LineString 转换为 TripsLayer 数据格式
+             * @param {Object} geojsonFeature - GeoJSON Feature 或 FeatureCollection
+             * @returns {Array} TripsLayer 所需的数据格式
+             */
+            convertToTripsData: function(geojsonFeature) {
+                const features = geojsonFeature.type === 'FeatureCollection' 
+                    ? geojsonFeature.features 
+                    : [geojsonFeature];
+                
+                const tripsData = [];
+                
+                features.forEach((feature, featureIndex) => {
+                    if (!feature.geometry || feature.geometry.type !== 'LineString') return;
+                    
+                    const coordinates = feature.geometry.coordinates;
+                    if (coordinates.length < 2) return;
+                    
+                    // 计算每个点的时间戳（基于累积距离）
+                    const timestamps = [0];
+                    let totalDistance = 0;
+                    
+                    for (let i = 1; i < coordinates.length; i++) {
+                        const [lon1, lat1] = coordinates[i - 1];
+                        const [lon2, lat2] = coordinates[i];
+                        // 简化的距离计算（欧氏距离，仅用于相对比例）
+                        const dx = lon2 - lon1;
+                        const dy = lat2 - lat1;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        totalDistance += dist;
+                        timestamps.push(totalDistance);
+                    }
+                    
+                    // 归一化时间戳到 [0, maxTime]
+                    const normalizedTimestamps = timestamps.map(t => 
+                        totalDistance > 0 ? (t / totalDistance) * this.maxTime : 0
+                    );
+                    
+                    tripsData.push({
+                        path: coordinates,
+                        timestamps: normalizedTimestamps,
+                        color: [255, 100, 0]  // 橙红色流动点
+                    });
+                });
+                
+                return tripsData;
+            },
+            
+            /**
+             * 启动流动动画
+             * @param {Object} pathData - GeoJSON 路径数据
+             */
+            start: function(pathData) {
+                // 如果已在运行，先停止
+                if (this.isRunning) {
+                    this.stop();
+                }
+                
+                if (!pathData) return;
+                
+                this.pathData = pathData;
+                this.tripsData = this.convertToTripsData(pathData);
+                
+                if (this.tripsData.length === 0) return;
+                
+                this.isRunning = true;
+                this.currentTime = 0;
+                this.direction = 1;
+                
+                // 创建 deck.gl overlay（如果不存在）
+                if (!this.overlay) {
+                    this.overlay = new deck.MapboxOverlay({
+                        interleaved: false,
+                        layers: []
+                    });
+                    map.addControl(this.overlay);
+                }
+                
+                this.animate();
+            },
+            
+            /**
+             * 停止流动动画
+             */
+            stop: function() {
+                this.isRunning = false;
+                
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+                
+                // 清空 deck.gl 图层
+                if (this.overlay) {
+                    this.overlay.setProps({ layers: [] });
+                }
+                
+                this.pathData = null;
+                this.tripsData = null;
+            },
+            
+            /**
+             * 动画循环
+             */
+            animate: function() {
+                if (!this.isRunning || !this.tripsData) return;
+                
+                // 更新当前时间
+                this.currentTime += 1.5 * this.direction;
+                
+                // 检查是否需要反向
+                if (this.currentTime >= this.maxTime) {
+                    this.direction = -1;
+                } else if (this.currentTime <= 0) {
+                    this.direction = 1;
+                }
+                
+                // 创建 TripsLayer
+                const tripsLayer = new deck.TripsLayer({
+                    id: 'path-flow-trips',
+                    data: this.tripsData,
+                    getPath: d => d.path,
+                    getTimestamps: d => d.timestamps,
+                    getColor: d => d.color,
+                    opacity: 1,
+                    widthMinPixels: 6,
+                    jointRounded: true,
+                    capRounded: true,
+                    trailLength: 30,
+                    currentTime: this.currentTime,
+                    fadeTrail: true
+                });
+                
+                // 更新 overlay
+                this.overlay.setProps({ layers: [tripsLayer] });
+                
+                this.animationId = requestAnimationFrame(() => this.animate());
+            }
+        };
+        
+        // 公开动画控制器（保持向后兼容的别名）
+        window.DeckGLFlowAnimator = DeckGLFlowAnimator;
+        window.PathFlowAnimator = DeckGLFlowAnimator;  // 兼容旧调用
         
         // 鼠标交互
         map.on('mouseenter', 'otn-paths-labels', () => map.getCanvas().style.cursor = 'pointer');
@@ -874,6 +1042,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     
                     // Highlight
                     map.getSource('otn-paths-highlight').setData(pathFeature);
+                    // 启动流动动画（传递路径数据）
+                    if (window.PathFlowAnimator) {
+                        window.PathFlowAnimator.start(pathFeature);
+                    }
                     
                     // 获取站点ID用于构建详情链接
                     const sites = window.OTNFaultMapConfig.sitesData || [];
@@ -903,10 +1075,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     const pathUrl = props.url || (isValidPathId ? `/plugins/otnfaults/paths/${pathId}/` : '#');
                     const content = PopupTemplates.pathPopup({ pathName, pathUrl, siteAName, siteZName, detailUrl, props, timeStatsHtml });
                     
-                    new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
+                    const pathPopup = new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
                         .setLngLat(e.lngLat)
                         .setHTML(content)
                         .addTo(map);
+                    
+                    // 弹窗关闭时停止动画并清除高亮
+                    pathPopup.on('close', () => {
+                        if (window.PathFlowAnimator) {
+                            window.PathFlowAnimator.stop();
+                        }
+                        if (map.getSource('otn-paths-highlight')) {
+                            map.getSource('otn-paths-highlight').setData({
+                                type: 'Feature',
+                                geometry: { type: 'LineString', coordinates: [] }
+                            });
+                        }
+                    });
                 }
             }
         });

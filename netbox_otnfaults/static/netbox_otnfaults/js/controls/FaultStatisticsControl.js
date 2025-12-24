@@ -701,6 +701,10 @@ class FaultStatisticsControl {
                 type: 'FeatureCollection',
                 features: []
             });
+            // 停止流动动画
+            if (window.PathFlowAnimator) {
+                window.PathFlowAnimator.stop();
+            }
         }
 
         // 构建故障列表详情链接
@@ -782,11 +786,16 @@ class FaultStatisticsControl {
             });
             
             // 高亮所有匹配的路径（使用FeatureCollection）
+            const highlightData = {
+                type: 'FeatureCollection',
+                features: matchedPaths
+            };
             if (this.map.getSource('otn-paths-highlight')) {
-                this.map.getSource('otn-paths-highlight').setData({
-                    type: 'FeatureCollection',
-                    features: matchedPaths
-                });
+                this.map.getSource('otn-paths-highlight').setData(highlightData);
+                // 启动流动动画（传递路径数据）
+                if (window.PathFlowAnimator) {
+                    window.PathFlowAnimator.start(highlightData);
+                }
             }
 
             // 在第一条路径的中点显示弹窗
@@ -823,6 +832,16 @@ class FaultStatisticsControl {
              
             this.currentPopup.on('close', () => {
                 this.currentPopup = null;
+                // 停止流动动画并清除高亮
+                if (window.PathFlowAnimator) {
+                    window.PathFlowAnimator.stop();
+                }
+                if (this.map.getSource('otn-paths-highlight')) {
+                    this.map.getSource('otn-paths-highlight').setData({
+                        type: 'FeatureCollection',
+                        features: []
+                    });
+                }
             });
             return;
         }
