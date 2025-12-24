@@ -12,7 +12,7 @@ class FaultLegendControl {
     onAdd(map) {
         this.map = map;
         this.container = document.createElement('div');
-        this.container.className = 'maplibregl-ctrl fault-legend-control';
+        this.container.className = 'mapboxgl-ctrl fault-legend-control';
         
         this.render();
         

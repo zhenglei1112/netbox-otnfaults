@@ -69,20 +69,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // 显示加载指示器
     NetBoxMapBase.showLoading('map');
 
-    map.on('load', () => {
-        NetBoxMapBase.hideLoading('map');
-
-        // 仅网络底图执行后处理（本地底图样式已优化，无需处理）
-        if (!mapBase.useLocalBasemap) {
-            // 强化中国省界
-            mapBase.emphasizeChinaBoundaries();
-            // 确保语言为中文
-            mapBase.setLanguageToChinese();
-            // 过滤无关标签
-            mapBase.filterLabels();
-        }
-    });
-
     // 添加通用控件
     mapBase.addStandardControls();
     mapBase.addHomeControl();
@@ -118,11 +104,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     // 3. 地图加载逻辑：添加图层和源
-    map.on('load', () => {
+    // 定义加载完成后的初始化函数
+    function onMapLoaded() {
+        console.log('地图样式加载完成，开始初始化图层...');
+        NetBoxMapBase.hideLoading('map');
         
         // 设置 globe 投影（需要在样式加载后设置）
-        map.setProjection({ type: 'globe' });
-        console.log('已设置 globe 投影模式');
+        try {
+            map.setProjection('globe');
+            console.log('已设置 globe 投影模式');
+        } catch (e) {
+            console.warn('设置 globe 投影失败:', e.message);
+        }
         
         // --- 热力图图层 ---
         mapBase.addGeoJsonSource('fault-heatmap', heatmapData);
@@ -586,7 +579,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const popupContent = PopupTemplates.faultPopup(props);
                 
                 if (!popup) {
-                    popup = new maplibregl.Popup({
+                    popup = new mapboxgl.Popup({
                         offset: 25,
                         maxWidth: '300px',
                         closeButton: false,
@@ -645,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // 初始自适应边界 (已禁用：默认定位于南阳市)
         /*
-        const bounds = new maplibregl.LngLatBounds();
+        const bounds = new mapboxgl.LngLatBounds();
         const features = heatmapData.features || [];
         if (features.length > 0) features.forEach(f => bounds.extend(f.geometry.coordinates));
         markerData.forEach(m => bounds.extend([m.lng, m.lat]));
@@ -656,34 +649,18 @@ document.addEventListener('DOMContentLoaded', function () {
         // --- 异步加载数据 ---
 
         
-        // 1. OTN 路径 - 统一使用 PMTiles 加载
-        console.log('使用 PMTiles 加载路径数据');
+        // 1. OTN 路径 - 使用后端传递的 GeoJSON 数据
+        const pathsGeojson = config.pathsGeojson || { type: 'FeatureCollection', features: [] };
+        console.log(`使用 GeoJSON 加载路径数据，共 ${pathsGeojson.features.length} 条路径`);
         
-        // 获取 PMTiles 路径服务地址
-        const otnPathsPmtilesUrl = config.otnPathsPmtilesUrl || 'http://192.168.30.177:8080/maps/otn_paths.pmtiles';
-        
-        // 添加 PMTiles 路径数据源
-        map.addSource('otn_paths_pmtiles', {
-            type: 'vector',
-            url: 'pmtiles://' + otnPathsPmtilesUrl
-        });
-        
-        // 查找插入位置：在标签下方
-        const pathLayers = map.getStyle().layers;
-        let firstSymbolIdForPath;
-        for (const layer of pathLayers) {
-            if (layer.type === 'symbol') {
-                firstSymbolIdForPath = layer.id;
-                break;
-            }
-        }
+        // 添加路径 GeoJSON 数据源
+        mapBase.addGeoJsonSource('otn_paths', pathsGeojson);
         
         // 路径显示图层
         mapBase.addLayer({
             id: 'otn-paths-layer',
             type: 'line',
-            source: 'otn_paths_pmtiles',
-            'source-layer': 'otn_paths',
+            source: 'otn_paths',
             layout: {
                 'line-join': 'round',
                 'line-cap': 'round',
@@ -694,21 +671,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 'line-width': 2,
                 'line-opacity': 0.8
             }
-        }, firstSymbolIdForPath);
+        });
         
         // 透明可点击区域图层
         mapBase.addLayer({
             id: 'otn-paths-labels',
             type: 'line',
-            source: 'otn_paths_pmtiles',
-            'source-layer': 'otn_paths',
+            source: 'otn_paths',
             paint: {
                 'line-width': 10,
                 'line-opacity': 0
             }
-        }, firstSymbolIdForPath);
+        });
         
-        // 添加路径高亮源（仍需 GeoJSON 格式）
+        // 存储路径数据以便后续使用（如路径高亮、弹窗等）
+        window.OTNPathsData = pathsGeojson;
+        
+        // 添加路径高亮源
         mapBase.addGeoJsonSource('otn-paths-highlight', {
             type: 'Feature',
             geometry: { type: 'LineString', coordinates: [] }
@@ -724,7 +703,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 'line-width': 6,
                 'line-opacity': 0.8
             }
-        }, firstSymbolIdForPath);
+        });
         
         // 路径高亮顶层：保留作为底色背景
         mapBase.addLayer({
@@ -736,7 +715,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 'line-width': 5,
                 'line-opacity': 0.9
             }
-        }, firstSymbolIdForPath);
+        });
         
         // === deck.gl 流动动画控制器 ===
         const DeckGLFlowAnimator = {
@@ -1028,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const siteUrl = props.url || '#';  // NetBox 站点对象链接
                     const content = PopupTemplates.sitePopup({ siteName, siteUrl, detailUrl, props, timeStatsHtml });
                     
-                    new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
+                    new mapboxgl.Popup({ maxWidth: '300px', className: 'stats-popup' })
                         .setLngLat(siteFeature.geometry.coordinates)
                         .setHTML(content)
                         .addTo(map);
@@ -1075,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const pathUrl = props.url || (isValidPathId ? `/plugins/otnfaults/paths/${pathId}/` : '#');
                     const content = PopupTemplates.pathPopup({ pathName, pathUrl, siteAName, siteZName, detailUrl, props, timeStatsHtml });
                     
-                    const pathPopup = new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
+                    const pathPopup = new mapboxgl.Popup({ maxWidth: '300px', className: 'stats-popup' })
                         .setLngLat(e.lngLat)
                         .setHTML(content)
                         .addTo(map);
@@ -1297,5 +1276,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    }); // end map.on('load')
+    } // end onMapLoaded function
+    
+    // 智能加载：如果样式已加载则立即执行，否则等待 load 事件
+    if (map.isStyleLoaded()) {
+        console.log('样式已加载，立即执行初始化...');
+        onMapLoaded();
+    } else {
+        console.log('等待样式加载...');
+        map.on('load', onMapLoaded);
+    }
 });

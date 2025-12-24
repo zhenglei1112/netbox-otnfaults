@@ -259,7 +259,7 @@ class PopupTemplates {
             PopupTemplates._stylesInjected = true;
             return `
                 <style id="stats-popup-styles">
-                    .stats-popup .maplibregl-popup-content { padding: 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+                    .stats-popup .mapboxgl-popup-content { padding: 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
                     .stats-popup-content { font-family: inherit; }
                     .stats-popup-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; padding-right: 28px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }
                     .stats-popup-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: #212529; }

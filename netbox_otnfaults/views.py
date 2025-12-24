@@ -203,6 +203,34 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
         # 获取插件配置
         plugin_settings = get_plugin_settings()
         
+        # 构建路径 GeoJSON 数据（替代 PMTiles）
+        paths_geojson = {
+            'type': 'FeatureCollection',
+            'features': []
+        }
+        for path in OtnPath.objects.filter(geometry__isnull=False).select_related('site_a', 'site_z'):
+            if path.geometry:
+                paths_geojson['features'].append({
+                    'type': 'Feature',
+                    'properties': {
+                        'id': path.pk,
+                        'name': path.name,
+                        'cable_type': path.cable_type,
+                        'cable_type_display': path.get_cable_type_display(),
+                        'site_a_name': path.site_a.name if path.site_a else None,
+                        'site_z_name': path.site_z.name if path.site_z else None,
+                        'site_a_id': path.site_a.pk if path.site_a else None,
+                        'site_z_id': path.site_z.pk if path.site_z else None,
+                        'calculated_length': float(path.calculated_length) if path.calculated_length else None,
+                        'url': path.get_absolute_url(),
+                        'description': path.description or ''
+                    },
+                    'geometry': {
+                        'type': 'LineString',
+                        'coordinates': path.geometry
+                    }
+                })
+        
         return render(request, 'netbox_otnfaults/otnfault_map_globe.html', {
             'heatmap_data': json.dumps(heatmap_data, cls=DjangoJSONEncoder),
             'marker_data': json.dumps(marker_data, cls=DjangoJSONEncoder),
@@ -223,6 +251,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 }
                 for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False)
             ], cls=DjangoJSONEncoder),
+            'paths_geojson': json.dumps(paths_geojson, cls=DjangoJSONEncoder),  # 新增：路径 GeoJSON 数据
             'apikey': plugin_settings.get('map_api_key', ''),
             'map_center': json.dumps(plugin_settings.get('map_default_center', [112.53, 33.00])),
             'map_zoom': plugin_settings.get('map_default_zoom', 4.2),

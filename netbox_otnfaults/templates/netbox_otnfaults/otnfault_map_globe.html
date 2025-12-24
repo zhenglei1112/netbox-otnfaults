@@ -25,11 +25,9 @@
   </div>
 </div>
 
-<link
-  href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}"
-  rel="stylesheet"
-/>
-<script src="{% static 'netbox_otnfaults/lib/maplibre-gl.js' %}"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.3/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.3/mapbox-gl.js"></script>
+<script src="https://unpkg.com/@mapbox/mapbox-gl-language@1.0.1/dist/mapbox-gl-language.js"></script>
 <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
 <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
 
@@ -47,7 +45,8 @@
       heatmapData: {{ heatmap_data| safe }},
       markerData: {{ marker_data| safe }},
       sitesData: {{ sites_data| safe }},
-      apiKey: "{{ apikey }}",
+      pathsGeojson: {{ paths_geojson| safe }},
+      apiKey: "pk.eyJ1IjoiemhoYW8iLCJhIjoiY2pjdHZsaWJjM3V6aTJ5bzAwcnZ4NTM1aSJ9.vYH6XrvzqM_CXDm5-vFyiw",
       faultListUrl: "{% url 'plugins:netbox_otnfaults:otnfault_list' %}",
       mapCenter: {{ map_center| safe }},
       mapZoom: {{ map_zoom }},

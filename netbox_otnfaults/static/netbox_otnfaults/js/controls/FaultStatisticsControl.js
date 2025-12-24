@@ -11,7 +11,7 @@ class FaultStatisticsControl {
     onAdd(map) {
         this.map = map;
         this.container = document.createElement('div');
-        this.container.className = 'maplibregl-ctrl fault-statistics';
+        this.container.className = 'mapboxgl-ctrl fault-statistics';
         
         // 初始渲染
         this.renderContent();
@@ -562,7 +562,7 @@ class FaultStatisticsControl {
         
         if (target) {
             // Robustly remove ANY existing popups
-            const existingPopups = document.getElementsByClassName('maplibregl-popup');
+            const existingPopups = document.getElementsByClassName('mapboxgl-popup');
             while (existingPopups.length > 0) {
                 existingPopups[0].remove();
             }
@@ -601,7 +601,7 @@ class FaultStatisticsControl {
                 timeStatsHtml
             });
             
-            this.currentPopup = new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
+            this.currentPopup = new mapboxgl.Popup({ maxWidth: '300px', className: 'stats-popup' })
                     .setLngLat([target.longitude, target.latitude])
                     .setHTML(popupContent)
                     .addTo(this.map);
@@ -686,7 +686,7 @@ class FaultStatisticsControl {
         }
         
         // 清理已有弹窗
-        const existingPopups = document.getElementsByClassName('maplibregl-popup');
+        const existingPopups = document.getElementsByClassName('mapboxgl-popup');
         while (existingPopups.length > 0) {
             existingPopups[0].remove();
         }
@@ -772,7 +772,7 @@ class FaultStatisticsControl {
             console.log('[flyToPath] 匹配成功，使用路径几何数据飞行:', pathNames);
             
             // 计算所有路径的边界并fly to
-            const bounds = new maplibregl.LngLatBounds();
+            const bounds = new mapboxgl.LngLatBounds();
             matchedPaths.forEach(path => {
                 const coords = path.geometry.coordinates;
                 coords.forEach(c => bounds.extend(c));
@@ -825,7 +825,7 @@ class FaultStatisticsControl {
                 timeStatsHtml
             });
             
-            this.currentPopup = new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
+            this.currentPopup = new mapboxgl.Popup({ maxWidth: '300px', className: 'stats-popup' })
                     .setLngLat(midPoint)
                     .setHTML(pathPopupContent)
                     .addTo(this.map);
@@ -879,7 +879,7 @@ class FaultStatisticsControl {
             timeStatsHtml
         });
         
-        this.currentPopup = new maplibregl.Popup({ maxWidth: '300px', className: 'stats-popup' })
+        this.currentPopup = new mapboxgl.Popup({ maxWidth: '300px', className: 'stats-popup' })
                 .setLngLat([centerLng, centerLat])
                 .setHTML(notFoundPopupContent)
                 .addTo(this.map);

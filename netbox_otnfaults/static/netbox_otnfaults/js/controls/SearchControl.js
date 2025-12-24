@@ -18,7 +18,7 @@ class SearchControl {
     onAdd(map) {
         this.map = map;
         this.container = document.createElement('div');
-        this.container.className = 'maplibregl-ctrl search-control';
+        this.container.className = 'mapboxgl-ctrl search-control';
         
         this.createSearchBox();
         

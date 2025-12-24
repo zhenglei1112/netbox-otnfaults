@@ -31,11 +31,11 @@ class LayerToggleControl {
     onAdd(map) {
         this.map = map;
         this.container = document.createElement('div');
-        this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group layer-toggle-control';
+        this.container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group layer-toggle-control';
         
         // 主按钮图标
         this.button = document.createElement('button');
-        this.button.className = 'maplibregl-ctrl-icon toggle-button';
+        this.button.className = 'mapboxgl-ctrl-icon toggle-button';
         this.button.innerHTML = window.mapBase.svgIcons.filter;
         this.button.title = '视图与时间设置';
         

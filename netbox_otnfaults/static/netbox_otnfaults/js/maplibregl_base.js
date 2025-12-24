@@ -1,5 +1,5 @@
 /**
- * NetBox MapLibre GL 基础类
+ * NetBox Mapbox GL 基础类
  * 封装通用的地图操作和配置。
  */
 
@@ -22,196 +22,107 @@ class NetBoxMapBase {
   /**
    * 初始化地图
    * @param {string} containerId - 地图容器的 HTML ID
-   * @param {string} apiKey - Stadia Maps API 密钥
+   * @param {string} accessToken - Mapbox Access Token
    * @param {Array} center - 中心点 [经度, 纬度]，默认使用全局配置
    * @param {number} zoom - 缩放级别，默认使用全局配置
    */
-  init(containerId, apiKey, center, zoom) {
+  init(containerId, accessToken, center, zoom) {
     // 使用传入的配置或全局配置
     const config = window.OTNFaultMapConfig || {};
     center = center || config.mapCenter || [112.53, 33.0];
     zoom = zoom || config.mapZoom || 4.2;
 
-    // 记录是否使用本地底图（供后续方法判断）
-    this.useLocalBasemap = config.useLocalBasemap || false;
-
-    if (typeof maplibregl === "undefined") {
-      throw new Error("MapLibre GL 库未加载。");
+    if (typeof mapboxgl === "undefined") {
+      throw new Error("Mapbox GL 库未加载。");
     }
+
+    // 设置 Mapbox Access Token
+    mapboxgl.accessToken = accessToken;
+
+    // 注意: Mapbox GL JS v3 不支持 addProtocol，PMTiles 需要使用其他方式加载
+    // 路径数据将使用 GeoJSON 或 Mapbox Vector Tiles 替代
+    console.log("Mapbox GL JS 模式：PMTiles 协议暂不可用");
 
     let mapOptions = {
       container: containerId,
+      style: "mapbox://styles/mapbox/standard",  // 使用 Mapbox Standard 底图
       center: center,
       zoom: zoom,
-      // 注意: globe 投影需要在样式加载后通过 setProjection 设置
     };
 
-    // 始终注册 pmtiles 协议（用于加载路径数据）
-    if (typeof pmtiles !== "undefined") {
-      const protocol = new pmtiles.Protocol();
-      maplibregl.addProtocol("pmtiles", protocol.tile);
-    } else {
-      console.warn("pmtiles 库未加载，路径数据可能无法正常加载");
-    }
-
-    // 根据配置选择底图
-    if (this.useLocalBasemap) {
-      // 使用本地底图样式
-      mapOptions.style = this._getLocalBasemapStyle(config);
-    } else {
-      // 使用网络底图
-      mapOptions.style =
-        "https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=" +
-        apiKey;
-    }
-
-    this.map = new maplibregl.Map(mapOptions);
+    this.map = new mapboxgl.Map(mapOptions);
+    
+    // 设置中文语言标签（确保在样式完全加载后执行）
+    const self = this;
+    const setupChineseLabels = () => {
+      console.log('开始设置中文标签...');
+      self._setChineseLabels();
+    };
+    
+    // 延迟执行以确保样式完全加载
+    this.map.on('load', () => {
+      setTimeout(setupChineseLabels, 500);
+    });
 
     return this.map;
   }
-
+  
   /**
-   * 获取本地底图样式配置（样式来自 test.html）
-   * @param {Object} config - 全局配置对象
-   * @returns {Object} MapLibre GL 样式对象
+   * 设置地图标签为中文
+   * 优先使用 mapbox-gl-language 插件，失败时遍历图层设置
    */
-  _getLocalBasemapStyle(config) {
-    return {
-      version: 8,
-      glyphs:
-        config.localGlyphsUrl ||
-        "http://192.168.30.177:8080/maps/fonts/{fontstack}/{range}.pbf",
-      sources: {
-        china_local: {
-          type: "vector",
-          url:
-            "pmtiles://" +
-            (config.localTilesUrl ||
-              "http://192.168.30.177:8080/maps/china.pmtiles"),
-          attribution: "© OpenStreetMap",
-        },
-        // OTN 路径数据源现在统一在 otnfault_map_app.js 中添加
-      },
-      layers: [
-        // === 1. 背景 (海洋颜色) - 冷淡的灰蓝色 ===
-        {
-          id: "background",
-          type: "background",
-          paint: { "background-color": "#cbd2d3" },
-        },
-        // === 2. 陆地 - 极浅的暖灰色 ===
-        {
-          id: "landuse_base",
-          type: "fill",
-          source: "china_local",
-          "source-layer": "landuse",
-          paint: { "fill-color": "#f5f5f0" },
-        },
-        // === 3. 绿地/公园 - 低饱和度浅绿 ===
-        {
-          id: "landuse_green",
-          type: "fill",
-          source: "china_local",
-          "source-layer": "landuse",
-          filter: ["in", "class", "park", "grass", "wood", "scrub"],
-          paint: {
-            "fill-color": "#dbece0",
-            "fill-opacity": 0.6,
-          },
-        },
-        // === 4. 水系 - 与背景融合或稍深 ===
-        {
-          id: "water",
-          type: "fill",
-          source: "china_local",
-          "source-layer": "water",
-          paint: { "fill-color": "#cbd2d3" },
-        },
-        // === 5. 道路 (底层描边) - 浅灰色 ===
-        {
-          id: "roads_casing",
-          type: "line",
-          source: "china_local",
-          "source-layer": "transportation",
-          minzoom: 5,
-          paint: {
-            "line-color": "#cfcfcf",
-            "line-width": {
-              stops: [
-                [5, 1],
-                [10, 4],
-                [15, 8],
-              ],
-            },
-          },
-        },
-        // === 6. 道路 (顶层填充) - 纯白色 ===
-        {
-          id: "roads_inner",
-          type: "line",
-          source: "china_local",
-          "source-layer": "transportation",
-          minzoom: 5,
-          paint: {
-            "line-color": "#ffffff",
-            "line-width": {
-              stops: [
-                [5, 0.5],
-                [10, 2.5],
-                [15, 6],
-              ],
-            },
-          },
-        },
-        // === 7. 边界线 - 柔和的虚线 ===
-        {
-          id: "boundary",
-          type: "line",
-          source: "china_local",
-          "source-layer": "boundary",
-          paint: {
-            "line-color": "#aeb0b5",
-            "line-width": 1,
-            "line-dasharray": [2, 2],
-          },
-        },
-        // === 8. 城市名称 - 深蓝灰色，高可读性 ===
-        {
-          id: "place_label",
-          type: "symbol",
-          source: "china_local",
-          "source-layer": "place",
-          minzoom: 3,
-          layout: {
-            "text-field": "{name}",
-            "text-size": {
-              stops: [
-                [3, 10],
-                [8, 14],
-              ],
-            },
-            "text-font": ["Open Sans Regular"],
-            "text-max-width": 8,
-          },
-          paint: {
-            "text-color": "#434850",
-            "text-halo-color": "#ffffff",
-            "text-halo-width": 2,
-            "text-halo-blur": 0.5,
-          },
-        },
-        // OTN 路径图层现在统一在 otnfault_map_app.js 中添加
-      ],
-    };
+  _setChineseLabels() {
+    // 方式1：使用 mapbox-gl-language 插件
+    if (typeof MapboxLanguage !== 'undefined') {
+      try {
+        const language = new MapboxLanguage({
+          defaultLanguage: 'zh-Hans'
+        });
+        this.map.addControl(language);
+        console.log('已使用 MapboxLanguage 插件设置中文');
+        return;
+      } catch (e) {
+        console.warn('MapboxLanguage 插件添加失败:', e.message);
+      }
+    }
+    
+    // 方式2：遍历图层手动设置（兜底方案）
+    try {
+      const style = this.map.getStyle();
+      if (!style || !style.layers) return;
+      
+      let count = 0;
+      style.layers.forEach(layer => {
+        if (layer.type === 'symbol') {
+          try {
+            this.map.setLayoutProperty(layer.id, 'text-field', [
+              'coalesce',
+              ['get', 'name_zh-Hans'],
+              ['get', 'name_zh'],
+              ['get', 'name']
+            ]);
+            count++;
+          } catch (e) {
+            // 某些图层可能不支持此属性，忽略错误
+          }
+        }
+      });
+      
+      if (count > 0) {
+        console.log(`已手动设置 ${count} 个图层的语言为中文`);
+      }
+    } catch (e) {
+      console.warn('设置中文标签失败:', e.message);
+    }
   }
 
   /**
    * 添加标准控件（导航、全屏）
    */
   addStandardControls() {
-    this.map.addControl(new maplibregl.NavigationControl());
+    this.map.addControl(new mapboxgl.NavigationControl());
     this.map.addControl(
-      new maplibregl.FullscreenControl({
+      new mapboxgl.FullscreenControl({
         container: document.querySelector("#" + this.map.getContainer().id),
       })
     );
@@ -235,10 +146,10 @@ class NetBoxMapBase {
       onAdd(map) {
         this.map = map;
         this.container = document.createElement("div");
-        this.container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+        this.container.className = "mapboxgl-ctrl mapboxgl-ctrl-group";
 
         this.homeButton = document.createElement("button");
-        this.homeButton.className = "maplibregl-ctrl-icon";
+        this.homeButton.className = "mapboxgl-ctrl-icon";
         this.homeButton.innerHTML = svgIcons.home;
         this.homeButton.title =
           "恢复初始视野（包括比例尺、视野、北向、俯仰等）";
@@ -266,121 +177,6 @@ class NetBoxMapBase {
     }
 
     this.map.addControl(new HomeControl(), position);
-  }
-
-  /**
-   * 设置地图语言为中文
-   */
-  setLanguageToChinese() {
-    const layers = this.map.getStyle().layers;
-    layers.forEach((layer) => {
-      if (layer.layout && layer.layout["text-field"]) {
-        this.map.setLayoutProperty(layer.id, "text-field", [
-          "coalesce",
-          ["get", "name:zh"],
-          ["get", "name"],
-        ]);
-      }
-    });
-  }
-
-  /**
-   * 强化中国边界显示
-   * 尝试找到省级边界图层并加深加粗
-   */
-  /**
-   * 强化中国边界显示
-   * 尝试找到省级边界图层并加深加粗
-   */
-  emphasizeChinaBoundaries() {
-    const style = this.map.getStyle();
-    if (!style || !style.layers) return;
-
-    style.layers.forEach((layer) => {
-      // 匹配常见的行政边界图层名称模式 (admin, boundary)
-      if (
-        (layer.id.indexOf("admin") !== -1 ||
-          layer.id.indexOf("boundary") !== -1) &&
-        layer.type === "line"
-      ) {
-        // 排除可能是国界 (level-0, level-2) 的图层，专注更细粒度的边界
-        // 如果图层ID包含 '0' 或 '2' 但不包含 'province'，跳过（可选策略，先全量尝试）
-
-        // 强制确保可见
-        if (this.map.getLayoutProperty(layer.id, "visibility") === "none") {
-          this.map.setLayoutProperty(layer.id, "visibility", "visible");
-        }
-
-        this.map.setPaintProperty(layer.id, "line-width", [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          3,
-          0.5,
-          5,
-          2.0, // 增加到 2.0
-          10,
-          4.0,
-        ]);
-
-        // 设置为明显的深灰色，确保不透明
-        this.map.setPaintProperty(layer.id, "line-color", "#555555");
-        this.map.setPaintProperty(layer.id, "line-opacity", 1.0);
-      }
-    });
-  }
-
-  /**
-   * 过滤地图标签（隐藏道路、小城镇）
-   */
-  filterLabels() {
-    const layers = this.map.getStyle().layers;
-    layers.forEach((layer) => {
-      if (layer.type === "symbol") {
-        // 隐藏道路标签
-        if (
-          layer.id.includes("road") ||
-          layer.id.includes("highway") ||
-          layer.id.includes("street") ||
-          layer.id.includes("route") ||
-          layer.id.includes("motorway") ||
-          layer.id.includes("trunk") ||
-          layer.id.includes("primary") ||
-          layer.id.includes("secondary") ||
-          layer.id.includes("tertiary") ||
-          layer.id.includes("path") ||
-          layer.id.includes("track") ||
-          layer.id.includes("service") ||
-          layer.id.includes("pedestrian") ||
-          layer.id.includes("cycleway") ||
-          layer.id.includes("footway") ||
-          layer.id.includes("steps") ||
-          layer.id.includes("ferry") ||
-          layer.id.includes("rail") ||
-          layer.id.includes("transit")
-        ) {
-          this.map.setLayoutProperty(layer.id, "visibility", "none");
-        }
-
-        // 隐藏小居民点
-        if (
-          (layer.id.includes("place") ||
-            layer.id.includes("settlement") ||
-            layer.id.includes("label")) &&
-          (layer.id.includes("village") ||
-            layer.id.includes("town") ||
-            layer.id.includes("hamlet") ||
-            layer.id.includes("suburb") ||
-            layer.id.includes("neighbourhood") ||
-            layer.id.includes("neighborhood") ||
-            layer.id.includes("quarter") ||
-            layer.id.includes("locality") ||
-            layer.id.includes("isolated_dwelling"))
-        ) {
-          this.map.setLayoutProperty(layer.id, "visibility", "none");
-        }
-      }
-    });
   }
 
   /**
@@ -436,13 +232,13 @@ class NetBoxMapBase {
    * 添加标记
    */
   addMarker(lng, lat, options = {}) {
-    const marker = new maplibregl.Marker({ color: options.color }).setLngLat([
+    const marker = new mapboxgl.Marker({ color: options.color }).setLngLat([
       lng,
       lat,
     ]);
 
     if (options.popup) {
-      const popup = new maplibregl.Popup(options.popupOptions || {}).setHTML(
+      const popup = new mapboxgl.Popup(options.popupOptions || {}).setHTML(
         options.popup
       );
       marker.setPopup(popup);
@@ -499,7 +295,7 @@ class NetBoxMapBase {
               <p>${message}</p>
               <ul>
                   <li>请检查网络连接</li>
-                  <li>确保API密钥有效</li>
+                  <li>确保Access Token有效</li>
                   <li>刷新页面重试</li>
                   <li>如果问题持续，请联系管理员</li>
               </ul>
