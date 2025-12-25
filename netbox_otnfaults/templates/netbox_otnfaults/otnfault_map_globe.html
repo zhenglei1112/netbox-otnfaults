@@ -31,7 +31,7 @@
 />
 <script src="{% static 'netbox_otnfaults/lib/maplibre-gl.js' %}"></script>
 <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
-<script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+<script src="{% static 'netbox_otnfaults/lib/deck-gl.min.js' %}"></script>
 <script src="{% static 'netbox_otnfaults/lib/maplibre-gl-measures.js' %}"></script>
 
 <link
@@ -80,5 +80,5 @@
 <script src="{% static 'netbox_otnfaults/js/controls/SearchControl.js' %}"></script>
 
 <!-- App (Main) -->
-<script src="{% static 'netbox_otnfaults/js/otnfault_map_app.js' %}?v=11"></script>
+<script src="{% static 'netbox_otnfaults/js/otnfault_map_app.js' %}?v=18"></script>
 {% endblock %}

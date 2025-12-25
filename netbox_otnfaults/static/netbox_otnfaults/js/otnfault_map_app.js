@@ -832,7 +832,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('使用 PMTiles 加载路径数据');
         
         // 获取 PMTiles 路径服务地址
-        const otnPathsPmtilesUrl = config.otnPathsPmtilesUrl || 'http://192.168.30.177:8080/maps/otn_paths.pmtiles';
+        const otnPathsPmtilesUrl = config.otnPathsPmtilesUrl;
         
         // 添加 PMTiles 路径数据源
         map.addSource('otn_paths_pmtiles', {
@@ -933,10 +933,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 const tripsData = [];
                 
-                features.forEach((feature, featureIndex) => {
-                    if (!feature.geometry || feature.geometry.type !== 'LineString') return;
-                    
-                    const coordinates = feature.geometry.coordinates;
+                /**
+                 * 处理单条 LineString 坐标数组，生成 TripsLayer 数据项
+                 * @param {Array} coordinates - LineString 坐标数组
+                 */
+                const processLineString = (coordinates) => {
                     if (coordinates.length < 2) return;
                     
                     // 计算每个点的时间戳（基于累积距离）
@@ -964,6 +965,24 @@ document.addEventListener('DOMContentLoaded', function () {
                         timestamps: normalizedTimestamps,
                         color: [255, 100, 0]  // 橙红色流动点
                     });
+                };
+                
+                features.forEach((feature, featureIndex) => {
+                    if (!feature.geometry) return;
+                    
+                    const geomType = feature.geometry.type;
+                    const coordinates = feature.geometry.coordinates;
+                    
+                    if (geomType === 'LineString') {
+                        // 单条线
+                        processLineString.call(this, coordinates);
+                    } else if (geomType === 'MultiLineString') {
+                        // 多段线：遍历每条子线
+                        coordinates.forEach(lineCoords => {
+                            processLineString.call(this, lineCoords);
+                        });
+                    }
+                    // 其他类型（Point, Polygon等）忽略
                 });
                 
                 return tripsData;
@@ -1212,11 +1231,59 @@ document.addEventListener('DOMContentLoaded', function () {
                     const siteAName = props.a_site || props.site_a || '-';
                     const siteZName = props.z_site || props.site_z || '-';
                     
-                    // Highlight
-                    map.getSource('otn-paths-highlight').setData(pathFeature);
-                    // 启动流动动画（传递路径数据）
-                    if (window.PathFlowAnimator) {
-                        window.PathFlowAnimator.start(pathFeature);
+                    // 先关闭现有的路径 popup（如果存在），防止其 close 事件清除新高亮
+                    if (window._currentPathPopup) {
+                        // 移除 close 事件监听器，防止清除新高亮
+                        window._currentPathPopup.off('close');
+                        window._currentPathPopup.remove();
+                        window._currentPathPopup = null;
+                    }
+                    
+                    // Highlight - 使用路径 ID 从 OTNPathsMetadata 获取完整几何数据
+                    const pathId = props.id;
+                    
+                    // 从缓存的完整路径数据中查找
+                    let highlightFeature = null;
+                    const cachedPaths = window.OTNPathsMetadata || [];
+                    
+                    if (pathId) {
+                        const cachedPath = cachedPaths.find(p => p.properties && p.properties.id === pathId);
+                        if (cachedPath) {
+                            highlightFeature = {
+                                type: 'Feature',
+                                properties: cachedPath.properties,
+                                geometry: cachedPath.geometry
+                            };
+                        }
+                    }
+                    
+                    // 如果缓存中找不到，回退使用 PMTiles 返回的数据
+                    if (!highlightFeature) {
+                        highlightFeature = {
+                            type: 'Feature',
+                            properties: pathFeature.properties || {},
+                            geometry: pathFeature.geometry
+                        };
+                    }
+                    
+                    // 设置高亮数据
+                    const highlightSource = map.getSource('otn-paths-highlight');
+                    
+                    if (highlightSource && highlightFeature.geometry) {
+                        highlightSource.setData(highlightFeature);
+                        
+                        // 将高亮图层移到最上层，确保不被遮挡
+                        if (map.getLayer('otn-paths-highlight-outline')) {
+                            map.moveLayer('otn-paths-highlight-outline');
+                        }
+                        if (map.getLayer('otn-paths-highlight-layer')) {
+                            map.moveLayer('otn-paths-highlight-layer');
+                        }
+                    }
+                    
+                    // 启动流动动画
+                    if (window.PathFlowAnimator && highlightFeature.geometry) {
+                        window.PathFlowAnimator.start(highlightFeature);
                     }
                     
                     // 获取站点ID用于构建详情链接
@@ -1242,7 +1309,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     // 使用 PopupTemplates 服务生成弹窗内容
                     // PMTiles 数据可能没有 url 属性，需要通过 id 构建
                     // 确保 pathId 是有效的数字ID（防止 PMTiles 数据不同步时使用路径名作为ID）
-                    const pathId = props.id;
                     const isValidPathId = pathId && !isNaN(Number(pathId)) && Number(pathId) > 0;
                     const pathUrl = props.url || (isValidPathId ? `/plugins/otnfaults/paths/${pathId}/` : '#');
                     const content = PopupTemplates.pathPopup({ pathName, pathUrl, siteAName, siteZName, detailUrl, props, timeStatsHtml });
@@ -1251,6 +1317,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         .setLngLat(e.lngLat)
                         .setHTML(content)
                         .addTo(map);
+                    
+                    // 保存当前 popup 的引用
+                    window._currentPathPopup = pathPopup;
                     
                     // 弹窗关闭时停止动画并清除高亮
                     pathPopup.on('close', () => {
@@ -1263,6 +1332,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 geometry: { type: 'LineString', coordinates: [] }
                             });
                         }
+                        window._currentPathPopup = null;
                     });
                 }
             }
