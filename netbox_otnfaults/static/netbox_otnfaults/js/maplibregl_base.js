@@ -209,12 +209,51 @@ class NetBoxMapBase {
    * 添加标准控件（导航、全屏）
    */
   addStandardControls() {
-    this.map.addControl(new maplibregl.NavigationControl());
-    this.map.addControl(
-      new maplibregl.FullscreenControl({
-        container: document.querySelector("#" + this.map.getContainer().id),
-      })
-    );
+    const navControl = new maplibregl.NavigationControl();
+    this.map.addControl(navControl);
+    
+    // 设置导航控件按钮的中文 hint
+    const navContainer = navControl._container;
+    if (navContainer) {
+      const zoomInBtn = navContainer.querySelector('.maplibregl-ctrl-zoom-in');
+      const zoomOutBtn = navContainer.querySelector('.maplibregl-ctrl-zoom-out');
+      const compassBtn = navContainer.querySelector('.maplibregl-ctrl-compass');
+      
+      if (zoomInBtn) zoomInBtn.title = '放大';
+      if (zoomOutBtn) zoomOutBtn.title = '缩小';
+      if (compassBtn) compassBtn.title = '重置北向';
+    }
+    
+    const fullscreenControl = new maplibregl.FullscreenControl({
+      container: document.querySelector("#" + this.map.getContainer().id),
+    });
+    this.map.addControl(fullscreenControl);
+    
+    // 设置全屏控件按钮的中文 hint，并使用 MutationObserver 防止被覆盖
+    const fullscreenContainer = fullscreenControl._container;
+    if (fullscreenContainer) {
+      const fullscreenBtn = fullscreenContainer.querySelector('.maplibregl-ctrl-fullscreen');
+      if (fullscreenBtn) {
+        // 设置初始中文 hint
+        fullscreenBtn.title = '全屏';
+        
+        // 使用 MutationObserver 监听 title 属性变化，强制覆盖为中文
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'title') {
+              const currentTitle = fullscreenBtn.title;
+              if (currentTitle === 'Enter fullscreen') {
+                fullscreenBtn.title = '全屏';
+              } else if (currentTitle === 'Exit fullscreen') {
+                fullscreenBtn.title = '退出全屏';
+              }
+            }
+          });
+        });
+        
+        observer.observe(fullscreenBtn, { attributes: true, attributeFilter: ['title'] });
+      }
+    }
   }
 
   /**
