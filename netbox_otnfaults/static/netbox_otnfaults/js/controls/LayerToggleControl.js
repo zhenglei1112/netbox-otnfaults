@@ -468,14 +468,12 @@ class LayerToggleControl {
     setMode(mode) {
         if (this.currentMode === mode) return;
         this.currentMode = mode;
-        console.log('Mode changed to:', mode);
         this.triggerGlobalUpdate();
     }
 
     setTimeRange(range) {
         if (this.currentTimeRange === range) return;
         this.currentTimeRange = range;
-        console.log('Time range changed to:', range);
         this.triggerGlobalUpdate();
     }
 
@@ -490,7 +488,6 @@ class LayerToggleControl {
         } else {
             this.selectedCategories = this.selectedCategories.filter(c => c !== cat);
         }
-        console.log('Category toggled:', cat, checked, 'Selected:', this.selectedCategories);
         this.triggerGlobalUpdate();
     }
 
@@ -509,7 +506,6 @@ class LayerToggleControl {
         } else {
             this.selectedCategories = [];
         }
-        console.log('All categories toggled:', checked, 'Selected:', this.selectedCategories);
         this.triggerGlobalUpdate();
     }
 

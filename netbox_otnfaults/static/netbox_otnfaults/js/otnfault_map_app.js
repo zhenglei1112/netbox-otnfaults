@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const apiKey = config.apiKey;
 
     // 验证并处理热力图数据
-    console.log('Received Heatmap Data:', heatmapData);
     
     // 如果是数组（旧格式/后端直接返回），转换为 GeoJSON
     if (Array.isArray(heatmapData)) {
@@ -283,7 +282,6 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         mapBase.addControl(measuresControl, 'top-right');
-        console.log('测距控件已添加');
     } else {
         console.warn('MeasuresControl 未加载，测距功能不可用');
     }
@@ -294,7 +292,6 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // 设置 globe 投影（需要在样式加载后设置）
         map.setProjection({ type: 'globe' });
-        console.log('已设置 globe 投影模式');
         
         // --- 热力图图层 ---
         mapBase.addGeoJsonSource('fault-heatmap', heatmapData);
@@ -389,10 +386,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // --- 故障标记图层 (Symbol Layer) ---
         // 将 markerData 转换为 GeoJSON 以便使用 Symbol Layer 提高性能
-        console.log('=== 开始创建故障点数据 ===');
-        console.log('FAULT_CATEGORY_COLORS 是否定义:', typeof FAULT_CATEGORY_COLORS !== 'undefined');
-        console.log('FAULT_CATEGORY_NAMES 是否定义:', typeof FAULT_CATEGORY_NAMES !== 'undefined');
-        console.log('原始 markerData:', markerData);
         const faultFeatures = markerData.map(m => {
             const category = m.category || 'other';
             const categoryColor = FAULT_CATEGORY_COLORS[category] || FAULT_CATEGORY_COLORS['other'];
@@ -441,8 +434,6 @@ document.addEventListener('DOMContentLoaded', function () {
             };
         });
         
-        console.log(`转换后的故障点特征数: ${faultFeatures.length}`);
-        
         // 全局存储故障点数据以便筛选（在创建数据源之前）
         window.OTNMapFeatures = faultFeatures;
         
@@ -451,8 +442,6 @@ document.addEventListener('DOMContentLoaded', function () {
             type: 'FeatureCollection',
             features: []  // 初始为空，避免闪烁
         });
-        
-        console.log('故障点数据源已创建（初始为空）');
         
         // --- 先加载图标，完成后再创建图层 ---
         const loadIconsAndCreateLayer = () => {
@@ -467,7 +456,6 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // 图标全部加载完成后的回调：创建图层
             const onAllIconsLoaded = () => {
-                console.log('所有故障点图标已加载，开始创建图层...');
                 
                 // 构建 icon-image 匹配表达式
                 // 使用 concat 表达式组合 category 和 status
@@ -495,12 +483,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 });
                 
-                console.log('故障点图层已创建');
-                
                 // 将故障点图层移到最上层
                 if (map.getLayer('fault-points-layer')) {
                     map.moveLayer('fault-points-layer');
-                    console.log('故障点图层已移到最上层');
                 }
                 
                 // 初始化图层可见性（默认为 points 模式）
@@ -511,7 +496,6 @@ document.addEventListener('DOMContentLoaded', function () {
             
             const checkAllIconsLoaded = () => {
                 iconsLoaded++;
-                console.log(`图标加载进度: ${iconsLoaded}/${totalIcons}`);
                 if (iconsLoaded === totalIcons) {
                     onAllIconsLoaded();
                 }
@@ -698,7 +682,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (!map.hasImage(name)) {
                         const imageData = createMarkerIcon(category, color);
                         map.addImage(name, imageData, { pixelRatio: 2 });
-                        console.log(`图标已创建: ${name}`);
                     }
                     checkAllIconsLoaded();
                 } catch (e) {
@@ -736,8 +719,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 setTimeout(bindFaultPointsInteraction, 100);
                 return;
             }
-            
-            console.log('绑定故障点图层交互事件...');
         
         // 鼠标悬停时显示弹出窗口
         map.on('mouseenter', 'fault-points-layer', (e) => {
@@ -808,8 +789,6 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
             e.originalEvent.stopPropagation();
         });
-        
-            console.log('故障点图层交互事件绑定完成');
         };
         
         // 开始尝试绑定交互事件
@@ -829,7 +808,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         
         // 1. OTN 路径 - 统一使用 PMTiles 加载
-        console.log('使用 PMTiles 加载路径数据');
         
         // 获取 PMTiles 路径服务地址
         const otnPathsPmtilesUrl = config.otnPathsPmtilesUrl;
@@ -1090,7 +1068,6 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // 异步获取路径元数据用于统计功能
         OTNFaultMapAPI.fetchPaths(apiKey).then(pathFeatures => {
-            console.log('Loaded OTN Path Metadata for statistics:', pathFeatures ? pathFeatures.length : 0);
             window.OTNPathsMetadata = pathFeatures || [];
             // 更新统计
             if (window.faultStatisticsControl) window.faultStatisticsControl.update();
@@ -1341,18 +1318,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // 4. 中央状态管理函数
     // 4. 中央状态管理函数
     window.updateMapState = function() {
-        console.log('UpdateMapState: Starting update...');
-        
         const layerControl = window.layerToggleControl;
         
         // Debug Data Dates
         if (window.OTNFaultMapConfig && window.OTNFaultMapConfig.heatmapData && window.OTNFaultMapConfig.heatmapData.features) {
-            const dates = window.OTNFaultMapConfig.heatmapData.features.map(f => new Date(f.properties.date).getTime()).filter(t => !isNaN(t));
-            if (dates.length > 0) {
-                const minDate = new Date(Math.min(...dates));
-                const maxDate = new Date(Math.max(...dates));
-                console.log(`Debug Data Range: Min=${minDate.toISOString()}, Max=${maxDate.toISOString()}`);
-            }
+            // 计算数据日期范围以便调试时使用
         }
         // 故障类型筛选已整合到 layerToggleControl 中
         const statsControl = window.faultStatisticsControl;
@@ -1380,9 +1350,6 @@ document.addEventListener('DOMContentLoaded', function () {
         window.OTN_DEBUG_DATE = '2025-12-05 12:00:00'; // 调试模式固定时间
         
         const now = window.OTN_DEBUG_MODE ? new Date(window.OTN_DEBUG_DATE) : new Date();
-        if (window.OTN_DEBUG_MODE) {
-            console.log(`[Debug] Mode ON. Current Time Fixed to: ${now.toLocaleString()}`);
-        }
 
         // 辅助函数：判断是否符合过滤条件
         const isFaultVisible = (faultDateStr, faultCategory) => {
@@ -1429,24 +1396,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 return isFaultVisible(props.isoDate, props.category);
             });
             
-            console.log(`故障点过滤: mode=${mode}, pointsVisible=${pointsVisible}, 总特征数=${window.OTNMapFeatures.length}, 过滤后特征数=${filteredFeatures.length}`);
-            console.log('时间范围:', timeRange, '最大天数:', maxDays);
-            console.log('选中分类:', selectedCategories);
-            
             // 更新数据源
             map.getSource('fault-points').setData({
                 type: 'FeatureCollection',
                 features: pointsVisible ? filteredFeatures : []
             });
-            
-            // 调试：检查数据源是否设置成功
-            setTimeout(() => {
-                const source = map.getSource('fault-points');
-                if (source) {
-                    const data = source._data;
-                    console.log('故障点数据源特征数:', data ? data.features.length : 0);
-                }
-            }, 100);
         }
         
         // 过滤热力图数据

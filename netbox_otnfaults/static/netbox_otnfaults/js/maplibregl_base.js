@@ -522,7 +522,6 @@ class NetBoxMapBase {
             // stretchY 定义纵向哪段可以拉伸（底色部分）
             stretchY: [[15, 30]]
           });
-          console.log(`高速盾标图标已加载: ${imageId}`);
         }
       };
       img.onerror = (e) => {
@@ -562,7 +561,6 @@ class NetBoxMapBase {
       
       // 避免重复添加
       if (map.getLayer('highway-shields')) {
-        console.log('高速盾标图层已存在，跳过添加');
         return;
       }
       
@@ -643,8 +641,6 @@ class NetBoxMapBase {
             'text-halo-width': 1
           }
         }, beforeLayerId);
-        
-        console.log('高速盾标图层已添加');
       } catch (e) {
         console.error('高速盾标图层添加失败:', e);
       }
