@@ -25,6 +25,44 @@
 }
 
 /* =================================
+   测距控件 (maplibre-gl-measures) 样式修复
+   ================================= */
+
+/* 测距控件按钮基础样式 */
+.maplibregl-measures button svg {
+    stroke: #333 !important;
+    fill: none !important;
+}
+
+/* 测量距离和清除测量按钮的 SVG viewBox 较大 (约500x500)，
+   需要更大的 stroke-width 才能清晰显示 */
+.maplibregl-measures button[title="测量距离"] svg,
+.maplibregl-measures button[title="测量距离"] svg path,
+.maplibregl-measures button[title="测量距离"] svg line,
+.maplibregl-measures button[title="测量距离"] svg polyline {
+    stroke-width: 25 !important;
+}
+
+.maplibregl-measures button[title="清除测量"] svg,
+.maplibregl-measures button[title="清除测量"] svg path,
+.maplibregl-measures button[title="清除测量"] svg line,
+.maplibregl-measures button[title="清除测量"] svg polyline,
+.maplibregl-measures button[title="清除测量"] svg g {
+    stroke-width: 25 !important;
+}
+
+/* 测距控件按钮悬停和激活状态 */
+.maplibregl-measures button:hover svg,
+.maplibregl-measures button.active svg {
+    stroke: #D20C0C !important;
+}
+
+/* 隐藏测量面积按钮 */
+.maplibregl-measures button[title="测量面积"] {
+    display: none !important;
+}
+
+/* =================================
    LayerToggleControl 样式
    ================================= */
 

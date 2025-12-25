@@ -45,7 +45,175 @@ document.addEventListener('DOMContentLoaded', function () {
     mapBase.addStandardControls();
     mapBase.addHomeControl();
 
-    // 2. 地图加载后添加图层
+    // 2. 初始化业务控件 (测距)
+    // 测距控件 (maplibre-gl-measures)
+    const MeasuresControl = window.maplibreGLMeasures?.default;
+    if (MeasuresControl) {
+        // 总距离标签源 ID
+        const TOTAL_DISTANCE_SOURCE = 'measures-total-distance';
+        const TOTAL_DISTANCE_LAYER = 'measures-total-distance-labels';
+        
+        // 格式化距离显示
+        const formatDistance = (meters) => {
+            if (meters >= 1000) {
+                return (meters / 1000).toFixed(2) + ' 公里';
+            }
+            return meters.toFixed(0) + ' m';
+        };
+        
+        // 计算 LineString 的总长度（米）
+        const calculateLineLength = (coords) => {
+            let total = 0;
+            for (let i = 1; i < coords.length; i++) {
+                const [lon1, lat1] = coords[i - 1];
+                const [lon2, lat2] = coords[i];
+                // Haversine 公式计算两点距离
+                const R = 6371000; // 地球半径（米）
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                          Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                total += R * c;
+            }
+            return total;
+        };
+        
+        const measuresControl = new MeasuresControl({
+            lang: {
+                areaMeasurementButtonTitle: '测量面积',
+                lengthMeasurementButtonTitle: '测量距离',
+                clearMeasurementsButtonTitle: '清除测量'
+            },
+            units: 'metric',
+            style: {
+                text: {
+                    radialOffset: 0.9,
+                    letterSpacing: 0.05,
+                    color: '#D20C0C',
+                    haloColor: '#fff',
+                    haloWidth: 1,
+                    font: 'Open Sans Regular'
+                },
+                common: {
+                    midPointRadius: 3,
+                    midPointColor: '#D20C0C',
+                    midPointHaloRadius: 5,
+                    midPointHaloColor: '#FFF'
+                },
+                areaMeasurement: {
+                    fillColor: '#D20C0C',
+                    fillOutlineColor: '#D20C0C',
+                    fillOpacity: 0.1,
+                    lineWidth: 2
+                },
+                lengthMeasurement: {
+                    lineWidth: 2,
+                    lineColor: '#D20C0C'
+                }
+            },
+            // 渲染回调：在每条线的终点显示总距离
+            onRender: (features) => {
+                // 延迟确保地图已加载
+                setTimeout(() => {
+                    if (!map.getSource(TOTAL_DISTANCE_SOURCE)) {
+                        // 首次添加源和图层
+                        map.addSource(TOTAL_DISTANCE_SOURCE, {
+                            type: 'geojson',
+                            data: { type: 'FeatureCollection', features: [] }
+                        });
+                        map.addLayer({
+                            id: TOTAL_DISTANCE_LAYER,
+                            type: 'symbol',
+                            source: TOTAL_DISTANCE_SOURCE,
+                            layout: {
+                                'text-field': ['get', 'label'],
+                                'text-font': ['Open Sans Bold'],
+                                'text-size': 14,
+                                'text-anchor': 'top',
+                                'text-offset': [0, 1]
+                            },
+                            paint: {
+                                'text-color': '#1565C0',
+                                'text-halo-color': '#fff',
+                                'text-halo-width': 2
+                            }
+                        });
+                    }
+                    
+                    // 收集所有 LineString 的总距离标签
+                    const totalLabels = [];
+                    if (features && features.features) {
+                        // 按原始线分组（库会将每段拆分）
+                        // 我们需要从 draw 控件获取原始 features
+                        const drawFeatures = measuresControl._drawCtrl?.getAll?.()?.features || [];
+                        drawFeatures.forEach(feature => {
+                            if (feature.geometry.type === 'LineString') {
+                                const coords = feature.geometry.coordinates;
+                                if (coords.length >= 2) {
+                                    const totalLength = calculateLineLength(coords);
+                                    const endPoint = coords[coords.length - 1];
+                                    totalLabels.push({
+                                        type: 'Feature',
+                                        properties: {
+                                            label: '总计: ' + formatDistance(totalLength)
+                                        },
+                                        geometry: {
+                                            type: 'Point',
+                                            coordinates: endPoint
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    }
+                    
+                    // 更新数据源
+                    const source = map.getSource(TOTAL_DISTANCE_SOURCE);
+                    if (source) {
+                        source.setData({
+                            type: 'FeatureCollection',
+                            features: totalLabels
+                        });
+                    }
+                    
+                    // 确保所有测量相关图层在最顶层（解决闪烁问题）
+                    const measureLayers = [
+                        'layer-draw-labels',  // 库的标签图层
+                        TOTAL_DISTANCE_LAYER  // 总距离标签图层
+                    ];
+                    measureLayers.forEach(layerId => {
+                        if (map.getLayer(layerId)) {
+                            map.moveLayer(layerId);
+                        }
+                    });
+                    
+                    // 同时确保绘图图层也在顶层
+                    const drawLayers = map.getStyle().layers
+                        .filter(l => l.id.startsWith('gl-draw-'))
+                        .map(l => l.id);
+                    drawLayers.forEach(layerId => {
+                        if (map.getLayer(layerId)) {
+                            map.moveLayer(layerId);
+                        }
+                    });
+                }, 100);
+            }
+        });
+
+        // MONKEY PATCH: 覆盖库的默认格式化方法以本地化单位
+        // library's _formatToMetricSystem returns "value unit", we want to replace "km" with "公里"
+        const originalFormatMetric = measuresControl._formatToMetricSystem.bind(measuresControl);
+        measuresControl._formatToMetricSystem = function(value) {
+            const result = originalFormatMetric(value);
+            return result.replace('km', '公里');
+        };
+
+        mapBase.addControl(measuresControl, 'top-right');
+    }
+
+    // 3. 地图加载后添加图层
     map.on('load', () => {
         
         // --- OTN 路径图层 (PMTiles) ---
