@@ -483,6 +483,175 @@ class NetBoxMapBase {
   }
 
   /**
+   * 初始化高速公路盾标显示
+   * 支持国家高速（G开头）和省级高速（S开头），使用灰度色调与底图风格一致
+   */
+  initHighwayShields() {
+    const map = this.map;
+    
+    // 盾标 SVG 内联数据 - 浅灰色调，与底图风格一致
+    // 国家高速：浅灰底 + 稍深灰顶（柔和对比）
+    const shieldNationalSvg = `<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="36" height="36" rx="4" fill="#b8bcc4"/>
+      <path d="M6 2h28a4 4 0 0 1 4 4v4H2V6a4 4 0 0 1 4-4z" fill="#9ca3af"/>
+      <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="#d1d5db" stroke-width="1" opacity="0.6"/>
+    </svg>`;
+    
+    // 省级高速：更浅灰底 + 浅米灰顶
+    const shieldProvincialSvg = `<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="36" height="36" rx="4" fill="#c9ccd2"/>
+      <path d="M6 2h28a4 4 0 0 1 4 4v4H2V6a4 4 0 0 1 4-4z" fill="#e5e7eb"/>
+      <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="#e5e7eb" stroke-width="1" opacity="0.6"/>
+    </svg>`;
+    
+    /**
+     * 将 SVG 字符串转换为 Image 并添加到地图
+     * @param {string} svgString - SVG 内容
+     * @param {string} imageId - 地图中的图片 ID
+     */
+    const addShieldImage = (svgString, imageId) => {
+      const img = new Image(40, 40);
+      img.onload = () => {
+        if (!map.hasImage(imageId)) {
+          map.addImage(imageId, img, {
+            // content 定义文字显示的矩形范围 [x1, y1, x2, y2]
+            // 避开顶部的灰条区域（y从12开始）
+            content: [4, 12, 36, 36],
+            // stretchX 定义横向哪段可以拉伸（中间位置）
+            stretchX: [[10, 30]],
+            // stretchY 定义纵向哪段可以拉伸（底色部分）
+            stretchY: [[15, 30]]
+          });
+          console.log(`高速盾标图标已加载: ${imageId}`);
+        }
+      };
+      img.onerror = (e) => {
+        console.error(`高速盾标图标加载失败: ${imageId}`, e);
+      };
+      // 使用 Base64 编码的 SVG
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+    };
+    
+    // 加载盾标图标
+    addShieldImage(shieldNationalSvg, 'shield-cn-national');
+    addShieldImage(shieldProvincialSvg, 'shield-cn-provincial');
+    
+    // 延迟添加图层（等待图标加载完成）
+    setTimeout(() => {
+      // 检查数据源是否存在（Stadia Maps 使用 'openmaptiles'）
+      const sourceId = map.getSource('openmaptiles') ? 'openmaptiles' : 
+                       map.getSource('china_local') ? 'china_local' : null;
+      
+      if (!sourceId) {
+        console.warn('未找到合适的数据源用于高速盾标');
+        return;
+      }
+      
+      // 检查 transportation_name 图层是否存在
+      const sourceLayerId = sourceId === 'openmaptiles' ? 'transportation_name' : 'transportation';
+      
+      // 查找插入位置：在城市名称标签之下
+      let beforeLayerId = null;
+      const layers = map.getStyle().layers;
+      for (const layer of layers) {
+        if (layer.id.includes('place') && layer.type === 'symbol') {
+          beforeLayerId = layer.id;
+          break;
+        }
+      }
+      
+      // 避免重复添加
+      if (map.getLayer('highway-shields')) {
+        console.log('高速盾标图层已存在，跳过添加');
+        return;
+      }
+      
+      try {
+        map.addLayer({
+          id: 'highway-shields',
+          type: 'symbol',
+          source: sourceId,
+          'source-layer': sourceLayerId,
+          filter: ['has', 'ref'],
+          minzoom: 6,  // 保持低缩放级别可见
+          layout: {
+            'symbol-placement': 'point',  // 使用点放置，保持盾标始终正向朝上
+            'symbol-spacing': 2000,  // 极大间距，确保同一编号在视口中少于5个
+            'icon-padding': 50,  // 增加图标间的最小像素距离
+            
+            // 排序优先级：G（国家高速）优先于 S（省级高速）
+            // 数值越小优先级越高
+            'symbol-sort-key': [
+              'match',
+              ['slice', ['get', 'ref'], 0, 1],
+              'G', 1,  // 国家高速优先级最高
+              'S', 2,  // 省级高速次之
+              3        // 其他默认最低
+            ],
+            
+            // 图标和文字始终保持正向
+            'icon-rotation-alignment': 'viewport',
+            'text-rotation-alignment': 'viewport',
+            'icon-pitch-alignment': 'viewport',
+            
+            // 根据编号首字母选择图标
+            'icon-image': [
+              'match',
+              ['slice', ['get', 'ref'], 0, 1],
+              'G', 'shield-cn-national',
+              'S', 'shield-cn-provincial',
+              'shield-cn-national'  // 默认值
+            ],
+            
+            // 关键属性：让图标自动包裹文字
+            'icon-text-fit': 'both',
+            'icon-text-fit-padding': [2, 5, 2, 5],
+            
+            // 文字设置：只显示编号部分（截取前6位，适应如 G1011 等）
+            'text-field': [
+              'case',
+              ['>=', ['length', ['get', 'ref']], 6],
+              ['slice', ['get', 'ref'], 0, 6],
+              ['get', 'ref']
+            ],
+            'text-font': ['Open Sans Bold', 'Noto Sans Regular'],
+            'text-size': [
+              'interpolate', ['linear'], ['zoom'],
+              8, 9,
+              12, 11,
+              16, 12
+            ],
+            'text-anchor': 'center',
+            'text-letter-spacing': 0.05,
+            
+            'icon-allow-overlap': false,
+            'text-allow-overlap': false,
+            'icon-ignore-placement': false,
+            'text-ignore-placement': false,
+            
+            // 缩放控制
+            'icon-size': [
+              'interpolate', ['linear'], ['zoom'],
+              8, 0.7,
+              12, 0.9,
+              16, 1.0
+            ]
+          },
+          paint: {
+            'text-color': '#ffffff',
+            'text-halo-color': 'rgba(0,0,0,0.15)',
+            'text-halo-width': 1
+          }
+        }, beforeLayerId);
+        
+        console.log('高速盾标图层已添加');
+      } catch (e) {
+        console.error('高速盾标图层添加失败:', e);
+      }
+    }, 500);  // 等待图标加载
+  }
+
+  /**
    * 显示错误覆盖层的辅助方法
    */
   static showError(containerId, message) {

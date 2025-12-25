@@ -80,6 +80,8 @@ document.addEventListener('DOMContentLoaded', function () {
             mapBase.setLanguageToChinese();
             // 过滤无关标签
             mapBase.filterLabels();
+            // 初始化高速公路盾标
+            mapBase.initHighwayShields();
         }
     });
 

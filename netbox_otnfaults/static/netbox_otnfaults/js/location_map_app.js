@@ -36,6 +36,8 @@ document.addEventListener('DOMContentLoaded', function () {
             mapBase.emphasizeChinaBoundaries();
             mapBase.setLanguageToChinese();
             mapBase.filterLabels();
+            // 初始化高速公路盾标
+            mapBase.initHighwayShields();
         }
     });
 
