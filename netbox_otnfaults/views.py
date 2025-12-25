@@ -521,3 +521,130 @@ class OtnPathBulkEditView(generic.BulkEditView):
     table = OtnPathTable
     form = OtnPathBulkEditForm
 
+
+class LocationMapView(PermissionRequiredMixin, View):
+    """位置地图视图 - 接受 ?q=lat,lng 参数在地图上显示指定位置
+    
+    用于替代外部地图链接（如 Apple Maps），在系统内部展示站点、故障等位置。
+    支持网络版底图和本地底图两种模式。
+    """
+    permission_required = 'netbox_otnfaults.view_otnfault'
+
+    def get(self, request):
+        # 解析 ?q=lat,lng 参数
+        q = request.GET.get('q', '')
+        target_lat, target_lng = self._parse_coordinates(q)
+        
+        # 解析 ?path_id=xxx 参数（用于路径高亮显示）
+        path_id = request.GET.get('path_id', '')
+        highlight_path_data = None
+        path_name = None
+        
+        if path_id:
+            try:
+                path = OtnPath.objects.get(pk=int(path_id))
+                path_name = path.name
+                if path.geometry:
+                    # 检查 geometry 是纯坐标数组还是 GeoJSON 对象
+                    geom = path.geometry
+                    if isinstance(geom, list):
+                        # 纯坐标数组格式，转换为 GeoJSON
+                        coords = geom
+                        geometry_obj = {
+                            'type': 'LineString',
+                            'coordinates': coords
+                        }
+                    else:
+                        # GeoJSON 格式
+                        geometry_obj = geom
+                        coords = geom.get('coordinates', [])
+                    
+                    # 构建 GeoJSON Feature
+                    highlight_path_data = {
+                        'type': 'Feature',
+                        'properties': {
+                            'id': path.pk,
+                            'name': path.name,
+                            'url': path.get_absolute_url()
+                        },
+                        'geometry': geometry_obj
+                    }
+                    # 计算路径中心用于自动缩放
+                    if coords:
+                        lngs = [c[0] for c in coords]
+                        lats = [c[1] for c in coords]
+                        center_lng = sum(lngs) / len(lngs)
+                        center_lat = sum(lats) / len(lats)
+                        target_lat, target_lng = center_lat, center_lng
+            except (OtnPath.DoesNotExist, ValueError):
+                pass
+        
+        # 获取所有有经纬度的站点
+        sites_data = [
+            {
+                'id': site.pk,
+                'name': site.name,
+                'latitude': float(site.latitude),
+                'longitude': float(site.longitude),
+                'url': site.get_absolute_url(),
+                'status': site.get_status_display(),
+                'status_color': site.get_status_color(),
+                'tenant': site.tenant.name if site.tenant else None,
+                'region': site.region.name if site.region else None,
+                'group': site.group.name if site.group else None,
+                'facility': site.facility,
+                'description': site.description
+            }
+            for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False)
+        ]
+
+        # 获取插件配置
+        plugin_settings = get_plugin_settings()
+        
+        # 确定地图中心和缩放级别
+        if target_lat is not None and target_lng is not None:
+            map_center = [target_lng, target_lat]
+            map_zoom = 10 if highlight_path_data else 12  # 路径使用较小缩放
+        else:
+            map_center = plugin_settings.get('map_default_center', [112.53, 33.00])
+            map_zoom = plugin_settings.get('map_default_zoom', 4.2)
+        
+        return render(request, 'netbox_otnfaults/location_map.html', {
+            'sites_data': json.dumps(sites_data, cls=DjangoJSONEncoder),
+            'target_lat': target_lat,
+            'target_lng': target_lng,
+            'highlight_path_data': json.dumps(highlight_path_data, cls=DjangoJSONEncoder) if highlight_path_data else 'null',
+            'path_name': path_name,
+            'apikey': plugin_settings.get('map_api_key', ''),
+            'map_center': json.dumps(map_center),
+            'map_zoom': map_zoom,
+            'use_local_basemap': plugin_settings.get('use_local_basemap', False),
+            'local_tiles_url': plugin_settings.get('local_tiles_url', ''),
+            'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
+            'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''),
+        })
+
+    def _parse_coordinates(self, q_param):
+        """解析坐标参数 (格式: lat,lng)
+        
+        Args:
+            q_param: 查询参数字符串，如 "26.461652,106.980645"
+            
+        Returns:
+            (lat, lng) 元组，解析失败则返回 (None, None)
+        """
+        if not q_param:
+            return None, None
+        
+        try:
+            parts = q_param.split(',')
+            if len(parts) >= 2:
+                lat = float(parts[0].strip())
+                lng = float(parts[1].strip())
+                # 验证坐标范围
+                if -90 <= lat <= 90 and -180 <= lng <= 180:
+                    return lat, lng
+        except (ValueError, IndexError):
+            pass
+        
+        return None, None
