@@ -1,15 +1,16 @@
 from netbox.views import generic
 from django.shortcuts import render
-from utilities.views import register_model_view
-from .models import OtnFault, OtnFaultImpact, OtnPath, FaultCategoryChoices, FaultStatusChoices
+from utilities.views import register_model_view, ViewTab
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, FaultCategoryChoices, FaultStatusChoices
 from dcim.models import Site
 from .forms import (
     OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
     OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm, OtnFaultImportForm, OtnFaultImpactImportForm,
-    OtnPathForm, OtnPathFilterForm, OtnPathImportForm, OtnPathBulkEditForm
+    OtnPathForm, OtnPathFilterForm, OtnPathImportForm, OtnPathBulkEditForm,
+    OtnPathGroupForm, OtnPathGroupFilterForm
 )
-from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet
-from .tables import OtnFaultTable, OtnFaultImpactTable, OtnPathTable
+from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet
+from .tables import OtnFaultTable, OtnFaultImpactTable, OtnPathTable, OtnPathGroupTable
 from django.utils import timezone
 from datetime import timedelta
 from django.views.generic import View
@@ -520,6 +521,47 @@ class OtnPathBulkEditView(generic.BulkEditView):
     filterset = OtnPathFilterSet
     table = OtnPathTable
     form = OtnPathBulkEditForm
+
+
+# ========== 路径组视图 ==========
+
+class OtnPathGroupListView(generic.ObjectListView):
+    """路径组列表视图"""
+    queryset = OtnPathGroup.objects.all()
+    table = OtnPathGroupTable
+    filterset = OtnPathGroupFilterSet
+    filterset_form = OtnPathGroupFilterForm
+
+
+@register_model_view(OtnPathGroup)
+class OtnPathGroupView(generic.ObjectView):
+    """路径组详情视图"""
+    queryset = OtnPathGroup.objects.all()
+
+    def get_extra_context(self, request, instance):
+        # 显示该路径组下的所有路径，与故障详情页显示影响业务的方式相同
+        paths_table = OtnPathTable(instance.paths.all())
+        paths_table.configure(request)
+        return {
+            'paths_table': paths_table,
+        }
+
+
+class OtnPathGroupEditView(generic.ObjectEditView):
+    """路径组编辑视图"""
+    queryset = OtnPathGroup.objects.all()
+    form = OtnPathGroupForm
+
+
+class OtnPathGroupDeleteView(generic.ObjectDeleteView):
+    """路径组删除视图"""
+    queryset = OtnPathGroup.objects.all()
+
+
+class OtnPathGroupBulkDeleteView(generic.BulkDeleteView):
+    """路径组批量删除视图"""
+    queryset = OtnPathGroup.objects.all()
+    table = OtnPathGroupTable
 
 
 class LocationMapView(PermissionRequiredMixin, View):

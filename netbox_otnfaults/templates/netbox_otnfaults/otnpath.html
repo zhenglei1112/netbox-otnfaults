@@ -44,6 +44,18 @@
           </td>
         </tr>
         <tr>
+          <th scope="row">所属路径组</th>
+          <td>
+            {% if object.groups.all %}
+            {% for group in object.groups.all %}
+            <a href="{{ group.get_absolute_url }}">{{ group.name }}</a>{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
           <th scope="row">A端站点</th>
           <td>
             {% if object.site_a %}

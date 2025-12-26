@@ -1,7 +1,7 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from netbox.tables import NetBoxTable, columns
-from .models import OtnFault, OtnFaultImpact, OtnPath
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup
 
 class OtnFaultTable(NetBoxTable):
     fault_number = tables.Column(
@@ -129,6 +129,10 @@ class OtnPathTable(NetBoxTable):
         linkify=True,
         verbose_name='名称'
     )
+    groups_count = tables.Column(
+        verbose_name='所属路径组',
+        orderable=False
+    )
     cable_type = columns.ChoiceFieldColumn(
         verbose_name='光缆类型'
     )
@@ -150,9 +154,47 @@ class OtnPathTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = OtnPath
         fields = (
-            'pk', 'name', 'cable_type', 'site_a', 'site_z',
+            'pk', 'name', 'groups_count', 'cable_type', 'site_a', 'site_z',
             'calculated_length', 'description', 'comments', 'tags', 'actions',
         )
         default_columns = (
             'name', 'cable_type', 'site_a', 'site_z', 'calculated_length', 'tags',
         )
+
+    def render_groups_count(self, record):
+        count = record.groups.count()
+        return f'{count} 个' if count else '—'
+
+
+class OtnPathGroupTable(NetBoxTable):
+    """路径组表格"""
+    name = tables.Column(
+        linkify=True,
+        verbose_name='名称'
+    )
+    slug = tables.Column(
+        verbose_name='缩写'
+    )
+    description = tables.Column(
+        verbose_name='描述'
+    )
+    path_count = tables.Column(
+        verbose_name='路径数量',
+        orderable=False
+    )
+    tags = columns.TagColumn(
+        url_name='plugins:netbox_otnfaults:otnpathgroup_list'
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = OtnPathGroup
+        fields = (
+            'pk', 'name', 'slug', 'description', 'path_count', 'comments', 'tags', 'actions',
+        )
+        default_columns = (
+            'name', 'slug', 'description', 'path_count', 'tags',
+        )
+
+    def render_path_count(self, record):
+        return record.paths.count()
+

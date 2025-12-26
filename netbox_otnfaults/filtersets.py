@@ -1,5 +1,5 @@
 from netbox.filtersets import NetBoxModelFilterSet
-from .models import OtnFault, OtnFaultImpact, OtnPath
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup
 from django.db.models import Q
 import django_filters
 
@@ -77,12 +77,16 @@ class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
 
 class OtnPathFilterSet(NetBoxModelFilterSet):
     site = django_filters.NumberFilter(method='filter_site', label='站点筛选 (A端或Z端)')
+    groups = django_filters.ModelMultipleChoiceFilter(
+        queryset=OtnPathGroup.objects.all(),
+        label='所属路径组'
+    )
 
     class Meta:
         model = OtnPath
         fields = (
             'id', 'name', 'cable_type',
-            'site_a', 'site_z',
+            'site_a', 'site_z', 'groups',
             'calculated_length', 'description',
         )
 
@@ -106,3 +110,24 @@ class OtnPathFilterSet(NetBoxModelFilterSet):
             Q(description__icontains=value) |
             Q(comments__icontains=value)
         )
+
+
+class OtnPathGroupFilterSet(NetBoxModelFilterSet):
+    """路径组过滤器"""
+
+    class Meta:
+        model = OtnPathGroup
+        fields = (
+            'id', 'name', 'slug', 'description',
+        )
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(name__icontains=value) |
+            Q(slug__icontains=value) |
+            Q(description__icontains=value) |
+            Q(comments__icontains=value)
+        )
+

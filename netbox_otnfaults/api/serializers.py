@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from netbox.api.serializers import NetBoxModelSerializer, WritableNestedSerializer
-from ..models import OtnFault, OtnFaultImpact, OtnPath
+from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup
 from django.contrib.auth import get_user_model
 from dcim.models import Site, Region
 from tenancy.models import Tenant
@@ -115,14 +115,43 @@ class OtnFaultImpactSerializer(NetBoxModelSerializer):
         )
         read_only_fields = ('service_duration', 'journal_entries')
 
+class NestedOtnPathGroupSerializer(WritableNestedSerializer):
+    url = serializers.HyperlinkedIdentityField(
+        view_name='plugins-api:netbox_otnfaults-api:otnpathgroup-detail'
+    )
+
+    class Meta:
+        model = OtnPathGroup
+        fields = ('id', 'url', 'display', 'name', 'slug')
+        brief_fields = ('id', 'url', 'display', 'name')
+
+
 class OtnPathSerializer(NetBoxModelSerializer):
     site_a = NestedSiteSerializer()
     site_z = NestedSiteSerializer()
+    groups = NestedOtnPathGroupSerializer(many=True, required=False)
 
     class Meta:
         model = OtnPath
         fields = (
-            'id', 'url', 'display', 'name', 'cable_type', 'site_a', 'site_z',
+            'id', 'url', 'display', 'name', 'groups', 'cable_type', 'site_a', 'site_z',
             'geometry', 'calculated_length', 'description', 'comments', 'tags',
             'custom_fields', 'created', 'last_updated',
         )
+
+
+class OtnPathGroupSerializer(NetBoxModelSerializer):
+    """路径组序列化器"""
+    path_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OtnPathGroup
+        fields = (
+            'id', 'url', 'display', 'name', 'slug', 'description', 
+            'path_count', 'comments', 'tags',
+            'custom_fields', 'created', 'last_updated',
+        )
+
+    def get_path_count(self, obj):
+        return obj.paths.count()
+

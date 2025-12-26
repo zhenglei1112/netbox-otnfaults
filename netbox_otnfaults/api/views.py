@@ -8,9 +8,9 @@ from django.conf import settings
 from datetime import timedelta
 import json
 import logging
-from ..models import OtnFault, OtnFaultImpact, OtnPath
-from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer
-from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet
+from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup
+from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer
+from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,13 @@ class OtnPathViewSet(NetBoxModelViewSet):
     queryset = OtnPath.objects.all()
     serializer_class = OtnPathSerializer
     filterset_class = OtnPathFilterSet
+
+
+class OtnPathGroupViewSet(NetBoxModelViewSet):
+    """路径组 API ViewSet"""
+    queryset = OtnPathGroup.objects.all()
+    serializer_class = OtnPathGroupSerializer
+    filterset_class = OtnPathGroupFilterSet
 
 
 class HeatmapDataView(APIView):

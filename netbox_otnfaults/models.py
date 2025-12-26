@@ -586,6 +586,47 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         return None
 
 
+
+class OtnPathGroup(NetBoxModel):
+    """路径组模型，用于对光缆路径进行分组管理"""
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name='名称'
+    )
+    slug = models.SlugField(
+        max_length=100,
+        unique=True,
+        verbose_name='缩写'
+    )
+    description = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='描述'
+    )
+    paths = models.ManyToManyField(
+        to='OtnPath',
+        related_name='groups',
+        blank=True,
+        verbose_name='包含路径'
+    )
+    comments = models.TextField(
+        blank=True,
+        verbose_name='评论'
+    )
+
+    class Meta:
+        ordering = ('name',)
+        verbose_name = '路径组'
+        verbose_name_plural = '路径组'
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse('plugins:netbox_otnfaults:otnpathgroup', args=[self.pk])
+
+
 class CableTypeChoices(ChoiceSet):
     key = 'OtnPath.cable_type'
 

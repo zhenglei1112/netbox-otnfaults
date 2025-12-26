@@ -24,6 +24,17 @@ menu_items = (
         )
     ),
     PluginMenuItem(
+        link='plugins:netbox_otnfaults:otnpathgroup_list',
+        link_text='路径组',
+        buttons=(
+            PluginMenuButton(
+                link='plugins:netbox_otnfaults:otnpathgroup_add',
+                title='添加',
+                icon_class='mdi mdi-plus-thick',
+            ),
+        )
+    ),
+    PluginMenuItem(
         link='plugins:netbox_otnfaults:otnpath_list',
         link_text='路径管理',
         buttons=(
@@ -39,3 +50,4 @@ menu_items = (
         link_text='故障分布图',
     ),
 )
+

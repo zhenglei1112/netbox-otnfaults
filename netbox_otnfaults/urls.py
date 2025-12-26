@@ -38,4 +38,14 @@ urlpatterns = [
     path('paths/<int:pk>/edit/', views.OtnPathEditView.as_view(), name='otnpath_edit'),
     path('paths/<int:pk>/delete/', views.OtnPathDeleteView.as_view(), name='otnpath_delete'),
     path('paths/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='otnpath_changelog', kwargs={'model': models.OtnPath}),
+
+    # 路径组 (OtnPathGroup)
+    path('path-groups/', views.OtnPathGroupListView.as_view(), name='otnpathgroup_list'),
+    path('path-groups/add/', views.OtnPathGroupEditView.as_view(), name='otnpathgroup_add'),
+    path('path-groups/bulk-delete/', views.OtnPathGroupBulkDeleteView.as_view(), name='otnpathgroup_bulk_delete'),
+    path('path-groups/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'otnpathgroup'))),
+    path('path-groups/<int:pk>/edit/', views.OtnPathGroupEditView.as_view(), name='otnpathgroup_edit'),
+    path('path-groups/<int:pk>/delete/', views.OtnPathGroupDeleteView.as_view(), name='otnpathgroup_delete'),
+    path('path-groups/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='otnpathgroup_changelog', kwargs={'model': models.OtnPathGroup}),
 ]
+

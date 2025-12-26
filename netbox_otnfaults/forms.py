@@ -3,7 +3,7 @@ from .models import (
     OtnFault, OtnFaultImpact, FaultCategoryChoices, UrgencyChoices, 
     MaintenanceModeChoices, ResourceTypeChoices, CableRouteChoices,
     FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices,
-    OtnPath, CableTypeChoices
+    OtnPath, CableTypeChoices, OtnPathGroup
 )
 from django import forms
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField
@@ -674,6 +674,11 @@ class OtnPathBulkEditForm(NetBoxModelBulkEditForm):
 class OtnPathFilterForm(NetBoxModelFilterSetForm):
     model = OtnPath
     tag = TagFilterField(OtnPath)
+    groups = DynamicModelMultipleChoiceField(
+        queryset=OtnPathGroup.objects.all(),
+        required=False,
+        label='所属路径组'
+    )
     cable_type = forms.ChoiceField(
         choices=add_blank_choice(CableTypeChoices),
         required=False,
@@ -689,3 +694,27 @@ class OtnPathFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='Z端站点'
     )
+
+
+class OtnPathGroupForm(NetBoxModelForm):
+    """路径组编辑表单"""
+    paths = DynamicModelMultipleChoiceField(
+        queryset=OtnPath.objects.all(),
+        required=False,
+        label='包含路径'
+    )
+    comments = CommentField(
+        label='评论'
+    )
+
+    class Meta:
+        model = OtnPathGroup
+        fields = (
+            'name', 'slug', 'description', 'paths', 'comments', 'tags',
+        )
+
+
+class OtnPathGroupFilterForm(NetBoxModelFilterSetForm):
+    """路径组过滤表单"""
+    model = OtnPathGroup
+    tag = TagFilterField(OtnPathGroup)

@@ -1,0 +1,64 @@
+{% extends 'generic/object.html' %}
+{% load plugins %}
+{% load render_table from django_tables2 %}
+
+{% block extra_styles %}
+<style>
+  .attr-table th {
+    width: 30%;
+  }
+
+  .attr-table td {
+    width: 70%;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+  <div class="col col-md-6">
+    <div class="card">
+      <h5 class="card-header">路径组信息</h5>
+      <table class="table table-hover attr-table">
+        <tr>
+          <th scope="row">名称</th>
+          <td>{{ object.name }}</td>
+        </tr>
+        <tr>
+          <th scope="row">缩写</th>
+          <td>{{ object.slug }}</td>
+        </tr>
+        <tr>
+          <th scope="row">描述</th>
+          <td>{{ object.description|default:"—" }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <div class="col col-md-6">
+    {% include 'inc/panels/tags.html' %}
+    {% include 'inc/panels/comments.html' %}
+    {% plugin_right_page object %}
+  </div>
+</div>
+
+<div class="row mb-3">
+  <div class="col col-md-12">
+    <div class="card">
+      <h5 class="card-header">
+        包含路径 ({{ object.paths.count }})
+        {% if perms.netbox_otnfaults.change_otnpathgroup %}
+        <div class="card-actions">
+          <a href="{% url 'plugins:netbox_otnfaults:otnpathgroup_edit' pk=object.pk %}"
+            class="btn btn-ghost-primary btn-sm">
+            <i class="mdi mdi-pencil" aria-hidden="true"></i>
+            编辑路径组
+          </a>
+        </div>
+        {% endif %}
+      </h5>
+      {% render_table paths_table %}
+    </div>
+  </div>
+</div>
+{% endblock %}
