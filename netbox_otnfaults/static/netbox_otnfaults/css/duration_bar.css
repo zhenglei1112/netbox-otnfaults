@@ -1,0 +1,61 @@
+/* 故障历时进度条样式 */
+
+.duration-bar {
+  position: relative;
+  width: 120px;
+  height: 22px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.duration-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* 颜色梯度 */
+.duration-green {
+  background: linear-gradient(90deg, #28a745, #34ce57);
+}
+
+.duration-yellow {
+  background: linear-gradient(90deg, #ffc107, #ffda47);
+}
+
+.duration-orange {
+  background: linear-gradient(90deg, #fd7e14, #ff9636);
+}
+
+.duration-red {
+  background: linear-gradient(90deg, #dc3545, #f34b5b);
+}
+
+.duration-text {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 1;
+  line-height: 22px;
+  color: #333;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
+/* 深色模式适配 */
+[data-bs-theme="dark"] .duration-bar {
+  background-color: #495057;
+}
+
+[data-bs-theme="dark"] .duration-text {
+  color: #f8f9fa;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}

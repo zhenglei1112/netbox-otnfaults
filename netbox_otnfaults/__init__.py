@@ -9,6 +9,8 @@ class OtnFaultsConfig(PluginConfig):
     author = 'OTN Faults Team'
     author_email = 'otnfaults@example.com'
     required_settings = []
+    # 全局加载的CSS文件（所有页面都会引入）
+    css = ['netbox_otnfaults/css/duration_bar.css']
     default_settings = {
         # Stadia Maps API 密钥（请在 configuration.py 中配置实际值）
         'map_api_key': '',

@@ -435,6 +435,52 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         return None
 
     @property
+    def fault_duration_info(self):
+        """
+        返回故障历时的结构化信息，用于可视化渲染
+        返回: {
+            'total_hours': float,       # 总小时数
+            'display': str,             # 简短显示文本（如 "2.35小时"）
+            'full_text': str,           # 完整文本（如 "0天2小时21分0秒"）
+            'color': str,               # 颜色类名
+            'percentage': float         # 进度百分比（0-100）
+        }
+        """
+        if self.fault_occurrence_time and self.fault_recovery_time:
+            duration = self.fault_recovery_time - self.fault_occurrence_time
+            total_seconds = duration.total_seconds()
+            total_hours = total_seconds / 3600
+            
+            days = duration.days
+            seconds = duration.seconds
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            secs = seconds % 60
+            
+            # 颜色编码规则
+            if total_hours < 1:
+                color = 'green'
+            elif total_hours < 4:
+                color = 'yellow'
+            elif total_hours < 12:
+                color = 'orange'
+            else:
+                color = 'red'
+            
+            # 进度百分比（最大48小时）
+            max_hours = 48
+            percentage = min(100, (total_hours / max_hours) * 100)
+            
+            return {
+                'total_hours': total_hours,
+                'display': f"{total_hours:.2f}小时",
+                'full_text': f"{days}天{hours}小时{minutes}分{secs}秒",
+                'color': color,
+                'percentage': percentage,
+            }
+        return None
+
+    @property
     def repair_duration(self):
         """修复用时，自动计算字段，使用故障修复时间-处理派发时间，格式为9.65小时"""
         if self.dispatch_time and self.repair_time:
@@ -585,6 +631,44 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
             return f"{total_hours:.2f}"
         return None
 
+    @property
+    def service_duration_info(self):
+        """
+        返回业务中断历时的结构化信息，用于可视化渲染
+        """
+        if self.service_interruption_time and self.service_recovery_time:
+            duration = self.service_recovery_time - self.service_interruption_time
+            total_seconds = duration.total_seconds()
+            total_hours = total_seconds / 3600
+            
+            days = duration.days
+            seconds = duration.seconds
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            secs = seconds % 60
+            
+            # 颜色编码规则
+            if total_hours < 1:
+                color = 'green'
+            elif total_hours < 4:
+                color = 'yellow'
+            elif total_hours < 12:
+                color = 'orange'
+            else:
+                color = 'red'
+            
+            # 进度百分比（最大48小时）
+            max_hours = 48
+            percentage = min(100, (total_hours / max_hours) * 100)
+            
+            return {
+                'total_hours': total_hours,
+                'display': f"{total_hours:.2f}小时",
+                'full_text': f"{days}天{hours}小时{minutes}分{secs}秒",
+                'color': color,
+                'percentage': percentage,
+            }
+        return None
 
 
 class OtnPathGroup(NetBoxModel):

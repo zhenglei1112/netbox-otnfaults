@@ -87,6 +87,36 @@ class OtnFaultTable(NetBoxTable):
             'fault_occurrence_time', 'fault_duration', 'fault_category', 'urgency', 'fault_status', 'tags',
         )
 
+    def render_fault_duration(self, record):
+        """渲染故障历时为可视化进度条（使用内联样式）"""
+        info = record.fault_duration_info
+        if not info:
+            return '—'
+        
+        # 颜色映射
+        color_map = {
+            'green': 'linear-gradient(90deg, #28a745, #34ce57)',
+            'yellow': 'linear-gradient(90deg, #ffc107, #ffda47)',
+            'orange': 'linear-gradient(90deg, #fd7e14, #ff9636)',
+            'red': 'linear-gradient(90deg, #dc3545, #f34b5b)',
+        }
+        fill_bg = color_map.get(info['color'], color_map['green'])
+        
+        return format_html(
+            '<div style="position:relative;width:120px;height:22px;background:#e9ecef;'
+            'border-radius:4px;overflow:hidden;display:inline-block" title="{}">'
+            '<div style="position:absolute;left:0;top:0;bottom:0;width:{}%;'
+            'border-radius:4px;background:{}"></div>'
+            '<span style="position:absolute;width:100%;text-align:center;'
+            'font-size:12px;font-weight:500;line-height:22px;color:#333;'
+            'text-shadow:0 0 2px rgba(255,255,255,0.8)">{}</span>'
+            '</div>',
+            info['full_text'],
+            info['percentage'],
+            fill_bg,
+            info['display']
+        )
+
 class OtnFaultImpactTable(NetBoxTable):
     otn_fault = tables.Column(
         linkify=True,
@@ -122,6 +152,36 @@ class OtnFaultImpactTable(NetBoxTable):
         default_columns = (
             'otn_fault', 'impacted_service',
             'service_interruption_time', 'service_duration', 'tags',
+        )
+
+    def render_service_duration(self, record):
+        """渲染业务中断历时为可视化进度条（使用内联样式）"""
+        info = record.service_duration_info
+        if not info:
+            return '—'
+        
+        # 颜色映射
+        color_map = {
+            'green': 'linear-gradient(90deg, #28a745, #34ce57)',
+            'yellow': 'linear-gradient(90deg, #ffc107, #ffda47)',
+            'orange': 'linear-gradient(90deg, #fd7e14, #ff9636)',
+            'red': 'linear-gradient(90deg, #dc3545, #f34b5b)',
+        }
+        fill_bg = color_map.get(info['color'], color_map['green'])
+        
+        return format_html(
+            '<div style="position:relative;width:120px;height:22px;background:#e9ecef;'
+            'border-radius:4px;overflow:hidden;display:inline-block" title="{}">'
+            '<div style="position:absolute;left:0;top:0;bottom:0;width:{}%;'
+            'border-radius:4px;background:{}"></div>'
+            '<span style="position:absolute;width:100%;text-align:center;'
+            'font-size:12px;font-weight:500;line-height:22px;color:#333;'
+            'text-shadow:0 0 2px rgba(255,255,255,0.8)">{}</span>'
+            '</div>',
+            info['full_text'],
+            info['percentage'],
+            fill_bg,
+            info['display']
         )
 
 class OtnPathTable(NetBoxTable):
