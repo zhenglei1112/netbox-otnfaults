@@ -609,6 +609,11 @@ class OtnPathForm(NetBoxModelForm):
         queryset=Site.objects.all(),
         label='Z端站点'
     )
+    groups = DynamicModelMultipleChoiceField(
+        queryset=OtnPathGroup.objects.all(),
+        required=False,
+        label='所属路径组'
+    )
     comments = CommentField(
         label='评论'
     )
@@ -619,6 +624,37 @@ class OtnPathForm(NetBoxModelForm):
             'name', 'cable_type', 'site_a', 'site_z', 'geometry',
             'calculated_length', 'description', 'comments', 'tags',
         )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 如果是编辑现有对象，设置 groups 的初始值
+        if self.instance.pk:
+            self.fields['groups'].initial = self.instance.groups.all()
+
+    def save(self, commit=True):
+        # 先保存路径对象
+        instance = super().save(commit=commit)
+        
+        if commit:
+            # 手动处理 groups 多对多关系（反向关系需要特殊处理）
+            # 获取表单中选择的路径组
+            selected_groups = self.cleaned_data.get('groups', [])
+            
+            # 获取当前路径已属于的所有路径组
+            current_groups = set(instance.groups.all())
+            selected_groups_set = set(selected_groups)
+            
+            # 需要添加到的路径组
+            groups_to_add = selected_groups_set - current_groups
+            for group in groups_to_add:
+                group.paths.add(instance)
+            
+            # 需要从中移除的路径组
+            groups_to_remove = current_groups - selected_groups_set
+            for group in groups_to_remove:
+                group.paths.remove(instance)
+        
+        return instance
 
 class OtnPathImportForm(NetBoxModelImportForm):
     site_a = CSVModelChoiceField(
@@ -646,6 +682,16 @@ class OtnPathBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='光缆类型'
     )
+    add_groups = DynamicModelMultipleChoiceField(
+        queryset=OtnPathGroup.objects.all(),
+        required=False,
+        label='添加到路径组'
+    )
+    remove_groups = DynamicModelMultipleChoiceField(
+        queryset=OtnPathGroup.objects.all(),
+        required=False,
+        label='从路径组移除'
+    )
     calculated_length = forms.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -662,9 +708,8 @@ class OtnPathBulkEditForm(NetBoxModelBulkEditForm):
     )
 
     fieldsets = (
-        ('光缆路径', (
-            'cable_type', 'calculated_length', 'description', 'comments',
-        )),
+        FieldSet('cable_type', 'calculated_length', 'description', 'comments', name='光缆路径'),
+        FieldSet('add_groups', 'remove_groups', name='路径组管理'),
     )
     nullable_fields = (
         'geometry', 'calculated_length', 'description', 'comments',

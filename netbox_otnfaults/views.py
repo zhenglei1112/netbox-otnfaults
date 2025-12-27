@@ -516,11 +516,25 @@ class OtnPathBulkDeleteView(generic.BulkDeleteView):
 
 @register_model_view(OtnPath, 'bulk_edit', path='edit', detail=False)
 class OtnPathBulkEditView(generic.BulkEditView):
-    """光缆路径批量编辑视图"""
+    """光缆路径批量编辑视图 - 支持路径组的批量添加/移除"""
     queryset = OtnPath.objects.all()
     filterset = OtnPathFilterSet
     table = OtnPathTable
     form = OtnPathBulkEditForm
+
+    def post_save_operations(self, form, obj):
+        """在对象保存后处理多对多关系的批量添加/移除"""
+        # 处理添加到路径组
+        add_groups = form.cleaned_data.get('add_groups')
+        if add_groups:
+            for group in add_groups:
+                group.paths.add(obj)
+
+        # 处理从路径组移除
+        remove_groups = form.cleaned_data.get('remove_groups')
+        if remove_groups:
+            for group in remove_groups:
+                group.paths.remove(obj)
 
 
 # ========== 路径组视图 ==========
@@ -539,8 +553,11 @@ class OtnPathGroupView(generic.ObjectView):
     queryset = OtnPathGroup.objects.all()
 
     def get_extra_context(self, request, instance):
-        # 显示该路径组下的所有路径，与故障详情页显示影响业务的方式相同
+        # 显示该路径组下的所有路径（只读模式，不显示操作按钮）
         paths_table = OtnPathTable(instance.paths.all())
+        # 排除复选框和操作按钮列，使表格只读
+        paths_table.columns.hide('pk')
+        paths_table.columns.hide('actions')
         paths_table.configure(request)
         return {
             'paths_table': paths_table,
@@ -577,7 +594,7 @@ class LocationMapView(PermissionRequiredMixin, View):
         q = request.GET.get('q', '')
         target_lat, target_lng = self._parse_coordinates(q)
         
-        # 解析 ?path_id=xxx 参数（用于路径高亮显示）
+        # 解析 ?path_id=xxx 参数（用于单条路径高亮显示）
         path_id = request.GET.get('path_id', '')
         highlight_path_data = None
         path_name = None
@@ -620,6 +637,64 @@ class LocationMapView(PermissionRequiredMixin, View):
                         target_lat, target_lng = center_lat, center_lng
             except (OtnPath.DoesNotExist, ValueError):
                 pass
+        
+        # 解析 ?path_group_id=xxx 参数（用于路径组下所有路径高亮显示）
+        path_group_id = request.GET.get('path_group_id', '')
+        highlight_paths_data = None
+        path_group_name = None
+        
+        if path_group_id:
+            try:
+                path_group = OtnPathGroup.objects.get(pk=int(path_group_id))
+                path_group_name = path_group.name
+                paths_with_geom = path_group.paths.exclude(geometry__isnull=True).exclude(geometry=[])
+                
+                if paths_with_geom.exists():
+                    features = []
+                    all_lngs = []
+                    all_lats = []
+                    
+                    for path in paths_with_geom:
+                        geom = path.geometry
+                        if isinstance(geom, list):
+                            coords = geom
+                            geometry_obj = {'type': 'LineString', 'coordinates': coords}
+                        else:
+                            geometry_obj = geom
+                            coords = geom.get('coordinates', [])
+                        
+                        features.append({
+                            'type': 'Feature',
+                            'properties': {
+                                'id': path.pk,
+                                'name': path.name,
+                                'url': path.get_absolute_url()
+                            },
+                            'geometry': geometry_obj
+                        })
+                        
+                        # 收集所有坐标用于计算边界
+                        for c in coords:
+                            all_lngs.append(c[0])
+                            all_lats.append(c[1])
+                    
+                    highlight_paths_data = {
+                        'type': 'FeatureCollection',
+                        'features': features
+                    }
+                    
+                    # 计算所有路径的中心
+                    if all_lngs and all_lats:
+                        center_lng = (min(all_lngs) + max(all_lngs)) / 2
+                        center_lat = (min(all_lats) + max(all_lats)) / 2
+                        target_lat, target_lng = center_lat, center_lng
+                    
+                    path_name = f"路径组: {path_group_name} ({len(features)} 条路径)"
+                    # 使用 FeatureCollection 作为高亮数据
+                    highlight_path_data = highlight_paths_data
+            except (OtnPathGroup.DoesNotExist, ValueError):
+                pass
+
         
         # 获取所有有经纬度的站点
         sites_data = [

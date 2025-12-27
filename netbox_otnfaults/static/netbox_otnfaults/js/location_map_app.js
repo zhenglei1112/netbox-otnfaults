@@ -344,95 +344,132 @@ document.addEventListener('DOMContentLoaded', function () {
             map.on('mouseleave', 'netbox-sites-layer', () => map.getCanvas().style.cursor = '');
         }
 
-        // --- 高亮路径动画 (参照 DeckGLFlowAnimator) ---
-        if (highlightPathData && highlightPathData.geometry) {
-            const coords = highlightPathData.geometry.coordinates;
-            const maxTime = 100;
+        // --- 高亮路径动画 ---
+        if (highlightPathData) {
+            // 提取所有路径的坐标
+            let allFeatures = [];
+            const isFeatureCollection = highlightPathData.type === 'FeatureCollection';
             
-            // 计算每个点的时间戳（基于累积距离，与 DeckGLFlowAnimator 一致）
-            const timestamps = [0];
-            let totalDistance = 0;
-            for (let i = 1; i < coords.length; i++) {
-                const [lon1, lat1] = coords[i - 1];
-                const [lon2, lat2] = coords[i];
-                const dx = lon2 - lon1;
-                const dy = lat2 - lat1;
-                totalDistance += Math.sqrt(dx * dx + dy * dy);
-                timestamps.push(totalDistance);
+            if (isFeatureCollection) {
+                allFeatures = highlightPathData.features || [];
+            } else if (highlightPathData.type === 'Feature' && highlightPathData.geometry) {
+                allFeatures = [highlightPathData];
             }
             
-            // 归一化时间戳到 [0, maxTime]
-            const normalizedTimestamps = timestamps.map(t =>
-                totalDistance > 0 ? (t / totalDistance) * maxTime : 0
-            );
-            
-            const tripData = [{
-                path: coords,
-                timestamps: normalizedTimestamps,
-                color: [255, 100, 0]  // 橙红色（与 DeckGLFlowAnimator 一致）
-            }];
-            
-            let currentTime = 0;
-            let direction = 1;
-            
-            // 创建 Deck.gl 叠加层
-            const deckOverlay = new deck.MapboxOverlay({
-                interleaved: false,
-                layers: []
-            });
-            map.addControl(deckOverlay);
-            
-            function updateAnimation() {
-                // 往返流动效果
-                currentTime += 1.5 * direction;
-                if (currentTime >= maxTime) {
-                    direction = -1;
-                } else if (currentTime <= 0) {
-                    direction = 1;
-                }
+            if (allFeatures.length > 0) {
+                const bounds = new maplibregl.LngLatBounds();
                 
-                const tripsLayer = new deck.TripsLayer({
-                    id: 'highlight-path-trips',
-                    data: tripData,
-                    getPath: d => d.path,
-                    getTimestamps: d => d.timestamps,
-                    getColor: d => d.color,
-                    opacity: 1,
-                    widthMinPixels: 6,
-                    jointRounded: true,
-                    capRounded: true,
-                    trailLength: 30,  // 与 DeckGLFlowAnimator 一致
-                    currentTime: currentTime,
-                    fadeTrail: true
+                // 收集所有坐标用于边界计算
+                allFeatures.forEach(feature => {
+                    if (feature.geometry && feature.geometry.coordinates) {
+                        feature.geometry.coordinates.forEach(c => bounds.extend(c));
+                    }
                 });
                 
-                deckOverlay.setProps({ layers: [tripsLayer] });
-                requestAnimationFrame(updateAnimation);
-            }
-            
-            updateAnimation();
-            
-            // 添加静态底层路径（半透明底色）
-            mapBase.addGeoJsonSource('highlight-path', {
-                type: 'FeatureCollection',
-                features: [highlightPathData]
-            });
-            
-            mapBase.addLayer({
-                id: 'highlight-path-layer',
-                type: 'line',
-                source: 'highlight-path',
-                paint: {
-                    'line-color': '#ff6400',  // 橙红色底色
-                    'line-width': 4,
-                    'line-opacity': 0.3
+                // 添加静态底层路径
+                mapBase.addGeoJsonSource('highlight-path', {
+                    type: 'FeatureCollection',
+                    features: allFeatures
+                });
+                
+                // 路径组（多条路径）使用静态高亮显示
+                if (isFeatureCollection && allFeatures.length > 1) {
+                    // 醒目的亮红色，静态显示
+                    const highlightColor = '#ff0040';
+                    
+                    mapBase.addLayer({
+                        id: 'highlight-path-layer',
+                        type: 'line',
+                        source: 'highlight-path',
+                        paint: {
+                            'line-color': highlightColor,
+                            'line-width': 3,
+                            'line-opacity': 0.9
+                        }
+                    });
+                    
+                } else {
+                    // 单条路径：保持往复式流动效果
+                    const feature = allFeatures[0];
+                    if (feature.geometry && feature.geometry.coordinates) {
+                        const coords = feature.geometry.coordinates;
+                        const maxTime = 100;
+                        
+                        // 计算时间戳
+                        const timestamps = [0];
+                        let totalDistance = 0;
+                        for (let i = 1; i < coords.length; i++) {
+                            const [lon1, lat1] = coords[i - 1];
+                            const [lon2, lat2] = coords[i];
+                            const dx = lon2 - lon1;
+                            const dy = lat2 - lat1;
+                            totalDistance += Math.sqrt(dx * dx + dy * dy);
+                            timestamps.push(totalDistance);
+                        }
+                        
+                        const normalizedTimestamps = timestamps.map(t =>
+                            totalDistance > 0 ? (t / totalDistance) * maxTime : 0
+                        );
+                        
+                        const tripData = [{
+                            path: coords,
+                            timestamps: normalizedTimestamps,
+                            color: [255, 100, 0]
+                        }];
+                        
+                        let currentTime = 0;
+                        let direction = 1;
+                        
+                        const deckOverlay = new deck.MapboxOverlay({
+                            interleaved: false,
+                            layers: []
+                        });
+                        map.addControl(deckOverlay);
+                        
+                        function updateAnimation() {
+                            currentTime += 1.5 * direction;
+                            if (currentTime >= maxTime) direction = -1;
+                            else if (currentTime <= 0) direction = 1;
+                            
+                            const tripsLayer = new deck.TripsLayer({
+                                id: 'highlight-path-trips',
+                                data: tripData,
+                                getPath: d => d.path,
+                                getTimestamps: d => d.timestamps,
+                                getColor: d => d.color,
+                                opacity: 1,
+                                widthMinPixels: 6,
+                                jointRounded: true,
+                                capRounded: true,
+                                trailLength: 30,
+                                currentTime: currentTime,
+                                fadeTrail: true
+                            });
+                            
+                            deckOverlay.setProps({ layers: [tripsLayer] });
+                            requestAnimationFrame(updateAnimation);
+                        }
+                        updateAnimation();
+                        
+                        // 添加静态底色
+                        mapBase.addLayer({
+                            id: 'highlight-path-layer',
+                            type: 'line',
+                            source: 'highlight-path',
+                            paint: {
+                                'line-color': '#ff6400',
+                                'line-width': 4,
+                                'line-opacity': 0.3
+                            }
+                        });
+                    }
                 }
-            });
-            
-            // 自适应缩放到路径范围
-            const bounds = new maplibregl.LngLatBounds();
-            coords.forEach(c => bounds.extend(c));
-            map.fitBounds(bounds, { padding: 80, maxZoom: 12 });
+                
+                // 自适应缩放到所有路径范围
+                if (!bounds.isEmpty()) {
+                    map.fitBounds(bounds, { padding: 80, maxZoom: 12 });
+                }
+            }
         }
 
         // --- 目标位置标记（仅当没有高亮路径时显示） ---
