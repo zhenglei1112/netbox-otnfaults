@@ -1,6 +1,7 @@
 from netbox.views import generic
 from django.shortcuts import render
 from utilities.views import register_model_view, ViewTab
+from django_tables2 import RequestConfig
 from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, FaultCategoryChoices, FaultStatusChoices
 from dcim.models import Site
 from .forms import (
@@ -558,9 +559,20 @@ class OtnPathGroupView(generic.ObjectView):
         # 排除复选框和操作按钮列，使表格只读
         paths_table.columns.hide('pk')
         paths_table.columns.hide('actions')
-        paths_table.configure(request)
+        
+        # 获取每页数量，默认25
+        per_page = request.GET.get('per_page', 25)
+        try:
+            per_page = int(per_page)
+        except ValueError:
+            per_page = 25
+        
+        # 配置分页
+        RequestConfig(request, paginate={'per_page': per_page}).configure(paths_table)
+        
         return {
             'paths_table': paths_table,
+            'per_page': per_page,
         }
 
 
