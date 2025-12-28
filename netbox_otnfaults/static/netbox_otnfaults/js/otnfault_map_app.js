@@ -1112,12 +1112,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     'circle-stroke-color': '#fff',
                     'circle-opacity': [
                         'step', ['zoom'],
-                        0.2, // Opacity 0.2 when zoom < 6 (labels hidden)
+                        0.5, // Opacity 0.2 when zoom < 6 (labels hidden)
                         6, 1 // Opacity 1.0 when zoom >= 6 (labels visible)
                     ],
                     'circle-stroke-opacity': [
                         'step', ['zoom'],
-                        0.2,
+                        0.5,
                         6, 1
                     ]
                 }
