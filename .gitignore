@@ -8,3 +8,7 @@ __pycache__/
 图像.md
 高速盾标实现.md
 TODO.md
+netbox_otnfaults/templates/netbox_otnfaults/location_map.html.bak
+netbox_otnfaults/templates/netbox_otnfaults/otnfault_map_globe.html.bak
+netbox_otnfaults/static/netbox_otnfaults/js/otnfault_map_app.js.bak
+netbox_otnfaults/static/netbox_otnfaults/js/location_map_app.js.bak

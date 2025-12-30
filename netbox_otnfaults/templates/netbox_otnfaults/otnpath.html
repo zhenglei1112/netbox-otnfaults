@@ -1,7 +1,6 @@
 {% extends 'generic/object.html' %}
 {% load plugins %}
 {% load render_table from django_tables2 %}
-
 {% block extra_styles %}
 <style>
   .attr-table th {
@@ -12,18 +11,14 @@
     width: 70%;
   }
 </style>
-{% endblock %}
-
-{% block extra_controls %}
-{% if object.geometry %}
-<a href="{% url 'plugins:netbox_otnfaults:location_map' %}?path_id={{ object.pk }}"
-   target="_blank" class="btn btn-primary btn-sm">
+{% endblock %} {% block extra_controls %} {% if object.geometry %}
+<a
+  href="{% url 'plugins:netbox_otnfaults:location_map' %}?path_id={{ object.pk }}"
+  class="btn btn-primary btn-sm"
+>
   <i class="mdi mdi-map-marker"></i> 查看地图
 </a>
-{% endif %}
-{% endblock %}
-
-{% block content %}
+{% endif %} {% endblock %} {% block content %}
 <div class="row mb-3">
   <div class="col col-md-6">
     <div class="card">
@@ -37,9 +32,9 @@
           <th scope="row">光缆类型</th>
           <td>
             {% if object.cable_type %}
-            {% badge object.get_cable_type_display bg_color=object.get_cable_type_color %}
+              {% badge object.get_cable_type_display bg_color=object.get_cable_type_color %}
             {% else %}
-            —
+              —
             {% endif %}
           </td>
         </tr>
@@ -47,11 +42,11 @@
           <th scope="row">所属路径组</th>
           <td>
             {% if object.groups.all %}
-            {% for group in object.groups.all %}
-            <a href="{{ group.get_absolute_url }}">{{ group.name }}</a>{% if not forloop.last %}, {% endif %}
-            {% endfor %}
+              {% for group in object.groups.all %}
+                <a href="{{ group.get_absolute_url }}">{{ group.name }}</a>{% if not forloop.last %}, {% endif %}
+              {% endfor %}
             {% else %}
-            —
+              —
             {% endif %}
           </td>
         </tr>
@@ -59,20 +54,20 @@
           <th scope="row">A端站点</th>
           <td>
             {% if object.site_a %}
-            <a href="{{ object.site_a.get_absolute_url }}">{{ object.site_a }}</a>
-            {% else %}
-            —
-            {% endif %}
+            <a href="{{ object.site_a.get_absolute_url }}"
+              >{{ object.site_a }}</a
+            >
+            {% else %} — {% endif %}
           </td>
         </tr>
         <tr>
           <th scope="row">Z端站点</th>
           <td>
             {% if object.site_z %}
-            <a href="{{ object.site_z.get_absolute_url }}">{{ object.site_z }}</a>
-            {% else %}
-            —
-            {% endif %}
+            <a href="{{ object.site_z.get_absolute_url }}"
+              >{{ object.site_z }}</a
+            >
+            {% else %} — {% endif %}
           </td>
         </tr>
         <tr>
@@ -83,7 +78,6 @@
           <th scope="row">描述</th>
           <td>{{ object.description|default:"—" }}</td>
         </tr>
-
       </table>
     </div>
   </div>

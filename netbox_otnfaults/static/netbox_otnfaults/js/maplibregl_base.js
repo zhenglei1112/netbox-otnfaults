@@ -211,47 +211,57 @@ class NetBoxMapBase {
   addStandardControls() {
     const navControl = new maplibregl.NavigationControl();
     this.map.addControl(navControl);
-    
+
     // 设置导航控件按钮的中文 hint
     const navContainer = navControl._container;
     if (navContainer) {
-      const zoomInBtn = navContainer.querySelector('.maplibregl-ctrl-zoom-in');
-      const zoomOutBtn = navContainer.querySelector('.maplibregl-ctrl-zoom-out');
-      const compassBtn = navContainer.querySelector('.maplibregl-ctrl-compass');
-      
-      if (zoomInBtn) zoomInBtn.title = '放大';
-      if (zoomOutBtn) zoomOutBtn.title = '缩小';
-      if (compassBtn) compassBtn.title = '重置北向';
+      const zoomInBtn = navContainer.querySelector(".maplibregl-ctrl-zoom-in");
+      const zoomOutBtn = navContainer.querySelector(
+        ".maplibregl-ctrl-zoom-out"
+      );
+      const compassBtn = navContainer.querySelector(".maplibregl-ctrl-compass");
+
+      if (zoomInBtn) zoomInBtn.title = "放大";
+      if (zoomOutBtn) zoomOutBtn.title = "缩小";
+      if (compassBtn) compassBtn.title = "重置北向";
     }
-    
+
     const fullscreenControl = new maplibregl.FullscreenControl({
       container: document.querySelector("#" + this.map.getContainer().id),
     });
     this.map.addControl(fullscreenControl);
-    
+
     // 设置全屏控件按钮的中文 hint，并使用 MutationObserver 防止被覆盖
     const fullscreenContainer = fullscreenControl._container;
     if (fullscreenContainer) {
-      const fullscreenBtn = fullscreenContainer.querySelector('.maplibregl-ctrl-fullscreen');
+      const fullscreenBtn = fullscreenContainer.querySelector(
+        ".maplibregl-ctrl-fullscreen"
+      );
       if (fullscreenBtn) {
         // 设置初始中文 hint
-        fullscreenBtn.title = '全屏';
-        
+        fullscreenBtn.title = "全屏";
+
         // 使用 MutationObserver 监听 title 属性变化，强制覆盖为中文
         const observer = new MutationObserver((mutations) => {
           mutations.forEach((mutation) => {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'title') {
+            if (
+              mutation.type === "attributes" &&
+              mutation.attributeName === "title"
+            ) {
               const currentTitle = fullscreenBtn.title;
-              if (currentTitle === 'Enter fullscreen') {
-                fullscreenBtn.title = '全屏';
-              } else if (currentTitle === 'Exit fullscreen') {
-                fullscreenBtn.title = '退出全屏';
+              if (currentTitle === "Enter fullscreen") {
+                fullscreenBtn.title = "全屏";
+              } else if (currentTitle === "Exit fullscreen") {
+                fullscreenBtn.title = "退出全屏";
               }
             }
           });
         });
-        
-        observer.observe(fullscreenBtn, { attributes: true, attributeFilter: ['title'] });
+
+        observer.observe(fullscreenBtn, {
+          attributes: true,
+          attributeFilter: ["title"],
+        });
       }
     }
   }
@@ -260,15 +270,16 @@ class NetBoxMapBase {
    * 添加 Home 控件以重置视野
    */
   addHomeControl(position = "top-right") {
-    const svgIcons = this.svgIcons;
+    // 保存引用供内部类使用
+    const base = this;
 
     class HomeControl {
-      constructor(options) {
-        this.options = options || {};
+      constructor() {
         // 使用全局配置的中心点和缩放级别
         const config = window.OTNFaultMapConfig || {};
         this.initialCenter = config.mapCenter || [112.53, 33.0];
         this.initialZoom = config.mapZoom || 4.2;
+        this.targetBounds = null; // 支持动态设置目标边界
       }
 
       onAdd(map) {
@@ -278,10 +289,17 @@ class NetBoxMapBase {
 
         this.homeButton = document.createElement("button");
         this.homeButton.className = "maplibregl-ctrl-icon";
-        this.homeButton.innerHTML = svgIcons.home;
+        this.homeButton.type = "button"; // 明确类型防止表单提交
+        // 使用 base.svgIcons 访问外部属性
+        this.homeButton.innerHTML = base.svgIcons.home;
         this.homeButton.title =
           "恢复初始视野（包括比例尺、视野、北向、俯仰等）";
-        this.homeButton.onclick = () => this.goHome();
+
+        // 绑定点击事件，确保 this 指向 HomeControl 实例
+        this.homeButton.addEventListener("click", () => {
+             console.log("Home button clicked"); // Debug log
+             this.goHome();
+        });
 
         this.container.appendChild(this.homeButton);
         return this.container;
@@ -293,18 +311,42 @@ class NetBoxMapBase {
       }
 
       goHome() {
-        this.map.flyTo({
-          center: this.initialCenter,
-          zoom: this.initialZoom,
-          bearing: 0,
-          pitch: 0,
-          essential: true,
-        });
-        this.map.setProjection({ type: "globe" });
+        console.log("goHome triggered, targetBounds:", this.targetBounds);
+        if (this.targetBounds) {
+          // 如果设置了动态边界（如路径模式），则适配边界
+          this.map.fitBounds(this.targetBounds, {
+            padding: 80,
+            maxZoom: 12,
+            pitch: 0,
+            bearing: 0,
+            essential: true,
+          });
+        } else {
+          // 默认逻辑：回到全局视图
+          this.map.flyTo({
+            center: this.initialCenter,
+            zoom: this.initialZoom,
+            bearing: 0,
+            pitch: 0,
+            essential: true,
+          });
+          this.map.setProjection({ type: "globe" });
+        }
       }
     }
 
-    this.map.addControl(new HomeControl(), position);
+    this.homeControl = new HomeControl();
+    this.map.addControl(this.homeControl, position);
+  }
+
+  /**
+   * 设置 Home 控件的动态目标边界
+   * @param {Object} bounds - LngLatBounds 对象
+   */
+  setHomeBounds(bounds) {
+    if (this.homeControl) {
+      this.homeControl.targetBounds = bounds;
+    }
   }
 
   /**
@@ -472,6 +514,24 @@ class NetBoxMapBase {
   }
 
   /**
+   * 添加 SVG 图标
+   * @param {string} imageId - 图片 ID
+   * @param {string} svgString - SVG 内容字符串
+   * @param {Object} options - addImage 选项 (可选)
+   */
+  addSvgIcon(imageId, svgString, options = {}) {
+    const img = new Image();
+    img.onload = () => {
+      if (!this.map.hasImage(imageId)) {
+        this.map.addImage(imageId, img, options);
+      }
+    };
+    img.src =
+      "data:image/svg+xml;base64," +
+      btoa(unescape(encodeURIComponent(svgString)));
+  }
+
+  /**
    * 添加标记
    */
   addMarker(lng, lat, options = {}) {
@@ -527,7 +587,7 @@ class NetBoxMapBase {
    */
   initHighwayShields() {
     const map = this.map;
-    
+
     // 盾标 SVG 内联数据 - 浅灰色调，与底图风格一致
     // 国家高速：浅灰底 + 稍深灰顶（柔和对比）
     const shieldNationalSvg = `<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
@@ -535,14 +595,14 @@ class NetBoxMapBase {
       <path d="M6 2h28a4 4 0 0 1 4 4v4H2V6a4 4 0 0 1 4-4z" fill="#9ca3af"/>
       <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="#d1d5db" stroke-width="1" opacity="0.6"/>
     </svg>`;
-    
+
     // 省级高速：更浅灰底 + 浅米灰顶
     const shieldProvincialSvg = `<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
       <rect x="2" y="2" width="36" height="36" rx="4" fill="#c9ccd2"/>
       <path d="M6 2h28a4 4 0 0 1 4 4v4H2V6a4 4 0 0 1 4-4z" fill="#e5e7eb"/>
       <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="#e5e7eb" stroke-width="1" opacity="0.6"/>
     </svg>`;
-    
+
     /**
      * 将 SVG 字符串转换为 Image 并添加到地图
      * @param {string} svgString - SVG 内容
@@ -559,7 +619,7 @@ class NetBoxMapBase {
             // stretchX 定义横向哪段可以拉伸（中间位置）
             stretchX: [[10, 30]],
             // stretchY 定义纵向哪段可以拉伸（底色部分）
-            stretchY: [[15, 30]]
+            stretchY: [[15, 30]],
           });
         }
       };
@@ -567,123 +627,146 @@ class NetBoxMapBase {
         console.error(`高速盾标图标加载失败: ${imageId}`, e);
       };
       // 使用 Base64 编码的 SVG
-      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+      img.src =
+        "data:image/svg+xml;base64," +
+        btoa(unescape(encodeURIComponent(svgString)));
     };
-    
+
     // 加载盾标图标
-    addShieldImage(shieldNationalSvg, 'shield-cn-national');
-    addShieldImage(shieldProvincialSvg, 'shield-cn-provincial');
-    
+    addShieldImage(shieldNationalSvg, "shield-cn-national");
+    addShieldImage(shieldProvincialSvg, "shield-cn-provincial");
+
     // 延迟添加图层（等待图标加载完成）
     setTimeout(() => {
       // 检查数据源是否存在（Stadia Maps 使用 'openmaptiles'）
-      const sourceId = map.getSource('openmaptiles') ? 'openmaptiles' : 
-                       map.getSource('china_local') ? 'china_local' : null;
-      
+      const sourceId = map.getSource("openmaptiles")
+        ? "openmaptiles"
+        : map.getSource("china_local")
+        ? "china_local"
+        : null;
+
       if (!sourceId) {
-        console.warn('未找到合适的数据源用于高速盾标');
+        console.warn("未找到合适的数据源用于高速盾标");
         return;
       }
-      
+
       // 检查 transportation_name 图层是否存在
-      const sourceLayerId = sourceId === 'openmaptiles' ? 'transportation_name' : 'transportation';
-      
+      const sourceLayerId =
+        sourceId === "openmaptiles" ? "transportation_name" : "transportation";
+
       // 查找插入位置：在城市名称标签之下
       let beforeLayerId = null;
       const layers = map.getStyle().layers;
       for (const layer of layers) {
-        if (layer.id.includes('place') && layer.type === 'symbol') {
+        if (layer.id.includes("place") && layer.type === "symbol") {
           beforeLayerId = layer.id;
           break;
         }
       }
-      
+
       // 避免重复添加
-      if (map.getLayer('highway-shields')) {
+      if (map.getLayer("highway-shields")) {
         return;
       }
-      
+
       try {
-        map.addLayer({
-          id: 'highway-shields',
-          type: 'symbol',
-          source: sourceId,
-          'source-layer': sourceLayerId,
-          filter: ['has', 'ref'],
-          minzoom: 6,  // 保持低缩放级别可见
-          layout: {
-            'symbol-placement': 'point',  // 使用点放置，保持盾标始终正向朝上
-            'symbol-spacing': 2000,  // 极大间距，确保同一编号在视口中少于5个
-            'icon-padding': 50,  // 增加图标间的最小像素距离
-            
-            // 排序优先级：G（国家高速）优先于 S（省级高速）
-            // 数值越小优先级越高
-            'symbol-sort-key': [
-              'match',
-              ['slice', ['get', 'ref'], 0, 1],
-              'G', 1,  // 国家高速优先级最高
-              'S', 2,  // 省级高速次之
-              3        // 其他默认最低
-            ],
-            
-            // 图标和文字始终保持正向
-            'icon-rotation-alignment': 'viewport',
-            'text-rotation-alignment': 'viewport',
-            'icon-pitch-alignment': 'viewport',
-            
-            // 根据编号首字母选择图标
-            'icon-image': [
-              'match',
-              ['slice', ['get', 'ref'], 0, 1],
-              'G', 'shield-cn-national',
-              'S', 'shield-cn-provincial',
-              'shield-cn-national'  // 默认值
-            ],
-            
-            // 关键属性：让图标自动包裹文字
-            'icon-text-fit': 'both',
-            'icon-text-fit-padding': [2, 5, 2, 5],
-            
-            // 文字设置：只显示编号部分（截取前6位，适应如 G1011 等）
-            'text-field': [
-              'case',
-              ['>=', ['length', ['get', 'ref']], 6],
-              ['slice', ['get', 'ref'], 0, 6],
-              ['get', 'ref']
-            ],
-            'text-font': ['Open Sans Bold', 'Noto Sans Regular'],
-            'text-size': [
-              'interpolate', ['linear'], ['zoom'],
-              8, 9,
-              12, 11,
-              16, 12
-            ],
-            'text-anchor': 'center',
-            'text-letter-spacing': 0.05,
-            
-            'icon-allow-overlap': false,
-            'text-allow-overlap': false,
-            'icon-ignore-placement': false,
-            'text-ignore-placement': false,
-            
-            // 缩放控制
-            'icon-size': [
-              'interpolate', ['linear'], ['zoom'],
-              8, 0.7,
-              12, 0.9,
-              16, 1.0
-            ]
+        map.addLayer(
+          {
+            id: "highway-shields",
+            type: "symbol",
+            source: sourceId,
+            "source-layer": sourceLayerId,
+            filter: ["has", "ref"],
+            minzoom: 6, // 保持低缩放级别可见
+            layout: {
+              "symbol-placement": "point", // 使用点放置，保持盾标始终正向朝上
+              "symbol-spacing": 2000, // 极大间距，确保同一编号在视口中少于5个
+              "icon-padding": 50, // 增加图标间的最小像素距离
+
+              // 排序优先级：G（国家高速）优先于 S（省级高速）
+              // 数值越小优先级越高
+              "symbol-sort-key": [
+                "match",
+                ["slice", ["get", "ref"], 0, 1],
+                "G",
+                1, // 国家高速优先级最高
+                "S",
+                2, // 省级高速次之
+                3, // 其他默认最低
+              ],
+
+              // 图标和文字始终保持正向
+              "icon-rotation-alignment": "viewport",
+              "text-rotation-alignment": "viewport",
+              "icon-pitch-alignment": "viewport",
+
+              // 根据编号首字母选择图标
+              "icon-image": [
+                "match",
+                ["slice", ["get", "ref"], 0, 1],
+                "G",
+                "shield-cn-national",
+                "S",
+                "shield-cn-provincial",
+                "shield-cn-national", // 默认值
+              ],
+
+              // 关键属性：让图标自动包裹文字
+              "icon-text-fit": "both",
+              "icon-text-fit-padding": [2, 5, 2, 5],
+
+              // 文字设置：只显示编号部分（截取前6位，适应如 G1011 等）
+              "text-field": [
+                "case",
+                [">=", ["length", ["get", "ref"]], 6],
+                ["slice", ["get", "ref"], 0, 6],
+                ["get", "ref"],
+              ],
+              "text-font": ["Open Sans Bold", "Noto Sans Regular"],
+              "text-size": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                8,
+                9,
+                12,
+                11,
+                16,
+                12,
+              ],
+              "text-anchor": "center",
+              "text-letter-spacing": 0.05,
+
+              "icon-allow-overlap": false,
+              "text-allow-overlap": false,
+              "icon-ignore-placement": false,
+              "text-ignore-placement": false,
+
+              // 缩放控制
+              "icon-size": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                8,
+                0.7,
+                12,
+                0.9,
+                16,
+                1.0,
+              ],
+            },
+            paint: {
+              "text-color": "#ffffff",
+              "text-halo-color": "rgba(0,0,0,0.15)",
+              "text-halo-width": 1,
+            },
           },
-          paint: {
-            'text-color': '#ffffff',
-            'text-halo-color': 'rgba(0,0,0,0.15)',
-            'text-halo-width': 1
-          }
-        }, beforeLayerId);
+          beforeLayerId
+        );
       } catch (e) {
-        console.error('高速盾标图层添加失败:', e);
+        console.error("高速盾标图层添加失败:", e);
       }
-    }, 500);  // 等待图标加载
+    }, 500); // 等待图标加载
   }
 
   /**

@@ -1,0 +1,105 @@
+﻿{% extends 'base/layout.html' %}
+{% load static %}
+{% block title %}{{ mode_config.title }}{% if header_info %} - {{ header_info }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+  <div class="col">
+    <div class="card">
+      <h5 class="card-header">
+        {{ mode_config.title }} {% if header_info %}
+        <span class="text-muted ms-2">- {{ header_info }}</span>
+        {% endif %} {% if mode_config.header_actions or return_url %}
+        <div class="card-actions">
+          {% if return_url %}
+          <a href="{{ return_url }}" class="btn btn-ghost-primary btn-sm me-2">
+            <i class="mdi mdi-arrow-left"></i> {{ return_label|default:"返回详情" }}
+          </a>
+          {% endif %}
+          
+          {% for action in mode_config.header_actions %}
+          <a href="{{ action.url }}" class="btn btn-ghost-primary btn-sm">
+            <i class="mdi {{ action.icon }}"></i> {{ action.label }}
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </h5>
+      <div class="card-body p-0">
+        <div id="map" style="height: calc(-178px + 100vh); width: 100%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MapLibre GL JS -->
+<link
+  href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}"
+  rel="stylesheet"
+/>
+<script src="{% static 'netbox_otnfaults/lib/maplibre-gl.js' %}"></script>
+<script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
+<script src="{% static 'netbox_otnfaults/lib/deck-gl.min.js' %}"></script>
+<script src="{% static 'netbox_otnfaults/lib/maplibre-gl-measures.js' %}"></script>
+
+<!-- 样式 -->
+<link
+  rel="stylesheet"
+  href="{% static 'netbox_otnfaults/css/otnfault_map_globe.css' %}"
+/>
+<link
+  rel="stylesheet"
+  href="{% static 'netbox_otnfaults/css/otnfault_map_controls.css' %}"
+/>
+
+<style>
+  .maplibregl-popup-close-button:focus {
+    outline: none;
+    box-shadow: none;
+  }
+</style>
+
+<!-- 配置注入 -->
+<script>
+  window.OTN_DEBUG_MODE = {{ debug_mode|yesno:"true,false" }};
+  window.OTN_DEBUG_DATE = '{{ debug_date }}';
+
+  window.OTNMapConfig = {
+    mode: '{{ map_mode }}',
+    sitesData: {{ sites_data|safe }},
+    apiKey: '{{ apikey }}',
+    mapCenter: {{ map_center|safe }},
+    mapZoom: {{ map_zoom }},
+    useLocalBasemap: {{ use_local_basemap|yesno:'true,false' }},
+    localTilesUrl: '{{ local_tiles_url }}',
+    localGlyphsUrl: '{{ local_glyphs_url }}',
+    otnPathsPmtilesUrl: '{{ otn_paths_pmtiles_url }}',
+    layers: {{ layers_config|safe }},
+    projection: '{{ projection }}',
+    {% if heatmap_data %}heatmapData: {{ heatmap_data|safe }},{% endif %}
+    {% if marker_data %}markerData: {{ marker_data|safe }},{% endif %}
+    {% if colors_config %}colorsConfig: {{ colors_config|safe }},{% endif %}
+    {% if fault_list_url %}faultListUrl: '{{ fault_list_url }}',{% endif %}
+    {% if target_lat %}targetLat: {{ target_lat }},{% endif %}
+    {% if target_lng %}targetLng: {{ target_lng }},{% endif %}
+    {% if highlight_path_data %}highlightPathData: {{ highlight_path_data|safe }},{% endif %}
+    {% if path_name %}pathName: '{{ path_name }}',{% endif %}
+  };
+  // 兼容旧版代码 (LayerToggleControl, FaultStatisticsControl 等)
+  window.OTNFaultMapConfig = window.OTNMapConfig;
+</script>
+
+<!-- 基础 JS -->
+<script src="{% static 'netbox_otnfaults/js/maplibregl_base.js' %}"></script>
+<script src="{% static 'netbox_otnfaults/js/services/PopupTemplates.js' %}"></script>
+
+<!-- 模式特定 JS -->
+{% for js_file in mode_config.js_files %}
+<script src="{% static 'netbox_otnfaults/js/' %}{{ js_file }}"></script>
+{% endfor %}
+
+<!-- 核心 + 模式插件 -->
+<script src="{% static 'netbox_otnfaults/js/unified_map_core.js' %}"></script>
+<script src="{% static 'netbox_otnfaults/js/modes/' %}{{ mode_config.plugin_file }}"></script>
+
+{% endblock %}

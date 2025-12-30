@@ -19,6 +19,8 @@ from django.contrib.auth.mixins import PermissionRequiredMixin
 import json
 from django.core.serializers.json import DjangoJSONEncoder
 from django.conf import settings
+from django.urls import reverse
+from .map_modes import get_mode_config
 
 
 def get_plugin_settings():
@@ -205,9 +207,22 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
         # 获取插件配置
         plugin_settings = get_plugin_settings()
         
-        return render(request, 'netbox_otnfaults/otnfault_map_globe.html', {
-            'heatmap_data': json.dumps(heatmap_data, cls=DjangoJSONEncoder),
-            'marker_data': json.dumps(marker_data, cls=DjangoJSONEncoder),
+        # 获取模式配置
+        mode_config = get_mode_config('fault')
+        
+        # 构建 header_actions 的实际 URL
+        for action in mode_config.get('header_actions', []):
+            action['url'] = reverse(action['url_name'])
+        
+        return render(request, 'netbox_otnfaults/unified_map.html', {
+            # 模式配置
+            'map_mode': 'fault',
+            'mode_config': mode_config,
+            'header_info': None,
+            'layers_config': json.dumps(mode_config.get('layers', {})),
+            'projection': mode_config.get('projection', 'mercator'),
+            
+            # 共享数据
             'sites_data': json.dumps([
                 {
                     'id': site.pk,
@@ -231,8 +246,12 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             'use_local_basemap': plugin_settings.get('use_local_basemap', False),
             'local_tiles_url': plugin_settings.get('local_tiles_url', ''),
             'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
-            'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''), # 传递 OTN 路径 PMTiles URL
-            'current_time_range': time_range,  # 传递给模板，用于显示当前选择
+            'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''),
+
+            # 故障模式特定数据
+            'heatmap_data': json.dumps(heatmap_data, cls=DjangoJSONEncoder),
+            'marker_data': json.dumps(marker_data, cls=DjangoJSONEncoder),
+            'fault_list_url': reverse('plugins:netbox_otnfaults:otnfault_list'),
             'colors_config': json.dumps({
                 'category_colors': {
                     val: self._get_hex_color(color)
@@ -248,7 +267,11 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                     key: self._get_hex_color(key) 
                     for key in ['orange', 'blue', 'yellow', 'green', 'gray', 'red', 'secondary']
                 }
-            }, cls=DjangoJSONEncoder)
+            }, cls=DjangoJSONEncoder),
+
+            # 调试模式参数
+            'debug_mode': True,
+            'debug_date': '2025-12-05 00:00:00',
         })
 
     def _get_hex_color(self, color_name):
@@ -659,6 +682,8 @@ class LocationMapView(PermissionRequiredMixin, View):
             try:
                 path_group = OtnPathGroup.objects.get(pk=int(path_group_id))
                 path_group_name = path_group.name
+                # 优化查询：只获取必要的 geometry 字段，避免加载过多无关字段
+                # 注意：geometry 是必须的，但我们可以尝试优化查询方式
                 paths_with_geom = path_group.paths.exclude(geometry__isnull=True).exclude(geometry=[])
                 
                 if paths_with_geom.exists():
@@ -738,12 +763,60 @@ class LocationMapView(PermissionRequiredMixin, View):
             map_center = plugin_settings.get('map_default_center', [112.53, 33.00])
             map_zoom = plugin_settings.get('map_default_zoom', 4.2)
         
-        return render(request, 'netbox_otnfaults/location_map.html', {
-            'sites_data': json.dumps(sites_data, cls=DjangoJSONEncoder),
-            'target_lat': target_lat,
-            'target_lng': target_lng,
-            'highlight_path_data': json.dumps(highlight_path_data, cls=DjangoJSONEncoder) if highlight_path_data else 'null',
+        # 根据参数确定子模式
+        if path_group_id:
+            map_mode = 'pathgroup'
+        elif path_id:
+            map_mode = 'path'
+        else:
+            map_mode = 'location'
+        
+        # 获取模式配置
+        mode_context = {
             'path_name': path_name,
+            'group_name': path_group_name,
+            'path_count': len(highlight_paths_data.get('features', [])) if highlight_paths_data else 0
+        }
+        mode_config = get_mode_config(map_mode, mode_context)
+        
+        # 确定 header_info 和返回链接
+        header_info = mode_config.get('header_info')
+        return_url = None
+        return_label = None
+
+        if map_mode == 'path' and path_name:
+            header_info = path_name
+            # 构建返回链接
+            if path_id:
+                try:
+                    p = OtnPath.objects.get(pk=int(path_id))
+                    return_url = p.get_absolute_url()
+                    return_label = "返回路径详情"
+                except:
+                    pass
+        elif map_mode == 'pathgroup' and path_group_name:
+            header_info = f"路径组: {path_group_name} ({len(highlight_paths_data.get('features', []))} 条路径)" if highlight_paths_data else None
+             # 构建返回链接
+            if path_group_id:
+                try:
+                    pg = OtnPathGroup.objects.get(pk=int(path_group_id))
+                    return_url = pg.get_absolute_url()
+                    return_label = "返回路径组详情"
+                except:
+                    pass
+        
+        return render(request, 'netbox_otnfaults/unified_map.html', {
+            # 模式配置
+            'map_mode': map_mode,
+            'mode_config': mode_config,
+            'header_info': header_info,
+            'return_url': return_url,
+            'return_label': return_label,
+            'layers_config': json.dumps(mode_config.get('layers', {})),
+            'projection': mode_config.get('projection', 'mercator'),
+            
+            # 共享数据
+            'sites_data': json.dumps(sites_data, cls=DjangoJSONEncoder),
             'apikey': plugin_settings.get('map_api_key', ''),
             'map_center': json.dumps(map_center),
             'map_zoom': map_zoom,
@@ -751,6 +824,12 @@ class LocationMapView(PermissionRequiredMixin, View):
             'local_tiles_url': plugin_settings.get('local_tiles_url', ''),
             'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
             'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''),
+            
+            # 位置/路径模式特定数据
+            'target_lat': target_lat,
+            'target_lng': target_lng,
+            'highlight_path_data': json.dumps(highlight_path_data, cls=DjangoJSONEncoder) if highlight_path_data else 'null',
+            'path_name': path_name,
         })
 
     def _parse_coordinates(self, q_param):

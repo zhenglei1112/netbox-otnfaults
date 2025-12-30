@@ -142,7 +142,17 @@ class FaultStatisticsControl {
       // 这里尝试直接用 duration_minutes 如果存在，或者重新计算
       if (f.occurrence_time) {
         const start = new Date(f.occurrence_time);
-        const end = f.recovery_time ? new Date(f.recovery_time) : new Date();
+
+        // 获取恢复时间：优先从 raw 数据获取原始值
+        const recoveryTime =
+          f.raw && f.raw.recovery_time ? f.raw.recovery_time : null;
+
+        // 如果未恢复，使用当前时间（或调试时间）
+        const now = window.OTN_DEBUG_MODE
+          ? new Date(window.OTN_DEBUG_DATE)
+          : new Date();
+
+        const end = recoveryTime ? new Date(recoveryTime) : now;
         const hours = (end - start) / (1000 * 3600);
         if (hours > 0) {
           totalDurationHours += hours;
@@ -741,7 +751,17 @@ class FaultStatisticsControl {
   // 2. 用站点ID在光缆路径模型中匹配（考虑AZ与ZA双向）
   // 3. fly to并高亮路径
   // 4. 弹窗中提供详情链接（使用bidirectional_pair筛选器）
-  flyToPath(pathName) {
+  // 4. 弹窗中提供详情链接（使用bidirectional_pair筛选器）
+  async flyToPath(pathName) {
+    // 确保路径元数据已加载
+    if (
+      (!window.OTNPathsMetadata || window.OTNPathsMetadata.length === 0) &&
+      window.OTNPathsLoadingPromise
+    ) {
+      console.log("[flyToPath] 等待路径元数据加载...");
+      await window.OTNPathsLoadingPromise;
+    }
+
     console.log("[flyToPath] 开始定位路径:", pathName);
 
     // 解析 A 和 Z 站点名称
@@ -831,6 +851,13 @@ class FaultStatisticsControl {
     }
 
     // 清理已有弹窗
+    // FIX: 优先处理 fault_mode.js 创建的全局 popup，防止其 close 事件干扰
+    if (window._currentPathPopup) {
+      window._currentPathPopup._suppressClear = true;
+      window._currentPathPopup.remove();
+      window._currentPathPopup = null;
+    }
+
     const existingPopups = document.getElementsByClassName("maplibregl-popup");
     while (existingPopups.length > 0) {
       existingPopups[0].remove();
@@ -947,6 +974,30 @@ class FaultStatisticsControl {
         coords.forEach((c) => bounds.extend(c));
       });
 
+      // 1. 立即显示静态高亮 (解决 FlyTo 过程无视觉反馈问题)
+      // 高亮所有匹配的路径（使用FeatureCollection）
+      const highlightData = {
+        type: "FeatureCollection",
+        features: matchedPaths,
+      };
+
+      if (this.map.getSource("otn-paths-highlight")) {
+        this.map.getSource("otn-paths-highlight").setData(highlightData);
+      }
+      // 确保静态图层可见
+      if (this.map.getLayer("otn-paths-highlight-outline"))
+        this.map.setLayoutProperty(
+          "otn-paths-highlight-outline",
+          "visibility",
+          "visible"
+        );
+      if (this.map.getLayer("otn-paths-highlight-layer"))
+        this.map.setLayoutProperty(
+          "otn-paths-highlight-layer",
+          "visibility",
+          "visible"
+        );
+
       this.map.fitBounds(bounds, {
         padding: 100,
         linear: false,
@@ -954,68 +1005,81 @@ class FaultStatisticsControl {
         duration: 2000,
       });
 
-      // 高亮所有匹配的路径（使用FeatureCollection）
-      const highlightData = {
-        type: "FeatureCollection",
-        features: matchedPaths,
-      };
-      if (this.map.getSource("otn-paths-highlight")) {
-        this.map.getSource("otn-paths-highlight").setData(highlightData);
-        // 启动流动动画（传递路径数据）
-        if (window.PathFlowAnimator) {
-          window.PathFlowAnimator.start(highlightData);
+      // 2. 飞行结束后启动动态高亮 (覆盖静态 -> 动画 -> 静态)
+      this.map.once("moveend", () => {
+        // 使用全局统一的高亮逻辑 (A-Z-A 动画 -> 静态高亮)
+        if (window.highlightPath) {
+          window.highlightPath(highlightData);
+        } else if (this.map.getSource("otn-paths-highlight")) {
+          // Fallback legacy logic
+          if (window.PathFlowAnimator) {
+            window.PathFlowAnimator.start(highlightData);
+          }
         }
-      }
 
-      // 在第一条路径的中点显示弹窗
-      const firstPath = matchedPaths[0];
-      const coords = firstPath.geometry.coordinates;
-      const midIndex = Math.floor(coords.length / 2);
-      const midPoint = coords[midIndex];
+        // 在第一条路径的中点显示弹窗
+        const firstPath = matchedPaths[0];
+        const coords = firstPath.geometry.coordinates;
+        const midIndex = Math.floor(coords.length / 2);
+        const midPoint = coords[midIndex];
 
-      // 弹窗标题：如果多路径显示数量
-      const popupTitle =
-        matchedPaths.length > 1
-          ? `光缆路径 (${matchedPaths.length}条)`
-          : firstPath.properties.name || "光缆路径";
+        // 弹窗标题：如果多路径显示数量
+        const popupTitle =
+          matchedPaths.length > 1
+            ? `光缆路径 (${matchedPaths.length}条)`
+            : firstPath.properties.name || "光缆路径";
 
-      // 使用 PopupTemplates 生成弹窗内容（与地图点击弹窗保持一致）
-      const pathUrl = firstPath.properties.url || "#"; // NetBox 路径对象链接
-      const pathProps = {
-        total_length: firstPath.properties.total_length || "",
-        operational_status: firstPath.properties.operational_status || "",
-      };
-      const pathPopupContent = PopupTemplates.pathPopup({
-        pathName: popupTitle,
-        pathUrl,
-        siteAName,
-        siteZName: siteZDisplay,
-        detailUrl,
-        props: pathProps,
-        timeStatsHtml,
+        // 使用 PopupTemplates 生成弹窗内容
+        const pathUrl = firstPath.properties.url || "#";
+        const pathProps = firstPath.properties;
+
+        const pathPopupContent = PopupTemplates.pathPopup({
+          pathName: popupTitle,
+          pathUrl,
+          siteAName: siteAName,
+          siteZName: siteZDisplay,
+          detailUrl,
+          props: pathProps,
+          timeStatsHtml,
+        });
+
+        // 创建弹窗
+        const pathPopup = new maplibregl.Popup({
+          maxWidth: "300px",
+          className: "stats-popup",
+        })
+          .setLngLat(midPoint)
+          .setHTML(pathPopupContent)
+          .addTo(this.map);
+
+        // 保存引用
+        window._currentPathPopup = pathPopup;
+
+        // 绑定关闭事件
+        pathPopup.on("close", () => {
+          // 如果标记了由于切换弹窗而关闭，则不清除高亮
+          if (pathPopup._suppressClear) return;
+
+          if (window.faultMapPlugin && window.faultMapPlugin.flowAnimator) {
+            window.faultMapPlugin.flowAnimator.clearHighlight();
+          } else if (window.PathFlowAnimator) {
+            window.PathFlowAnimator.stop();
+          }
+
+          const map = this.map;
+          if (map.getSource("otn-paths-highlight")) {
+            map.getSource("otn-paths-highlight").setData({
+              type: "FeatureCollection",
+              features: [],
+            });
+          }
+
+          if (window._currentPathPopup === pathPopup) {
+            window._currentPathPopup = null;
+          }
+        });
       });
 
-      this.currentPopup = new maplibregl.Popup({
-        maxWidth: "300px",
-        className: "stats-popup",
-      })
-        .setLngLat(midPoint)
-        .setHTML(pathPopupContent)
-        .addTo(this.map);
-
-      this.currentPopup.on("close", () => {
-        this.currentPopup = null;
-        // 停止流动动画并清除高亮
-        if (window.PathFlowAnimator) {
-          window.PathFlowAnimator.stop();
-        }
-        if (this.map.getSource("otn-paths-highlight")) {
-          this.map.getSource("otn-paths-highlight").setData({
-            type: "FeatureCollection",
-            features: [],
-          });
-        }
-      });
       return;
     }
 
