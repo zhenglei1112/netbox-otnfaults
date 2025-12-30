@@ -632,14 +632,19 @@ const FaultModePlugin = {
     const pathName = props.name || "未命名路径";
     let pathUrl = props.url || "";
 
-    // 如果 props.url 为空，尝试从元数据中查找
-    if (!pathUrl && window.OTNPathsMetadata) {
+    // 如果 props.url 或 total_length 为空，尝试从元数据中查找
+    if ((!pathUrl || !props.total_length) && window.OTNPathsMetadata) {
       // props.id 是路径 ID
       const meta = window.OTNPathsMetadata.find(
         (p) => p.properties && p.properties.id == props.id
       );
-      if (meta && meta.properties.url) {
-        pathUrl = meta.properties.url;
+      if (meta) {
+        if (!pathUrl && meta.properties.url) {
+          pathUrl = meta.properties.url;
+        }
+        if (props.total_length == null && meta.properties.total_length != null) {
+          props.total_length = meta.properties.total_length;
+        }
       }
     }
     const siteAName = props.site_a || "站点A";
@@ -870,7 +875,63 @@ const FaultModePlugin = {
   _loadPathMetadata() {
     // 加载 top5 路径等
     if (typeof OTNFaultMapAPI !== "undefined") {
-      const loadPromise = OTNFaultMapAPI.fetchPaths().then((data) => {
+      // 确保传入 apiKey，否则请求会失败
+      const apiKey = this.config ? this.config.apiKey : null;
+      console.log("[FaultMode] Loading metadata. APIKey present:", !!apiKey);
+      
+      const loadPromise = OTNFaultMapAPI.fetchPaths(apiKey).then((data) => {
+        // 预处理数据：确保 total_length 存在
+        if (data && Array.isArray(data)) {
+           // 定义计算距离函数 (Haversine Formula)
+           const calcLineDist = (coords) => {
+                let total = 0;
+                const R = 6371; // km
+                for (let i = 0; i < coords.length - 1; i++) {
+                    const [lon1, lat1] = coords[i];
+                    const [lon2, lat2] = coords[i+1];
+                    const dLat = (lat2 - lat1) * Math.PI / 180;
+                    const dLon = (lon2 - lon1) * Math.PI / 180;
+                    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                              Math.sin(dLon/2) * Math.sin(dLon/2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                    total += R * c;
+                }
+                return total;
+            };
+
+            data.forEach(item => {
+                if (item.properties && item.geometry) {
+                    // 如果 total_length 缺失或为 null，尝试从其他字段或几何计算获取
+                    if (item.properties.total_length == null) {
+                        // 1. 尝试备选字段
+                        if (item.properties.distance != null) item.properties.total_length = item.properties.distance;
+                        else if (item.properties.length != null) item.properties.total_length = item.properties.length;
+                        
+                        // 2. 如果仍无效，从几何计算
+                        if (item.properties.total_length == null) {
+                             try {
+                                let totalKm = 0;
+                                if (item.geometry.type === 'LineString') {
+                                    totalKm = calcLineDist(item.geometry.coordinates);
+                                } else if (item.geometry.type === 'MultiLineString') {
+                                    item.geometry.coordinates.forEach(coords => {
+                                        totalKm += calcLineDist(coords);
+                                    });
+                                }
+                                if (totalKm > 0) {
+                                    // 保留3位小数
+                                    item.properties.total_length = Math.round(totalKm * 1000) / 1000;
+                                }
+                             } catch (e) {
+                                 console.warn("[FaultMode] Failed to calculate length for path:", item.properties.id, e);
+                             }
+                        }
+                    }
+                }
+            });
+        }
+
         // 保存元数据到全局变量
         window.OTNPathsMetadata = data || [];
         // 更新 FlowAnimator

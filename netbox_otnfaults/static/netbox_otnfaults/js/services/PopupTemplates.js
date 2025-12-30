@@ -162,9 +162,11 @@ class PopupTemplates {
     props,
     timeStatsHtml,
   }) {
+    // 保留旧的长度显示
     const lengthHtml = props.total_length
       ? `<span><i class="mdi mdi-ruler"></i> ${props.total_length} km</span>`
       : "";
+
     const statusHtml = props.operational_status
       ? `<span><i class="mdi mdi-information"></i> ${props.operational_status}</span>`
       : "";
@@ -257,8 +259,14 @@ class PopupTemplates {
     siteAName,
     siteZName,
     detailUrl,
+    props,
     timeStatsHtml,
   }) {
+    // 保留旧的长度显示
+    const lengthHtml = props && props.total_length
+      ? `<span><i class="mdi mdi-ruler"></i> ${props.total_length} km</span>`
+      : "";
+
     return `
             <div class="stats-popup-content">
                 <div class="stats-popup-header">
@@ -272,6 +280,9 @@ class PopupTemplates {
                         <span><i class="mdi mdi-alpha-a-circle-outline"></i> ${siteAName}</span>
                         <span class="stats-popup-arrow">→</span>
                         <span><i class="mdi mdi-alpha-z-circle-outline"></i> ${siteZName}</span>
+                    </div>
+                    <div class="stats-popup-meta">
+                        ${lengthHtml}
                     </div>
                 </div>
                 ${timeStatsHtml || ""}

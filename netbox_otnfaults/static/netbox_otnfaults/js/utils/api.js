@@ -73,7 +73,8 @@ const OTNFaultMapAPI = {
                             admin_status: path.admin_status,
                             operational_status: path.operational_status,
                             segment_count: path.segment_count,
-                            total_length: path.total_length
+                            // 后端 model 字段为 calculated_length (米)，前端需转换为 km，并映射为 total_length
+                            total_length: path.calculated_length ? (parseFloat(path.calculated_length) / 1000).toFixed(3) : null
                         }
                     };
                 })
