@@ -30,7 +30,7 @@ const FAULT_STATUS_COLORS = COLORS_CONFIG.status_colors || {
   processing: "#dc3545", // 处理中 - 红色
   temporary_recovery: "#0d6efd", // 临时恢复 - 蓝色
   suspended: "#ffc107", // 挂起 - 黄色
-  closed: "#198754", // 已关闭 - 绿色
+  closed: "#6f42c1", // 已关闭 - 紫色
 };
 
 // 故障状态名称映射
@@ -63,4 +63,5 @@ const POPUP_STATUS_COLORS = COLORS_CONFIG.popup_status_colors || {
   gray: "#6c757d",
   red: "#dc3545",
   secondary: "#6c757d",
+  purple: "#6f42c1",
 };

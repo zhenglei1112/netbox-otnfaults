@@ -21,7 +21,6 @@ const FaultModePlugin = {
   searchControl: null,
 
   init(core) {
-    console.log("FaultModePlugin: initializing...");
     this.core = core;
     this.map = core.map;
     this.mapBase = core.mapBase;
@@ -178,7 +177,7 @@ const FaultModePlugin = {
       source: "fault-points",
       layout: {
         "icon-image": iconImageExpression,
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 4, 0.4, 10, 0.8],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 4, 0.6, 10, 1.2], // 放大显示比例
         "icon-allow-overlap": true,
         visibility: "none", // 初始隐藏，由 updateMapState 控制
       },
@@ -236,80 +235,81 @@ const FaultModePlugin = {
     // 为不同故障类型创建不同形状的图标（具有象形意义）
     // category: 'fiber'=光纤波浪线, 'power'=闪电, 'pigtail'=雪花, 'device'=芯片, 'other'=警告三角
     const createMarkerIcon = (category, color) => {
-      const size = 48;
+      const size = 64; // 增大 Canvas 尺寸 (64x64) -> 逻辑像素 32x32
       const canvas = document.createElement("canvas");
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext("2d");
 
-      const centerX = size / 2;
-      const centerY = size / 2;
+      // 缩放绘图环境，使得后续坐标仍可按 32x32 的逻辑坐标系绘制
+      // 这里的 16,16 将被映射为物理像素 32,32
+      ctx.scale(2, 2);
 
-      // 先绘制圆形背景
+      const centerX = 16; // 逻辑中心 x
+      const centerY = 16; // 逻辑中心 y
+      const radius = 9; // 逻辑半径 (物理半径 18)
+
+      // 1. 绘制底色圆形 (带白色描边以增加对比度)
       ctx.beginPath();
-      ctx.arc(centerX, centerY, 18, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
+
+      // 增加白色描边 (发光效果)
       ctx.strokeStyle = "white";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5; // 逻辑线宽 1.5 -> 实际 3px
       ctx.stroke();
 
-      // 在圆形背景上绘制白色图标
+      // 2. 绘制图标 (白色)
       ctx.strokeStyle = "white";
       ctx.fillStyle = "white";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.2; // 逻辑线宽 1.2 -> 实际 2.4px
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
       switch (category) {
         case "fiber":
-          // 光纤图标：波浪线表示光纤/光缆
+          // 光纤波浪线图标
+          const waveW = 7;
           ctx.beginPath();
-          ctx.lineWidth = 2.5;
-          ctx.moveTo(centerX - 10, centerY);
-          ctx.bezierCurveTo(
-            centerX - 6,
-            centerY - 6,
-            centerX - 2,
-            centerY + 6,
-            centerX + 2,
+          ctx.moveTo(centerX - waveW, centerY);
+          ctx.quadraticCurveTo(
+            centerX - waveW / 2,
+            centerY - 4,
+            centerX,
             centerY
           );
-          ctx.bezierCurveTo(
-            centerX + 6,
-            centerY - 6,
-            centerX + 10,
-            centerY,
-            centerX + 10,
+          ctx.quadraticCurveTo(
+            centerX + waveW / 2,
+            centerY + 4,
+            centerX + waveW,
             centerY
           );
           ctx.stroke();
-          // 两端的小圆点表示连接器
+          // 端点
           ctx.beginPath();
-          ctx.arc(centerX - 10, centerY, 2, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.beginPath();
-          ctx.arc(centerX + 10, centerY, 2, 0, Math.PI * 2);
+          ctx.arc(centerX - waveW, centerY, 1, 0, Math.PI * 2);
+          ctx.arc(centerX + waveW, centerY, 1, 0, Math.PI * 2);
           ctx.fill();
           break;
 
         case "power":
-          // 闪电图标：电力故障
+          // 闪电图标
           ctx.beginPath();
-          ctx.moveTo(centerX + 2, centerY - 10);
-          ctx.lineTo(centerX - 4, centerY);
-          ctx.lineTo(centerX, centerY);
-          ctx.lineTo(centerX - 2, centerY + 10);
-          ctx.lineTo(centerX + 4, centerY);
-          ctx.lineTo(centerX, centerY);
+          ctx.moveTo(centerX + 1, centerY - 6);
+          ctx.lineTo(centerX - 3, centerY + 1);
+          ctx.lineTo(centerX, centerY + 1);
+          ctx.lineTo(centerX - 1, centerY + 6); // 闪电尖端
+          ctx.lineTo(centerX + 3, centerY - 1); // 回折点
+          ctx.lineTo(centerX, centerY - 1);
           ctx.closePath();
           ctx.fill();
           break;
 
         case "pigtail":
           // 雪花图标：空调故障（制冷）
-          ctx.lineWidth = 2;
-          const armLength = 9;
+          ctx.lineWidth = 1.2;
+          const armLength = 6;
           for (let i = 0; i < 6; i++) {
             const angle = (i * 60 * Math.PI) / 180;
             const x1 = centerX;
@@ -321,7 +321,7 @@ const FaultModePlugin = {
             ctx.lineTo(x2, y2);
             ctx.stroke();
             // 分支
-            const branchLen = 3;
+            const branchLen = 2;
             const bA1 = angle + Math.PI / 4;
             const bA2 = angle - Math.PI / 4;
             const midX = centerX + Math.cos(angle) * (armLength * 0.6);
@@ -345,42 +345,42 @@ const FaultModePlugin = {
 
         case "device":
           // 芯片/服务器图标
-          const chipSize = 12;
-          const pinLen = 3;
+          const chipSize = 10;
+          const pinLen = 2;
           ctx.fillRect(
             centerX - chipSize / 2,
             centerY - chipSize / 2,
             chipSize,
             chipSize
           );
-          ctx.lineWidth = 1.5;
+          ctx.lineWidth = 1;
 
           // 上边
           for (let i = -1; i <= 1; i++) {
             ctx.beginPath();
-            ctx.moveTo(centerX + i * 4, centerY - chipSize / 2);
-            ctx.lineTo(centerX + i * 4, centerY - chipSize / 2 - pinLen);
+            ctx.moveTo(centerX + i * 3, centerY - chipSize / 2);
+            ctx.lineTo(centerX + i * 3, centerY - chipSize / 2 - pinLen);
             ctx.stroke();
           }
           // 下边
           for (let i = -1; i <= 1; i++) {
             ctx.beginPath();
-            ctx.moveTo(centerX + i * 4, centerY + chipSize / 2);
-            ctx.lineTo(centerX + i * 4, centerY + chipSize / 2 + pinLen);
+            ctx.moveTo(centerX + i * 3, centerY + chipSize / 2);
+            ctx.lineTo(centerX + i * 3, centerY + chipSize / 2 + pinLen);
             ctx.stroke();
           }
           // 左边
           for (let i = -1; i <= 1; i++) {
             ctx.beginPath();
-            ctx.moveTo(centerX - chipSize / 2, centerY + i * 4);
-            ctx.lineTo(centerX - chipSize / 2 - pinLen, centerY + i * 4);
+            ctx.moveTo(centerX - chipSize / 2, centerY + i * 3);
+            ctx.lineTo(centerX - chipSize / 2 - pinLen, centerY + i * 3);
             ctx.stroke();
           }
           // 右边
           for (let i = -1; i <= 1; i++) {
             ctx.beginPath();
-            ctx.moveTo(centerX + chipSize / 2, centerY + i * 4);
-            ctx.lineTo(centerX + chipSize / 2 + pinLen, centerY + i * 4);
+            ctx.moveTo(centerX + chipSize / 2, centerY + i * 3);
+            ctx.lineTo(centerX + chipSize / 2 + pinLen, centerY + i * 3);
             ctx.stroke();
           }
 
@@ -392,18 +392,18 @@ const FaultModePlugin = {
         default:
           // 警告三角形
           ctx.beginPath();
-          ctx.moveTo(centerX, centerY - 9);
-          ctx.lineTo(centerX + 9, centerY + 7);
-          ctx.lineTo(centerX - 9, centerY + 7);
+          ctx.moveTo(centerX, centerY - 5);
+          ctx.lineTo(centerX + 5, centerY + 4);
+          ctx.lineTo(centerX - 5, centerY + 4);
           ctx.closePath();
           ctx.stroke();
           ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.moveTo(centerX, centerY - 4);
-          ctx.lineTo(centerX, centerY + 2);
+          ctx.moveTo(centerX, centerY - 2);
+          ctx.lineTo(centerX, centerY + 1);
           ctx.stroke();
           ctx.beginPath();
-          ctx.arc(centerX, centerY + 5, 1.5, 0, Math.PI * 2);
+          ctx.arc(centerX, centerY + 3, 0.8, 0, Math.PI * 2);
           ctx.fill();
           break;
       }
@@ -481,24 +481,47 @@ const FaultModePlugin = {
   _setupEventListeners() {
     const map = this.map;
 
-    // 点击事件 (统一处理)
+    // 1. 故障点交互 (改为悬停显示，带延迟关闭)
+    map.on("mouseenter", "fault-points-layer", (e) => {
+      map.getCanvas().style.cursor = "pointer";
+      
+      // 如果有待关闭的定时器，清除它（用户移回到了点上）
+      if (this.popupCloseTimer) {
+        clearTimeout(this.popupCloseTimer);
+        this.popupCloseTimer = null;
+      }
+
+      // 如果当前没有弹窗，或者移动到了不同的 Feature，则显示新的
+      // 简单起见，这里总是刷新，也可以优化为判断 ID 是否变化
+      if (e.features.length) {
+         // 注意：频繁刷新可能会闪烁，如果鼠标在同一个点内部移动触发多次 mouseenter（通常不会，除非有点重叠）
+         this._showFaultPopup(e.features[0]);
+      }
+    });
+
+    map.on("mouseleave", "fault-points-layer", () => {
+      map.getCanvas().style.cursor = "";
+      // 启动延迟关闭
+      this._startPopupCloseTimer();
+    });
+
+    // 2. 点击事件 (保留站点和路径的点击)
     map.on("click", (e) => {
       const features = map.queryRenderedFeatures(e.point, {
         layers: [
-          "fault-points-layer",
+          // "fault-points-layer", // 故障点已移至 hover
           "netbox-sites-layer",
           "otn-paths-layer",
           "otn-paths-labels",
         ],
       });
 
+
       if (!features.length) return;
 
       const feature = features[0];
       // 处理弹窗... (逻辑复用 PopupTemplates)
-      if (feature.layer.id === "fault-points-layer") {
-        this._showFaultPopup(feature);
-      } else if (feature.layer.id === "netbox-sites-layer") {
+      if (feature.layer.id === "netbox-sites-layer") {
         this._showSitePopup(feature);
       } else if (
         feature.layer.id === "otn-paths-labels" ||
@@ -514,11 +537,50 @@ const FaultModePlugin = {
   _showFaultPopup(feature) {
     if (typeof PopupTemplates !== "undefined") {
       const html = PopupTemplates.faultPopup(feature.properties);
-      new maplibregl.Popup()
+      
+      // 清除未执行的关闭定时器
+      if (this.popupCloseTimer) {
+        clearTimeout(this.popupCloseTimer);
+        this.popupCloseTimer = null;
+      }
+
+      if (this.currentFaultPopup) {
+        this.currentFaultPopup.remove();
+      }
+
+      this.currentFaultPopup = new maplibregl.Popup({
+        closeButton: false, // 悬停模式通常无需关闭按钮
+        closeOnClick: false,
+        className: "fault-popup-container" // 方便样式控制或查找
+      })
         .setLngLat(feature.geometry.coordinates)
         .setHTML(html)
         .addTo(this.map);
+
+      // 为弹窗 DOM 添加鼠标交互，防止移动到弹窗上时消失
+      const popupEl = this.currentFaultPopup.getElement();
+      
+      popupEl.addEventListener("mouseenter", () => {
+        if (this.popupCloseTimer) {
+          clearTimeout(this.popupCloseTimer);
+          this.popupCloseTimer = null;
+        }
+      });
+
+      popupEl.addEventListener("mouseleave", () => {
+        this._startPopupCloseTimer();
+      });
     }
+  },
+
+  _startPopupCloseTimer() {
+    if (this.popupCloseTimer) clearTimeout(this.popupCloseTimer);
+    this.popupCloseTimer = setTimeout(() => {
+      if (this.currentFaultPopup) {
+        this.currentFaultPopup.remove();
+        this.currentFaultPopup = null;
+      }
+    }, 300); // 300ms 延迟关闭，留出移动鼠标的时间
   },
 
   _showSitePopup(feature) {
@@ -797,6 +859,11 @@ const FaultModePlugin = {
       // heatmap
       map.setLayoutProperty("fault-heatmap-layer", "visibility", "visible");
       map.setLayoutProperty("fault-points-layer", "visibility", "none");
+    }
+
+    // 6. 更新图例可见性
+    if (this.legendControl) {
+      this.legendControl.updateVisibility(mode);
     }
   },
 

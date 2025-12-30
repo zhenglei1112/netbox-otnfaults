@@ -265,7 +265,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 'status_names': {val: label for val, label, color in FaultStatusChoices.CHOICES},
                 'popup_status_colors': {
                     key: self._get_hex_color(key) 
-                    for key in ['orange', 'blue', 'yellow', 'green', 'gray', 'red', 'secondary']
+                    for key in ['orange', 'blue', 'yellow', 'green', 'gray', 'red', 'secondary', 'purple']
                 }
             }, cls=DjangoJSONEncoder),
 

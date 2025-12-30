@@ -16,6 +16,10 @@ class NetBoxMapBase {
         '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="12" cy="16" r="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="8" x2="12" y2="16"/><line x1="16" y1="8" x2="12" y2="16"/></svg>',
       filter:
         '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>',
+      projection_globe:
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+      projection_flat:
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',
     };
   }
 
@@ -297,7 +301,6 @@ class NetBoxMapBase {
 
         // 绑定点击事件，确保 this 指向 HomeControl 实例
         this.homeButton.addEventListener("click", () => {
-             console.log("Home button clicked"); // Debug log
              this.goHome();
         });
 
@@ -311,7 +314,6 @@ class NetBoxMapBase {
       }
 
       goHome() {
-        console.log("goHome triggered, targetBounds:", this.targetBounds);
         if (this.targetBounds) {
           // 如果设置了动态边界（如路径模式），则适配边界
           this.map.fitBounds(this.targetBounds, {
@@ -337,6 +339,72 @@ class NetBoxMapBase {
 
     this.homeControl = new HomeControl();
     this.map.addControl(this.homeControl, position);
+  }
+
+  /**
+   * 添加投影切换控件 (Globe <-> Mercator)
+   */
+  addProjectionControl(position = "top-right") {
+    const base = this;
+
+    class ProjectionControl {
+      onAdd(map) {
+        this.map = map;
+        this.container = document.createElement("div");
+        this.container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+        this.button = document.createElement("button");
+        this.button.className = "maplibregl-ctrl-icon";
+        this.button.type = "button";
+        
+        // 绑定点击事件
+        this.button.addEventListener("click", () => this.toggleProjection());
+        
+        this.container.appendChild(this.button);
+        
+        // 初始化图标和提示
+        this.updateUI();
+        
+        // 监听投影变化以同步 UI (防止外部修改导致不同步)
+        // MapLibre 目前没有明确的 'projection' 事件，但我们可以依赖点击更新
+        // 或者在 render 中检查? 不，简单处理即可。
+        
+        return this.container;
+      }
+
+      onRemove() {
+        this.container.parentNode.removeChild(this.container);
+        this.map = undefined;
+      }
+
+      toggleProjection() {
+        const props = this.map.getProjection && this.map.getProjection();
+        const currentProjection = (props && props.type) ? props.type : 'mercator';
+        const newProjection = currentProjection === 'globe' ? 'mercator' : 'globe';
+        this.map.setProjection({ type: newProjection });
+        // 立即更新 UI，虽然 setProjection 可能是异步动画，但状态通常立即变更
+        // 稍微延迟一下确保 getProjection 获取到新值，或者直接根据 newProjection 更新
+        setTimeout(() => this.updateUI(), 100);
+      }
+
+      updateUI() {
+        if (!this.map) return;
+        const props = this.map.getProjection && this.map.getProjection();
+        const currentProjection = (props && props.type) ? props.type : 'mercator';
+        
+        if (currentProjection === 'globe') {
+          // 当前是地球，显示切换到平面的图标
+          this.button.innerHTML = base.svgIcons.projection_flat;
+          this.button.title = "切换为平面地图 (Mercator)";
+        } else {
+          // 当前是平面，显示切换到地球的图标
+          this.button.innerHTML = base.svgIcons.projection_globe;
+          this.button.title = "切换为地球模式 (Globe)";
+        }
+      }
+    }
+
+    this.projectionControl = new ProjectionControl();
+    this.map.addControl(this.projectionControl, position);
   }
 
   /**

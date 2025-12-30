@@ -17,7 +17,6 @@ class OTNMapCore {
    * @param {Object} modePlugin - 模式特定插件对象
    */
   async init(modePlugin) {
-    console.log("OTNMapCore: Initializing with mode", this.config.mode);
     this.modePlugin = modePlugin;
 
     // 1. 初始化地图实例
@@ -68,7 +67,13 @@ class OTNMapCore {
       this.mapBase.emphasizeChinaBoundaries();
       this.mapBase.setLanguageToChinese();
       this.mapBase.filterLabels();
+      this.mapBase.filterLabels();
       this.mapBase.initHighwayShields();
+    }
+    
+    // 设置投影 (Globe 或 Mercator)
+    if (this.config.projection) {
+        this.mapBase.setProjection(this.config.projection);
     }
   }
 
@@ -158,6 +163,8 @@ class OTNMapCore {
           "circle-color": "#00aaff",
           "circle-stroke-width": 1,
           "circle-stroke-color": "#fff",
+          "circle-opacity": ["step", ["zoom"], 0.5, 6, 1], // Zoom < 6: 50%, Zoom >= 6: 100%
+          "circle-stroke-opacity": ["step", ["zoom"], 0.5, 6, 1],
         },
       });
 
@@ -196,6 +203,7 @@ class OTNMapCore {
 
   _addCommonControls() {
     this.mapBase.addStandardControls();
+    this.mapBase.addProjectionControl(); // 添加投影切换按钮
     this.mapBase.addHomeControl();
 
     // 如果配置中包含 measures 控件
@@ -211,7 +219,76 @@ class OTNMapCore {
   }
 
   _addMeasuresControl() {
+    const map = this.map;
     const MeasuresControl = window.maplibreGLMeasures.default;
+
+    // 总距离标签源 ID
+    const TOTAL_DISTANCE_SOURCE = "measures-total-distance";
+    const TOTAL_DISTANCE_LAYER = "measures-total-distance-labels";
+
+    // 格式化距离显示
+    const formatDistance = (meters) => {
+      if (meters >= 1000) {
+        return (meters / 1000).toFixed(2) + " 公里";
+      }
+      return meters.toFixed(0) + " m";
+    };
+
+    // 计算 LineString 的总长度（米）
+    const calculateLineLength = (coords) => {
+      let total = 0;
+      for (let i = 1; i < coords.length; i++) {
+        const [lon1, lat1] = coords[i - 1];
+        const [lon2, lat2] = coords[i];
+        // Haversine 公式计算两点距离
+        const R = 6371000; // 地球半径（米）
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        total += R * c;
+      }
+      return total;
+    };
+
+    // 初始化总距离图层（确保只添加一次）
+    const initTotalDistanceLayer = () => {
+      if (!map.getSource(TOTAL_DISTANCE_SOURCE)) {
+        map.addSource(TOTAL_DISTANCE_SOURCE, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+        map.addLayer({
+          id: TOTAL_DISTANCE_LAYER,
+          type: "symbol",
+          source: TOTAL_DISTANCE_SOURCE,
+          layout: {
+            "text-field": ["get", "label"],
+            // 使用 Open Sans Regular，因为它是测距插件默认使用的字体，本地底图肯定支持
+            "text-font": ["Open Sans Regular"],
+            "text-size": 14,
+            "text-anchor": "top",
+            "text-offset": [0, 1],
+            "text-allow-overlap": true,
+            "text-ignore-placement": true,
+          },
+          paint: {
+            "text-color": "#1565C0",
+            "text-halo-color": "#fff",
+            "text-halo-width": 2,
+          },
+        });
+      }
+    };
+
+    // 使用 requestAnimationFrame 防抖
+    let animationFrameId = null;
+
     const measuresControl = new MeasuresControl({
       lang: {
         areaMeasurementButtonTitle: "测量面积",
@@ -220,9 +297,85 @@ class OTNMapCore {
       },
       units: "metric",
       style: {
-        text: { color: "#D20C0C", font: "Open Sans Regular" },
-        common: { midPointColor: "#D20C0C" },
-        lengthMeasurement: { lineColor: "#D20C0C" },
+        text: {
+          radialOffset: 0.9,
+          letterSpacing: 0.05,
+          color: "#D20C0C",
+          haloColor: "#fff",
+          haloWidth: 1,
+          font: "Open Sans Regular",
+        },
+        common: {
+          midPointRadius: 3,
+          midPointColor: "#D20C0C",
+          midPointHaloRadius: 5,
+          midPointHaloColor: "#FFF",
+        },
+        areaMeasurement: {
+          fillColor: "#D20C0C",
+          fillOutlineColor: "#D20C0C",
+          fillOpacity: 0.1,
+          lineWidth: 2,
+        },
+        lengthMeasurement: {
+          lineWidth: 2,
+          lineColor: "#D20C0C",
+        },
+      },
+      // 渲染回调：在每条线的终点显示总距离
+      onRender: (features) => {
+        // 如果有挂起的更新，取消它
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+        }
+
+        // 安排新的更新
+        animationFrameId = requestAnimationFrame(() => {
+          // 确保图层存在
+          if (!map.getSource(TOTAL_DISTANCE_SOURCE)) {
+            initTotalDistanceLayer();
+          }
+
+          const totalLabels = [];
+          if (features && features.features) {
+            // 获取绘图控件的原始 features
+            const drawFeatures =
+              measuresControl._drawCtrl?.getAll?.()?.features || [];
+            drawFeatures.forEach((feature) => {
+              if (feature.geometry.type === "LineString") {
+                const coords = feature.geometry.coordinates;
+                if (coords.length >= 2) {
+                  const totalLength = calculateLineLength(coords);
+                  const endPoint = coords[coords.length - 1];
+                  totalLabels.push({
+                    type: "Feature",
+                    properties: {
+                      label: "总计: " + formatDistance(totalLength),
+                    },
+                    geometry: {
+                      type: "Point",
+                      coordinates: endPoint,
+                    },
+                  });
+                }
+              }
+            });
+          }
+
+          // 更新数据
+          const source = map.getSource(TOTAL_DISTANCE_SOURCE);
+          if (source) {
+            source.setData({
+              type: "FeatureCollection",
+              features: totalLabels,
+            });
+          }
+
+          // 保持图层在顶部
+          if (map.getLayer(TOTAL_DISTANCE_LAYER)) {
+            map.moveLayer(TOTAL_DISTANCE_LAYER);
+          }
+        });
       },
     });
 
@@ -230,10 +383,22 @@ class OTNMapCore {
     const originalFormatMetric =
       measuresControl._formatToMetricSystem.bind(measuresControl);
     measuresControl._formatToMetricSystem = function (value) {
-      return originalFormatMetric(value).replace("km", "公里");
+      try {
+        const text = originalFormatMetric(value);
+        return text ? text.replace("km", "公里") : text;
+      } catch (e) {
+        return value;
+      }
     };
 
     this.mapBase.addControl(measuresControl, "top-right");
+
+    // 确保在地图加载完成后初始化（防止过早添加）
+    if (map.loaded()) {
+      initTotalDistanceLayer();
+    } else {
+      map.on("load", initTotalDistanceLayer);
+    }
   }
 
   _findFirstSymbolLayerId() {

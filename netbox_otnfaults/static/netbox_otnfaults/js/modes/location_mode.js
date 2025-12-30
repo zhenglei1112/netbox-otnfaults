@@ -10,7 +10,6 @@ const LocationModePlugin = {
   mapBase: null,
 
   init(core) {
-    console.log("LocationModePlugin: initializing...");
     this.core = core;
     this.map = core.map;
     this.mapBase = core.mapBase;

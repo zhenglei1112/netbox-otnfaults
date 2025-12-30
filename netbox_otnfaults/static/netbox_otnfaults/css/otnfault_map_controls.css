@@ -20,7 +20,7 @@
 }
 
 /* 只保留按钮之间的分隔线 */
-.maplibregl-ctrl-group button + button {
+.maplibregl-ctrl-group button+button {
     border-top: 1px solid #ddd !important;
 }
 
@@ -470,4 +470,29 @@
 .fault-popup-thumbnail:hover {
     transform: scale(1.1);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* =================================
+   通用弹窗样式修复
+   ================================= */
+
+/* 去除弹窗聚焦时的黑框 (outline) - 强力模式 */
+.maplibregl-popup,
+.maplibregl-popup-content,
+.maplibregl-popup-close-button,
+.maplibregl-popup:focus,
+.maplibregl-popup-content:focus,
+.maplibregl-popup-close-button:focus,
+.maplibregl-popup:focus-visible,
+.maplibregl-popup-content:focus-visible,
+.maplibregl-popup-close-button:focus-visible,
+.maplibregl-popup * :focus,
+.maplibregl-popup * :focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* 恢复必要的阴影 (仅针对 content) */
+.stats-popup .maplibregl-popup-content {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
 }

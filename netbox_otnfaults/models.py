@@ -96,7 +96,7 @@ class FaultStatusChoices(ChoiceSet):
         (PROCESSING, '处理中', 'red'),
         (TEMPORARY_RECOVERY, '临时恢复', 'blue'),
         (SUSPENDED, '挂起', 'yellow'),
-        (CLOSED, '已关闭', 'green'),
+        (CLOSED, '已关闭', 'purple'),
     ]
 
 
