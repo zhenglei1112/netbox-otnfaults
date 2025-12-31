@@ -23,6 +23,13 @@ class OTNMapCore {
     // 1. 初始化地图实例 (立即渲染容器)
     try {
       this.map = this.mapBase.init("map", this.config.apiKey);
+
+      // 初始隐藏地图画布，防止显示平面模式的短暂跳变
+      if (this.config.projection === 'globe') {
+        this.map.getCanvas().style.opacity = '0';
+        this.map.getCanvas().style.transition = 'opacity 0.3s ease-in';
+      }
+
       if (window.OTNPerf) window.OTNPerf.mark('map_instance_created');
       window.map = this.map;
       window.mapBase = this.mapBase;
@@ -72,6 +79,14 @@ class OTNMapCore {
       NetBoxMapBase.hideLoading("map");
       this._setupBasemapFeatures();
 
+      // 投影设置完成后，显示地图
+      if (this.config.projection === 'globe') {
+        // 使用 requestAnimationFrame 确保渲染帧已更新
+        requestAnimationFrame(() => {
+          this.map.getCanvas().style.opacity = '1';
+        });
+      }
+
       // 3. 加载共享层（如站点、OTN路径）
       this._initSharedLayers();
       if (window.OTNPerf) window.OTNPerf.mark('shared_layers_done');
@@ -94,10 +109,10 @@ class OTNMapCore {
       if (window.OTN_SHOW_DEBUG_PANEL && this._renderDebugPanel) {
         this._renderDebugPanel();
       }
-    });
 
-    // 5. 添加通用控件
-    this._addCommonControls();
+      // 5. 添加通用控件 (必须在 load 事件内，确保样式和字形加载完成)
+      this._addCommonControls();
+    });
   }
 
   /**
@@ -115,6 +130,8 @@ class OTNMapCore {
     // 设置投影 (Globe 或 Mercator)
     if (this.config.projection) {
       this.mapBase.setProjection(this.config.projection);
+      // 同步图标状态
+      this.mapBase.updateProjectionIcon();
     }
   }
 
@@ -260,10 +277,47 @@ class OTNMapCore {
   }
 
   _addMeasuresControl() {
-    const map = this.map;
     const MeasuresControl = window.maplibreGLMeasures.default;
+    const map = this.map; // 定义局部变量以便在回调中使用
 
-    // 总距离标签源 ID
+    // 动态从当前底图样式中提取一个正在使用的有效字体
+    // 这确保了无论使用什么瓦片服务商（本地、Stadia、MapTiler等）都能正常显示
+    const getWorkingFont = () => {
+      const style = map.getStyle();
+      if (style && style.layers) {
+        for (const layer of style.layers) {
+          // 只查找 symbol 类型的图层，它们有 text-font 属性
+          if (layer.type === "symbol" && layer.layout) {
+            const textFont = layer.layout["text-font"];
+            // 样式中的 text-font 可能是数组（直接值）或表达式
+            if (Array.isArray(textFont) && textFont.length > 0 && typeof textFont[0] === "string") {
+              // 确保不是 MapLibre 表达式（表达式数组第一个元素通常是 "literal", "step", "match" 等关键字）
+              const expressionKeywords = ["literal", "step", "match", "case", "coalesce", "interpolate", "get", "concat"];
+              if (!expressionKeywords.includes(textFont[0])) {
+                console.log("[OTNMap] Extracted working font from basemap:", textFont[0]);
+                return textFont; // 返回整个字体栈
+              }
+            }
+          }
+        }
+      }
+      console.warn("[OTNMap] Could not extract font from basemap, using fallback.");
+      // 回退：如果无法提取，使用通用的后备字体
+      return this.config.useLocalBasemap ? ["Open Sans Regular", "Arial Unicode MS Regular"] : ["Stadia Regular"];
+    };
+
+    // 直接根据底图类型选择字体，不依赖复杂的提取逻辑
+    // 本地底图使用 Open Sans，在线底图尝试 Noto Sans Regular
+    let fontStack;
+    if (this.config.useLocalBasemap) {
+      fontStack = ["Open Sans Regular", "Arial Unicode MS Regular"];
+      console.log("[OTNMap] Using local basemap font: Open Sans Regular");
+    } else {
+      // 尝试多种常见字体
+      fontStack = ["Noto Sans Regular", "Open Sans Regular", "Arial Unicode MS Regular"];
+      console.log("[OTNMap] Using online basemap font: Noto Sans Regular");
+    }
+
     const TOTAL_DISTANCE_SOURCE = "measures-total-distance";
     const TOTAL_DISTANCE_LAYER = "measures-total-distance-labels";
 
@@ -310,13 +364,14 @@ class OTNMapCore {
           source: TOTAL_DISTANCE_SOURCE,
           layout: {
             "text-field": ["get", "label"],
-            // 使用 Open Sans Regular，因为它是测距插件默认使用的字体，本地底图肯定支持
-            "text-font": ["Open Sans Regular"],
+            "text-font": fontStack,
             "text-size": 14,
             "text-anchor": "top",
             "text-offset": [0, 1],
             "text-allow-overlap": true,
             "text-ignore-placement": true,
+            "text-pitch-alignment": "viewport", // 确保在地球模式下文字面朝屏幕
+            "text-rotation-alignment": "viewport",
           },
           paint: {
             "text-color": "#1565C0",
@@ -344,7 +399,7 @@ class OTNMapCore {
           color: "#D20C0C",
           haloColor: "#fff",
           haloWidth: 1,
-          font: "Open Sans Regular",
+          // 不设置 font，使用插件默认值
         },
         common: {
           midPointRadius: 3,
@@ -403,7 +458,7 @@ class OTNMapCore {
             });
           }
 
-          // 更新数据
+          // 更新总距离标签数据
           const source = map.getSource(TOTAL_DISTANCE_SOURCE);
           if (source) {
             source.setData({
@@ -412,15 +467,20 @@ class OTNMapCore {
             });
           }
 
-          // 保持图层在顶部
-          if (map.getLayer(TOTAL_DISTANCE_LAYER)) {
-            map.moveLayer(TOTAL_DISTANCE_LAYER);
+          // 修复插件图层字体：确保使用 fontStack 覆盖插件默认字体
+          if (map.getLayer("layer-draw-labels")) {
+            const currentFont = map.getLayoutProperty("layer-draw-labels", "text-font");
+            // 只在第一次检测到默认字体时进行覆盖
+            if (currentFont && currentFont[0] && currentFont[0].includes("Klokantech")) {
+              console.log("[OTNMap] Overriding plugin layer font from", currentFont[0], "to", fontStack[0]);
+              map.setLayoutProperty("layer-draw-labels", "text-font", fontStack);
+            }
           }
         });
       },
     });
 
-    // Monkey patch specific to 'km' -> '公里'
+    // Monkey patch: 'km' -> '公里'
     const originalFormatMetric =
       measuresControl._formatToMetricSystem.bind(measuresControl);
     measuresControl._formatToMetricSystem = function (value) {
@@ -433,6 +493,15 @@ class OTNMapCore {
     };
 
     this.mapBase.addControl(measuresControl, "top-right");
+
+    // 控件添加后，立即尝试修复插件图层字体
+    // 使用短延时确保插件已完成图层创建
+    setTimeout(() => {
+      if (map.getLayer("layer-draw-labels")) {
+        console.log("[OTNMap] Patching plugin layer font to:", fontStack);
+        map.setLayoutProperty("layer-draw-labels", "text-font", fontStack);
+      }
+    }, 100);
 
     // 确保在地图加载完成后初始化（防止过早添加）
     if (map.loaded()) {

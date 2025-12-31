@@ -47,8 +47,8 @@ class NetBoxMapBase {
       container: containerId,
       center: center,
       zoom: zoom,
-      // 注意: globe 投影需要在样式加载后通过 setProjection 设置
     };
+
 
     // 始终注册 pmtiles 协议（用于加载路径数据）
     if (typeof pmtiles !== "undefined") {
@@ -405,6 +405,15 @@ class NetBoxMapBase {
 
     this.projectionControl = new ProjectionControl();
     this.map.addControl(this.projectionControl, position);
+  }
+
+  /**
+   * 手动更新投影控件图标状态
+   */
+  updateProjectionIcon() {
+    if (this.projectionControl && this.projectionControl.updateUI) {
+      this.projectionControl.updateUI();
+    }
   }
 
   /**

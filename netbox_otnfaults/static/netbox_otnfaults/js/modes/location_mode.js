@@ -153,8 +153,15 @@ const LocationModePlugin = {
   _setupClickHandler() {
     this.map.on("click", (e) => {
       // 简化版点击处理，主要针对站点和路径标签
+      // 安全检查：只查询当前样式中确实存在的图层
+      const targetLayers = ["netbox-sites-layer", "otn-paths-labels"].filter(
+        (id) => this.map.getLayer(id)
+      );
+
+      if (targetLayers.length === 0) return;
+
       const features = this.map.queryRenderedFeatures(e.point, {
-        layers: ["netbox-sites-layer", "otn-paths-labels"],
+        layers: targetLayers,
       });
       if (!features.length) return;
 
