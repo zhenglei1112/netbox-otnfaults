@@ -17,11 +17,13 @@ class OTNMapCore {
    * @param {Object} modePlugin - 模式特定插件对象
    */
   async init(modePlugin) {
+    if (window.OTNPerf) window.OTNPerf.mark('init_start');
     this.modePlugin = modePlugin;
 
     // 1. 初始化地图实例
     try {
       this.map = this.mapBase.init("map", this.config.apiKey);
+      if (window.OTNPerf) window.OTNPerf.mark('map_instance_created');
       // 暴露给控制台调试
       window.map = this.map;
       window.mapBase = this.mapBase;
@@ -35,16 +37,19 @@ class OTNMapCore {
 
     // 2. 基础底图设置
     this.map.on("load", () => {
+      if (window.OTNPerf) window.OTNPerf.mark('map_load_event');
       NetBoxMapBase.hideLoading("map");
       this._setupBasemapFeatures();
 
       // 3. 加载共享层（如站点、OTN路径）
       this._initSharedLayers();
+      if (window.OTNPerf) window.OTNPerf.mark('shared_layers_done');
 
       // 4. 初始化模式插件
       if (this.modePlugin && typeof this.modePlugin.init === "function") {
         try {
           this.modePlugin.init(this);
+          if (window.OTNPerf) window.OTNPerf.mark('mode_plugin_done');
         } catch (pluginError) {
           console.error("OTNMapCore: Plugin init failed", pluginError);
           NetBoxMapBase.showError(
@@ -52,6 +57,11 @@ class OTNMapCore {
             "Map mode initialization check console."
           );
         }
+      }
+
+      // 渲染调试面板
+      if (window.OTN_SHOW_DEBUG_PANEL && this._renderDebugPanel) {
+        this._renderDebugPanel();
       }
     });
 
@@ -70,10 +80,10 @@ class OTNMapCore {
       this.mapBase.filterLabels();
       this.mapBase.initHighwayShields();
     }
-    
+
     // 设置投影 (Globe 或 Mercator)
     if (this.config.projection) {
-        this.mapBase.setProjection(this.config.projection);
+      this.mapBase.setProjection(this.config.projection);
     }
   }
 
@@ -247,9 +257,9 @@ class OTNMapCore {
         const a =
           Math.sin(dLat / 2) * Math.sin(dLat / 2) +
           Math.cos((lat1 * Math.PI) / 180) *
-            Math.cos((lat2 * Math.PI) / 180) *
-            Math.sin(dLon / 2) *
-            Math.sin(dLon / 2);
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         total += R * c;
       }
@@ -420,6 +430,68 @@ class OTNMapCore {
     } else {
       core.init(plugin);
     }
+  }
+
+  /**
+   * 渲染调试面板 (性能监控)
+   */
+  _renderDebugPanel() {
+    if (!window.OTNPerf) return;
+
+    // 再次标记渲染时间
+    window.OTNPerf.mark('render_debug_start');
+
+    const perf = window.OTNPerf;
+    const nav = perf.getNavigationTiming ? perf.getNavigationTiming() : null;
+
+    let stats = [];
+
+    // 添加网络计时
+    if (nav) {
+      stats.push(
+        { label: '后端响应 (TTFB)', duration: nav.ttfb },
+        { label: '内容下载', duration: nav.download },
+        { label: 'DOM解析', duration: nav.dom_processing },
+        { label: '----------------', duration: '' },
+      );
+    }
+
+    stats.push(
+      { label: '页面初始化', duration: perf.getDuration('page_start', 'init_start') },
+      { label: '地图实例', duration: perf.getDuration('init_start', 'map_instance_created') },
+      { label: '异步加载', duration: perf.getDuration('map_instance_created', 'map_load_event') },
+      { label: '共享图层', duration: perf.getDuration('map_load_event', 'shared_layers_done') },
+      { label: '插件初始化', duration: perf.getDuration('shared_layers_done', 'mode_plugin_done') },
+      { label: '总耗时 (JS)', duration: perf.getDuration('page_start', 'mode_plugin_done') },
+    );
+
+    const container = document.createElement('div');
+    container.className = 'debug-perf-panel';
+
+    let html = '<div class="debug-perf-header">性能监控</div><div class="debug-perf-body">';
+    stats.forEach(item => {
+      // 处理分隔线
+      if (item.label.startsWith('--')) {
+        html += `<div style="border-bottom: 1px dashed #555; margin: 4px 0;"></div>`;
+        return;
+      }
+      const val = item.duration === '' ? '' : item.duration + ' ms';
+      html += `
+        <div class="debug-perf-row">
+          <span class="label">${item.label}</span>
+          <span class="value">${val}</span>
+        </div>
+      `;
+    });
+    html += '</div>';
+
+    container.innerHTML = html;
+
+    // 添加到地图容器中 (左下角，避开 Logo)
+    const mapContainer = this.map.getContainer();
+    mapContainer.appendChild(container);
+
+    console.log('[OTNPerf] Debug panel rendered');
   }
 }
 

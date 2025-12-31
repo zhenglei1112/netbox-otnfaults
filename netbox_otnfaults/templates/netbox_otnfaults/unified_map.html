@@ -59,9 +59,43 @@
   }
 </style>
 
+<!-- 性能监控初始化 -->
+<script>
+  window.OTNPerf = {
+    marks: {},
+    init: function() {
+      this.marks['page_start'] = performance.now();
+    },
+    mark: function(name) {
+      this.marks[name] = performance.now();
+      if (window.OTN_DEBUG_MODE) {
+        console.log(`[OTNPerf] ${name}: ${this.marks[name].toFixed(2)}ms`);
+      }
+    },
+    getDuration: function(start, end) {
+      if (this.marks[start] && this.marks[end]) {
+        return (this.marks[end] - this.marks[start]).toFixed(2);
+      }
+      return '-';
+    },
+    getNavigationTiming: function() {
+      const nav = performance.getEntriesByType("navigation")[0];
+      if (!nav) return null;
+      return {
+        ttfb: (nav.responseStart - nav.requestStart).toFixed(2),
+        download: (nav.responseEnd - nav.responseStart).toFixed(2),
+        dom_processing: (nav.domInteractive - nav.responseEnd).toFixed(2),
+        total_network: (nav.responseEnd - nav.startTime).toFixed(2)
+      };
+    }
+  };
+  window.OTNPerf.init();
+</script>
+
 <!-- 配置注入 -->
 <script>
   window.OTN_DEBUG_MODE = {{ debug_mode|yesno:"true,false" }};
+  window.OTN_SHOW_DEBUG_PANEL = {{ show_debug_panel|yesno:"true,false" }} || (new URLSearchParams(window.location.search).has('debug'));
   window.OTN_DEBUG_DATE = '{{ debug_date }}';
 
   window.OTNMapConfig = {

@@ -93,7 +93,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
 
         # 标记点数据：包含所有本年度故障，无经纬度时使用A端站点坐标
         marker_faults = all_faults.select_related(
-            'province', 'interruption_location_a'
+            'province', 'interruption_location_a', 'handling_unit'
         ).prefetch_related(
             'interruption_location', 'images', 'impacts', 'impacts__impacted_service'
         )
@@ -117,7 +117,9 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 category_key = category_mapping.get(fault_category, 'other')
             
             # 获取Z端站点名称列表（ManyToMany关系）
-            z_sites = list(fault.interruption_location.all().values_list('name', flat=True))
+            # 注意：不能使用 .values_list('name', flat=True)，因为它会绕过 prefetch_related 缓存重新查询数据库
+            # 应遍历已缓存的对象列表
+            z_sites = [s.name for s in fault.interruption_location.all()]
             z_sites_str = '、'.join(z_sites) if z_sites else '未指定'
 
             # 获取影响业务（从 OtnFaultImpact 反向查询）
@@ -168,7 +170,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                 'a_site': fault.interruption_location_a.name if fault.interruption_location_a else '未指定',
                 'a_site_id': fault.interruption_location_a.pk if fault.interruption_location_a else None,
                 'z_sites': z_sites_str,
-                'z_site_ids': list(fault.interruption_location.all().values_list('pk', flat=True)),
+                'z_site_ids': [s.pk for s in fault.interruption_location.all()],
                 'impacted_business': impacted_business_str,
                 'impacts_details': impacts_details,  # 包含业务名称和中断历时的详细列表
                 
@@ -238,7 +240,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
                     'facility': site.facility,
                     'description': site.description
                 }
-                for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False)
+                for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False).select_related('tenant', 'region', 'group')
             ], cls=DjangoJSONEncoder),
             'apikey': plugin_settings.get('map_api_key', ''),
             'map_center': json.dumps(plugin_settings.get('map_default_center', [112.53, 33.00])),
@@ -271,6 +273,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
 
             # 调试模式参数
             'debug_mode': True,
+            'show_debug_panel': False,
             'debug_date': '2025-12-05 00:00:00',
         })
 
@@ -749,7 +752,7 @@ class LocationMapView(PermissionRequiredMixin, View):
                 'facility': site.facility,
                 'description': site.description
             }
-            for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False)
+            for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False).select_related('tenant', 'region', 'group')
         ]
 
         # 获取插件配置

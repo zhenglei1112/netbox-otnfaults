@@ -496,3 +496,56 @@
 .stats-popup .maplibregl-popup-content {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
 }
+
+/* =================================
+   调试性能面板
+   ================================= */
+
+.debug-perf-panel {
+    position: absolute;
+    bottom: 30px;
+    left: 10px;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.75);
+    color: #00ff00;
+    /* 黑客绿 */
+    border-radius: 4px;
+    padding: 0;
+    font-family: monospace;
+    font-size: 12px;
+    pointer-events: none;
+    /* 透传点击 */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    min-width: 180px;
+}
+
+.debug-perf-header {
+    background: #2b2b2b;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px 4px 0 0;
+    font-weight: bold;
+    border-bottom: 1px solid #444;
+}
+
+.debug-perf-body {
+    padding: 6px 8px;
+}
+
+.debug-perf-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.debug-perf-row:last-child {
+    margin-top: 4px;
+    border-top: 1px solid #444;
+    padding-top: 2px;
+    font-weight: bold;
+    color: #fff;
+}
+
+.debug-perf-row .label {
+    opacity: 0.8;
+}
