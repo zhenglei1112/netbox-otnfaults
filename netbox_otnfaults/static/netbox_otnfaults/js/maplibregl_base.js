@@ -301,7 +301,7 @@ class NetBoxMapBase {
 
         // 绑定点击事件，确保 this 指向 HomeControl 实例
         this.homeButton.addEventListener("click", () => {
-             this.goHome();
+          this.goHome();
         });
 
         this.container.appendChild(this.homeButton);
@@ -355,19 +355,19 @@ class NetBoxMapBase {
         this.button = document.createElement("button");
         this.button.className = "maplibregl-ctrl-icon";
         this.button.type = "button";
-        
+
         // 绑定点击事件
         this.button.addEventListener("click", () => this.toggleProjection());
-        
+
         this.container.appendChild(this.button);
-        
+
         // 初始化图标和提示
         this.updateUI();
-        
+
         // 监听投影变化以同步 UI (防止外部修改导致不同步)
         // MapLibre 目前没有明确的 'projection' 事件，但我们可以依赖点击更新
         // 或者在 render 中检查? 不，简单处理即可。
-        
+
         return this.container;
       }
 
@@ -390,7 +390,7 @@ class NetBoxMapBase {
         if (!this.map) return;
         const props = this.map.getProjection && this.map.getProjection();
         const currentProjection = (props && props.type) ? props.type : 'mercator';
-        
+
         if (currentProjection === 'globe') {
           // 当前是地球，显示切换到平面的图标
           this.button.innerHTML = base.svgIcons.projection_flat;
@@ -626,6 +626,9 @@ class NetBoxMapBase {
     const container = document.getElementById(containerId);
     if (!container) return;
 
+    // 防止重复添加
+    if (document.getElementById(containerId + "-loading")) return;
+
     const overlay = document.createElement("div");
     overlay.id = containerId + "-loading";
     overlay.className = "map-overlay map-loading";
@@ -633,7 +636,7 @@ class NetBoxMapBase {
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">加载中...</span>
             </div>
-            <div class="mt-3">正在加载地图...</div>
+            <div class="mt-3">正在加载地图数据...</div>
         `;
     container.appendChild(overlay);
     return overlay;
@@ -710,8 +713,8 @@ class NetBoxMapBase {
       const sourceId = map.getSource("openmaptiles")
         ? "openmaptiles"
         : map.getSource("china_local")
-        ? "china_local"
-        : null;
+          ? "china_local"
+          : null;
 
       if (!sourceId) {
         console.warn("未找到合适的数据源用于高速盾标");

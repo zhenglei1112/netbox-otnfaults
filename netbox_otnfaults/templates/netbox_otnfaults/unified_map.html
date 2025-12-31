@@ -100,7 +100,7 @@
 
   window.OTNMapConfig = {
     mode: '{{ map_mode }}',
-    sitesData: {{ sites_data|safe }},
+    mode: '{{ map_mode }}',
     apiKey: '{{ apikey }}',
     mapCenter: {{ map_center|safe }},
     mapZoom: {{ map_zoom }},
@@ -110,8 +110,8 @@
     otnPathsPmtilesUrl: '{{ otn_paths_pmtiles_url }}',
     layers: {{ layers_config|safe }},
     projection: '{{ projection }}',
-    {% if heatmap_data %}heatmapData: {{ heatmap_data|safe }},{% endif %}
-    {% if marker_data %}markerData: {{ marker_data|safe }},{% endif %}
+    projection: '{{ projection }}',
+    mapDataUrl: '{{ map_data_url }}',
     {% if colors_config %}colorsConfig: {{ colors_config|safe }},{% endif %}
     {% if fault_list_url %}faultListUrl: '{{ fault_list_url }}',{% endif %}
     {% if target_lat %}targetLat: {{ target_lat }},{% endif %}

@@ -20,11 +20,10 @@ class OTNMapCore {
     if (window.OTNPerf) window.OTNPerf.mark('init_start');
     this.modePlugin = modePlugin;
 
-    // 1. 初始化地图实例
+    // 1. 初始化地图实例 (立即渲染容器)
     try {
       this.map = this.mapBase.init("map", this.config.apiKey);
       if (window.OTNPerf) window.OTNPerf.mark('map_instance_created');
-      // 暴露给控制台调试
       window.map = this.map;
       window.mapBase = this.mapBase;
     } catch (e) {
@@ -32,12 +31,44 @@ class OTNMapCore {
       return;
     }
 
-    // 显示加载状态
+    // 显示加载状态 (覆盖在地图上)
     NetBoxMapBase.showLoading("map");
 
-    // 2. 基础底图设置
-    this.map.on("load", () => {
+    // 2. 异步加载数据 (与地图初始化并行)
+    let dataPromise = Promise.resolve(null);
+    if (this.config.mapDataUrl) {
+      console.log('[OTNMapCore] Fetching data from:', this.config.mapDataUrl);
+      dataPromise = fetch(this.config.mapDataUrl)
+        .then(async res => {
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return await res.json();
+        })
+        .catch(err => {
+          console.error("Failed to load map data:", err);
+          // 错误处理：可以在这里显示 Toast，或者在 load 事件中处理
+          // 返回 null 以便能继续渲染地图(虽然没有数据)
+          return null;
+        });
+    }
+
+    // 3. 基础底图设置 & 等待数据
+    this.map.on("load", async () => {
       if (window.OTNPerf) window.OTNPerf.mark('map_load_event');
+
+      // 等待数据返回
+      try {
+        const data = await dataPromise;
+        if (data) {
+          this.config.sitesData = data.sites_data;
+          this.config.markerData = data.marker_data;
+          this.config.heatmapData = data.heatmap_data;
+          if (window.OTNPerf) window.OTNPerf.mark('data_fetched');
+        }
+      } catch (err) {
+        // fetch catch 已经捕获了，这里主要是防止赋值出错
+        console.error("Error processing fetched data", err);
+      }
+
       NetBoxMapBase.hideLoading("map");
       this._setupBasemapFeatures();
 
