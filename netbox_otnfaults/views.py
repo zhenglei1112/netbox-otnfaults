@@ -71,10 +71,11 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
 
     def get(self, request):
         now = timezone.now()
-        current_year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        # 改为最近12个月，避免跨年时数据为空
+        twelve_months_ago = now - timedelta(days=365)
         
-        # 获取本年度所有故障
-        all_faults = OtnFault.objects.filter(fault_occurrence_time__gte=current_year_start)
+        # 获取最近12个月的所有故障
+        all_faults = OtnFault.objects.filter(fault_occurrence_time__gte=twelve_months_ago)
         
         # 热力图数据
         heatmap_faults = all_faults.exclude(
