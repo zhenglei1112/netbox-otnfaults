@@ -1,0 +1,53 @@
+/**
+ * 故障信息弹窗动画效果
+ * 方案1: 经典淡入淡出 (Classic Fade)
+ */
+
+/* ===== 经典淡入淡出动画 ===== */
+
+/* 显示动画 */
+.fault-popup-container.popup-enter-active {
+    animation: faultPopupFadeIn 250ms ease-out forwards;
+}
+
+/* 隐藏动画 */
+.fault-popup-container.popup-leave-active {
+    animation: faultPopupFadeOut 200ms ease-in forwards;
+}
+
+/* 淡入关键帧 - 使用margin-top避免干扰MapLibre的transform定位 */
+@keyframes faultPopupFadeIn {
+    from {
+        opacity: 0;
+        margin-top: 8px;
+    }
+
+    to {
+        opacity: 1;
+        margin-top: 0;
+    }
+}
+
+/* 淡出关键帧 */
+@keyframes faultPopupFadeOut {
+    from {
+        opacity: 1;
+        margin-top: 0;
+    }
+
+    to {
+        opacity: 0;
+        margin-top: 8px;
+    }
+}
+
+/* 确保弹窗容器支持过渡 */
+.fault-popup-container {
+    will-change: opacity;
+}
+
+/* 优化性能: 使用GPU加速 */
+.fault-popup-container.popup-enter-active,
+.fault-popup-container.popup-leave-active {
+    backface-visibility: hidden;
+}

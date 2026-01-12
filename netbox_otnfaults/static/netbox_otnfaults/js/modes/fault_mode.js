@@ -484,7 +484,7 @@ const FaultModePlugin = {
     // 1. 故障点交互 (改为悬停显示，带延迟关闭)
     map.on("mouseenter", "fault-points-layer", (e) => {
       map.getCanvas().style.cursor = "pointer";
-      
+
       // 如果有待关闭的定时器，清除它（用户移回到了点上）
       if (this.popupCloseTimer) {
         clearTimeout(this.popupCloseTimer);
@@ -494,8 +494,8 @@ const FaultModePlugin = {
       // 如果当前没有弹窗，或者移动到了不同的 Feature，则显示新的
       // 简单起见，这里总是刷新，也可以优化为判断 ID 是否变化
       if (e.features.length) {
-         // 注意：频繁刷新可能会闪烁，如果鼠标在同一个点内部移动触发多次 mouseenter（通常不会，除非有点重叠）
-         this._showFaultPopup(e.features[0]);
+        // 注意：频繁刷新可能会闪烁，如果鼠标在同一个点内部移动触发多次 mouseenter（通常不会，除非有点重叠）
+        this._showFaultPopup(e.features[0]);
       }
     });
 
@@ -537,11 +537,15 @@ const FaultModePlugin = {
   _showFaultPopup(feature) {
     if (typeof PopupTemplates !== "undefined") {
       const html = PopupTemplates.faultPopup(feature.properties);
-      
-      // 清除未执行的关闭定时器
+
+      // 清除未执行的关闭定时器和动画移除定时器
       if (this.popupCloseTimer) {
         clearTimeout(this.popupCloseTimer);
         this.popupCloseTimer = null;
+      }
+      if (this.popupRemoveTimer) {
+        clearTimeout(this.popupRemoveTimer);
+        this.popupRemoveTimer = null;
       }
 
       if (this.currentFaultPopup) {
@@ -559,11 +563,25 @@ const FaultModePlugin = {
 
       // 为弹窗 DOM 添加鼠标交互，防止移动到弹窗上时消失
       const popupEl = this.currentFaultPopup.getElement();
-      
+
+      // 触发进入动画
+      requestAnimationFrame(() => {
+        popupEl.classList.add('popup-enter-active');
+      });
+
       popupEl.addEventListener("mouseenter", () => {
+        // 清除延迟关闭定时器
         if (this.popupCloseTimer) {
           clearTimeout(this.popupCloseTimer);
           this.popupCloseTimer = null;
+        }
+        // 清除动画移除定时器(如果用户在淡出动画期间移到弹窗上)
+        if (this.popupRemoveTimer) {
+          clearTimeout(this.popupRemoveTimer);
+          this.popupRemoveTimer = null;
+          // 移除淡出动画类,恢复正常显示
+          popupEl.classList.remove('popup-leave-active');
+          popupEl.classList.add('popup-enter-active');
         }
       });
 
@@ -577,8 +595,20 @@ const FaultModePlugin = {
     if (this.popupCloseTimer) clearTimeout(this.popupCloseTimer);
     this.popupCloseTimer = setTimeout(() => {
       if (this.currentFaultPopup) {
-        this.currentFaultPopup.remove();
-        this.currentFaultPopup = null;
+        const popupEl = this.currentFaultPopup.getElement();
+
+        // 移除进入动画类,添加离开动画类
+        popupEl.classList.remove('popup-enter-active');
+        popupEl.classList.add('popup-leave-active');
+
+        // 等待离开动画完成后再移除弹窗 (200ms)
+        this.popupRemoveTimer = setTimeout(() => {
+          if (this.currentFaultPopup) {
+            this.currentFaultPopup.remove();
+            this.currentFaultPopup = null;
+          }
+          this.popupRemoveTimer = null;
+        }, 200);
       }
     }, 300); // 300ms 延迟关闭，留出移动鼠标的时间
   },
@@ -878,58 +908,58 @@ const FaultModePlugin = {
       // 确保传入 apiKey，否则请求会失败
       const apiKey = this.config ? this.config.apiKey : null;
       console.log("[FaultMode] Loading metadata. APIKey present:", !!apiKey);
-      
+
       const loadPromise = OTNFaultMapAPI.fetchPaths(apiKey).then((data) => {
         // 预处理数据：确保 total_length 存在
         if (data && Array.isArray(data)) {
-           // 定义计算距离函数 (Haversine Formula)
-           const calcLineDist = (coords) => {
-                let total = 0;
-                const R = 6371; // km
-                for (let i = 0; i < coords.length - 1; i++) {
-                    const [lon1, lat1] = coords[i];
-                    const [lon2, lat2] = coords[i+1];
-                    const dLat = (lat2 - lat1) * Math.PI / 180;
-                    const dLon = (lon2 - lon1) * Math.PI / 180;
-                    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                              Math.sin(dLon/2) * Math.sin(dLon/2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                    total += R * c;
-                }
-                return total;
-            };
+          // 定义计算距离函数 (Haversine Formula)
+          const calcLineDist = (coords) => {
+            let total = 0;
+            const R = 6371; // km
+            for (let i = 0; i < coords.length - 1; i++) {
+              const [lon1, lat1] = coords[i];
+              const [lon2, lat2] = coords[i + 1];
+              const dLat = (lat2 - lat1) * Math.PI / 180;
+              const dLon = (lon2 - lon1) * Math.PI / 180;
+              const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+              total += R * c;
+            }
+            return total;
+          };
 
-            data.forEach(item => {
-                if (item.properties && item.geometry) {
-                    // 如果 total_length 缺失或为 null，尝试从其他字段或几何计算获取
-                    if (item.properties.total_length == null) {
-                        // 1. 尝试备选字段
-                        if (item.properties.distance != null) item.properties.total_length = item.properties.distance;
-                        else if (item.properties.length != null) item.properties.total_length = item.properties.length;
-                        
-                        // 2. 如果仍无效，从几何计算
-                        if (item.properties.total_length == null) {
-                             try {
-                                let totalKm = 0;
-                                if (item.geometry.type === 'LineString') {
-                                    totalKm = calcLineDist(item.geometry.coordinates);
-                                } else if (item.geometry.type === 'MultiLineString') {
-                                    item.geometry.coordinates.forEach(coords => {
-                                        totalKm += calcLineDist(coords);
-                                    });
-                                }
-                                if (totalKm > 0) {
-                                    // 保留3位小数
-                                    item.properties.total_length = Math.round(totalKm * 1000) / 1000;
-                                }
-                             } catch (e) {
-                                 console.warn("[FaultMode] Failed to calculate length for path:", item.properties.id, e);
-                             }
-                        }
+          data.forEach(item => {
+            if (item.properties && item.geometry) {
+              // 如果 total_length 缺失或为 null，尝试从其他字段或几何计算获取
+              if (item.properties.total_length == null) {
+                // 1. 尝试备选字段
+                if (item.properties.distance != null) item.properties.total_length = item.properties.distance;
+                else if (item.properties.length != null) item.properties.total_length = item.properties.length;
+
+                // 2. 如果仍无效，从几何计算
+                if (item.properties.total_length == null) {
+                  try {
+                    let totalKm = 0;
+                    if (item.geometry.type === 'LineString') {
+                      totalKm = calcLineDist(item.geometry.coordinates);
+                    } else if (item.geometry.type === 'MultiLineString') {
+                      item.geometry.coordinates.forEach(coords => {
+                        totalKm += calcLineDist(coords);
+                      });
                     }
+                    if (totalKm > 0) {
+                      // 保留3位小数
+                      item.properties.total_length = Math.round(totalKm * 1000) / 1000;
+                    }
+                  } catch (e) {
+                    console.warn("[FaultMode] Failed to calculate length for path:", item.properties.id, e);
+                  }
                 }
-            });
+              }
+            }
+          });
         }
 
         // 保存元数据到全局变量
