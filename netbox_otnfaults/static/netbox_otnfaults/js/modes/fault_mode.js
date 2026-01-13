@@ -534,6 +534,43 @@ const FaultModePlugin = {
   },
 
   /**
+   * 为弹窗添加淡入淡出动画
+   * @param {maplibregl.Popup} popup - 弹窗实例
+   */
+  _addPopupAnimation(popup) {
+    const popupEl = popup.getElement();
+
+    // 触发淡入动画
+    requestAnimationFrame(() => {
+      popupEl.classList.add('popup-enter-active');
+    });
+
+    // 监听动画结束,清理淡入动画类
+    popupEl.addEventListener('animationend', (e) => {
+      if (e.animationName === 'faultPopupFadeIn') {
+        popupEl.classList.remove('popup-enter-active');
+      }
+    }, { once: true });
+
+    // 拦截关闭按钮,添加淡出动画
+    const closeButton = popupEl.querySelector('.maplibregl-popup-close-button');
+    if (closeButton) {
+      closeButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // 播放淡出动画
+        popupEl.classList.add('popup-leave-active');
+
+        // 动画完成后移除弹窗
+        setTimeout(() => {
+          popup.remove();
+        }, 200);
+      });
+    }
+  },
+
+  /**
    * 重置弹窗动画状态
    * @param {HTMLElement} popupEl - 弹窗DOM元素
    * @param {string} animationType - 动画类型: 'enter' 或 'leave'
@@ -730,18 +767,8 @@ const FaultModePlugin = {
       .setHTML(html)
       .addTo(this.map);
 
-    // 触发淡入动画
-    const popupEl = popup.getElement();
-    requestAnimationFrame(() => {
-      popupEl.classList.add('popup-enter-active');
-    });
-
-    // 动画结束后清理类
-    popupEl.addEventListener('animationend', (e) => {
-      if (e.animationName === 'faultPopupFadeIn') {
-        popupEl.classList.remove('popup-enter-active');
-      }
-    }, { once: true });
+    // 添加淡入淡出动画
+    this._addPopupAnimation(popup);
   },
 
   _showPathPopup(feature, lngLat) {
@@ -847,18 +874,8 @@ const FaultModePlugin = {
       .setHTML(html)
       .addTo(this.map);
 
-    // 触发淡入动画
-    const popupEl = pathPopup.getElement();
-    requestAnimationFrame(() => {
-      popupEl.classList.add('popup-enter-active');
-    });
-
-    // 动画结束后清理类
-    popupEl.addEventListener('animationend', (e) => {
-      if (e.animationName === 'faultPopupFadeIn') {
-        popupEl.classList.remove('popup-enter-active');
-      }
-    }, { once: true });
+    // 添加淡入淡出动画
+    this._addPopupAnimation(pathPopup);
 
     // 保存引用
     window._currentPathPopup = pathPopup;
