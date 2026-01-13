@@ -67,17 +67,20 @@ const LocationModePlugin = {
 
     // 区分：路径组(多条)显示静态红色，单条路径显示动画 (统一逻辑)
     // 路径高亮底层：金色轮廓线
+    // 插入到站点图层之前，避免遮挡站点
+    const beforeLayerId = map.getLayer('netbox-sites-layer') ? 'netbox-sites-layer' : undefined;
+
     mapBase.addLayer({
       id: "highlight-path-outline",
       type: "line",
       source: "highlight-path",
       paint: {
         "line-color": "#FFD700", // 金色
-        "line-width": 6,
+        "line-width": 4,
         "line-opacity": 0.8,
       },
       layout: { visibility: "none" }, // 初始隐藏，动画结束后显示
-    });
+    }, beforeLayerId);
 
     // 路径高亮顶层
     mapBase.addLayer({
@@ -86,11 +89,11 @@ const LocationModePlugin = {
       source: "highlight-path",
       paint: {
         "line-color": "#FFD700",
-        "line-width": 5,
+        "line-width": 3,
         "line-opacity": 0.9,
       },
       layout: { visibility: "none" },
-    });
+    }, beforeLayerId);
 
     // 启动 Deck.gl 动画
     // 单条或多条均支持

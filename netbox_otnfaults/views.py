@@ -68,8 +68,43 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             'secondary': '#6c757d',
         }
         return COLOR_MAP.get(color_name, '#6c757d') # Default to gray
+    
+    def _get_sites_data(self):
+        """获取站点数据 (所有地图模式共享)"""
+        sites_data = [
+            {
+                'id': site.pk,
+                'name': site.name,
+                'latitude': float(site.latitude),
+                'longitude': float(site.longitude),
+                'url': site.get_absolute_url(),
+                'status': site.get_status_display(),
+                'status_color': site.get_status_color(),
+                'tenant': site.tenant.name if site.tenant else None,
+                'region': site.region.name if site.region else None,
+                'group': site.group.name if site.group else None,
+                'facility': site.facility,
+                'description': site.description
+            }
+            for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False).select_related('tenant', 'region', 'group')
+        ]
+        return sites_data
 
     def get(self, request):
+        # 检查请求模式
+        mode = request.GET.get('mode', 'fault')
+        
+        # 获取站点数据 (所有模式都需要)
+        sites_data = self._get_sites_data()
+        
+        # 根据模式返回不同数据
+        if mode != 'fault':
+            # 路径、路径组、位置模式只需要站点数据
+            return JsonResponse({
+                'sites_data': sites_data
+            })
+        
+        # 故障模式需要额外的热力图和标记点数据
         now = timezone.now()
         # 改为最近12个月，避免跨年时数据为空
         twelve_months_ago = now - timedelta(days=365)
@@ -187,25 +222,8 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
                 'image_count': fault.images.count() if hasattr(fault, 'images') else 0
             })
 
-        # 站点数据
-        sites_data = [
-            {
-                'id': site.pk,
-                'name': site.name,
-                'latitude': float(site.latitude),
-                'longitude': float(site.longitude),
-                'url': site.get_absolute_url(),
-                'status': site.get_status_display(),
-                'status_color': site.get_status_color(),
-                'tenant': site.tenant.name if site.tenant else None,
-                'region': site.region.name if site.region else None,
-                'group': site.group.name if site.group else None,
-                'facility': site.facility,
-                'description': site.description
-            }
-            for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False).select_related('tenant', 'region', 'group')
-        ]
-        
+        # 站点数据已在方法开始时获取
+        # 返回故障模式的完整数据
         return JsonResponse({
             'sites_data': sites_data,
             'heatmap_data': heatmap_data,
@@ -730,27 +748,7 @@ class LocationMapView(PermissionRequiredMixin, View):
                     highlight_path_data = highlight_paths_data
             except (OtnPathGroup.DoesNotExist, ValueError):
                 pass
-
         
-        # 获取所有有经纬度的站点
-        sites_data = [
-            {
-                'id': site.pk,
-                'name': site.name,
-                'latitude': float(site.latitude),
-                'longitude': float(site.longitude),
-                'url': site.get_absolute_url(),
-                'status': site.get_status_display(),
-                'status_color': site.get_status_color(),
-                'tenant': site.tenant.name if site.tenant else None,
-                'region': site.region.name if site.region else None,
-                'group': site.group.name if site.group else None,
-                'facility': site.facility,
-                'description': site.description
-            }
-            for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False).select_related('tenant', 'region', 'group')
-        ]
-
         # 获取插件配置
         plugin_settings = get_plugin_settings()
         
@@ -804,6 +802,9 @@ class LocationMapView(PermissionRequiredMixin, View):
                 except:
                     pass
         
+        # 构建地图数据 API URL
+        map_data_url = self._build_map_data_url(request, map_mode, path_id, path_group_id)
+        
         return render(request, 'netbox_otnfaults/unified_map.html', {
             # 模式配置
             'map_mode': map_mode,
@@ -814,8 +815,8 @@ class LocationMapView(PermissionRequiredMixin, View):
             'layers_config': json.dumps(mode_config.get('layers', {})),
             'projection': mode_config.get('projection', 'mercator'),
             
-            # 共享数据
-            'sites_data': json.dumps(sites_data, cls=DjangoJSONEncoder),
+            # 共享数据 - 通过 API 动态加载
+            'map_data_url': map_data_url,
             'apikey': plugin_settings.get('map_api_key', ''),
             'map_center': json.dumps(map_center),
             'map_zoom': map_zoom,
@@ -855,3 +856,27 @@ class LocationMapView(PermissionRequiredMixin, View):
             pass
         
         return None, None
+    
+    def _build_map_data_url(self, request, mode, path_id=None, path_group_id=None):
+        """构建地图数据 API URL
+        
+        Args:
+            request: Django request 对象
+            mode: 地图模式 ('path', 'pathgroup', 'location')
+            path_id: 路径 ID (可选)
+            path_group_id: 路径组 ID (可选)
+            
+        Returns:
+            str: 完整的 API URL 带查询参数
+        """
+        from urllib.parse import urlencode
+        
+        base_url = reverse('plugins:netbox_otnfaults:otnfault_map_data')
+        params = {'mode': mode}
+        
+        if path_id:
+            params['path_id'] = path_id
+        if path_group_id:
+            params['path_group_id'] = path_group_id
+        
+        return f"{base_url}?{urlencode(params)}"
