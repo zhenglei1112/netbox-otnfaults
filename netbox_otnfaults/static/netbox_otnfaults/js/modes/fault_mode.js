@@ -725,10 +725,23 @@ const FaultModePlugin = {
       timeStatsHtml,
     });
 
-    new maplibregl.Popup({ maxWidth: "300px", className: "stats-popup" })
+    const popup = new maplibregl.Popup({ maxWidth: "300px", className: "stats-popup" })
       .setLngLat(feature.geometry.coordinates)
       .setHTML(html)
       .addTo(this.map);
+
+    // 触发淡入动画
+    const popupEl = popup.getElement();
+    requestAnimationFrame(() => {
+      popupEl.classList.add('popup-enter-active');
+    });
+
+    // 动画结束后清理类
+    popupEl.addEventListener('animationend', (e) => {
+      if (e.animationName === 'faultPopupFadeIn') {
+        popupEl.classList.remove('popup-enter-active');
+      }
+    }, { once: true });
   },
 
   _showPathPopup(feature, lngLat) {
@@ -833,6 +846,19 @@ const FaultModePlugin = {
       .setLngLat(pos)
       .setHTML(html)
       .addTo(this.map);
+
+    // 触发淡入动画
+    const popupEl = pathPopup.getElement();
+    requestAnimationFrame(() => {
+      popupEl.classList.add('popup-enter-active');
+    });
+
+    // 动画结束后清理类
+    popupEl.addEventListener('animationend', (e) => {
+      if (e.animationName === 'faultPopupFadeIn') {
+        popupEl.classList.remove('popup-enter-active');
+      }
+    }, { once: true });
 
     // 保存引用
     window._currentPathPopup = pathPopup;

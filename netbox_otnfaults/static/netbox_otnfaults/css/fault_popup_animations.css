@@ -1,17 +1,22 @@
 /**
  * 故障信息弹窗动画效果
  * 方案1: 经典淡入淡出 (Classic Fade)
+ * 支持: fault-popup-container, stats-popup, animated-popup
  */
 
 /* ===== 经典淡入淡出动画 ===== */
 
-/* 显示动画 */
-.fault-popup-container.popup-enter-active {
+/* 显示动画 - 支持所有弹窗类型 */
+.fault-popup-container.popup-enter-active,
+.stats-popup.popup-enter-active,
+.animated-popup.popup-enter-active {
     animation: faultPopupFadeIn 250ms ease-out forwards;
 }
 
 /* 隐藏动画 */
-.fault-popup-container.popup-leave-active {
+.fault-popup-container.popup-leave-active,
+.stats-popup.popup-leave-active,
+.animated-popup.popup-leave-active {
     animation: faultPopupFadeOut 200ms ease-in forwards;
 }
 
@@ -42,12 +47,18 @@
 }
 
 /* 确保弹窗容器支持过渡 */
-.fault-popup-container {
+.fault-popup-container,
+.stats-popup,
+.animated-popup {
     will-change: opacity;
 }
 
 /* 优化性能: 使用GPU加速 */
 .fault-popup-container.popup-enter-active,
-.fault-popup-container.popup-leave-active {
+.fault-popup-container.popup-leave-active,
+.stats-popup.popup-enter-active,
+.stats-popup.popup-leave-active,
+.animated-popup.popup-enter-active,
+.animated-popup.popup-leave-active {
     backface-visibility: hidden;
 }
