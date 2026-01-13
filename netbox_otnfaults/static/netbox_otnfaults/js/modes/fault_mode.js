@@ -14,6 +14,13 @@ const FaultModePlugin = {
   timeRange: "year",
   currentCategory: "all",
 
+  // 弹窗动画配置常量
+  POPUP_ANIMATION: {
+    FADE_IN_DURATION: 250,    // 淡入动画时长(ms)
+    FADE_OUT_DURATION: 200,   // 淡出动画时长(ms)
+    CLOSE_DELAY: 300,         // 延迟关闭时长(ms),给用户时间移到弹窗上
+  },
+
   // 控件引用
   layerToggleControl: null,
   statsControl: null,
@@ -481,20 +488,12 @@ const FaultModePlugin = {
   _setupEventListeners() {
     const map = this.map;
 
-    // 1. 故障点交互 (改为悬停显示，带延迟关闭)
+    // 1. 故障点交互 (悬停显示,带延迟关闭和动画效果)
     map.on("mouseenter", "fault-points-layer", (e) => {
       map.getCanvas().style.cursor = "pointer";
 
-      // 如果有待关闭的定时器，清除它（用户移回到了点上）
-      if (this.popupCloseTimer) {
-        clearTimeout(this.popupCloseTimer);
-        this.popupCloseTimer = null;
-      }
-
-      // 如果当前没有弹窗，或者移动到了不同的 Feature，则显示新的
-      // 简单起见，这里总是刷新，也可以优化为判断 ID 是否变化
+      // 显示故障弹窗(_showFaultPopup内部已实现防抖和定时器清除)
       if (e.features.length) {
-        // 注意：频繁刷新可能会闪烁，如果鼠标在同一个点内部移动触发多次 mouseenter（通常不会，除非有点重叠）
         this._showFaultPopup(e.features[0]);
       }
     });
@@ -534,11 +533,39 @@ const FaultModePlugin = {
     map.on("zoom", () => this.updateMapState());
   },
 
+  /**
+   * 重置弹窗动画状态
+   * @param {HTMLElement} popupEl - 弹窗DOM元素
+   * @param {string} animationType - 动画类型: 'enter' 或 'leave'
+   */
+  _resetPopupAnimation(popupEl, animationType) {
+    // 移除所有动画类
+    popupEl.classList.remove('popup-enter-active', 'popup-leave-active');
+    // 强制重排,确保动画重新开始
+    void popupEl.offsetWidth;
+    // 添加指定的动画类
+    popupEl.classList.add(`popup-${animationType}-active`);
+  },
+
+  /**
+   * 清理弹窗的事件监听器
+   * 防止内存泄漏
+   */
+  _cleanupPopupListeners() {
+    if (this.currentPopupListeners && this.currentFaultPopup) {
+      const popupEl = this.currentFaultPopup.getElement();
+      Object.entries(this.currentPopupListeners).forEach(([event, handler]) => {
+        popupEl.removeEventListener(event, handler);
+      });
+      this.currentPopupListeners = null;
+    }
+  },
+
   _showFaultPopup(feature) {
     if (typeof PopupTemplates !== "undefined") {
-      const html = PopupTemplates.faultPopup(feature.properties);
+      const faultId = feature.properties.id || feature.properties.number;
 
-      // 清除未执行的关闭定时器和动画移除定时器
+      // 先清除未执行的关闭定时器和动画移除定时器(无论是否是同一个故障)
       if (this.popupCloseTimer) {
         clearTimeout(this.popupCloseTimer);
         this.popupCloseTimer = null;
@@ -548,9 +575,22 @@ const FaultModePlugin = {
         this.popupRemoveTimer = null;
       }
 
+      // 防抖:如果当前已经显示同一个故障的弹窗,不重复显示,避免鼠标事件循环
+      if (this.currentFaultPopup && this.currentFaultId === faultId) {
+        return; // 已显示相同故障的弹窗,直接返回
+      }
+
+      const html = PopupTemplates.faultPopup(feature.properties);
+
+      // 清理旧弹窗的事件监听器
+      this._cleanupPopupListeners();
+
       if (this.currentFaultPopup) {
         this.currentFaultPopup.remove();
       }
+
+      // 保存当前故障ID
+      this.currentFaultId = faultId;
 
       this.currentFaultPopup = new maplibregl.Popup({
         closeButton: false, // 悬停模式通常无需关闭按钮
@@ -564,12 +604,26 @@ const FaultModePlugin = {
       // 为弹窗 DOM 添加鼠标交互，防止移动到弹窗上时消失
       const popupEl = this.currentFaultPopup.getElement();
 
-      // 触发进入动画
-      requestAnimationFrame(() => {
-        popupEl.classList.add('popup-enter-active');
-      });
+      // 监听动画结束事件,自动清理动画类,避免重复播放
+      const handleAnimationEnd = (e) => {
+        // 只清理淡入动画类,淡出动画类保留到DOM移除前
+        // 避免淡出完成后移除类导致弹窗闪现
+        if (e.animationName === 'faultPopupFadeIn') {
+          popupEl.classList.remove('popup-enter-active');
+        }
+        // 注意:faultPopupFadeOut动画结束后不移除类,避免闪烁
+      };
 
-      popupEl.addEventListener("mouseenter", () => {
+      const handleMouseEnter = () => {
+        // 防抖:避免在短时间内重复处理(100ms内只处理一次)
+        if (this._isHandlingPopupInteraction) {
+          return;
+        }
+        this._isHandlingPopupInteraction = true;
+        setTimeout(() => {
+          this._isHandlingPopupInteraction = false;
+        }, 100);
+
         // 清除延迟关闭定时器
         if (this.popupCloseTimer) {
           clearTimeout(this.popupCloseTimer);
@@ -579,14 +633,32 @@ const FaultModePlugin = {
         if (this.popupRemoveTimer) {
           clearTimeout(this.popupRemoveTimer);
           this.popupRemoveTimer = null;
-          // 移除淡出动画类,恢复正常显示
-          popupEl.classList.remove('popup-leave-active');
-          popupEl.classList.add('popup-enter-active');
+          // 只有当正在播放离开动画时,才重置为进入动画
+          if (popupEl.classList.contains('popup-leave-active')) {
+            this._resetPopupAnimation(popupEl, 'enter');
+          }
         }
-      });
+      };
 
-      popupEl.addEventListener("mouseleave", () => {
+      const handleMouseLeave = () => {
         this._startPopupCloseTimer();
+      };
+
+      // 添加事件监听器
+      popupEl.addEventListener('animationend', handleAnimationEnd);
+      popupEl.addEventListener("mouseenter", handleMouseEnter);
+      popupEl.addEventListener("mouseleave", handleMouseLeave);
+
+      // 保存监听器引用,便于清理
+      this.currentPopupListeners = {
+        'animationend': handleAnimationEnd,
+        'mouseenter': handleMouseEnter,
+        'mouseleave': handleMouseLeave
+      };
+
+      // 触发进入动画
+      requestAnimationFrame(() => {
+        popupEl.classList.add('popup-enter-active');
       });
     }
   },
@@ -601,16 +673,20 @@ const FaultModePlugin = {
         popupEl.classList.remove('popup-enter-active');
         popupEl.classList.add('popup-leave-active');
 
-        // 等待离开动画完成后再移除弹窗 (200ms)
+        // 等待离开动画完成后再移除弹窗
         this.popupRemoveTimer = setTimeout(() => {
           if (this.currentFaultPopup) {
+            // 清理事件监听器
+            this._cleanupPopupListeners();
+            // 移除弹窗DOM
             this.currentFaultPopup.remove();
             this.currentFaultPopup = null;
+            this.currentFaultId = null; // 清除故障ID,允许下次重新显示
           }
           this.popupRemoveTimer = null;
-        }, 200);
+        }, this.POPUP_ANIMATION.FADE_OUT_DURATION);
       }
-    }, 300); // 300ms 延迟关闭，留出移动鼠标的时间
+    }, this.POPUP_ANIMATION.CLOSE_DELAY);
   },
 
   _showSitePopup(feature) {
