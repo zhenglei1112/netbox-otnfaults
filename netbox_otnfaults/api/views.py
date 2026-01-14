@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.core.cache import cache
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from datetime import timedelta
 import json
 import logging
@@ -132,4 +134,102 @@ class HeatmapDataView(APIView):
                 {'error': '服务器内部错误', 'detail': str(e)},
                 status=500
             )
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RouteSnapperView(APIView):
+    """路径吸附计算 API"""
+    # 内部工具，禁用权限和 CSRF 检查
+    permission_classes = []
+    authentication_classes = []
+    
+    def post(self, request):
+        """
+        计算沿高速公路的路径
+        
+        Request Body:
+            {
+                "waypoints": [
+                    {"lng": 121.47, "lat": 31.23},
+                    {"lng": 120.62, "lat": 31.30}
+                ]
+            }
+            
+        Response:
+            {
+                "success": true,
+                "route": {
+                    "geometry": {"type": "LineString", "coordinates": [...]},
+                    "length_meters": 85230.5
+                }
+            }
+        """
+        try:
+            from ..services.highway_graph import get_highway_graph_service
+            
+            # 解析请求
+            waypoints = request.data.get('waypoints', [])
+            
+            if not waypoints or len(waypoints) < 2:
+                return Response({
+                    'success': False,
+                    'error': '至少需要两个途经点'
+                }, status=400)
+            
+            # 验证途经点格式
+            for i, wp in enumerate(waypoints):
+                if 'lng' not in wp or 'lat' not in wp:
+                    return Response({
+                        'success': False,
+                        'error': f'途经点 {i} 缺少 lng 或 lat 字段'
+                    }, status=400)
+            
+            # 获取服务并计算路径
+            service = get_highway_graph_service()
+            
+            if not service.is_available():
+                logger.warning('高速公路图服务不可用，返回直线路径')
+                # 降级为直线连接
+                return Response({
+                    'success': True,
+                    'route': {
+                        'geometry': {
+                            'type': 'LineString',
+                            'coordinates': [[wp['lng'], wp['lat']] for wp in waypoints]
+                        },
+                        'length_meters': self._calculate_straight_distance(waypoints)
+                    },
+                    'fallback': True,
+                    'message': '高速公路图服务不可用，使用直线连接'
+                })
+            
+            result = service.calculate_route(waypoints)
+            return Response(result)
+            
+        except Exception as e:
+            logger.error(f'路径计算异常: {e}', exc_info=True)
+            return Response({
+                'success': False,
+                'error': f'服务器错误: {str(e)}'
+            }, status=500)
+    
+    def _calculate_straight_distance(self, waypoints):
+        """计算直线距离（降级方案）"""
+        import math
+        
+        total = 0
+        R = 6371000
+        
+        for i in range(len(waypoints) - 1):
+            lat1 = math.radians(waypoints[i]['lat'])
+            lat2 = math.radians(waypoints[i+1]['lat'])
+            dlat = math.radians(waypoints[i+1]['lat'] - waypoints[i]['lat'])
+            dlng = math.radians(waypoints[i+1]['lng'] - waypoints[i]['lng'])
+            
+            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlng/2)**2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+            total += R * c
+        
+        return total
+
 

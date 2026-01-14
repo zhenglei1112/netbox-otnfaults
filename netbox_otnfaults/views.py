@@ -880,3 +880,34 @@ class LocationMapView(PermissionRequiredMixin, View):
             params['path_group_id'] = path_group_id
         
         return f"{base_url}?{urlencode(params)}"
+
+
+class RouteEditorView(PermissionRequiredMixin, View):
+    """OTN线路设计器视图"""
+    permission_required = 'netbox_otnfaults.view_otnpath'
+
+    def get(self, request):
+        plugin_settings = get_plugin_settings()
+        mode_config = get_mode_config('route_editor')
+        
+        return render(request, 'netbox_otnfaults/unified_map.html', {
+            # 模式配置
+            'map_mode': 'route_editor',
+            'mode_config': mode_config,
+            'header_info': 'OTN线路设计器',
+            'layers_config': json.dumps(mode_config.get('layers', {})),
+            'projection': mode_config.get('projection', 'mercator'),
+            
+            # 基础配置
+            'apikey': plugin_settings.get('map_api_key', ''),
+            'map_center': json.dumps(plugin_settings.get('map_default_center', [112.53, 33.00])),
+            'map_zoom': plugin_settings.get('map_default_zoom', 4.2),
+            'use_local_basemap': plugin_settings.get('use_local_basemap', False),
+            'local_tiles_url': plugin_settings.get('local_tiles_url', ''),
+            'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
+            'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''),
+            
+            # 数据 API
+            'map_data_url': reverse('plugins:netbox_otnfaults:otnfault_map_data') + '?mode=route_editor',
+        })
+

@@ -10,5 +10,6 @@ router.register('path-groups', views.OtnPathGroupViewSet)
 
 urlpatterns = router.urls + [
     path('heatmap-data/', views.HeatmapDataView.as_view(), name='heatmap-data'),
+    path('route-snapper/calculate/', views.RouteSnapperView.as_view(), name='route-snapper-calculate'),
 ]
 

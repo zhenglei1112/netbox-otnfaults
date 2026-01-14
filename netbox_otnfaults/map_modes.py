@@ -55,6 +55,15 @@ MAP_MODES = {
         'controls': ['navigation', 'fullscreen', 'measures'],
         'layers': {},
         'js_files': []
+    },
+    'route_editor': {
+        'title': 'OTN线路设计器',
+        'plugin_file': 'route_editor_mode.js',
+        'projection': 'mercator',
+        'controls': ['navigation', 'fullscreen', 'measures'],
+        'layers': {},
+        'js_files': ['services/RouteSnapperService.js'],
+        'header_actions': []
     }
 }
 

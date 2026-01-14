@@ -49,5 +49,9 @@ menu_items = (
         link='plugins:netbox_otnfaults:otnfault_map_globe',
         link_text='故障分布图',
     ),
+    PluginMenuItem(
+        link='plugins:netbox_otnfaults:route_editor',
+        link_text='线路设计器',
+    ),
 )
 

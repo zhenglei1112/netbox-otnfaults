@@ -1,0 +1,263 @@
+/**
+ * OTN线路设计器样式
+ */
+
+/* 侧边栏 */
+.route-editor-sidebar {
+    position: fixed;
+    top: 120px;
+    right: 10px;
+    width: 280px;
+    max-height: calc(100vh - 140px);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.sidebar-content {
+    padding: 16px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.sidebar-content hr {
+    margin: 16px 0;
+    border: none;
+    border-top: 1px solid #e5e7eb;
+}
+
+.sidebar-content h4 {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 表单 */
+.form-group {
+    margin-bottom: 12px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+}
+
+.form-group .form-control {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group .form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* 站点列表 */
+.sites-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.empty-hint {
+    padding: 20px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+.site-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.site-item:hover {
+    background: #e5e7eb;
+}
+
+.site-label {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ef4444;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.site-name {
+    flex: 1;
+    font-size: 13px;
+    color: #374151;
+}
+
+.btn-delete {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.btn-delete:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+/* 统计信息 */
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+}
+
+.stat-item span:first-child {
+    color: #6b7280;
+}
+
+.stat-item span:last-child {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+/* 操作按钮 */
+.actions-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.actions-section .btn-row {
+    display: flex;
+    gap: 8px;
+}
+
+.actions-section .btn-row .btn {
+    flex: 1;
+}
+
+.actions-section .btn {
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.actions-section .btn:active {
+    transform: scale(0.98);
+}
+
+.actions-section .btn-secondary {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.actions-section .btn-secondary:hover {
+    background: #d1d5db;
+}
+
+.actions-section .btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+}
+
+.actions-section .btn-primary:hover {
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.actions-section .btn-danger {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.actions-section .btn-danger:hover {
+    background: #fecaca;
+}
+
+/* 暗色模式支持 */
+@media (prefers-color-scheme: dark) {
+    .route-editor-sidebar {
+        background: rgba(31, 41, 55, 0.95);
+    }
+
+    .sidebar-content h4 {
+        color: #d1d5db;
+    }
+
+    .form-group label {
+        color: #9ca3af;
+    }
+
+    .form-group .form-control {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f3f4f6;
+    }
+
+    .site-item {
+        background: #374151;
+    }
+
+    .site-item:hover {
+        background: #4b5563;
+    }
+
+    .site-name {
+        color: #f3f4f6;
+    }
+
+    .stat-item span:last-child {
+        color: #f3f4f6;
+    }
+
+    .empty-hint {
+        color: #6b7280;
+    }
+}

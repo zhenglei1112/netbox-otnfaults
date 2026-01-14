@@ -55,6 +55,12 @@
   rel="stylesheet"
   href="{% static 'netbox_otnfaults/css/fault_popup_animations.css' %}"
 />
+{% if map_mode == 'route_editor' %}
+<link
+  rel="stylesheet"
+  href="{% static 'netbox_otnfaults/css/route_editor.css' %}"
+/>
+{% endif %}
 
 <style>
   .maplibregl-popup-close-button:focus {
