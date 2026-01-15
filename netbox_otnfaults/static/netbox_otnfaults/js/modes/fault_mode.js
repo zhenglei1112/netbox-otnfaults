@@ -535,8 +535,9 @@ const FaultModePlugin = {
       }
     });
 
-    // 性能优化: zoom事件只切换图层显示,不重新过滤数据
-    map.on("zoom", () => {
+    // 性能优化: 使用zoomend事件避免拖动时触发,提升流畅度
+    // 只在缩放结束时切换图层显示,不重新过滤数据
+    map.on("zoomend", () => {
       this._updateLayerVisibility();
     });
   },
