@@ -90,8 +90,8 @@ class PopupTemplates {
                 <div class="popup-row"><span class="popup-label">恢复</span><span>${props.recoveryTime}</span></div>
                 ${durationHtml}
                 <div class="popup-row"><span class="popup-label">原因</span><span>${props.reason}</span></div>
-                ${impactsHtml}
                 ${imagesHtml}
+                ${impactsHtml}
                 <div class="popup-footer">
                     <a href="${props.url}" target="_blank">${props.number}</a>
                 </div>
