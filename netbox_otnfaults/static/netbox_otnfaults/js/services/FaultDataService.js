@@ -50,6 +50,8 @@ class FaultDataService {
           hasImages: m.has_images || false,
           imageCount: m.image_count || 0,
           images: JSON.stringify(m.images || []),
+          impactsDetails: m.impacts_details || [],
+          impactedBusiness: m.impacted_business || '',
           raw: m,
         },
         geometry: {
