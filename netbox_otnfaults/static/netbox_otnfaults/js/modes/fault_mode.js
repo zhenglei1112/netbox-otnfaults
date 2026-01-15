@@ -21,6 +21,11 @@ const FaultModePlugin = {
     CLOSE_DELAY: 300,         // 延迟关闭时长(ms),给用户时间移到弹窗上
   },
 
+  // 性能优化: 缓存过滤后的数据和当前显示模式
+  cachedFilteredFeatures: null,
+  cachedFilterKey: null,
+  currentDisplayMode: null, // 'heatmap' 或 'points'
+
   // 控件引用
   layerToggleControl: null,
   statsControl: null,
@@ -530,7 +535,10 @@ const FaultModePlugin = {
       }
     });
 
-    map.on("zoom", () => this.updateMapState());
+    // 性能优化: zoom事件只切换图层显示,不重新过滤数据
+    map.on("zoom", () => {
+      this._updateLayerVisibility();
+    });
   },
 
   /**
@@ -930,11 +938,65 @@ const FaultModePlugin = {
     });
   },
 
+  /**
+   * 更新地图状态 (保留向后兼容)
+   * 用于外部调用,内部已拆分为两个函数:
+   * - _updateLayerVisibility: 快速切换图层显示
+   * - _updateDataSources: 重新过滤和更新数据
+   */
   updateMapState() {
-    const map = this.map;
-    // const zoom = map.getZoom(); // 由 getEffectiveMode 内部处理
+    this._updateDataSources();
+    this._updateLayerVisibility();
+  },
 
-    // 获取状态：优先从 layerToggleControl 获取，否则使用本地状态
+  /**
+   * 更新图层可见性 (轻量级操作)
+   * 根据当前缩放级别智能切换热力图和故障点图层
+   * 性能优化: 只在跨越阈值时才执行DOM操作
+   */
+  _updateLayerVisibility() {
+    const map = this.map;
+
+    // 确定当前应显示的模式
+    let mode = "smart";
+    if (this.layerToggleControl) {
+      mode = this.layerToggleControl.getEffectiveMode();
+    } else {
+      mode = map.getZoom() >= 9 ? "points" : "heatmap";
+    }
+
+    // 性能优化: 只在模式变化时才更新图层
+    if (this.currentDisplayMode === mode) {
+      return; // 无变化,跳过
+    }
+
+    this.currentDisplayMode = mode;
+
+    // 切换图层可见性
+    if (mode === "points") {
+      map.setLayoutProperty("fault-heatmap-layer", "visibility", "none");
+      map.setLayoutProperty("fault-points-layer", "visibility", "visible");
+    } else {
+      // heatmap
+      map.setLayoutProperty("fault-heatmap-layer", "visibility", "visible");
+      map.setLayoutProperty("fault-points-layer", "visibility", "none");
+    }
+
+    // 更新图例可见性
+    if (this.legendControl) {
+      this.legendControl.updateVisibility(mode);
+    }
+  },
+
+  /**
+   * 更新数据源 (重量级操作)
+   * 根据时间范围和故障类型过滤数据,更新地图源和统计控件
+   * 性能优化: 使用缓存避免重复计算
+   */
+  _updateDataSources() {
+    const map = this.map;
+
+    // 获取筛选条件
     let timeRange = this.timeRange;
     let selectedCategories = [];
 
@@ -952,17 +1014,28 @@ const FaultModePlugin = {
       }
     }
 
-    // 1. 筛选数据
+    // 性能优化: 检查筛选条件是否变化
+    const filterKey = `${timeRange}_${selectedCategories.sort().join(',')}`;
+    if (this.cachedFilterKey === filterKey && this.cachedFilteredFeatures) {
+      // 筛选条件未变化,复用缓存数据
+      return;
+    }
+
+    // 筛选数据
     let filteredFeatures = [];
     if (typeof FaultDataService !== "undefined") {
       filteredFeatures = FaultDataService.filter(
-        FaultDataService.convertToFeatures(this.markerData), // 重新生成或缓存
+        FaultDataService.convertToFeatures(this.markerData),
         timeRange,
         selectedCategories
       );
     }
 
-    // 2. 更新源 (Points)
+    // 缓存结果
+    this.cachedFilteredFeatures = filteredFeatures;
+    this.cachedFilterKey = filterKey;
+
+    // 更新源 (Points)
     const sourcePoints = map.getSource("fault-points");
     if (sourcePoints) {
       sourcePoints.setData({
@@ -971,17 +1044,12 @@ const FaultModePlugin = {
       });
     }
 
-    // 3. 更新源 (Heatmap) - 必须更新，否则热力图不随时间变化
+    // 更新源 (Heatmap)
     const sourceHeatmap = map.getSource("fault-heatmap");
     if (sourceHeatmap) {
-      // 热力图可能需要不同的属性格式 (如 weight)，已经在 convertToFeatures 中包含 (properties.weight 暂未设置，需检查)
-      // FaultDataService.convertToFeatures 返回 feature.properties.weight 吗？
-      // 回看 FaultDataService.js (lines 11-53)，properties 中没有 weight。
-      // 原 otnfault_map_app.js 会在 convert 后追加 weight。
-
-      // 我们临时修正：在此处添加 weight
+      // 添加 weight 属性
       const heatmapFeatures = filteredFeatures.map((f) => {
-        const props = { ...f.properties, weight: 1 }; // 简单处理，每个点权重为1，或根据 count (如果是聚合数据)
+        const props = { ...f.properties, weight: 1 };
         return { ...f, properties: props };
       });
 
@@ -991,33 +1059,10 @@ const FaultModePlugin = {
       });
     }
 
-    // 4. 更新统计
+    // 更新统计控件
     if (this.statsControl) {
-      // 提取属性数据传递给统计控件 (FaultStatisticsControl 内部会计算统计)
       const faultDataList = filteredFeatures.map((f) => f.properties);
       this.statsControl.setData(faultDataList);
-    }
-
-    // 5. 切换显示模式 (智能/热力图/点)
-    let mode = "smart";
-    if (this.layerToggleControl) {
-      mode = this.layerToggleControl.getEffectiveMode();
-    } else {
-      mode = map.getZoom() >= 9 ? "points" : "heatmap";
-    }
-
-    if (mode === "points") {
-      map.setLayoutProperty("fault-heatmap-layer", "visibility", "none");
-      map.setLayoutProperty("fault-points-layer", "visibility", "visible");
-    } else {
-      // heatmap
-      map.setLayoutProperty("fault-heatmap-layer", "visibility", "visible");
-      map.setLayoutProperty("fault-points-layer", "visibility", "none");
-    }
-
-    // 6. 更新图例可见性
-    if (this.legendControl) {
-      this.legendControl.updateVisibility(mode);
     }
   },
 
