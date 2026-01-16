@@ -23,6 +23,7 @@ MAP_MODES = {
         ],
         'layers': {},
         'js_files': [
+            'utils/fault_icons.js',      # SVG图标库（必须在fault_mode.js之前）
             'core/config.js',
             'utils/api.js',
             'services/FaultDataService.js',
