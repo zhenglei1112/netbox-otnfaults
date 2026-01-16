@@ -188,21 +188,13 @@ const LocationModePlugin = {
   },
 }; // End of LocationModePlugin
 
-// 辅助类：流向动画 (与 fault_mode.js 保持一致)
+// 辅助类：流向动画（优化版 - 按需渲染，与 fault_mode.js 保持一致）
 class DeckGLFlowAnimator {
   constructor(map) {
     this.map = map;
-    this.deckOverlay = new deck.MapboxOverlay({
-      interleaved: false,
-      layers: [],
-    });
-    map.addControl(this.deckOverlay);
+    this.deckOverlay = null;  // ← 延迟创建，按需初始化
 
-    // 背景动画状态
-    this.time = 0;
-    this.paths = [];
-
-    // 高亮动画状态 (独立)
+    // 高亮动画状态
     this.highlightPath = null;
     this.highlightTime = 0;
     this.highlightDirection = 1; // 1: A->Z, -1: Z->A
@@ -210,11 +202,12 @@ class DeckGLFlowAnimator {
     this.highlightLoopCount = 0;
     this.highlightCallback = null;
 
-    this._animate();
-  }
+    // 动画控制
+    this.isRunning = false;
+    this.animationFrameId = null;
 
-  updatePaths(paths) {
-    this.paths = paths || [];
+    // 复用的Layer对象（避免每帧创建）
+    this.highlightLayer = null;
   }
 
   // 统一入口：启动单次往返动画
@@ -225,6 +218,9 @@ class DeckGLFlowAnimator {
     this.highlightActive = true;
     this.highlightLoopCount = 0;
     this.highlightCallback = onComplete;
+
+    // 启动动画循环
+    this._start();
   }
 
   // 设置高亮路径数据
@@ -264,23 +260,81 @@ class DeckGLFlowAnimator {
     }
 
     this.highlightPath = pathData;
+
+    // 创建或更新Layer对象（复用以提升性能）
+    if (!this.highlightLayer) {
+      this.highlightLayer = new deck.TripsLayer({
+        id: "path-highlight-flow",
+        data: pathData,
+        getPath: (d) => d.path,
+        getTimestamps: (d) => d.timestamps,
+        getColor: [255, 165, 0],  // 金橙色
+        currentTime: 0,
+        trailLength: 50,
+        widthMinPixels: 5,
+        opacity: 1.0,
+      });
+    } else {
+      // 复用现有对象，只更新数据（避免重复创建）
+      this.highlightLayer = this.highlightLayer.clone({
+        data: pathData,
+        currentTime: 0,
+      });
+    }
   }
 
   clearHighlight() {
     this.highlightPath = null;
     this.highlightActive = false;
     this.highlightCallback = null;
+    this._stop();
   }
 
   stop() {
     this.clearHighlight();
   }
 
-  _animate() {
-    // 1. 背景动画循环 (0 -> 100 loop)
-    this.time = (this.time + 0.5) % 100;
+  // 内部方法：启动动画循环
+  _start() {
+    if (!this.isRunning) {
+      this.isRunning = true;
 
-    // 2. 高亮动画控制 (0 -> 100 -> 0 stop)
+      // 按需创建Overlay（避免永久RAF）
+      if (!this.deckOverlay) {
+        this.deckOverlay = new deck.MapboxOverlay({
+          interleaved: false,
+          layers: [],
+        });
+        this.map.addControl(this.deckOverlay);
+      }
+
+      this._animate();
+    }
+  }
+
+  // 内部方法：停止动画循环
+  _stop() {
+    this.isRunning = false;
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+
+    // 完全移除Overlay（停止DeckGL的RAF循环）
+    if (this.deckOverlay) {
+      this.map.removeControl(this.deckOverlay);
+      this.deckOverlay.finalize();  // DeckGL清理方法
+      this.deckOverlay = null;
+    }
+  }
+
+  _animate() {
+    // 检查是否应该继续运行
+    if (!this.isRunning) {
+      return;
+    }
+
+    // 高亮动画控制 (0 -> 100 -> 0, 重复2次后停止)
     if (this.highlightActive && this.highlightPath) {
       this.highlightTime += 2 * this.highlightDirection; // 速度快一点
 
@@ -295,36 +349,28 @@ class DeckGLFlowAnimator {
           // 继续循环
           this.highlightDirection = 1;
         } else {
-          // 结束
+          // 结束动画
           this.highlightActive = false;
-          this.highlightPath = null;
           if (this.highlightCallback) {
             this.highlightCallback();
           }
+          // 停止循环，释放CPU
+          this._stop();
+          return;
         }
+      }
+
+      // 更新Layer的currentTime属性（使用clone复用对象）
+      if (this.highlightLayer) {
+        this.highlightLayer = this.highlightLayer.clone({
+          currentTime: this.highlightTime,
+        });
+        this.deckOverlay.setProps({ layers: [this.highlightLayer] });
       }
     }
 
-    const layers = [];
-
-    // 高亮层
-    if (this.highlightActive && this.highlightPath) {
-      const highlightLayer = new deck.TripsLayer({
-        id: "path-highlight-flow",
-        data: this.highlightPath,
-        getPath: (d) => d.path,
-        getTimestamps: (d) => d.timestamps,
-        getColor: [255, 165, 0], // 金橙色
-        currentTime: this.highlightTime,
-        trailLength: 50, // 拖尾长一点
-        widthMinPixels: 5,
-        opacity: 1.0,
-      });
-      layers.push(highlightLayer);
-    }
-
-    this.deckOverlay.setProps({ layers: layers });
-    requestAnimationFrame(this._animate.bind(this));
+    // 继续下一帧
+    this.animationFrameId = requestAnimationFrame(this._animate.bind(this));
   }
 }
 
