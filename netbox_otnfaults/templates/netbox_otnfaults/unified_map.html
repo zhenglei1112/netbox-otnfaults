@@ -128,6 +128,25 @@
     {% if highlight_path_data %}highlightPathData: {{ highlight_path_data|safe }},{% endif %}
     {% if path_name %}pathName: '{{ path_name }}',{% endif %}
   };
+
+  
+  // 自动补全相对路径为绝对路径 (支持 PMTiles 等协议解析)
+  (function() {
+    const resolveUrl = (url) => {
+      if (url && url.startsWith('/')) {
+        // 获取当前协议和主机名，并强制拼接 :8080 端口
+        // 例如: http://192.168.30.177:8000 -> http://192.168.30.177:8080
+        return `${window.location.protocol}//${window.location.hostname}:8080${url}`;
+      }
+      return url;
+    };
+    
+    const config = window.OTNMapConfig;
+    config.localTilesUrl = resolveUrl(config.localTilesUrl);
+    config.localGlyphsUrl = resolveUrl(config.localGlyphsUrl);
+    config.otnPathsPmtilesUrl = resolveUrl(config.otnPathsPmtilesUrl);
+  })();
+
   // 兼容旧版代码 (LayerToggleControl, FaultStatisticsControl 等)
   window.OTNFaultMapConfig = window.OTNMapConfig;
 </script>

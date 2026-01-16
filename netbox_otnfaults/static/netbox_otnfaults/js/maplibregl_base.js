@@ -84,14 +84,14 @@ class NetBoxMapBase {
       version: 8,
       glyphs:
         config.localGlyphsUrl ||
-        "http://192.168.30.177:8080/maps/fonts/{fontstack}/{range}.pbf",
+        "/maps/fonts/{fontstack}/{range}.pbf",
       sources: {
         china_local: {
           type: "vector",
           url:
             "pmtiles://" +
             (config.localTilesUrl ||
-              "http://192.168.30.177:8080/maps/china.pmtiles"),
+              "/maps/china.pmtiles"),
           attribution: "© OpenStreetMap",
         },
         // OTN 路径数据源现在统一在 otnfault_map_app.js 中添加
