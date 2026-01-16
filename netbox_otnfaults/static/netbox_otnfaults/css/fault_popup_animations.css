@@ -51,6 +51,10 @@
 .stats-popup,
 .animated-popup {
     will-change: opacity;
+    /* 禁用文字选择，避免拖拽时与地图pan操作冲突 */
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
 }
 
 /* 优化性能: 使用GPU加速 */
