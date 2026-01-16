@@ -549,3 +549,32 @@
 .debug-perf-row .label {
     opacity: 0.8;
 }
+
+/* =================================
+   手风琴动画效果
+   ================================= */
+
+.section-content {
+    overflow: hidden;
+    transition: max-height 0.25s ease-in-out, opacity 0.2s ease-in-out, padding 0.25s ease-in-out;
+}
+
+.section-content.collapsed {
+    max-height: 0 !important;
+    opacity: 0;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.section-content.expanded {
+    opacity: 1;
+}
+
+/* 图标旋转动画 */
+.stats-section .accordion-icon {
+    transition: transform 0.25s ease-in-out;
+}
+
+.stats-section .accordion-icon.rotated {
+    transform: rotate(90deg);
+}

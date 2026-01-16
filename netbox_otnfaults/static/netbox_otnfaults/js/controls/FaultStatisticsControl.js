@@ -56,6 +56,7 @@ class FaultStatisticsControl {
    */
   setData(faultDataList) {
     this.faultDataList = faultDataList;
+    this._cachedStats = null; // 清除缓存，强制重新计算
     this.update();
   }
 
@@ -92,10 +93,15 @@ class FaultStatisticsControl {
     );
   }
 
-  // 计算统计数据
+  // 计算统计数据 (带缓存)
   calculateStats() {
+    // 如果已有缓存结果直接返回，避免重复计算
+    if (this._cachedStats) {
+      return this._cachedStats;
+    }
     // 使用显式设置的数据列表进行统计
-    return this.calculateStatsFromList(this.faultDataList || []);
+    this._cachedStats = this.calculateStatsFromList(this.faultDataList || []);
+    return this._cachedStats;
   }
 
   calculateStatsFromList(faults) {
@@ -104,9 +110,11 @@ class FaultStatisticsControl {
     let validDurationCount = 0;
     const siteCounts = {};
     const pathCounts = {};
+    const businessCounts = {};
+    const provinceCounts = {}; // 新增：省份统计
 
     faults.forEach((f) => {
-      // 统计站点（只统计A端有值且Z端为空的故障，与 single_site_a_id 过滤器逻辑一致）
+      // 统计站点（只统计A端有值且Z端为空的故障）
       const hasZSites = f.z_site_ids && f.z_site_ids.length > 0;
       if (f.a_site && !hasZSites) {
         siteCounts[f.a_site] = (siteCounts[f.a_site] || 0) + 1;
@@ -117,9 +125,7 @@ class FaultStatisticsControl {
         const siteA = f.a_site;
         const zSitesList = this.splitZSites(f.z_sites);
 
-        // 为每个Z端站点分别创建路径统计
         zSitesList.forEach((siteZ) => {
-          // 规范化路径key：使用字典序排序，确保A->Z和Z->A被视为同一条路径
           const [site1, site2] =
             siteA < siteZ ? [siteA, siteZ] : [siteZ, siteA];
           const normalizedKey = `${site1} <-> ${site2}`;
@@ -136,18 +142,33 @@ class FaultStatisticsControl {
         });
       }
 
+      // 新增：统计影响业务
+      // in FaultDataService.js, it maps m.impacted_business -> properties.impactedBusiness
+      const impactedBusinessStr = f.impactedBusiness || f.impacted_business; // 兼容驼峰和蛇形
+
+      if (impactedBusinessStr && typeof impactedBusinessStr === 'string') {
+        const businesses = impactedBusinessStr.split('、');
+        businesses.forEach(b => {
+          const name = b.trim();
+          // 过滤无效值和默认占位符
+          if (name && name !== '无重保/影响业务') {
+            businessCounts[name] = (businessCounts[name] || 0) + 1;
+          }
+        });
+      }
+
+      // 新增：统计省份
+      const province = f.province || (f.raw && f.raw.province);
+      if (province && province !== '未指定') {
+        provinceCounts[province] = (provinceCounts[province] || 0) + 1;
+      }
+
       // 统计时长
-      // 解析 "Xh" 字符串 或 使用 raw minutes
-      // 假设后端传的是 "12.5h" 或 类似，或者我们有原始时间
-      // 这里尝试直接用 duration_minutes 如果存在，或者重新计算
       if (f.occurrence_time) {
         const start = new Date(f.occurrence_time);
-
-        // 获取恢复时间：优先从 raw 数据获取原始值
         const recoveryTime =
           f.raw && f.raw.recovery_time ? f.raw.recovery_time : null;
 
-        // 如果未恢复，使用当前时间（或调试时间）
         const now = window.OTN_DEBUG_MODE
           ? new Date(window.OTN_DEBUG_DATE)
           : new Date();
@@ -171,6 +192,14 @@ class FaultStatisticsControl {
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 5); // [name, {count, ...}]
 
+    // 影响业务统计 (全部显示，按次数排序)
+    const impactedBusinesses = Object.entries(businessCounts)
+      .sort((a, b) => b[1] - a[1]);
+
+    // 省份统计 (全部显示，按次数排序)
+    const provinceStats = Object.entries(provinceCounts)
+      .sort((a, b) => b[1] - a[1]);
+
     const avgDuration =
       validDurationCount > 0
         ? (totalDurationHours / validDurationCount).toFixed(1)
@@ -181,6 +210,8 @@ class FaultStatisticsControl {
       avgDuration,
       topSites,
       topPaths,
+      impactedBusinesses,
+      provinceStats, // 新增返回
     };
   }
 
@@ -212,8 +243,6 @@ class FaultStatisticsControl {
       } else if (count === 0) {
         categoryText = "无类型";
       } else {
-        // Map category keys to names
-        // FAULT_CATEGORY_NAMES should be globally available from CategoryFilterControl.js
         const names = categoryFilter.selectedCategories.map(
           (cat) => FAULT_CATEGORY_NAMES[cat] || cat
         );
@@ -222,41 +251,99 @@ class FaultStatisticsControl {
     }
 
     // 初始图标根据 minimized 状态设置
-    const toggleIconClass = this.minimized
+    const mainToggleIconClass = this.minimized
       ? "mdi mdi-chevron-up toggle-icon"
       : "mdi mdi-chevron-down toggle-icon";
     const contentDisplay = this.minimized ? "none" : "block";
+
+    // 抽屉状态 (默认：业务展开，Top5折叠)
+    // 使用 dataset 或内存状态维护，这里简单起见，如果尚未初始化状态，则默认初始化
+    if (this.sectionStates === undefined) {
+      this.sectionStates = {
+        business: true, // true = open
+        province: false,
+        top5: false
+      };
+    }
+
+    const businessDisplay = this.sectionStates.business ? 'block' : 'none';
+    const businessIcon = this.sectionStates.business ? 'mdi mdi-chevron-down' : 'mdi mdi-chevron-right';
+
+    const top5Display = this.sectionStates.top5 ? 'block' : 'none';
+    const top5Icon = this.sectionStates.top5 ? 'mdi mdi-chevron-down' : 'mdi mdi-chevron-right';
 
     this.container.innerHTML = `
             <div class="card shadow-sm" style="width: 240px; opacity: 0.95;">
                 <div class="card-header py-2 d-flex justify-content-between align-items-center bg-body-tertiary" 
                      style="cursor: pointer;" onclick="this.closest('.fault-statistics')._control.toggleMinimize(event)">
                     <span class="fw-bold mb-0" style="font-size: 14px;">故障统计</span>
-                    <i class="${toggleIconClass}"></i>
+                    <i class="${mainToggleIconClass}"></i>
                 </div>
                 <div class="card-header py-1 bg-body text-body-secondary" style="font-size: 11px; border-top: 1px solid var(--bs-border-color);">
                      <span>筛选: ${timeRangeText} · ${categoryText}</span>
                 </div>
+                <!-- 统计概览 -->
                 <div class="stats-summary px-2 py-2 bg-body" style="font-size: 12px; border-top: 1px solid var(--bs-border-color);">
-                    <span>故障数: </span><span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${
-                      stats.total
-                    }</span>
+                    <span>故障数: </span><span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${stats.total
+      }</span>
                     <span class="mx-2 text-body-secondary">|</span>
-                    <span>平均: </span><span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${
-                      stats.avgDuration
-                    }小时</span>
+                    <span>平均: </span><span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${stats.avgDuration
+      }小时</span>
                 </div>
-                <div class="card-body p-2 stats-content" style="font-size: 13px; display: ${contentDisplay}; border-top: 1px solid var(--bs-border-color);">
-                    ${this.createSection(
-                      "Top 5 故障站点",
-                      stats.topSites,
-                      "site"
-                    )}
-                    ${this.createSection(
-                      "Top 5 故障路径",
-                      stats.topPaths,
-                      "path"
-                    )}
+                
+                <div class="card-body p-0 stats-content" style="display: ${contentDisplay}; border-top: 1px solid var(--bs-border-color);">
+                    
+                    <!-- 1. 影响业务统计 (抽屉) -->
+                    <div class="stats-section">
+                        <div class="d-flex justify-content-between align-items-center px-2 py-1 bg-light border-bottom" 
+                             style="cursor: pointer; font-size: 12px;"
+                             onclick="window.faultStatisticsControl.toggleSection('business', this)">
+                            <span class="fw-bold text-secondary">影响业务统计</span>
+                            <i class="${businessIcon}"></i>
+                        </div>
+                        <div class="section-content px-2 ${this.sectionStates.business ? 'expanded' : 'collapsed'}" 
+                             style="font-size: 12px; max-height: ${this.sectionStates.business ? '200px' : '0'}; overflow-y: auto;">
+                            ${this.renderBusinessList(stats.impactedBusinesses)}
+                        </div>
+                    </div>
+
+                    <!-- 2. 省份统计 (抽屉) -->
+                    <div class="stats-section border-top">
+                        <div class="d-flex justify-content-between align-items-center px-2 py-1 bg-light border-bottom" 
+                             style="cursor: pointer; font-size: 12px;"
+                             onclick="window.faultStatisticsControl.toggleSection('province', this)">
+                            <span class="fw-bold text-secondary">省份统计</span>
+                            <i class="${this.sectionStates.province ? 'mdi mdi-chevron-down' : 'mdi mdi-chevron-right'}"></i>
+                        </div>
+                        <div class="section-content px-2 ${this.sectionStates.province ? 'expanded' : 'collapsed'}" 
+                             style="font-size: 12px; max-height: ${this.sectionStates.province ? '200px' : '0'}; overflow-y: auto;">
+                            ${this.renderBusinessList(stats.provinceStats)}
+                        </div>
+                    </div>
+
+                    <!-- 3. Top 5 故障统计 (抽屉) -->
+                     <div class="stats-section border-top">
+                        <div class="d-flex justify-content-between align-items-center px-2 py-1 bg-light border-bottom" 
+                             style="cursor: pointer; font-size: 12px;"
+                             onclick="window.faultStatisticsControl.toggleSection('top5', this)">
+                            <span class="fw-bold text-secondary">Top 5 故障统计</span>
+                            <i class="${top5Icon}"></i>
+                        </div>
+                        <div class="section-content px-2 ${this.sectionStates.top5 ? 'expanded' : 'collapsed'}" 
+                             style="max-height: ${this.sectionStates.top5 ? '500px' : '0'};">
+                             ${this.createSection(
+        "Top 5 故障站点",
+        stats.topSites,
+        "site"
+      )}
+                             ${this.createSection(
+        "Top 5 故障路径",
+        stats.topPaths,
+        "path"
+      )}
+                        </div>
+                    </div>
+
                 </div>
             </div>
         `;
@@ -269,6 +356,62 @@ class FaultStatisticsControl {
     e.stopPropagation();
     this.minimized = !this.minimized;
     this.renderVisibility();
+  }
+
+  toggleSection(sectionKey, headerEl) {
+    const isCurrentlyOpen = this.sectionStates[sectionKey];
+
+    // 手风琴效果：展开当前区域时关闭其他区域
+    if (!isCurrentlyOpen) {
+      // 关闭所有其他区域
+      Object.keys(this.sectionStates).forEach(key => {
+        if (key !== sectionKey && this.sectionStates[key]) {
+          this.sectionStates[key] = false;
+        }
+      });
+    }
+
+    // 切换当前区域状态
+    this.sectionStates[sectionKey] = !isCurrentlyOpen;
+
+    // 更新所有区域的 UI (重新渲染整个内容以确保同步)
+    this.renderContent();
+    this.renderVisibility(); // 保持折叠状态
+  }
+
+  renderBusinessList(items) {
+    if (!items || items.length === 0) {
+      return '<div class="text-muted text-center py-1">无影响业务记录</div>';
+    }
+
+    // Calculate max value for the progress bar
+    let maxVal = 0;
+    if (items.length > 0) {
+      maxVal = items[0][1];
+    }
+
+    // items 是 [name, count] 数组
+    return items.map(([name, count], index) => {
+      const percent = maxVal > 0 ? (count / maxVal) * 100 : 0;
+      const safeName = name.replace(/'/g, "\\'");
+
+      return `
+          <div class="mb-2 clickable-stat-row" 
+               title="${name}"
+               style="cursor: default;">
+              <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 12px;">
+                  <div class="text-truncate me-2 text-body-secondary" style="max-width: 180px;">${index + 1
+        }. ${name}</div>
+                  <span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${count}</span>
+              </div>
+              <div class="progress" style="height: 4px; background-color: #e9ecef;">
+                   <div class="progress-bar" role="progressbar" 
+                        style="width: ${percent}%; background-color: var(--bs-link-color, #0097a7);">
+                   </div>
+              </div>
+          </div>
+      `;
+    }).join('');
   }
 
   createSection(title, items, type) {
@@ -307,9 +450,8 @@ class FaultStatisticsControl {
                      style="cursor: pointer;"
                      onclick="window.faultStatisticsControl.${func}('${safeName}')">
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 12px;">
-                        <div class="text-truncate me-2 text-body-secondary" style="max-width: 180px;">${
-                          index + 1
-                        }. ${name}</div>
+                        <div class="text-truncate me-2 text-body-secondary" style="max-width: 180px;">${index + 1
+          }. ${name}</div>
                         <span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${count}</span>
                     </div>
                     <div class="progress" style="height: 4px; background-color: #e9ecef;">
@@ -561,16 +703,14 @@ class FaultStatisticsControl {
       .join(" ");
 
     // 生成填充区域路径
-    const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${
-      height - padding.bottom
-    } L ${padding.left} ${height - padding.bottom} Z`;
+    const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${height - padding.bottom
+      } L ${padding.left} ${height - padding.bottom} Z`;
 
     // 生成数据点（使用g元素包裹circle和title以修复tooltip）
     const pointsHtml = points
       .map((p) => {
-        const tooltipText = `${String(p.year).slice(-2)}年${p.month}月，${
-          p.count
-        }次故障`;
+        const tooltipText = `${String(p.year).slice(-2)}年${p.month}月，${p.count
+          }次故障`;
         return `
             <g class="chart-point">
                 <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(
@@ -607,12 +747,10 @@ class FaultStatisticsControl {
                     <!-- 数据点 -->
                     ${pointsHtml}
                     <!-- Y轴最大值标签 -->
-                    <text x="${padding.left - 3}" y="${
-      padding.top + 3
-    }" font-size="8" fill="#6c757d" text-anchor="end">${maxCount}</text>
-                    <text x="${padding.left - 3}" y="${
-      height - padding.bottom
-    }" font-size="8" fill="#6c757d" text-anchor="end">0</text>
+                    <text x="${padding.left - 3}" y="${padding.top + 3
+      }" font-size="8" fill="#6c757d" text-anchor="end">${maxCount}</text>
+                    <text x="${padding.left - 3}" y="${height - padding.bottom
+      }" font-size="8" fill="#6c757d" text-anchor="end">0</text>
                     <!-- X轴标签 -->
                     ${xLabelsHtml}
                 </svg>
@@ -655,18 +793,17 @@ class FaultStatisticsControl {
                 </div>
                 <div class="stats-time-grid">
                     ${items
-                      .map(
-                        (item) => `
+        .map(
+          (item) => `
                         <div class="stats-time-item">
                             <span class="stats-time-label">${item.text}</span>
-                            <span class="stats-time-value">${
-                              stats[item.key]
-                            }</span>
+                            <span class="stats-time-value">${stats[item.key]
+            }</span>
                             <span class="stats-time-unit">次</span>
                         </div>
                     `
-                      )
-                      .join("")}
+        )
+        .join("")}
                 </div>
                 ${chartHtml}
             </div>
