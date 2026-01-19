@@ -317,7 +317,7 @@ class FaultStatisticsControl {
                         </div>
                         <div class="section-content px-2 ${this.sectionStates.province ? 'expanded' : 'collapsed'}" 
                              style="font-size: 12px; max-height: ${this.sectionStates.province ? '200px' : '0'}; overflow-y: auto;">
-                            ${this.renderBusinessList(stats.provinceStats)}
+                            ${this.renderProvinceList(stats.provinceStats)}
                         </div>
                     </div>
 
@@ -402,6 +402,43 @@ class FaultStatisticsControl {
           <div class="mb-2 clickable-stat-row business-highlight-item" 
                title="${name}"
                data-business-name="${safeName}"
+               style="cursor: default;">
+              <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 12px;">
+                  <div class="text-truncate me-2 text-body-secondary" style="max-width: 180px;">${index + 1
+        }. ${name}</div>
+                  <span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${count}</span>
+              </div>
+              <div class="progress" style="height: 4px; background-color: #e9ecef;">
+                   <div class="progress-bar" role="progressbar" 
+                        style="width: ${percent}%; background-color: var(--bs-link-color, #0097a7);">
+                   </div>
+              </div>
+          </div>
+      `;
+    }).join('');
+  }
+
+  renderProvinceList(items) {
+    if (!items || items.length === 0) {
+      return '<div class="text-muted text-center py-1">无省份记录</div>';
+    }
+
+    // Calculate max value for the progress bar
+    let maxVal = 0;
+    if (items.length > 0) {
+      maxVal = items[0][1];
+    }
+
+    // items 是 [name, count] 数组
+    return items.map(([name, count], index) => {
+      const percent = maxVal > 0 ? (count / maxVal) * 100 : 0;
+      const safeName = name.replace(/'/g, "\\'");
+
+      return `
+          <div class="mb-2 clickable-stat-row hover-highlight-item" 
+               title="悬停高亮"
+               data-highlight-type="province"
+               data-highlight-name="${safeName}"
                style="cursor: default;">
               <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 12px;">
                   <div class="text-truncate me-2 text-body-secondary" style="max-width: 180px;">${index + 1
@@ -1489,8 +1526,8 @@ class FaultStatisticsControl {
   /**
    * 根据类型和名称高亮故障
    * @private
-   * @param {string} type - 类型: 'site' 或 'path'
-   * @param {string} name - 站点名称或路径名称
+   * @param {string} type - 类型: 'site', 'path' 或 'province'
+   * @param {string} name - 站点名称、路径名称或省份名称
    */
   _highlightByTypeAndName(type, name) {
     let relatedFaults = [];
@@ -1509,6 +1546,12 @@ class FaultStatisticsControl {
           return this.matchesPath(f.a_site, f.z_sites, siteA, siteZ);
         });
       }
+    } else if (type === 'province') {
+      // 筛选属于该省份的故障（与calculateStatsFromList使用相同逻辑）
+      relatedFaults = (this.faultDataList || []).filter(f => {
+        const province = f.province || (f.raw && f.raw.province);
+        return province === name && province !== '未指定';
+      });
     }
 
     if (relatedFaults.length === 0) {
