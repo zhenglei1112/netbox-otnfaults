@@ -449,9 +449,11 @@ class FaultStatisticsControl {
         const safeName = name.replace(/'/g, "\\'");
 
         return `
-                <div class="mb-2 clickable-stat-row" 
-                     title="点击定位"
+                <div class="mb-2 clickable-stat-row hover-highlight-item" 
+                     title="点击定位，悬停高亮"
                      style="cursor: pointer;"
+                     data-highlight-type="${type}"
+                     data-highlight-name="${safeName}"
                      onclick="window.faultStatisticsControl.${func}('${safeName}')">
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 12px;">
                         <div class="text-truncate me-2 text-body-secondary" style="max-width: 180px;">${index + 1
@@ -1444,34 +1446,77 @@ class FaultStatisticsControl {
   }
 
   /**
-   * 绑定业务统计项的悬停高亮事件
+   * 绑定业务统计项、站点和路径的悬停高亮事件
    */
   _bindBusinessHighlightEvents() {
+    // 绑定业务统计项
     const businessItems = this.container.querySelectorAll('.business-highlight-item');
-
-    businessItems.forEach((item, index) => {
-
-      // 鼠标进入
+    businessItems.forEach((item) => {
       item.addEventListener('mouseenter', (e) => {
         const businessName = e.currentTarget.dataset.businessName;
-
         if (businessName) {
-          // 添加视觉反馈
           e.currentTarget.style.backgroundColor = 'rgba(0, 151, 167, 0.1)';
-
-          // 高亮地图元素
           this.highlightBusinessFaults(businessName);
         }
       });
 
-      // 鼠标离开
       item.addEventListener('mouseleave', (e) => {
-        // 移除视觉反馈
         e.currentTarget.style.backgroundColor = '';
-
-        // 清除地图高亮
         this.clearBusinessHighlight();
       });
     });
+
+    // 绑定站点和路径项（通用处理）
+    const hoverItems = this.container.querySelectorAll('.hover-highlight-item');
+    hoverItems.forEach((item) => {
+      item.addEventListener('mouseenter', (e) => {
+        const type = e.currentTarget.dataset.highlightType;
+        const name = e.currentTarget.dataset.highlightName;
+
+        if (type && name) {
+          e.currentTarget.style.backgroundColor = 'rgba(0, 151, 167, 0.1)';
+          this._highlightByTypeAndName(type, name);
+        }
+      });
+
+      item.addEventListener('mouseleave', (e) => {
+        e.currentTarget.style.backgroundColor = '';
+        this.clearBusinessHighlight();
+      });
+    });
+  }
+
+  /**
+   * 根据类型和名称高亮故障
+   * @private
+   * @param {string} type - 类型: 'site' 或 'path'
+   * @param {string} name - 站点名称或路径名称
+   */
+  _highlightByTypeAndName(type, name) {
+    let relatedFaults = [];
+
+    if (type === 'site') {
+      // 筛选A端站点匹配的故障
+      relatedFaults = (this.faultDataList || []).filter(f => {
+        return f.a_site === name;
+      });
+    } else if (type === 'path') {
+      // 路径名称格式: "站点A <-> 站点B"
+      const parts = name.split(' <-> ').map(s => s.trim());
+      if (parts.length === 2) {
+        const [siteA, siteZ] = parts;
+        relatedFaults = (this.faultDataList || []).filter(f => {
+          return this.matchesPath(f.a_site, f.z_sites, siteA, siteZ);
+        });
+      }
+    }
+
+    if (relatedFaults.length === 0) {
+      console.warn(`[Highlight] 未找到匹配的故障 (${type}: ${name})`);
+      return;
+    }
+
+    // 复用业务高亮动画
+    this._startBusinessHighlightAnimation(relatedFaults);
   }
 }
