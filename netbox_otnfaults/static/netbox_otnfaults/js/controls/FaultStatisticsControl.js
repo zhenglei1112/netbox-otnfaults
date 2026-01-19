@@ -350,6 +350,9 @@ class FaultStatisticsControl {
 
     // 绑定实例以便 onclick 访问
     this.container._control = this;
+
+    // 绑定业务项悬停事件
+    this._bindBusinessHighlightEvents();
   }
 
   toggleMinimize(e) {
@@ -396,8 +399,9 @@ class FaultStatisticsControl {
       const safeName = name.replace(/'/g, "\\'");
 
       return `
-          <div class="mb-2 clickable-stat-row" 
+          <div class="mb-2 clickable-stat-row business-highlight-item" 
                title="${name}"
+               data-business-name="${safeName}"
                style="cursor: default;">
               <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 12px;">
                   <div class="text-truncate me-2 text-body-secondary" style="max-width: 180px;">${index + 1
@@ -1272,6 +1276,202 @@ class FaultStatisticsControl {
 
     this.currentPopup.on("close", () => {
       this.currentPopup = null;
+    });
+  }
+
+  /**
+   * 根据业务名称高亮相关故障
+   * @param {string} businessName - 业务名称
+   */
+  highlightBusinessFaults(businessName) {
+
+
+    // 筛选包含该业务的故障
+    const relatedFaults = (this.faultDataList || []).filter(f => {
+      const impactedBusiness = f.impactedBusiness || f.impacted_business;
+
+      if (!impactedBusiness) return false;
+      const businesses = impactedBusiness.split('、').map(b => b.trim());
+      return businesses.includes(businessName);
+    });
+
+
+
+    if (relatedFaults.length === 0) {
+      console.warn('[BusinessHighlight] 未找到匹配的故障！');
+      return;
+    }
+
+    // 启动高亮动画
+    this._startBusinessHighlightAnimation(relatedFaults);
+  }
+
+  /**
+   * 清除业务故障高亮
+   */
+  clearBusinessHighlight() {
+    // 停止动画循环
+    if (this._businessHighlightRunning) {
+      this._businessHighlightRunning = false;
+      if (this._businessAnimationFrameId) {
+        cancelAnimationFrame(this._businessAnimationFrameId);
+        this._businessAnimationFrameId = null;
+      }
+    }
+
+    // 移除DeckGL Overlay
+    if (this._businessDeckOverlay) {
+      this.map.removeControl(this._businessDeckOverlay);
+      if (this._businessDeckOverlay.finalize) {
+        this._businessDeckOverlay.finalize();
+      }
+      this._businessDeckOverlay = null;
+    }
+  }
+
+  /**
+   * 启动业务高亮动画
+   * @private
+   * @param {Array} faults - 要高亮的故障列表
+   */
+  _startBusinessHighlightAnimation(faults) {
+    // 确保先清除之前的动画
+    this.clearBusinessHighlight();
+
+    // 准备数据 - 统一收集所有故障点，带类型信息
+    this._businessHighlightData = {
+      faults: [] // 所有故障，包含位置、类型、状态等信息
+    };
+
+    // 从地图图层的GeoJSON source获取完整的故障features数据（包含坐标）
+    const faultPointsSource = this.map.getSource('fault-points');
+    const allFeatures = faultPointsSource ? faultPointsSource._data?.features || [] : [];
+
+
+
+    // 收集所有故障数据（从地图GeoJSON features中查找）
+    faults.forEach((fault, index) => {
+      const faultId = fault.id;
+
+      // 在地图GeoJSON features中查找对应的feature（包含geometry坐标）
+      const feature = allFeatures.find(f =>
+        f.properties?.id === faultId || f.id === faultId
+      );
+
+      if (feature && feature.geometry && feature.geometry.coordinates) {
+        const [lng, lat] = feature.geometry.coordinates;
+        this._businessHighlightData.faults.push({
+          position: [lng, lat],
+          id: faultId,
+          category: feature.properties?.category || 'other',
+          status: feature.properties?.statusKey || feature.properties?.status_key || 'processing'
+        });
+      } else if (index < 3) {
+        console.warn('[BusinessHighlight] 未找到故障feature:', {
+          索引: index,
+          故障ID: faultId,
+          在features中找到: !!feature
+        });
+      }
+    });
+
+    if (this._businessHighlightData.faults.length === 0) {
+      console.error('[BusinessHighlight] 没有收集到任何有效的故障坐标！');
+      return;
+    }
+
+    // 初始化动画状态
+    this._businessAnimationTime = 0;
+    this._businessHighlightRunning = true;
+
+    // 创建DeckGL Overlay
+    if (!this._businessDeckOverlay) {
+      this._businessDeckOverlay = new deck.MapboxOverlay({
+        interleaved: false,
+        layers: []
+      });
+      this.map.addControl(this._businessDeckOverlay);
+    }
+
+    // 启动动画循环
+    this._animateBusinessHighlight();
+  }
+
+  /**
+   * 业务高亮动画循环
+   * @private
+   */
+  _animateBusinessHighlight() {
+    if (!this._businessHighlightRunning) {
+      return;
+    }
+
+    // 更新时间 (0-100循环，产生脉冲效果)
+    this._businessAnimationTime = (this._businessAnimationTime + 3) % 100;
+
+    // 计算脉冲因子 (0 -> 1 -> 0)
+    const pulse = Math.sin((this._businessAnimationTime / 100) * Math.PI * 2);
+    const pulseFactor = (pulse + 1) / 2; // 归一化到 0-1
+
+    // 创建图层 - 统一金色高亮
+    const layers = [];
+
+    if (this._businessHighlightData.faults.length > 0) {
+      layers.push(
+        new deck.ScatterplotLayer({
+          id: 'business-faults-highlight',
+          data: this._businessHighlightData.faults,
+          getPosition: d => d.position,
+          getRadius: 400 + pulseFactor * 200, // 400-600米范围脉冲
+          getFillColor: [255, 215, 0, 150 + pulseFactor * 105], // 金色，透明度150-255
+          radiusUnits: 'meters',
+          radiusMinPixels: 12,
+          radiusMaxPixels: 36,
+          radiusScale: 1
+        })
+      );
+    }
+
+    // 更新DeckGL图层
+    if (this._businessDeckOverlay) {
+      this._businessDeckOverlay.setProps({ layers });
+    }
+
+    // 继续动画
+    this._businessAnimationFrameId = requestAnimationFrame(
+      this._animateBusinessHighlight.bind(this)
+    );
+  }
+
+  /**
+   * 绑定业务统计项的悬停高亮事件
+   */
+  _bindBusinessHighlightEvents() {
+    const businessItems = this.container.querySelectorAll('.business-highlight-item');
+
+    businessItems.forEach((item, index) => {
+
+      // 鼠标进入
+      item.addEventListener('mouseenter', (e) => {
+        const businessName = e.currentTarget.dataset.businessName;
+
+        if (businessName) {
+          // 添加视觉反馈
+          e.currentTarget.style.backgroundColor = 'rgba(0, 151, 167, 0.1)';
+
+          // 高亮地图元素
+          this.highlightBusinessFaults(businessName);
+        }
+      });
+
+      // 鼠标离开
+      item.addEventListener('mouseleave', (e) => {
+        // 移除视觉反馈
+        e.currentTarget.style.backgroundColor = '';
+
+        // 清除地图高亮
+        this.clearBusinessHighlight();
+      });
     });
   }
 }
