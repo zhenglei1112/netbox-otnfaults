@@ -670,17 +670,17 @@ class NetBoxMapBase {
 
     // 盾标 SVG 内联数据 - 浅灰色调，与底图风格一致
     // 国家高速：浅灰底 + 稍深灰顶（柔和对比）
-    const shieldNationalSvg = `<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="2" width="36" height="36" rx="4" fill="#b8bcc4"/>
-      <path d="M6 2h28a4 4 0 0 1 4 4v4H2V6a4 4 0 0 1 4-4z" fill="#9ca3af"/>
-      <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="#d1d5db" stroke-width="1" opacity="0.6"/>
+    const shieldNationalSvg = `<svg width="40" height="60" viewBox="0 0 40 60" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="36" height="56" rx="4" fill="#b8bcc4"/>
+      <path d="M6 2h28a4 4 0 0 1 4 4v1H2V6a4 4 0 0 1 4-4z" fill="#9ca3af"/>
+      <rect x="2" y="2" width="36" height="56" rx="4" fill="none" stroke="#d1d5db" stroke-width="1" opacity="0.6"/>
     </svg>`;
 
     // 省级高速：更浅灰底 + 浅米灰顶
-    const shieldProvincialSvg = `<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="2" width="36" height="36" rx="4" fill="#c9ccd2"/>
-      <path d="M6 2h28a4 4 0 0 1 4 4v4H2V6a4 4 0 0 1 4-4z" fill="#e5e7eb"/>
-      <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="#e5e7eb" stroke-width="1" opacity="0.6"/>
+    const shieldProvincialSvg = `<svg width="40" height="60" viewBox="0 0 40 60" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="36" height="56" rx="4" fill="#c9ccd2"/>
+      <path d="M6 2h28a4 4 0 0 1 4 4v1H2V6a4 4 0 0 1 4-4z" fill="#e5e7eb"/>
+      <rect x="2" y="2" width="36" height="56" rx="4" fill="none" stroke="#e5e7eb" stroke-width="1" opacity="0.6"/>
     </svg>`;
 
     /**
@@ -689,17 +689,17 @@ class NetBoxMapBase {
      * @param {string} imageId - 地图中的图片 ID
      */
     const addShieldImage = (svgString, imageId) => {
-      const img = new Image(40, 40);
+      const img = new Image(40, 60);
       img.onload = () => {
         if (!map.hasImage(imageId)) {
           map.addImage(imageId, img, {
             // content 定义文字显示的矩形范围 [x1, y1, x2, y2]
-            // 避开顶部的灰条区域（y从12开始）
-            content: [4, 12, 36, 36],
+            // 横条高度v1（极薄），文字区域从y=9开始，大幅增加下方高度到y=56
+            content: [4, 9, 36, 56],
             // stretchX 定义横向哪段可以拉伸（中间位置）
             stretchX: [[10, 30]],
-            // stretchY 定义纵向哪段可以拉伸（底色部分）
-            stretchY: [[15, 30]],
+            // stretchY 定义纵向哪段可以拉伸（底色部分，大幅增加拉伸范围）
+            stretchY: [[12, 52]],
           });
         }
       };

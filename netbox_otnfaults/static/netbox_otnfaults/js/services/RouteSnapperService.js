@@ -58,7 +58,7 @@ class RouteSnapperService {
     }
 
     /**
-     * 获取 CSRF Token
+     * 获取 CSRF Token（API 已禁用 CSRF 检查，但保留此方法以防需要）
      */
     _getCsrfToken() {
         // 方法1: 从 cookie 获取
@@ -81,7 +81,7 @@ class RouteSnapperService {
             return input.value;
         }
 
-        console.warn('[RouteSnapperService] 无法获取 CSRF token');
+        // API 已禁用 CSRF 检查（@csrf_exempt），返回空字符串不影响功能
         return '';
     }
 

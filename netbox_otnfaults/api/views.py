@@ -165,7 +165,7 @@ class RouteSnapperView(APIView):
             }
         """
         try:
-            from ..services.highway_graph import get_highway_graph_service
+            from ..services.otn_path_graph import get_otn_path_graph_service
             
             # 解析请求
             waypoints = request.data.get('waypoints', [])
@@ -185,10 +185,10 @@ class RouteSnapperView(APIView):
                     }, status=400)
             
             # 获取服务并计算路径
-            service = get_highway_graph_service()
+            service = get_otn_path_graph_service()
             
             if not service.is_available():
-                logger.warning('高速公路图服务不可用，返回直线路径')
+                logger.warning('OTN 路径图服务不可用，返回直线路径')
                 # 降级为直线连接
                 return Response({
                     'success': True,
@@ -200,7 +200,7 @@ class RouteSnapperView(APIView):
                         'length_meters': self._calculate_straight_distance(waypoints)
                     },
                     'fallback': True,
-                    'message': '高速公路图服务不可用，使用直线连接'
+                    'message': 'OTN 路径图服务不可用，使用直线连接'
                 })
             
             result = service.calculate_route(waypoints)
