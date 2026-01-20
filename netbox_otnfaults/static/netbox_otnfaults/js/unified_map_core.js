@@ -226,7 +226,7 @@ class OTNMapCore {
         },
       });
 
-      // 站点标签
+      // 站点标签 (带3D效果)
       this.mapBase.addLayer({
         id: "netbox-sites-labels",
         type: "symbol",
@@ -234,14 +234,35 @@ class OTNMapCore {
         layout: {
           "text-field": ["get", "name"],
           "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
-          "text-offset": [0, 1.2],
-          "text-anchor": "top",
-          "text-size": 12,
+          "text-offset": [0, -0.8],  // 负值向上偏移，文本显示在圆点上方
+          "text-anchor": "bottom",   // 文本底部锚定在坐标点
+          "text-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            6, 11,   // zoom=6: 11px
+            10, 14,  // zoom=10: 14px
+            14, 16   // zoom=14: 16px
+          ],
+          // 3D 效果关键配置: 文本始终面向屏幕
+          "text-pitch-alignment": "viewport",
+          "text-rotation-alignment": "viewport",
+          // 允许文本重叠，确保在3D视角下不被剔除
+          "text-allow-overlap": false,
+          "text-optional": true,
         },
         paint: {
-          "text-color": "#333",
-          "text-halo-color": "#fff",
-          "text-halo-width": 1,
+          "text-color": "#1a1a1a",  // 更深的文本颜色，增强对比
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 2,      // 增大光晕，增强悬浮和可读性
+          "text-halo-blur": 1,       // 添加光晕模糊，增强3D感
+          "text-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            6, 0.85,   // 低缩放级别稍微透明
+            8, 1       // 高缩放级别完全不透明
+          ],
         },
         minzoom: 6,
       });
