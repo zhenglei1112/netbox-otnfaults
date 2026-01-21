@@ -278,6 +278,58 @@ class OTNMapCore {
         () => (this.map.getCanvas().style.cursor = "")
       );
     }
+
+    // C. 3D 建筑图层（缩放级别 >= 15 时显示）
+    // 添加 OpenFreeMap 矢量瓦片源（包含 OSM 建筑高度数据）
+    this.map.addSource('openfreemap-buildings', {
+      type: 'vector',
+      url: 'https://tiles.openfreemap.org/planet'
+    });
+
+    // 查找第一个符号图层，确保 3D 建筑在标签下方显示
+    const firstSymbolId = this._findFirstSymbolLayerId();
+
+    // 添加 3D 建筑图层
+    this.mapBase.addLayer(
+      {
+        id: '3d-buildings-layer',
+        type: 'fill-extrusion',
+        source: 'openfreemap-buildings',
+        'source-layer': 'building',
+        minzoom: 15, // 只在缩放级别 >= 15 时显示
+        filter: ['!=', ['get', 'hide_3d'], true], // 过滤掉标记为隐藏的建筑
+        paint: {
+          // 建筑颜色：根据高度渐变（低→灰色，高→蓝色）
+          'fill-extrusion-color': [
+            'interpolate',
+            ['linear'],
+            ['get', 'render_height'], // 使用建筑渲染高度属性
+            0, 'lightgray',      // 0米：浅灰色
+            200, 'royalblue',    // 200米：皇家蓝
+            400, 'lightblue'     // 400米以上：浅蓝色
+          ],
+          // 建筑高度：根据缩放级别插值，实现平滑过渡
+          'fill-extrusion-height': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            15, 0,                        // zoom=15: 高度为0（不显示立体效果）
+            16, ['get', 'render_height']  // zoom=16: 显示完整高度
+          ],
+          // 建筑底部高度（用于多层建筑）
+          'fill-extrusion-base': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            15, 0,                                          // zoom=15: 底部高度为0
+            16, ['coalesce', ['get', 'render_min_height'], 0]  // zoom=16: 使用底部高度（默认0）
+          ],
+          // 建筑不透明度（可选，用于更好的视觉效果）
+          'fill-extrusion-opacity': 0.8
+        }
+      },
+      firstSymbolId // 插入到符号图层之前
+    );
   }
 
   _addCommonControls() {
