@@ -448,8 +448,7 @@
 }
 
 .fault-popup .popup-impact-duration {
-    color: var(--bs-link-color, #0097a7);
-    font-weight: 600;
+    color: var(--bs-body-color, #212529);
     white-space: nowrap;
 }
 
@@ -577,4 +576,51 @@
 
 .stats-section .accordion-icon.rotated {
     transform: rotate(90deg);
+}
+
+/* =================================
+   故障统计面板防文本选择样式
+   ================================= */
+
+/* 故障统计面板整体防止文本选择 */
+.fault-statistics {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+}
+
+/* 允许面板内部必要的文本选择（如链接文本） */
+.fault-statistics .stats-popup-link,
+.fault-statistics a {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+}
+
+/* 防止统计面板干扰地图拖拽操作 */
+.fault-statistics .card,
+.fault-statistics .card-header,
+.fault-statistics .card-body,
+.fault-statistics .stats-content,
+.fault-statistics .stats-section,
+.fault-statistics .section-content {
+    pointer-events: auto !important;
+}
+
+/* 统计面板中的可点击元素保持可点击 */
+.fault-statistics .clickable-stat-row,
+.fault-statistics .stats-section > div:first-child,
+.fault-statistics .card-header {
+    cursor: pointer !important;
+}
+
+/* 统计面板中的文本元素防止选择 */
+.fault-statistics span,
+.fault-statistics div:not(.clickable-stat-row):not(.stats-popup-link):not(a) {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
 }

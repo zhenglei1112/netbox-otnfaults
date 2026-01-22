@@ -16,9 +16,21 @@ class FaultStatisticsControl {
     // 初始渲染
     this.renderContent();
 
-    // 阻止地图事件传播
-    ["mousedown", "click", "dblclick", "touchstart"].forEach((event) => {
-      this.container.addEventListener(event, (e) => e.stopPropagation());
+    // 阻止地图事件传播，防止干扰地图操作
+    ["mousedown", "click", "dblclick", "touchstart", "selectstart"].forEach((event) => {
+      this.container.addEventListener(event, (e) => {
+        e.stopPropagation();
+        // 对于selectstart事件，还需要阻止默认行为以防止文本选择
+        if (event === "selectstart") {
+          e.preventDefault();
+        }
+      });
+    });
+
+    // 额外防止文本选择
+    this.container.addEventListener("selectstart", (e) => {
+      e.preventDefault();
+      return false;
     });
 
     return this.container;
