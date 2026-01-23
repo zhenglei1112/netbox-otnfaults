@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from netbox.api.serializers import NetBoxModelSerializer, WritableNestedSerializer
-from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup
+from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite
 from django.contrib.auth import get_user_model
 from dcim.models import Site, Region
 from tenancy.models import Tenant
@@ -155,3 +155,15 @@ class OtnPathGroupSerializer(NetBoxModelSerializer):
     def get_path_count(self, obj):
         return obj.paths.count()
 
+
+class OtnPathGroupSiteSerializer(NetBoxModelSerializer):
+    """路径组站点关联序列化器"""
+    path_group = NestedOtnPathGroupSerializer()
+    site = NestedSiteSerializer()
+
+    class Meta:
+        model = OtnPathGroupSite
+        fields = (
+            'id', 'url', 'display', 'path_group', 'site', 'role', 'position',
+            'comments', 'tags', 'custom_fields', 'created', 'last_updated',
+        )

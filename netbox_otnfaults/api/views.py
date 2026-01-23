@@ -10,8 +10,8 @@ from django.utils.decorators import method_decorator
 from datetime import timedelta
 import json
 import logging
-from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup
-from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer
+from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite
+from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer
 from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,12 @@ class OtnPathGroupViewSet(NetBoxModelViewSet):
     queryset = OtnPathGroup.objects.all()
     serializer_class = OtnPathGroupSerializer
     filterset_class = OtnPathGroupFilterSet
+
+
+class OtnPathGroupSiteViewSet(NetBoxModelViewSet):
+    """路径组站点关联 API ViewSet"""
+    queryset = OtnPathGroupSite.objects.all()
+    serializer_class = OtnPathGroupSiteSerializer
 
 
 class HeatmapDataView(APIView):

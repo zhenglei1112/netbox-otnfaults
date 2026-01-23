@@ -2,16 +2,19 @@ from netbox.views import generic
 from django.shortcuts import render
 from utilities.views import register_model_view, ViewTab
 from django_tables2 import RequestConfig
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, FaultCategoryChoices, FaultStatusChoices
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, FaultCategoryChoices, FaultStatusChoices, OtnPathGroupSite
 from dcim.models import Site
 from .forms import (
     OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
     OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm, OtnFaultImportForm, OtnFaultImpactImportForm,
     OtnPathForm, OtnPathFilterForm, OtnPathImportForm, OtnPathBulkEditForm,
-    OtnPathGroupForm, OtnPathGroupFilterForm
+    OtnPathGroupForm, OtnPathGroupFilterForm, OtnPathGroupSiteForm
 )
 from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet
-from .tables import OtnFaultTable, OtnFaultImpactTable, OtnPathTable, OtnPathGroupTable
+from .tables import (
+    OtnFaultTable, OtnFaultImpactTable, OtnPathTable, OtnPathGroupTable,
+    OtnPathGroupSiteTable
+)
 from django.utils import timezone
 from datetime import timedelta
 from django.views.generic import View
@@ -609,9 +612,14 @@ class OtnPathGroupView(generic.ObjectView):
         
         # 配置分页
         RequestConfig(request, paginate={'per_page': per_page}).configure(paths_table)
+
+        # 显示该路径组下的所有站点
+        sites_table = OtnPathGroupSiteTable(instance.group_sites.all())
+        sites_table.configure(request)
         
         return {
             'paths_table': paths_table,
+            'sites_table': sites_table,
             'per_page': per_page,
         }
 
@@ -631,6 +639,65 @@ class OtnPathGroupBulkDeleteView(generic.BulkDeleteView):
     """路径组批量删除视图"""
     queryset = OtnPathGroup.objects.all()
     table = OtnPathGroupTable
+
+
+class OtnPathGroupSiteEditView(generic.ObjectEditView):
+    """路径组站点关联编辑视图"""
+    queryset = OtnPathGroupSite.objects.all()
+    form = OtnPathGroupSiteForm
+
+    def get_return_url(self, request, obj=None):
+        if obj and obj.pk:
+            return obj.path_group.get_absolute_url()
+            
+        group_id = request.GET.get('path_group')
+        if group_id:
+            try:
+                return OtnPathGroup.objects.get(pk=group_id).get_absolute_url()
+            except OtnPathGroup.DoesNotExist:
+                pass
+                
+        return reverse('plugins:netbox_otnfaults:otnpathgroup_list')
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        model = self.queryset.model
+
+        initial_data = {}
+        group_id = request.GET.get('path_group')
+        if group_id:
+            initial_data['path_group'] = group_id
+
+        form = self.form(instance=obj, initial=initial_data)
+
+        return render(request, self.template_name, {
+            'model': model,
+            'object': obj,
+            'form': form,
+            'return_url': self.get_return_url(request, obj),
+        })
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        
+        if response.status_code == 302:
+            if '_addanother' in request.POST:
+                path_group_id = request.POST.get('path_group')
+                if path_group_id:
+                    location = response['Location']
+                    delimiter = '&' if '?' in location else '?'
+                    response['Location'] = f"{location}{delimiter}path_group={path_group_id}"
+                    
+        return response
+
+class OtnPathGroupSiteDeleteView(generic.ObjectDeleteView):
+    """路径组站点关联删除视图"""
+    queryset = OtnPathGroupSite.objects.all()
+
+    def get_return_url(self, request, obj=None):
+        if obj and obj.pk:
+            return obj.path_group.get_absolute_url()
+        return reverse('plugins:netbox_otnfaults:otnpathgroup_list')
 
 
 class LocationMapView(PermissionRequiredMixin, View):

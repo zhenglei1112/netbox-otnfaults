@@ -167,4 +167,28 @@
     </div>
   </div>
 </div>
+
+<div class="row mb-3">
+  <div class="col col-md-12">
+    <div class="card">
+      <h5 class="card-header d-flex justify-content-between align-items-center">
+        <span>包含站点</span>
+        {% if perms.netbox_otnfaults.add_otnpathgroupsite %}
+        <div class="card-actions">
+          <a
+            href="{% url 'plugins:netbox_otnfaults:otnpathgroupsite_add' %}?path_group={{ object.pk }}"
+            class="btn btn-ghost-primary btn-sm"
+          >
+            <i class="mdi mdi-plus-thick" aria-hidden="true"></i>
+            添加站点
+          </a>
+        </div>
+        {% endif %}
+      </h5>
+      <div class="card-body bg-transparent p-0">
+        {% render_table sites_table %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

@@ -671,6 +671,20 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         return None
 
 
+class PathGroupSiteRoleChoices(ChoiceSet):
+    key = 'OtnPathGroupSite.role'
+
+    OLA = 'ola'
+    OADM = 'oadm'
+    OTM = 'otm'
+
+    CHOICES = [
+        (OLA, '光放站 (OLA)', 'cyan'),
+        (OADM, '光分插复用站 (OADM)', 'blue'),
+        (OTM, '终端站 (OTM)', 'indigo'),
+    ]
+
+
 class OtnPathGroup(NetBoxModel):
     """路径组模型，用于对光缆路径进行分组管理"""
     name = models.CharField(
@@ -694,6 +708,13 @@ class OtnPathGroup(NetBoxModel):
         blank=True,
         verbose_name='包含路径'
     )
+    sites = models.ManyToManyField(
+        to=Site,
+        through='OtnPathGroupSite',
+        related_name='path_groups',
+        blank=True,
+        verbose_name='包含站点'
+    )
     comments = models.TextField(
         blank=True,
         verbose_name='评论'
@@ -709,6 +730,51 @@ class OtnPathGroup(NetBoxModel):
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_otnfaults:otnpathgroup', args=[self.pk])
+
+
+class OtnPathGroupSite(NetBoxModel):
+    """路径组与站点的中间关系模型，包含站点角色和排序"""
+    path_group = models.ForeignKey(
+        to=OtnPathGroup,
+        on_delete=models.CASCADE,
+        related_name='group_sites'
+    )
+    site = models.ForeignKey(
+        to=Site,
+        on_delete=models.CASCADE,
+        related_name='+'
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=PathGroupSiteRoleChoices,
+        verbose_name='角色'
+    )
+    position = models.PositiveIntegerField(
+        default=0,
+        verbose_name='排序'
+    )
+    tags = taggit.managers.TaggableManager(
+        through='extras.TaggedItem',
+        to='extras.Tag',
+        blank=True
+    )
+    comments = models.TextField(blank=True, verbose_name='评论')
+
+    class Meta:
+        ordering = ('path_group', 'position', 'pk')
+        unique_together = ('path_group', 'site')
+        verbose_name = '路径组站点'
+        verbose_name_plural = '路径组站点'
+
+    def __str__(self):
+        return f"{self.path_group} - {self.site} ({self.get_role_display()})"
+
+    def get_absolute_url(self):
+        return reverse('plugins:netbox_otnfaults:otnpathgroupsite_edit', args=[self.pk])
+
+    def get_role_color(self):
+        """获取角色的颜色"""
+        return PathGroupSiteRoleChoices.colors.get(self.role)
 
 
 class CableTypeChoices(ChoiceSet):

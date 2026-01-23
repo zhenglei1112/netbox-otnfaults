@@ -1,7 +1,36 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from netbox.tables import NetBoxTable, columns
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, PathGroupSiteRoleChoices
+
+class OtnPathGroupSiteTable(NetBoxTable):
+    """路径组站点关联表"""
+    site = tables.Column(
+        linkify=True,
+        verbose_name='站点'
+    )
+    role = columns.ChoiceFieldColumn(
+        verbose_name='角色'
+    )
+    position = tables.Column(
+        verbose_name='排序'
+    )
+    actions = columns.ActionsColumn(
+        actions=('edit', 'delete'),
+        extra_buttons='''
+            <a href="{% url 'plugins:netbox_otnfaults:otnpathgroupsite_edit' pk=record.pk %}" class="btn btn-sm btn-warning">
+                <i class="mdi mdi-pencil"></i>
+            </a>
+            <a href="{% url 'plugins:netbox_otnfaults:otnpathgroupsite_delete' pk=record.pk %}" class="btn btn-sm btn-danger">
+                <i class="mdi mdi-trash-can-outline"></i>
+            </a>
+        '''
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = OtnPathGroupSite
+        fields = ('pk', 'site', 'role', 'position', 'actions')
+        default_columns = ('site', 'role', 'position', 'actions')
 
 class OtnFaultTable(NetBoxTable):
     fault_number = tables.Column(

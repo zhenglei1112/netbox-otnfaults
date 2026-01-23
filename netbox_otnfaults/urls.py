@@ -49,6 +49,11 @@ urlpatterns = [
     path('path-groups/<int:pk>/delete/', views.OtnPathGroupDeleteView.as_view(), name='otnpathgroup_delete'),
     path('path-groups/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='otnpathgroup_changelog', kwargs={'model': models.OtnPathGroup}),
 
+    # 路径组站点关联 (OtnPathGroupSite)
+    path('path-group-sites/add/', views.OtnPathGroupSiteEditView.as_view(), name='otnpathgroupsite_add'),
+    path('path-group-sites/<int:pk>/edit/', views.OtnPathGroupSiteEditView.as_view(), name='otnpathgroupsite_edit'),
+    path('path-group-sites/<int:pk>/delete/', views.OtnPathGroupSiteDeleteView.as_view(), name='otnpathgroupsite_delete'),
+
     # OTN线路设计器
     path('route-editor/', views.RouteEditorView.as_view(), name='route_editor'),
 ]

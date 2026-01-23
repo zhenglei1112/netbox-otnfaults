@@ -59,7 +59,7 @@ GraphQL 优先: 对于 GIS 地图数据，编写 GraphQL 查询 (放在 graphql/
 5. 安全与约束
 核心保护: 绝不修改 netbox/ 核心目录下的文件。只修改 plugins/<your_plugin_name>/ 内的文件。
 
-迁移安全: 始终在容器内运行 makemigrations 紧接着 migrate。
+迁移安全: 运行 makemigrations 紧接着 migrate
 
 密钥安全: 绝不在聊天内容中输出密钥或 Token。
 
