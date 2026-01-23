@@ -664,6 +664,9 @@ class OTNMapCore {
     const mapContainer = this.map.getContainer();
     mapContainer.appendChild(container);
 
+    // 为容器添加标识类，用于 CSS 调整其他组件位置（如故障统计窗口）
+    mapContainer.classList.add('has-debug-panel');
+
     console.log('[OTNPerf] Debug panel rendered');
   }
 }

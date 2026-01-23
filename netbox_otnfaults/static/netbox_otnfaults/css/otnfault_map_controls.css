@@ -624,3 +624,11 @@
     -moz-user-select: none !important;
     -ms-user-select: none !important;
 }
+
+/* =================================
+   当显示调试面板时，平移故障统计窗口
+   ================================= */
+.has-debug-panel .fault-statistics {
+    margin-left: 200px !important;
+    transition: margin-left 0.3s ease-in-out;
+}
