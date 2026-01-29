@@ -144,7 +144,8 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
         marker_faults = all_faults.select_related(
             'province', 'interruption_location_a', 'handling_unit'
         ).prefetch_related(
-            'interruption_location', 'images', 'impacts', 'impacts__impacted_service'
+            'interruption_location', 'images', 'impacts', 'impacts__impacted_service',
+            'secondary_impacts', 'secondary_impacts__impacted_service'
         )
         
         marker_data = []
@@ -161,11 +162,16 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             z_sites = [s.name for s in fault.interruption_location.all()]
             z_sites_str = '、'.join(z_sites) if z_sites else '未指定'
 
-            impacted_businesses = [impact.impacted_service.name for impact in fault.impacts.all() if impact.impacted_service]
+            # 合并主故障和次要故障的影响记录并去重
+            all_impacts = list(fault.impacts.all()) + list(fault.secondary_impacts.all())
+            # 使用字典去重，key 为 impact.pk
+            unique_impacts = {impact.pk: impact for impact in all_impacts}.values()
+
+            impacted_businesses = [impact.impacted_service.name for impact in unique_impacts if impact.impacted_service]
             impacted_business_str = '、'.join(impacted_businesses) if impacted_businesses else '无重保/影响业务'
             
             impacts_details = []
-            for impact in fault.impacts.all():
+            for impact in unique_impacts:
                 if impact.impacted_service:
                     impacts_details.append({
                         'name': impact.impacted_service.name,
