@@ -679,9 +679,9 @@ class PathGroupSiteRoleChoices(ChoiceSet):
     OTM = 'otm'
 
     CHOICES = [
-        (OLA, '光放站 (OLA)', 'cyan'),
+        (OLA, '光放站 (OLA)', 'gray'),
         (OADM, '光分插复用站 (OADM)', 'blue'),
-        (OTM, '终端站 (OTM)', 'indigo'),
+        (OTM, '终端站 (OTM)', 'red'),
     ]
 
 

@@ -597,12 +597,6 @@ class OtnPathGroupView(generic.ObjectView):
     queryset = OtnPathGroup.objects.all()
 
     def get_extra_context(self, request, instance):
-        # 显示该路径组下的所有路径（只读模式，不显示操作按钮）
-        paths_table = OtnPathTable(instance.paths.all())
-        # 排除复选框和操作按钮列，使表格只读
-        paths_table.columns.hide('pk')
-        paths_table.columns.hide('actions')
-        
         # 获取每页数量，默认25
         per_page = request.GET.get('per_page', 25)
         try:
@@ -610,12 +604,24 @@ class OtnPathGroupView(generic.ObjectView):
         except ValueError:
             per_page = 25
         
-        # 配置分页
+        # 显示该路径组下的所有路径（只读模式，不显示操作按钮）
+        paths_table = OtnPathTable(instance.paths.all())
+        # 排除复选框和操作按钮列，使表格只读
+        paths_table.columns.hide('pk')
+        paths_table.columns.hide('actions')
+        # 配置路径分页
         RequestConfig(request, paginate={'per_page': per_page}).configure(paths_table)
 
         # 显示该路径组下的所有站点
         sites_table = OtnPathGroupSiteTable(instance.group_sites.all())
-        sites_table.configure(request)
+        sites_table.columns.hide('pk') if 'pk' in sites_table.columns else None
+        # 配置站点分页（使用独立的页码参数）
+        sites_page = request.GET.get('sites_page', 1)
+        try:
+            sites_page = int(sites_page)
+        except ValueError:
+            sites_page = 1
+        sites_table.paginate(page=sites_page, per_page=per_page)
         
         return {
             'paths_table': paths_table,
@@ -760,6 +766,7 @@ class LocationMapView(PermissionRequiredMixin, View):
         # 解析 ?path_group_id=xxx 参数（用于路径组下所有路径高亮显示）
         path_group_id = request.GET.get('path_group_id', '')
         highlight_paths_data = None
+        highlight_sites_data = []
         path_group_name = None
         
         if path_group_id:
@@ -813,6 +820,25 @@ class LocationMapView(PermissionRequiredMixin, View):
                     path_name = f"路径组: {path_group_name} ({len(features)} 条路径)"
                     # 使用 FeatureCollection 作为高亮数据
                     highlight_path_data = highlight_paths_data
+                
+                # 获取路径组包含的站点及其角色颜色
+                group_sites = path_group.group_sites.select_related('site').all()
+                highlight_sites_data = []
+                for gs in group_sites:
+                    if gs.site.latitude and gs.site.longitude:
+                        role_color = gs.get_role_color() or 'gray'
+                        hex_color = self._get_hex_color(role_color)
+                        highlight_sites_data.append({
+                            'id': gs.site.pk,
+                            'name': gs.site.name,
+                            'lat': float(gs.site.latitude),
+                            'lng': float(gs.site.longitude),
+                            'role': gs.role,
+                            'role_display': gs.get_role_display(),
+                            'color': hex_color,
+                            'url': gs.site.get_absolute_url(),
+                            'position': gs.position  # 用于弧形线排序
+                        })
             except (OtnPathGroup.DoesNotExist, ValueError):
                 pass
         
@@ -896,7 +922,12 @@ class LocationMapView(PermissionRequiredMixin, View):
             'target_lat': target_lat,
             'target_lng': target_lng,
             'highlight_path_data': json.dumps(highlight_path_data, cls=DjangoJSONEncoder) if highlight_path_data else 'null',
+            'highlight_sites_data': json.dumps(highlight_sites_data, cls=DjangoJSONEncoder) if highlight_sites_data else '[]',
             'path_name': path_name,
+            
+            # 路径组模式特定数据 (用于空间选择控件)
+            'path_group_id': path_group_id if path_group_id else '',
+            'path_group_name': path_group_name if path_group_name else '',
         })
 
     def _parse_coordinates(self, q_param):
@@ -947,6 +978,27 @@ class LocationMapView(PermissionRequiredMixin, View):
             params['path_group_id'] = path_group_id
         
         return f"{base_url}?{urlencode(params)}"
+
+    def _get_hex_color(self, color_name):
+        """将 NetBox 标准颜色名转换为 Hex 值"""
+        COLOR_MAP = {
+            'dark': '#343a40',
+            'gray': '#6c757d',
+            'light-gray': '#aaacae',
+            'blue': '#0d6efd',
+            'indigo': '#6610f2',
+            'purple': '#6f42c1',
+            'pink': '#d63384',
+            'red': '#dc3545',
+            'orange': '#f5a623',
+            'yellow': '#ffc107',
+            'green': '#198754',
+            'teal': '#20c997',
+            'cyan': '#0dcaf0',
+            'white': '#ffffff',
+            'secondary': '#6c757d',
+        }
+        return COLOR_MAP.get(color_name, '#6c757d')
 
 
 class RouteEditorView(PermissionRequiredMixin, View):

@@ -56,6 +56,45 @@ GraphQL 优先: 对于 GIS 地图数据，编写 GraphQL 查询 (放在 graphql/
 
 命名规范: 遵循 OTN 标准命名 (ODUk, OCh)。数据库表名必须加插件前缀。
 
+## 6. 分页UI实现规范
+
+### 6.1 禁止使用 django_tables2 默认分页
+django_tables2 默认分页样式（`1 2 3 next`）与 Netbox UI 风格不一致，**必须隐藏并使用自定义分页**。
+
+### 6.2 自定义分页UI结构
+分页UI需包含三个部分：
+1. **页码导航**：`‹ 1 2 ... 5 6 7 ... 10 ›` 样式
+2. **显示信息**：`显示 1-25 共 100` 格式
+3. **每页选择**：下拉菜单，提供 25/50/100/250/500 选项
+
+### 6.3 实现方式
+
+**模板端**：
+```html
+<!-- 隐藏默认分页 -->
+<style>
+  .table-container ul.pagination { display: none !important; }
+</style>
+
+<!-- 自定义分页 -->
+<div class="card-footer d-flex justify-content-between align-items-center noprint">
+  <nav><ul class="pagination pagination-sm mb-0">...</ul></nav>
+  <span class="text-muted small">显示 X-Y 共 Z</span>
+  <div class="dropdown">每页下拉菜单</div>
+</div>
+```
+
+**视图端**：
+```python
+per_page = int(request.GET.get('per_page', 25))
+table.paginate(page=request.GET.get('page', 1), per_page=per_page)
+# 或使用 RequestConfig
+RequestConfig(request, paginate={'per_page': per_page}).configure(table)
+```
+
+### 6.4 多表格独立分页
+当页面包含多个表格时，使用不同的页码参数（如 `page`, `sites_page`）实现独立分页。
+
 5. 安全与约束
 核心保护: 绝不修改 netbox/ 核心目录下的文件。只修改 plugins/<your_plugin_name>/ 内的文件。
 

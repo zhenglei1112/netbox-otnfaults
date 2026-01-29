@@ -55,7 +55,7 @@ MAP_MODES = {
         'projection': 'mercator',
         'controls': ['navigation', 'fullscreen', 'measures'],
         'layers': {},
-        'js_files': []
+        'js_files': ['controls/SpatialSelectControl.js']
     },
     'route_editor': {
         'title': 'OTN线路设计器',

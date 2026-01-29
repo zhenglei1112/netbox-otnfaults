@@ -47,6 +47,7 @@ class OtnPathGroupViewSet(NetBoxModelViewSet):
     filterset_class = OtnPathGroupFilterSet
 
 
+
 class OtnPathGroupSiteViewSet(NetBoxModelViewSet):
     """路径组站点关联 API ViewSet"""
     queryset = OtnPathGroupSite.objects.all()
@@ -239,3 +240,127 @@ class RouteSnapperView(APIView):
         return total
 
 
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.authentication import SessionAuthentication
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    """禁用 CSRF 检查的 Session 认证类"""
+    def enforce_csrf(self, request):
+        return  # 跳过 CSRF 检查
+
+@api_view(['POST'])
+@authentication_classes([CsrfExemptSessionAuthentication])
+@permission_classes([IsAuthenticated])
+def path_group_batch_add(request, pk):
+    """
+    批量添加站点和路径到路径组
+    
+    POST /api/plugins/netbox_otnfaults/path-groups/{id}/batch-add/
+    """
+    from dcim.models import Site
+    
+    try:
+        path_group = OtnPathGroup.objects.get(pk=pk)
+    except OtnPathGroup.DoesNotExist:
+        return Response({
+            'success': False,
+            'error': f'路径组 {pk} 不存在'
+        }, status=404)
+    
+    site_ids = request.data.get('site_ids', [])
+    path_ids = request.data.get('path_ids', [])
+    
+    added_sites = 0
+    added_paths = 0
+    skipped_sites = 0
+    skipped_paths = 0
+    
+    # 批量添加站点
+    for site_id in site_ids:
+        try:
+            site = Site.objects.get(pk=site_id)
+            if not OtnPathGroupSite.objects.filter(path_group=path_group, site=site).exists():
+                max_pos = OtnPathGroupSite.objects.filter(path_group=path_group).count()
+                OtnPathGroupSite.objects.create(
+                    path_group=path_group,
+                    site=site,
+                    role='ola',
+                    position=max_pos + 1
+                )
+                added_sites += 1
+            else:
+                skipped_sites += 1
+        except Site.DoesNotExist:
+            logger.warning(f'站点 {site_id} 不存在，跳过')
+    
+    # 批量添加路径
+    for path_id in path_ids:
+        try:
+            path = OtnPath.objects.get(pk=path_id)
+            if path not in path_group.paths.all():
+                path_group.paths.add(path)
+                added_paths += 1
+            else:
+                skipped_paths += 1
+        except OtnPath.DoesNotExist:
+            logger.warning(f'路径 {path_id} 不存在，跳过')
+    
+    return Response({
+        'success': True,
+        'added_sites': added_sites,
+        'added_paths': added_paths,
+        'skipped_sites': skipped_sites,
+        'skipped_paths': skipped_paths
+    })
+
+
+@api_view(['POST'])
+@authentication_classes([CsrfExemptSessionAuthentication])
+@permission_classes([IsAuthenticated])
+def path_group_clear_paths(request, pk):
+    """
+    清除路径组中的所有路径
+    
+    POST /api/plugins/otnfaults/path-groups/{id}/clear-paths/
+    """
+    try:
+        path_group = OtnPathGroup.objects.get(pk=pk)
+    except OtnPathGroup.DoesNotExist:
+        return Response({
+            'success': False,
+            'error': f'路径组 {pk} 不存在'
+        }, status=404)
+    
+    count = path_group.paths.count()
+    path_group.paths.clear()
+    
+    return Response({
+        'success': True,
+        'cleared_paths': count
+    })
+
+
+@api_view(['POST'])
+@authentication_classes([CsrfExemptSessionAuthentication])
+@permission_classes([IsAuthenticated])
+def path_group_clear_sites(request, pk):
+    """
+    清除路径组中的所有站点
+    
+    POST /api/plugins/otnfaults/path-groups/{id}/clear-sites/
+    """
+    try:
+        path_group = OtnPathGroup.objects.get(pk=pk)
+    except OtnPathGroup.DoesNotExist:
+        return Response({
+            'success': False,
+            'error': f'路径组 {pk} 不存在'
+        }, status=404)
+    
+    count = OtnPathGroupSite.objects.filter(path_group=path_group).count()
+    OtnPathGroupSite.objects.filter(path_group=path_group).delete()
+    
+    return Response({
+        'success': True,
+        'cleared_sites': count
+    })

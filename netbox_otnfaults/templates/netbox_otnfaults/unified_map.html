@@ -110,7 +110,6 @@
 
   window.OTNMapConfig = {
     mode: '{{ map_mode }}',
-    mode: '{{ map_mode }}',
     apiKey: '{{ apikey }}',
     mapCenter: {{ map_center|safe }},
     mapZoom: {{ map_zoom }},
@@ -126,7 +125,10 @@
     {% if target_lat %}targetLat: {{ target_lat }},{% endif %}
     {% if target_lng %}targetLng: {{ target_lng }},{% endif %}
     {% if highlight_path_data %}highlightPathData: {{ highlight_path_data|safe }},{% endif %}
+    {% if highlight_sites_data %}highlightSitesData: {{ highlight_sites_data|safe }},{% endif %}
     {% if path_name %}pathName: '{{ path_name }}',{% endif %}
+    {% if path_group_id %}pathGroupId: {{ path_group_id }},{% endif %}
+    {% if path_group_name %}pathGroupName: '{{ path_group_name }}',{% endif %}
   };
 
   

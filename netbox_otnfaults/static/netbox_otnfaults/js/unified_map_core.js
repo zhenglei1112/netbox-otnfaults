@@ -211,7 +211,7 @@ class OTNMapCore {
         features: siteFeatures,
       });
 
-      // 站点圆点
+      // 站点圆点 - 底图青色小点
       this.mapBase.addLayer({
         id: "netbox-sites-layer",
         type: "circle",
@@ -221,7 +221,7 @@ class OTNMapCore {
           "circle-color": "#00aaff",
           "circle-stroke-width": 1,
           "circle-stroke-color": "#fff",
-          "circle-opacity": ["step", ["zoom"], 0.5, 6, 1], // Zoom < 6: 50%, Zoom >= 6: 100%
+          "circle-opacity": ["step", ["zoom"], 0.5, 6, 1],
           "circle-stroke-opacity": ["step", ["zoom"], 0.5, 6, 1],
         },
       });

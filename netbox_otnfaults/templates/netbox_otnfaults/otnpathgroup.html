@@ -3,14 +3,13 @@
 {% load render_table from django_tables2 %}
 
 {% block extra_controls %}
-{% if object.paths.exists %}
 <a
   href="{% url 'plugins:netbox_otnfaults:location_map' %}?path_group_id={{ object.pk }}"
   class="btn btn-primary btn-sm"
 >
   <i class="mdi mdi-map-marker"></i> 查看地图
 </a>
-{% endif %} {% endblock %} {% block content %}
+{% endblock %} {% block content %}
 <style>
   .attr-table th {
     width: 30%;
@@ -21,7 +20,8 @@
   }
 
   /* 隐藏django_tables2默认分页 */
-  .paths-table-container ul.pagination {
+  .paths-table-container ul.pagination,
+  .sites-table-container ul.pagination {
     display: none !important;
   }
 </style>
@@ -60,6 +60,14 @@
         <span>包含路径</span>
         {% if perms.netbox_otnfaults.change_otnpathgroup %}
         <div class="card-actions">
+          <button
+            type="button"
+            class="btn btn-ghost-danger btn-sm me-2"
+            onclick="clearAllPaths()"
+          >
+            <i class="mdi mdi-delete-sweep" aria-hidden="true"></i>
+            清除所有路径
+          </button>
           <a
             href="{% url 'plugins:netbox_otnfaults:otnpathgroup_edit' pk=object.pk %}"
             class="btn btn-ghost-primary btn-sm"
@@ -175,6 +183,14 @@
         <span>包含站点</span>
         {% if perms.netbox_otnfaults.add_otnpathgroupsite %}
         <div class="card-actions">
+          <button
+            type="button"
+            class="btn btn-ghost-danger btn-sm me-2"
+            onclick="clearAllSites()"
+          >
+            <i class="mdi mdi-delete-sweep" aria-hidden="true"></i>
+            清除所有站点
+          </button>
           <a
             href="{% url 'plugins:netbox_otnfaults:otnpathgroupsite_add' %}?path_group={{ object.pk }}"
             class="btn btn-ghost-primary btn-sm"
@@ -185,10 +201,161 @@
         </div>
         {% endif %}
       </h5>
-      <div class="card-body bg-transparent p-0">
-        {% render_table sites_table %}
+      <div class="sites-table-container">{% render_table sites_table %}</div>
+      <div
+        class="card-footer d-flex justify-content-between align-items-center noprint"
+      >
+        <nav aria-label="站点分页">
+          <ul class="pagination pagination-sm mb-0">
+            {% if sites_table.page.has_previous %}
+            <li class="page-item">
+              <a
+                class="page-link"
+                href="?sites_page={{ sites_table.page.previous_page_number }}&per_page={{ per_page }}"
+                >&lsaquo;</a
+              >
+            </li>
+            {% endif %}
+            {% for num in sites_table.paginator.page_range %}
+            {% if num == sites_table.page.number %}
+            <li class="page-item active">
+              <span class="page-link">{{ num }}</span>
+            </li>
+            {% elif num == 1 or num == sites_table.paginator.num_pages or num >= sites_table.page.number|add:"-2" and num <= sites_table.page.number|add:"2" %}
+            <li class="page-item">
+              <a
+                class="page-link"
+                href="?sites_page={{ num }}&per_page={{ per_page }}"
+                >{{ num }}</a
+              >
+            </li>
+            {% elif num == sites_table.page.number|add:"-3" or num == sites_table.page.number|add:"3" %}
+            <li class="page-item disabled">
+              <span class="page-link">...</span>
+            </li>
+            {% endif %}
+            {% endfor %}
+            {% if sites_table.page.has_next %}
+            <li class="page-item">
+              <a
+                class="page-link"
+                href="?sites_page={{ sites_table.page.next_page_number }}&per_page={{ per_page }}"
+                >&rsaquo;</a
+              >
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+        <span class="text-muted small">显示 {{ sites_table.page.start_index }}-{{ sites_table.page.end_index }} 共 {{ sites_table.paginator.count }}</span>
+        <div class="dropdown">
+          <button
+            class="btn btn-sm btn-outline-secondary dropdown-toggle"
+            type="button"
+            data-bs-toggle="dropdown"
+          >
+            每页
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+              <a
+                class="dropdown-item {% if per_page == 25 %}active{% endif %}"
+                href="?per_page=25"
+                >25</a
+              >
+            </li>
+            <li>
+              <a
+                class="dropdown-item {% if per_page == 50 %}active{% endif %}"
+                href="?per_page=50"
+                >50</a
+              >
+            </li>
+            <li>
+              <a
+                class="dropdown-item {% if per_page == 100 %}active{% endif %}"
+                href="?per_page=100"
+                >100</a
+              >
+            </li>
+            <li>
+              <a
+                class="dropdown-item {% if per_page == 250 %}active{% endif %}"
+                href="?per_page=250"
+                >250</a
+              >
+            </li>
+            <li>
+              <a
+                class="dropdown-item {% if per_page == 500 %}active{% endif %}"
+                href="?per_page=500"
+                >500</a
+              >
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+const pathGroupId = {{ object.pk }};
+
+function getCSRFToken() {
+  const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+  return cookie ? cookie.split('=')[1] : '';
+}
+
+async function clearAllPaths() {
+  if (!confirm('确定要清除路径组中的所有路径吗？此操作不可撤销。')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/api/plugins/otnfaults/path-groups/${pathGroupId}/clear-paths/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRFToken()
+      }
+    });
+    const result = await response.json();
+    if (response.ok && result.success) {
+      alert(`成功清除 ${result.cleared_paths} 条路径`);
+      location.reload();
+    } else {
+      alert('清除失败: ' + (result.error || '未知错误'));
+    }
+  } catch (error) {
+    alert('网络错误: ' + error.message);
+  }
+}
+
+async function clearAllSites() {
+  if (!confirm('确定要清除路径组中的所有站点吗？此操作不可撤销。')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/api/plugins/otnfaults/path-groups/${pathGroupId}/clear-sites/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRFToken()
+      }
+    });
+    const result = await response.json();
+    if (response.ok && result.success) {
+      alert(`成功清除 ${result.cleared_sites} 个站点`);
+      location.reload();
+    } else {
+      alert('清除失败: ' + (result.error || '未知错误'));
+    }
+  } catch (error) {
+    alert('网络错误: ' + error.message);
+  }
+}
+</script>
 {% endblock %}
