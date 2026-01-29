@@ -108,8 +108,12 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">故障原因</th>
+          <th scope="row">一级原因</th>
           <td>{{ object.get_interruption_reason_display|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">二级原因</th>
+          <td>{{ object.get_interruption_reason_detail_display|default:"—" }}</td>
         </tr>
         <tr>
           <th scope="row">故障中断时间</th>
@@ -165,6 +169,7 @@
 </div>
 
 <div class="row mb-3">
+  {% if object.is_fiber_fault %}
   <div class="col col-md-6">
     <!-- 光缆中断补充信息组 -->
     <div class="card">
@@ -277,6 +282,7 @@
     <!-- 自定义字段 -->
     {% include 'inc/panels/custom_fields.html' %}
   </div>
+  {% endif %}
 </div>
 
 <div class="row mb-3">

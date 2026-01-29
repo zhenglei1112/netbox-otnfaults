@@ -65,7 +65,10 @@ class OtnFaultTable(NetBoxTable):
         verbose_name='故障分类'
     )
     interruption_reason = columns.ChoiceFieldColumn(
-        verbose_name='故障原因'
+        verbose_name='一级原因'
+    )
+    interruption_reason_detail = columns.ChoiceFieldColumn(
+        verbose_name='二级原因'
     )
     fault_duration = tables.Column(
         verbose_name='故障历时',
@@ -105,7 +108,7 @@ class OtnFaultTable(NetBoxTable):
         fields = (
             'pk', 'fault_number', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration',
-            'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
+            'fault_category', 'interruption_reason', 'interruption_reason_detail', 'urgency', 'first_report_source',
             'province', 'line_manager', 'resource_type', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'handler', 'cable_break_location', 'recovery_mode', 'handling_unit', 'contract',

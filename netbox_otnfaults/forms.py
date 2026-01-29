@@ -60,7 +60,7 @@ class OtnFaultForm(NetBoxModelForm):
         ('故障信息', (
             'urgency', 'province', 'interruption_location_a', 'interruption_location',
             'interruption_longitude', 'interruption_latitude', 'fault_category',
-            'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
+            'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 'fault_recovery_time',
             'first_report_source', 'line_manager', 'duty_officer', 'fault_details',
             'fault_status',
         )),
@@ -81,7 +81,7 @@ class OtnFaultForm(NetBoxModelForm):
             # 故障信息组字段
             'urgency', 'province', 'interruption_location_a', 'interruption_location',
             'interruption_longitude', 'interruption_latitude', 'fault_category',
-            'interruption_reason', 'fault_occurrence_time', 'fault_recovery_time',
+            'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 'fault_recovery_time',
             'first_report_source', 'line_manager', 'duty_officer', 'fault_details',
             'fault_status',
             # 光缆中断补充信息组字段
@@ -167,7 +167,7 @@ class OtnFaultImportForm(NetBoxModelImportForm):
         model = OtnFault
         fields = (
             'fault_number', 'duty_officer', 'province', 'interruption_location_a', 'interruption_location', 
-            'fault_category', 'interruption_reason', 'fault_occurrence_time', 
+            'fault_category', 'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 
             'fault_recovery_time', 'urgency', 'first_report_source', 
             'resource_type', 'cable_route', 'line_manager', 
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time', 
@@ -294,7 +294,12 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     interruption_reason = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.INTERRUPTION_REASON_CHOICES),
         required=False,
-        label='故障原因'
+        label='一级原因'
+    )
+    interruption_reason_detail = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.INTERRUPTION_REASON_DETAIL_CHOICES),
+        required=False,
+        label='二级原因'
     )
     urgency = forms.ChoiceField(
         choices=add_blank_choice(UrgencyChoices),
@@ -356,7 +361,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     
     nullable_fields = (
         'province', 'line_manager', 'handling_unit', 'fault_category',
-        'interruption_reason', 'maintenance_mode', 'resource_type',
+        'interruption_reason', 'interruption_reason_detail', 'maintenance_mode', 'resource_type',
         'cable_break_location', 'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments',
         'interruption_location_a', 'first_report_source', 'cable_route'
     )
@@ -420,7 +425,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         FieldSet(
             'fault_status', 'urgency', 'province', 'interruption_location_a', 
             'interruption_location', 'interruption_longitude', 'interruption_latitude',
-            'fault_category', 'interruption_reason', 'fault_occurrence_time', 
+            'fault_category', 'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 
             'fault_recovery_time', 'first_report_source', 'line_manager', 
             'duty_officer', 'fault_details',
             name='故障信息'
@@ -480,7 +485,12 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     interruption_reason = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.INTERRUPTION_REASON_CHOICES),
         required=False,
-        label='故障原因'
+        label='一级原因'
+    )
+    interruption_reason_detail = forms.ChoiceField(
+        choices=add_blank_choice(OtnFault.INTERRUPTION_REASON_DETAIL_CHOICES),
+        required=False,
+        label='二级原因'
     )
     urgency = forms.ChoiceField(
         choices=add_blank_choice(UrgencyChoices),

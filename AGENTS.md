@@ -36,7 +36,7 @@
 过滤器: 必须为模型创建 FilterSet，以便通过 REST API 和 GraphQL 暴露它们。
 
 3.2 前端 (HTMX & Jinja2)
-HTMX 优先: Netbox 4.x 严重依赖 HTMX。除非地图画布必须，否则不要引入 React/Vue。
+避免使用HTMX， Netbox 4.x 已经剔除 HTMX 支持。除非地图画布必须，否则不要引入 React/Vue。
 
 局部渲染: 使用 HTMX 属性 (hx-get, hx-target) 进行动态更新。
 

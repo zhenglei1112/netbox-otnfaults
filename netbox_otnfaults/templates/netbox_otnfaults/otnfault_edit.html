@@ -19,6 +19,7 @@
         {% render_field form.interruption_latitude %}
         {% render_field form.fault_category %}
         {% render_field form.interruption_reason %}
+        {% render_field form.interruption_reason_detail %}
         {% render_field form.fault_occurrence_time %}
         {% render_field form.fault_recovery_time %}
         {% render_field form.first_report_source %}
@@ -28,7 +29,7 @@
     </div>
 </div>
 
-<div class="field-group my-5">
+<div class="field-group my-5" id="fiber-supplementary-info">
     <div class="row mb-3">
         <h2 class="col-9 offset-3 mb-0">光缆中断补充信息</h2>
     </div>
@@ -58,4 +59,192 @@
         {% render_field form.tags %}
     </div>
 </div>
+
+<script>
+(function() {
+    'use strict';
+    
+    // 光缆相关故障类型
+    const FIBER_FAULT_CATEGORIES = ['fiber_break', 'fiber_degradation', 'fiber_jitter'];
+
+    // 故障分类 -> 一级原因映射
+    const CATEGORY_TO_REASON_MAP = {
+        'fiber_break': ['construction', 'human_factor', 'traffic_accident', 
+                        'animal_damage', 'natural_disaster', 'fire', 
+                        'unknown', 'cable_rectification'],
+        'fiber_degradation': ['construction', 'human_factor', 'traffic_accident', 
+                              'animal_damage', 'natural_disaster', 'fire', 
+                              'unknown', 'cable_rectification'],
+        'fiber_jitter': ['construction', 'human_factor', 'traffic_accident', 
+                         'animal_damage', 'natural_disaster', 'fire', 
+                         'unknown', 'cable_rectification'],
+        'ac_fault': ['ac_refrigerant', 'ac_mainunit', 'ac_overload', 
+                     'ac_outdoor_blocked', 'ac_no_autostart']
+    };
+    
+    // 一级原因 -> 二级原因映射
+    const REASON_TO_DETAIL_MAP = {
+        'construction': ['municipal_construction', 'greening_construction', 
+                         'expansion_construction', 'piling_construction', 
+                         'ramp_construction', 'station_renovation', 'room_renovation'],
+        'human_factor': ['sabotage', 'misoperation'],
+        'traffic_accident': ['vehicle_collision', 'vehicle_fire'],
+        'animal_damage': ['bird_peck', 'rodent_damage', 'dog_bite', 'ant_damage'],
+        'natural_disaster': ['flood', 'earthquake', 'storm', 'mudslide', 'road_collapse'],
+        'fire': ['burning_straw', 'well_fire', 'cigarette']
+        // unknown, cable_rectification, ac_* 没有二级原因
+    };
+    
+    // 保存原始选项
+    let allReasonOptions = [];
+    let allDetailOptions = [];
+    
+    function toggleFiberFields(category) {
+        const infoDiv = document.getElementById('fiber-supplementary-info');
+        if (!infoDiv) return;
+        
+        if (FIBER_FAULT_CATEGORIES.includes(category)) {
+            infoDiv.style.display = 'block';
+        } else {
+            infoDiv.style.display = 'none';
+        }
+    }
+    
+    function initCascadeFilter() {
+        const categorySelect = document.querySelector('select[name="fault_category"]');
+        const reasonSelect = document.querySelector('select[name="interruption_reason"]');
+        const detailSelect = document.querySelector('select[name="interruption_reason_detail"]');
+        
+        if (!categorySelect || !reasonSelect || !detailSelect) {
+            console.warn('[CascadeFilter] 表单元素未找到');
+            return;
+        }
+        
+        // 获取 TomSelect 实例
+        const categoryTS = categorySelect.tomselect;
+        const reasonTS = reasonSelect.tomselect;
+        const detailTS = detailSelect.tomselect;
+        
+        if (!categoryTS || !reasonTS || !detailTS) {
+            console.warn('[CascadeFilter] TomSelect 实例未找到，延迟重试...');
+            setTimeout(initCascadeFilter, 100);
+            return;
+        }
+        
+        // 保存所有原始选项
+        allReasonOptions = Array.from(reasonSelect.options).map(opt => ({
+            value: opt.value,
+            text: opt.text
+        }));
+        allDetailOptions = Array.from(detailSelect.options).map(opt => ({
+            value: opt.value,
+            text: opt.text
+        }));
+        
+        console.log('[CascadeFilter] 三级联动初始化完成');
+        
+        // 监听故障分类变化
+        categoryTS.on('change', function(value) {
+            console.log('[CascadeFilter] 故障分类变化:', value);
+            updateReasonOptions(value, reasonTS);
+            // 清空二级原因
+            detailTS.clear();
+            detailTS.clearOptions();
+            detailTS.addOption({ value: '', text: '---------' });
+            detailTS.refreshOptions(false);
+            
+            // 切换光缆补充信息显隐
+            toggleFiberFields(value);
+        });
+        
+        // 监听一级原因变化
+        reasonTS.on('change', function(value) {
+            console.log('[CascadeFilter] 一级原因变化:', value);
+            updateDetailOptions(value, detailTS);
+        });
+        
+        // 初始化：根据当前选中值筛选
+        if (categorySelect.value) {
+            updateReasonOptions(categorySelect.value, reasonTS, true);
+            toggleFiberFields(categorySelect.value);
+        } else {
+            // 默认隐藏
+            toggleFiberFields('');
+        }
+        
+        if (reasonSelect.value) {
+            updateDetailOptions(reasonSelect.value, detailTS, true);
+        }
+    }
+    
+    function updateReasonOptions(category, reasonTS, preserveValue = false) {
+        const currentValue = preserveValue ? reasonTS.getValue() : '';
+        const allowedReasons = CATEGORY_TO_REASON_MAP[category] || [];
+        
+        // 清空选项
+        reasonTS.clear();
+        reasonTS.clearOptions();
+        
+        // 添加空选项
+        reasonTS.addOption({ value: '', text: '---------' });
+        
+        // 筛选可用选项
+        allReasonOptions.forEach(opt => {
+            if (opt.value === '') return;
+            if (allowedReasons.includes(opt.value)) {
+                reasonTS.addOption({ value: opt.value, text: opt.text });
+            }
+        });
+        
+        reasonTS.refreshOptions(false);
+        
+        // 恢复之前的选中值（如果仍在可选范围内）
+        if (preserveValue && currentValue && Object.keys(reasonTS.options).includes(currentValue)) {
+            reasonTS.setValue(currentValue, true);
+        }
+    }
+    
+    function updateDetailOptions(reason, detailTS, preserveValue = false) {
+        const currentValue = preserveValue ? detailTS.getValue() : '';
+        const allowedDetails = REASON_TO_DETAIL_MAP[reason] || [];
+        
+        // 清空选项
+        detailTS.clear();
+        detailTS.clearOptions();
+        
+        // 添加空选项
+        detailTS.addOption({ value: '', text: '---------' });
+        
+        // 如果没有二级原因，直接返回
+        if (allowedDetails.length === 0) {
+            detailTS.refreshOptions(false);
+            return;
+        }
+        
+        // 筛选可用选项
+        allDetailOptions.forEach(opt => {
+            if (opt.value === '') return;
+            if (allowedDetails.includes(opt.value)) {
+                detailTS.addOption({ value: opt.value, text: opt.text });
+            }
+        });
+        
+        detailTS.refreshOptions(false);
+        
+        // 恢复之前的选中值（如果仍在可选范围内）
+        if (preserveValue && currentValue && Object.keys(detailTS.options).includes(currentValue)) {
+            detailTS.setValue(currentValue, true);
+        }
+    }
+    
+    // 初始化
+    if (document.readyState === 'complete') {
+        setTimeout(initCascadeFilter, 200);
+    } else {
+        window.addEventListener('load', function() {
+            setTimeout(initCascadeFilter, 200);
+        });
+    }
+})();
+</script>
 {% endblock %}

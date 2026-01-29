@@ -14,19 +14,16 @@ from django.core.exceptions import ValidationError
 class FaultCategoryChoices(ChoiceSet):
     key = 'OtnFault.fault_category'
 
-    CATEGORY_POWER = 'power'
-    CATEGORY_FIBER = 'fiber'
-    CATEGORY_PIGTAIL = 'pigtail'
-    CATEGORY_DEVICE = 'device'
-    CATEGORY_OTHER = 'other'
-
+    FIBER_BREAK = 'fiber_break'
+    AC_FAULT = 'ac_fault'
+    FIBER_DEGRADATION = 'fiber_degradation'
+    FIBER_JITTER = 'fiber_jitter'
 
     CHOICES = [
-        (CATEGORY_POWER, '电力故障', 'orange'),
-        (CATEGORY_FIBER, '光缆故障', 'red'),
-        (CATEGORY_PIGTAIL, '空调故障', 'blue'),
-        (CATEGORY_DEVICE, '设备故障', 'green'),
-        (CATEGORY_OTHER, '其他故障', 'gray'),
+        (FIBER_BREAK, '光缆中断', 'red'),
+        (AC_FAULT, '空调故障', 'blue'),
+        (FIBER_DEGRADATION, '光缆劣化', 'orange'),
+        (FIBER_JITTER, '光缆抖动', 'yellow'),
     ]
 
 
@@ -64,11 +61,13 @@ class ResourceTypeChoices(ChoiceSet):
     SELF_BUILT = 'self_built'
     COORDINATED = 'coordinated'
     LEASED = 'leased'
+    PROVINCIAL = 'provincial_provided'
 
     CHOICES = [
         (SELF_BUILT, '自建光缆', 'green'),
         (COORDINATED, '协调资源', 'blue'),
         (LEASED, '租赁纤芯', 'purple'),
+        (PROVINCIAL, '省厅提供', 'cyan'),
     ]
 
 
@@ -178,23 +177,118 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         null=True
     )
     
+    # 一级原因选项
     INTERRUPTION_REASON_CHOICES = (
-        ('road_construction', '道路施工'),
-        ('sabotage', '人为破坏'),
-        ('line_rectification', '线路整改'),
-        ('misoperation', '误操作'),
-        ('power_supply', '供电故障'),
-        ('municipal_construction', '市政施工'),
-        ('rodent_damage', '鼠害'),
+        # 光缆类故障（中断、劣化、抖动）共用的一级原因
+        ('construction', '施工'),
+        ('human_factor', '人为'),
+        ('traffic_accident', '交通事故'),
+        ('animal_damage', '动物破坏'),
         ('natural_disaster', '自然灾害'),
+        ('fire', '火灾故障'),
+        ('unknown', '无法查明'),
+        ('cable_rectification', '光缆整改'),
+        # 空调故障专用的一级原因
+        ('ac_refrigerant', '空调缺氟'),
+        ('ac_mainunit', '主机故障'),
+        ('ac_overload', '过载保护'),
+        ('ac_outdoor_blocked', '室外机堵塞'),
+        ('ac_no_autostart', '来电不自启'),
     )
+    
+    # 二级原因选项
+    INTERRUPTION_REASON_DETAIL_CHOICES = (
+        # 施工二级原因
+        ('municipal_construction', '市政施工'),
+        ('greening_construction', '绿化施工'),
+        ('expansion_construction', '改扩建施工'),
+        ('piling_construction', '打桩施工'),
+        ('ramp_construction', '匝道施工'),
+        ('station_renovation', '站内翻修'),
+        ('room_renovation', '机房装修'),
+        # 人为二级原因
+        ('sabotage', '人为破坏'),
+        ('misoperation', '误操作'),
+        # 交通事故二级原因
+        ('vehicle_collision', '车辆撞断或刮断'),
+        ('vehicle_fire', '车辆起火'),
+        # 动物破坏二级原因
+        ('bird_peck', '鸟啄'),
+        ('rodent_damage', '鼠害'),
+        ('dog_bite', '狗咬'),
+        ('ant_damage', '蚂蚁'),
+        # 自然灾害二级原因
+        ('flood', '洪水'),
+        ('earthquake', '地震'),
+        ('storm', '暴风'),
+        ('mudslide', '泥石流'),
+        ('road_collapse', '路面塌方'),
+        # 火灾故障二级原因
+        ('burning_straw', '烧荒'),
+        ('well_fire', '管井起火'),
+        ('cigarette', '烟头'),
+    )
+    
+    # 故障分类 -> 一级原因映射
+    CATEGORY_TO_REASON_MAP = {
+        'fiber_break': ['construction', 'human_factor', 'traffic_accident', 
+                        'animal_damage', 'natural_disaster', 'fire', 
+                        'unknown', 'cable_rectification'],
+        'fiber_degradation': ['construction', 'human_factor', 'traffic_accident', 
+                              'animal_damage', 'natural_disaster', 'fire', 
+                              'unknown', 'cable_rectification'],
+        'fiber_jitter': ['construction', 'human_factor', 'traffic_accident', 
+                         'animal_damage', 'natural_disaster', 'fire', 
+                         'unknown', 'cable_rectification'],
+        'ac_fault': ['ac_refrigerant', 'ac_mainunit', 'ac_overload', 
+                     'ac_outdoor_blocked', 'ac_no_autostart'],
+    }
+    
+    # 一级原因 -> 二级原因映射
+    REASON_TO_DETAIL_MAP = {
+        'construction': ['municipal_construction', 'greening_construction', 
+                         'expansion_construction', 'piling_construction', 
+                         'ramp_construction', 'station_renovation', 'room_renovation'],
+        'human_factor': ['sabotage', 'misoperation'],
+        'traffic_accident': ['vehicle_collision', 'vehicle_fire'],
+        'animal_damage': ['bird_peck', 'rodent_damage', 'dog_bite', 'ant_damage'],
+        'natural_disaster': ['flood', 'earthquake', 'storm', 'mudslide', 'road_collapse'],
+        'fire': ['burning_straw', 'well_fire', 'cigarette'],
+        # 以下一级原因没有二级原因
+        'unknown': [],
+        'cable_rectification': [],
+        'ac_refrigerant': [],
+        'ac_mainunit': [],
+        'ac_overload': [],
+        'ac_outdoor_blocked': [],
+        'ac_no_autostart': [],
+    }
+    
     interruption_reason = models.CharField(
         max_length=30,
         choices=INTERRUPTION_REASON_CHOICES,
-        verbose_name='故障原因',
+        verbose_name='一级原因',
         blank=True,
         null=True
     )
+    
+    interruption_reason_detail = models.CharField(
+        max_length=30,
+        choices=INTERRUPTION_REASON_DETAIL_CHOICES,
+        verbose_name='二级原因',
+        blank=True,
+        null=True
+    )
+
+    @property
+    def is_fiber_fault(self):
+        """判断是否为光缆相关故障（中断、劣化、抖动）"""
+        return self.fault_category in [
+            FaultCategoryChoices.FIBER_BREAK, 
+            FaultCategoryChoices.FIBER_DEGRADATION, 
+            FaultCategoryChoices.FIBER_JITTER
+        ]
+
     fault_details = models.TextField(
         verbose_name='故障详情和处理过程',
         blank=True,
