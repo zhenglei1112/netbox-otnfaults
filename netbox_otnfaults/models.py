@@ -680,6 +680,12 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         blank=True,
         verbose_name='业务恢复时间'
     )
+    secondary_faults = models.ManyToManyField(
+        to=OtnFault,
+        related_name='secondary_impacts',
+        verbose_name='关联次要故障',
+        blank=True
+    )
     tags = taggit.managers.TaggableManager(
         through='extras.TaggedItem',
         to='extras.Tag',

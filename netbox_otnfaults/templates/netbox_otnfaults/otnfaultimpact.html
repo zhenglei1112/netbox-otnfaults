@@ -18,6 +18,16 @@
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row">关联次要故障</th>
+                        <td>
+                            {% for fault in object.secondary_faults.all %}
+                                <a href="{{ fault.get_absolute_url }}">{{ fault }}</a>{% if not forloop.last %}、{% endif %}
+                            {% empty %}
+                                —
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row">影响业务</th>
                         <td>
                             {% if object.impacted_service %}

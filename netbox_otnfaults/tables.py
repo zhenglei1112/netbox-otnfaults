@@ -170,6 +170,10 @@ class OtnFaultImpactTable(NetBoxTable):
         verbose_name='故障历时',
         orderable=False
     )
+    secondary_faults = tables.ManyToManyColumn(
+        linkify_item=True,
+        verbose_name='关联次要故障'
+    )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:otnfaultimpact_list'
     )
@@ -177,7 +181,7 @@ class OtnFaultImpactTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = OtnFaultImpact
         fields = (
-            'pk', 'otn_fault', 'impacted_service',
+            'pk', 'otn_fault', 'secondary_faults', 'impacted_service',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
             'comments', 'tags', 'actions',
         )

@@ -322,7 +322,9 @@ class OtnFaultView(generic.ObjectView):
     queryset = OtnFault.objects.all()
 
     def get_extra_context(self, request, instance):
-        table = OtnFaultImpactTable(instance.impacts.all())
+        # 合并主故障和次要故障的影响记录
+        impacts = (instance.impacts.all() | instance.secondary_impacts.all()).distinct()
+        table = OtnFaultImpactTable(impacts)
         table.configure(request)
         return {
             'impacts_table': table,

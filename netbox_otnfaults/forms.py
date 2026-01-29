@@ -209,6 +209,11 @@ class OtnFaultImpactForm(NetBoxModelForm):
         queryset=Tenant.objects.all(),
         label='影响业务'
     )
+    secondary_faults = DynamicModelMultipleChoiceField(
+        queryset=OtnFault.objects.all(),
+        required=False,
+        label='关联次要故障'
+    )
     comments = CommentField(
         label='评论',
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
@@ -217,7 +222,7 @@ class OtnFaultImpactForm(NetBoxModelForm):
     class Meta:
         model = OtnFaultImpact
         fields = (
-            'otn_fault', 'impacted_service',
+            'otn_fault', 'secondary_faults', 'impacted_service',
             'service_interruption_time', 'service_recovery_time',
             'comments', 'tags',
         )
