@@ -503,7 +503,26 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name_plural = '故障'
 
     def __str__(self):
-        return self.fault_number
+        parts = [self.fault_number]
+        
+        # 添加故障类型
+        if self.fault_category:
+            parts.append(self.get_fault_category_display())
+            
+        # 添加A端站点
+        if self.interruption_location_a:
+            parts.append(f"{self.interruption_location_a}")
+            
+        # 添加Z端站点信息
+        if self.pk:
+            z_count = self.interruption_location.count()
+            if z_count > 0:
+                first_z = self.interruption_location.first()
+                parts.append(f"-> {first_z}")
+                if z_count > 1:
+                    parts.append(f"(+{z_count-1}站点)")
+                    
+        return " ".join(parts)
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_otnfaults:otnfault', args=[self.pk])

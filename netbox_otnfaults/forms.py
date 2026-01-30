@@ -48,7 +48,7 @@ class OtnFaultForm(NetBoxModelForm):
         required=False,
         label='代维合同',
         query_params={
-            'service_provider_id': '$handling_unit',
+            'external_party_object': '$handling_unit',
         }
     )
     comments = CommentField(
@@ -283,7 +283,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='代维合同',
         query_params={
-            'service_provider_id': '$handling_unit',
+            'external_party_object': '$handling_unit',
         }
     )
     interruption_location_a = DynamicModelChoiceField(
