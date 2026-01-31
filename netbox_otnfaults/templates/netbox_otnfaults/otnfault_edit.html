@@ -79,7 +79,14 @@
                          'animal_damage', 'natural_disaster', 'fire', 
                          'unknown', 'cable_rectification'],
         'ac_fault': ['ac_refrigerant', 'ac_mainunit', 'ac_overload', 
-                     'ac_outdoor_blocked', 'ac_no_autostart']
+                     'ac_outdoor_blocked', 'ac_no_autostart'],
+        'device_fault': ['optical_module', 'software_fault', 'branch_card', 
+                         'line_card', 'main_control_card', 'cross_card', 
+                         'auxiliary_card', 'power_card', 'optical_layer_card',
+                         'chassis_fault', 'misoperation_device', 'device_relocation', 
+                         'other_device'],
+        'power_fault': ['power_equipment_fault', 'power_equipment_rectification', 
+                        'ac_fault_power', 'natural_disaster_power', 'misoperation_power']
     };
     
     // 一级原因 -> 二级原因映射
@@ -91,8 +98,35 @@
         'traffic_accident': ['vehicle_collision', 'vehicle_fire'],
         'animal_damage': ['bird_peck', 'rodent_damage', 'dog_bite', 'ant_damage'],
         'natural_disaster': ['flood', 'earthquake', 'storm', 'mudslide', 'road_collapse'],
-        'fire': ['burning_straw', 'well_fire', 'cigarette']
-        // unknown, cable_rectification, ac_* 没有二级原因
+        'fire': ['burning_straw', 'well_fire', 'cigarette'],
+        // 以下一级原因没有二级原因
+        'unknown': [],
+        'cable_rectification': [],
+        'ac_refrigerant': [],
+        'ac_mainunit': [],
+        'ac_overload': [],
+        'ac_outdoor_blocked': [],
+        'ac_no_autostart': [],
+        // 设备故障的一级原因（无二级原因）
+        'optical_module': [],
+        'software_fault': [],
+        'branch_card': [],
+        'line_card': [],
+        'main_control_card': [],
+        'cross_card': [],
+        'auxiliary_card': [],
+        'power_card': [],
+        'optical_layer_card': [],
+        'chassis_fault': [],
+        'misoperation_device': [],
+        'device_relocation': [],
+        'other_device': [],
+        // 供电故障的一级原因（无二级原因）
+        'power_equipment_fault': [],
+        'power_equipment_rectification': [],
+        'ac_fault_power': [],
+        'natural_disaster_power': [],
+        'misoperation_power': []
     };
     
     // 保存原始选项

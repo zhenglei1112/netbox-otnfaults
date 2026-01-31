@@ -18,12 +18,16 @@ class FaultCategoryChoices(ChoiceSet):
     AC_FAULT = 'ac_fault'
     FIBER_DEGRADATION = 'fiber_degradation'
     FIBER_JITTER = 'fiber_jitter'
+    DEVICE_FAULT = 'device_fault'
+    POWER_FAULT = 'power_fault'
 
     CHOICES = [
         (FIBER_BREAK, '光缆中断', 'red'),
         (AC_FAULT, '空调故障', 'blue'),
         (FIBER_DEGRADATION, '光缆劣化', 'orange'),
         (FIBER_JITTER, '光缆抖动', 'yellow'),
+        (DEVICE_FAULT, '设备故障', 'green'),
+        (POWER_FAULT, '供电故障', 'purple'),
     ]
 
 
@@ -194,6 +198,26 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         ('ac_overload', '过载保护'),
         ('ac_outdoor_blocked', '室外机堵塞'),
         ('ac_no_autostart', '来电不自启'),
+        # 设备故障专用的一级原因
+        ('optical_module', '光模块故障'),
+        ('software_fault', '软件故障'),
+        ('branch_card', '支路板卡'),
+        ('line_card', '线路板卡'),
+        ('main_control_card', '主控板卡'),
+        ('cross_card', '交叉板卡'),
+        ('auxiliary_card', '辅助板卡'),
+        ('power_card', '电源板卡'),
+        ('optical_layer_card', '光层单板'),
+        ('chassis_fault', '机框故障'),
+        ('misoperation_device', '误操作'),
+        ('device_relocation', '设备搬迁'),
+        ('other_device', '其他'),
+        # 供电故障专用的一级原因
+        ('power_equipment_fault', '电源设备故障'),
+        ('power_equipment_rectification', '电源设备整改'),
+        ('ac_fault_power', '交流故障'),
+        ('natural_disaster_power', '自然灾害'),
+        ('misoperation_power', '误操作'),
     )
     
     # 二级原因选项
@@ -242,6 +266,13 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
                          'unknown', 'cable_rectification'],
         'ac_fault': ['ac_refrigerant', 'ac_mainunit', 'ac_overload', 
                      'ac_outdoor_blocked', 'ac_no_autostart'],
+        'device_fault': ['optical_module', 'software_fault', 'branch_card', 
+                         'line_card', 'main_control_card', 'cross_card', 
+                         'auxiliary_card', 'power_card', 'optical_layer_card',
+                         'chassis_fault', 'misoperation_device', 'device_relocation', 
+                         'other_device'],
+        'power_fault': ['power_equipment_fault', 'power_equipment_rectification', 
+                        'ac_fault_power', 'natural_disaster_power', 'misoperation_power'],
     }
     
     # 一级原因 -> 二级原因映射
@@ -262,6 +293,26 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         'ac_overload': [],
         'ac_outdoor_blocked': [],
         'ac_no_autostart': [],
+        # 设备故障的一级原因（无二级原因）
+        'optical_module': [],
+        'software_fault': [],
+        'branch_card': [],
+        'line_card': [],
+        'main_control_card': [],
+        'cross_card': [],
+        'auxiliary_card': [],
+        'power_card': [],
+        'optical_layer_card': [],
+        'chassis_fault': [],
+        'misoperation_device': [],
+        'device_relocation': [],
+        'other_device': [],
+        # 供电故障的一级原因（无二级原因）
+        'power_equipment_fault': [],
+        'power_equipment_rectification': [],
+        'ac_fault_power': [],
+        'natural_disaster_power': [],
+        'misoperation_power': [],
     }
     
     interruption_reason = models.CharField(
