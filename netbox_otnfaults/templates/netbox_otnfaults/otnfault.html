@@ -283,6 +283,50 @@
     {% include 'inc/panels/custom_fields.html' %}
   </div>
   {% endif %}
+  {% if object.is_power_fault %}
+  <div class="col col-md-6">
+    <!-- 供电故障补充信息组 -->
+    <div class="card">
+      <h5 class="card-header">供电故障补充信息</h5>
+      <table class="table table-hover attr-table">
+        <tr>
+          <th scope="row">资料类型</th>
+          <td>
+            {% if object.power_data_type %}
+            {% badge object.get_power_data_type_display bg_color=object.get_power_data_type_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">恢复方式</th>
+          <td>
+            {% if object.power_recovery_mode %}
+            {% badge object.get_power_recovery_mode_display bg_color=object.get_power_recovery_mode_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">维护方式</th>
+          <td>
+            {% if object.power_maintenance_mode %}
+            {% badge object.get_power_maintenance_mode_display bg_color=object.get_power_maintenance_mode_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <div class="col col-md-6">
+    <!-- 自定义字段 -->
+    {% include 'inc/panels/custom_fields.html' %}
+  </div>
+  {% endif %}
 </div>
 
 <div class="row mb-3">

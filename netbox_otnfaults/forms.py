@@ -3,6 +3,7 @@ from .models import (
     OtnFault, OtnFaultImpact, FaultCategoryChoices, UrgencyChoices, 
     MaintenanceModeChoices, ResourceTypeChoices, CableRouteChoices,
     FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices,
+    PowerDataTypeChoices, PowerRecoveryModeChoices, PowerMaintenanceModeChoices,
     OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite
 )
 from django import forms
@@ -70,6 +71,9 @@ class OtnFaultForm(NetBoxModelForm):
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
             'timeout_reason', 'handler',
         )),
+        ('供电故障补充信息', (
+            'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
+        )),
         (None, (
             'comments', 'tags',
         )),
@@ -89,6 +93,8 @@ class OtnFaultForm(NetBoxModelForm):
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
             'timeout_reason', 'handler',
+            # 供电故障补充信息组字段
+            'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
             # 其他字段
             'comments', 'tags',
         )
@@ -442,6 +448,10 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             'timeout_reason', 'handler', 'comments',
             name='光缆中断补充信息'
         ),
+        FieldSet(
+            'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
+            name='供电故障补充信息'
+        ),
     )
     
     duty_officer = DynamicModelChoiceField(
@@ -599,6 +609,21 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     comments = forms.CharField(
         required=False,
         label='评论'
+    )
+    power_data_type = forms.ChoiceField(
+        choices=add_blank_choice(PowerDataTypeChoices),
+        required=False,
+        label='资料类型'
+    )
+    power_recovery_mode = forms.ChoiceField(
+        choices=add_blank_choice(PowerRecoveryModeChoices),
+        required=False,
+        label='恢复方式'
+    )
+    power_maintenance_mode = forms.ChoiceField(
+        choices=add_blank_choice(PowerMaintenanceModeChoices),
+        required=False,
+        label='维护方式'
     )
 
 class OtnFaultImpactFilterForm(NetBoxModelFilterSetForm):

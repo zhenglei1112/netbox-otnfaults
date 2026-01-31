@@ -59,6 +59,48 @@ class MaintenanceModeChoices(ChoiceSet):
     ]
 
 
+class PowerDataTypeChoices(ChoiceSet):
+    key = 'OtnFault.power_data_type'
+
+    SELF_BUILT = 'self_built_battery'
+    PROVINCIAL = 'provincial_battery'
+
+    CHOICES = [
+        (SELF_BUILT, '自建电源电池', 'green'),
+        (PROVINCIAL, '各省提供电源电池', 'blue'),
+    ]
+
+
+class PowerRecoveryModeChoices(ChoiceSet):
+    key = 'OtnFault.power_recovery_mode'
+
+    GENERATOR = 'generator_power'
+    MAINS = 'mains_recovery'
+    SWITCH_ON = 'switch_on_recovery'
+
+    CHOICES = [
+        (GENERATOR, '发电机供电', 'orange'),
+        (MAINS, '市电恢复', 'green'),
+        (SWITCH_ON, '合闸恢复', 'blue'),
+    ]
+
+
+class PowerMaintenanceModeChoices(ChoiceSet):
+    key = 'OtnFault.power_maintenance_mode'
+
+    OUTSOURCED = 'outsourced'
+    COORDINATED = 'coordinated'
+    SELF_MAINTAINED = 'self_maintained'
+    FACTORY_MAINTENANCE = 'factory_maintenance'
+
+    CHOICES = [
+        (OUTSOURCED, '代维', 'blue'),
+        (COORDINATED, '协调', 'green'),
+        (SELF_MAINTAINED, '自维', 'purple'),
+        (FACTORY_MAINTENANCE, '厂家维保', 'cyan'),
+    ]
+
+
 class ResourceTypeChoices(ChoiceSet):
     key = 'OtnFault.resource_type'
 
@@ -340,6 +382,11 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             FaultCategoryChoices.FIBER_JITTER
         ]
 
+    @property
+    def is_power_fault(self):
+        """判断是否为供电故障"""
+        return self.fault_category == FaultCategoryChoices.POWER_FAULT
+
     fault_details = models.TextField(
         verbose_name='故障详情和处理过程',
         blank=True,
@@ -541,6 +588,29 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='恢复方式'
     )
     
+    # 供电故障补充信息
+    power_data_type = models.CharField(
+        max_length=20,
+        choices=PowerDataTypeChoices,
+        blank=True,
+        null=True,
+        verbose_name='资料类型'
+    )
+    power_recovery_mode = models.CharField(
+        max_length=30,
+        choices=PowerRecoveryModeChoices,
+        blank=True,
+        null=True,
+        verbose_name='恢复方式'
+    )
+    power_maintenance_mode = models.CharField(
+        max_length=20,
+        choices=PowerMaintenanceModeChoices,
+        blank=True,
+        null=True,
+        verbose_name='维护方式'
+    )
+    
     tags = taggit.managers.TaggableManager(
         through='extras.TaggedItem',
         to='extras.Tag',
@@ -680,6 +750,18 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     def get_fault_status_color(self):
         """获取处理状态的颜色"""
         return FaultStatusChoices.colors.get(self.fault_status)
+
+    def get_power_data_type_color(self):
+        """获取资料类型的颜色"""
+        return PowerDataTypeChoices.colors.get(self.power_data_type)
+
+    def get_power_recovery_mode_color(self):
+        """获取供电恢复方式的颜色"""
+        return PowerRecoveryModeChoices.colors.get(self.power_recovery_mode)
+
+    def get_power_maintenance_mode_color(self):
+        """获取供电维护方式的颜色"""
+        return PowerMaintenanceModeChoices.colors.get(self.power_maintenance_mode)
 
     def clean(self):
         super().clean()

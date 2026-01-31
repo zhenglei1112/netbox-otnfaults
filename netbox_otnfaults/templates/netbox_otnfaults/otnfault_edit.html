@@ -50,6 +50,17 @@
     </div>
 </div>
 
+<div class="field-group my-5" id="power-supplementary-info">
+    <div class="row mb-3">
+        <h2 class="col-9 offset-3 mb-0">供电故障补充信息</h2>
+    </div>
+    <div class="row">
+        {% render_field form.power_data_type %}
+        {% render_field form.power_recovery_mode %}
+        {% render_field form.power_maintenance_mode %}
+    </div>
+</div>
+
 <div class="field-group my-5">
     <div class="row mb-3">
         <h2 class="col-9 offset-3 mb-0">其他信息</h2>
@@ -66,6 +77,8 @@
     
     // 光缆相关故障类型
     const FIBER_FAULT_CATEGORIES = ['fiber_break', 'fiber_degradation', 'fiber_jitter'];
+    // 供电故障类型
+    const POWER_FAULT_CATEGORY = 'power_fault';
 
     // 故障分类 -> 一级原因映射
     const CATEGORY_TO_REASON_MAP = {
@@ -134,13 +147,23 @@
     let allDetailOptions = [];
     
     function toggleFiberFields(category) {
-        const infoDiv = document.getElementById('fiber-supplementary-info');
-        if (!infoDiv) return;
+        const fiberInfoDiv = document.getElementById('fiber-supplementary-info');
+        const powerInfoDiv = document.getElementById('power-supplementary-info');
         
+        if (!fiberInfoDiv || !powerInfoDiv) return;
+        
+        // 控制光缆补充信息显示
         if (FIBER_FAULT_CATEGORIES.includes(category)) {
-            infoDiv.style.display = 'block';
+            fiberInfoDiv.style.display = 'block';
         } else {
-            infoDiv.style.display = 'none';
+            fiberInfoDiv.style.display = 'none';
+        }
+        
+        // 控制供电补充信息显示
+        if (category === POWER_FAULT_CATEGORY) {
+            powerInfoDiv.style.display = 'block';
+        } else {
+            powerInfoDiv.style.display = 'none';
         }
     }
     
