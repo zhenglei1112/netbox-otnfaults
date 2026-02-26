@@ -13,3 +13,4 @@ setup(
         'Framework :: Django',
         'Programming Language :: Python :: 3',
     ],
+)
