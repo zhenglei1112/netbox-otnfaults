@@ -9,19 +9,23 @@ const COLORS_CONFIG =
 
 // 故障类型颜色映射
 const FAULT_CATEGORY_COLORS = COLORS_CONFIG.category_colors || {
-  power: "#f5a623", // 电力故障 - 橙色
-  fiber: "#dc3545", // 光缆故障 - 红色
-  pigtail: "#0d6efd", // 空调故障 - 蓝色
-  device: "#198754", // 设备故障 - 绿色
-  other: "#6c757d", // 其他故障 - 灰色
+  fiber_break: "#dc3545",     // 光缆中断 - 红色
+  ac_fault: "#0d6efd",        // 空调故障 - 蓝色
+  fiber_degradation: "#f5a623", // 光缆劣化 - 橙色
+  fiber_jitter: "#ffc107",    // 光缆抖动 - 黄色
+  device_fault: "#d63384",    // 设备故障 - 粉红
+  power_fault: "#6f42c1",     // 供电故障 - 紫色
+  other: "#6c757d",           // 兜底 - 灰色
 };
 
 // 故障类型名称映射
 const FAULT_CATEGORY_NAMES = COLORS_CONFIG.category_names || {
-  power: "电力故障",
-  fiber: "光缆故障",
-  pigtail: "空调故障",
-  device: "设备故障",
+  fiber_break: "光缆中断",
+  ac_fault: "空调故障",
+  fiber_degradation: "光缆劣化",
+  fiber_jitter: "光缆抖动",
+  device_fault: "设备故障",
+  power_fault: "供电故障",
   other: "其他故障",
 };
 
@@ -30,7 +34,7 @@ const FAULT_STATUS_COLORS = COLORS_CONFIG.status_colors || {
   processing: "#dc3545", // 处理中 - 红色
   temporary_recovery: "#0d6efd", // 临时恢复 - 蓝色
   suspended: "#ffc107", // 挂起 - 黄色
-  closed: "#6f42c1", // 已关闭 - 紫色
+  closed: "#198754", // 已关闭 - 绿色
 };
 
 // 故障状态名称映射

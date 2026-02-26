@@ -26,7 +26,7 @@ class FaultCategoryChoices(ChoiceSet):
         (AC_FAULT, '空调故障', 'blue'),
         (FIBER_DEGRADATION, '光缆劣化', 'orange'),
         (FIBER_JITTER, '光缆抖动', 'yellow'),
-        (DEVICE_FAULT, '设备故障', 'green'),
+        (DEVICE_FAULT, '设备故障', 'pink'),
         (POWER_FAULT, '供电故障', 'purple'),
     ]
 
@@ -141,7 +141,7 @@ class FaultStatusChoices(ChoiceSet):
         (PROCESSING, '处理中', 'red'),
         (TEMPORARY_RECOVERY, '临时恢复', 'blue'),
         (SUSPENDED, '挂起', 'yellow'),
-        (CLOSED, '已关闭', 'purple'),
+        (CLOSED, '已关闭', 'green'),
     ]
 
 

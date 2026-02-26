@@ -10,7 +10,12 @@ class FaultDataService {
    */
   static convertToFeatures(markerData) {
     return markerData.map((m) => {
-      const category = m.category || "other";
+      // 兼容旧数据：如果数据库中的类别不在最新的颜色规范字典里，则强制将其归类为'other'
+      let category = m.category || "other";
+      if (!FAULT_CATEGORY_COLORS[category]) {
+        category = "other";
+      }
+
       const categoryColor =
         FAULT_CATEGORY_COLORS[category] || FAULT_CATEGORY_COLORS["other"];
       const dateStr = m.occurrence_time || "";
@@ -39,7 +44,7 @@ class FaultDataService {
           statusColor: m.status_color || "secondary",
           statusColorHex: statusColorHex,
           category: category,
-          categoryName: FAULT_CATEGORY_NAMES[category] || category,
+          categoryName: (m.category_display && m.category_display !== '未知类型') ? m.category_display : (FAULT_CATEGORY_NAMES[category] || category),
           date: dateStr,
           isoDate: isoDateStr,
           recoveryTime: m.recovery_time || "未恢复",

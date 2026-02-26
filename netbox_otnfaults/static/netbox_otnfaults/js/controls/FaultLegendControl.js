@@ -13,12 +13,12 @@ class FaultLegendControl {
         this.map = map;
         this.container = document.createElement('div');
         this.container.className = 'maplibregl-ctrl fault-legend-control';
-        
+
         this.render();
-        
+
         // 初始隐藏
         this.container.style.display = 'none';
-        
+
         return this.container;
     }
 
@@ -32,13 +32,14 @@ class FaultLegendControl {
     render() {
         // 故障类型图例（不同形状 - 象形设计）
         const categories = [
-            { key: 'fiber', name: FAULT_CATEGORY_NAMES.fiber || '光缆', shape: 'fiber' },
-            { key: 'power', name: FAULT_CATEGORY_NAMES.power || '电力', shape: 'power' },
-            { key: 'pigtail', name: FAULT_CATEGORY_NAMES.pigtail || '空调', shape: 'snowflake' },
-            { key: 'device', name: FAULT_CATEGORY_NAMES.device || '设备', shape: 'chip' },
-            { key: 'other', name: FAULT_CATEGORY_NAMES.other || '其他', shape: 'warning' }
+            { key: 'fiber_break', name: FAULT_CATEGORY_NAMES.fiber_break || '光缆中断', shape: 'fiber_break' },
+            { key: 'ac_fault', name: FAULT_CATEGORY_NAMES.ac_fault || '空调故障', shape: 'ac_fault' },
+            { key: 'fiber_degradation', name: FAULT_CATEGORY_NAMES.fiber_degradation || '光缆劣化', shape: 'fiber_degradation' },
+            { key: 'fiber_jitter', name: FAULT_CATEGORY_NAMES.fiber_jitter || '光缆抖动', shape: 'fiber_jitter' },
+            { key: 'device_fault', name: FAULT_CATEGORY_NAMES.device_fault || '设备故障', shape: 'device_fault' },
+            { key: 'power_fault', name: FAULT_CATEGORY_NAMES.power_fault || '供电故障', shape: 'power_fault' }
         ];
-        
+
         // 故障状态图例（不同颜色）
         const statuses = [
             { key: 'processing', name: FAULT_STATUS_NAMES?.processing || '处理中', color: FAULT_STATUS_COLORS?.processing || '#f5a623' },
@@ -54,7 +55,7 @@ class FaultLegendControl {
                 <span class="legend-label">${cat.name}</span>
             </div>
         `).join('');
-        
+
         // 状态图例项（使用圆形颜色标记）
         const statusItems = statuses.map(st => `
             <div class="legend-item">
@@ -138,82 +139,49 @@ class FaultLegendControl {
             </style>
         `;
     }
-    
+
     /**
-     * 根据形状类型生成 SVG 图标（与地图图标一致的象形设计）
+     * 根据形状类型从全局获取 SVG 图标
      * @param {string} shape - 形状类型
      * @param {string} color - 填充颜色
      * @returns {string} SVG HTML
      */
     getShapeSvg(shape, color) {
-        const svgStart = '<svg class="legend-shape-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">';
-        const svgEnd = '</svg>';
-        
-        let content = '';
-        switch(shape) {
-            case 'fiber':
-                // 光纤波浪线图标
-                content = `
-                    <circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="1"/>
-                    <path d="M6 12 Q9 8 12 12 T18 12" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-                    <circle cx="6" cy="12" r="1.5" fill="white"/>
-                    <circle cx="18" cy="12" r="1.5" fill="white"/>
-                `;
-                break;
-            case 'power':
-                // 闪电图标
-                content = `
-                    <circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="1"/>
-                    <path d="M13 5 L9 12 L12 12 L11 19 L15 12 L12 12 Z" fill="white"/>
-                `;
-                break;
-            case 'snowflake':
-                // 雪花图标
-                content = `
-                    <circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="1"/>
-                    <g stroke="white" stroke-width="1.5" stroke-linecap="round">
-                        <line x1="12" y1="5" x2="12" y2="19"/>
-                        <line x1="5" y1="12" x2="19" y2="12"/>
-                        <line x1="7" y1="7" x2="17" y2="17"/>
-                        <line x1="17" y1="7" x2="7" y2="17"/>
-                    </g>
-                `;
-                break;
-            case 'chip':
-                // 芯片图标
-                content = `
-                    <circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="1"/>
-                    <rect x="8" y="8" width="8" height="8" fill="white"/>
-                    <g stroke="white" stroke-width="1">
-                        <line x1="9" y1="8" x2="9" y2="5"/>
-                        <line x1="12" y1="8" x2="12" y2="5"/>
-                        <line x1="15" y1="8" x2="15" y2="5"/>
-                        <line x1="9" y1="16" x2="9" y2="19"/>
-                        <line x1="12" y1="16" x2="12" y2="19"/>
-                        <line x1="15" y1="16" x2="15" y2="19"/>
-                        <line x1="8" y1="9" x2="5" y2="9"/>
-                        <line x1="8" y1="12" x2="5" y2="12"/>
-                        <line x1="8" y1="15" x2="5" y2="15"/>
-                        <line x1="16" y1="9" x2="19" y2="9"/>
-                        <line x1="16" y1="12" x2="19" y2="12"/>
-                        <line x1="16" y1="15" x2="19" y2="15"/>
-                    </g>
-                    <rect x="10" y="10" width="4" height="4" fill="${color}"/>
-                `;
-                break;
-            case 'warning':
-            default:
-                // 警告三角形图标
-                content = `
-                    <circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="1"/>
-                    <path d="M12 6 L18 17 L6 17 Z" fill="none" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-                    <line x1="12" y1="10" x2="12" y2="13" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-                    <circle cx="12" cy="15" r="1" fill="white"/>
-                `;
-                break;
+        let targetSvg = '';
+        if (window.FAULT_SVG_ICONS && window.FAULT_SVG_ICONS[shape]) {
+            targetSvg = window.FAULT_SVG_ICONS[shape];
+        } else if (window.FAULT_SVG_ICONS && window.FAULT_SVG_ICONS['other']) {
+            targetSvg = window.FAULT_SVG_ICONS['other'];
+        } else {
+            targetSvg = `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="4" fill="white"/></svg>`;
         }
-        
-        return svgStart + content + svgEnd;
+
+        // 提取原 SVG 内容
+        const parser = new DOMParser();
+        const svgDoc = parser.parseFromString(targetSvg, 'image/svg+xml');
+        let innerContent = '';
+        if (svgDoc.documentElement) {
+            Array.from(svgDoc.documentElement.children).forEach(child => {
+                let html = child.outerHTML;
+                // 单独处理设备芯片图标中间的小圆点填充色
+                if (shape === 'device_fault') {
+                    if (html.includes('rect x="11" y="11"')) {
+                        html = html.replace('fill="white"', `fill="${color}"`);
+                    }
+                }
+                innerContent += html;
+            });
+        }
+
+        // 构造带有自身背景圆圈底色的内联 SVG
+        const finalSvg = `
+          <svg class="legend-shape-svg" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px;">
+            <circle cx="16" cy="16" r="14" fill="${color}" stroke="white" stroke-width="1.5"/>
+            ${innerContent}
+          </svg>
+        `;
+
+        return finalSvg;
     }
 
     /**

@@ -316,7 +316,7 @@ const FaultModePlugin = {
         'processing': '#dc3545',          // 处理中 - 红色
         'temporary_recovery': '#0d6efd',  // 临时恢复 - 蓝色
         'suspended': '#ffc107',            // 挂起 - 黄色
-        'closed': '#6f42c1'                // 已关闭 - 紫色
+        'closed': '#198754'                // 已关闭 - 绿色
       };
       const promises = [];
 

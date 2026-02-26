@@ -132,8 +132,9 @@ class FaultStatisticsControl {
         siteCounts[f.a_site] = (siteCounts[f.a_site] || 0) + 1;
       }
 
-      // 统计路径（仅统计光缆故障且A、Z端都有值的故障）
-      if (f.a_site && f.z_sites && f.category === "fiber") {
+      // 统计路径（仅统计光缆类故障且A、Z端都有值的故障）
+      const fiberCategories = ['fiber_break', 'fiber_degradation', 'fiber_jitter', 'fiber'];
+      if (f.a_site && f.z_sites && fiberCategories.includes(f.category)) {
         const siteA = f.a_site;
         const zSitesList = this.splitZSites(f.z_sites);
 
@@ -611,8 +612,9 @@ class FaultStatisticsControl {
 
     markerData.forEach((m) => {
       // 路径统计：光缆故障且匹配站点对（双向匹配）
+      const fiberCategories = ['fiber_break', 'fiber_degradation', 'fiber_jitter', 'fiber'];
       if (
-        m.category === "fiber" &&
+        fiberCategories.includes(m.category) &&
         m.occurrence_time &&
         this.matchesPath(m.a_site, m.z_sites, siteAName, siteZName)
       ) {
@@ -702,8 +704,9 @@ class FaultStatisticsControl {
 
     markerData.forEach((m) => {
       // 路径统计：光缆故障且匹配站点对（双向匹配）
+      const fiberCategories = ['fiber_break', 'fiber_degradation', 'fiber_jitter', 'fiber'];
       if (
-        m.category === "fiber" &&
+        fiberCategories.includes(m.category) &&
         m.occurrence_time &&
         this.matchesPath(m.a_site, m.z_sites, siteAName, siteZName)
       ) {

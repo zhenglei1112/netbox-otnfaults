@@ -127,8 +127,12 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             category_key = 'other'
             if fault_category:
                 category_mapping = {
-                    'power': 'power', 'fiber': 'fiber', 'pigtail': 'pigtail', 
-                    'device': 'device', 'other': 'other'
+                    'power': 'power_fault', 'power_fault': 'power_fault',
+                    'fiber': 'fiber_break', 'fiber_break': 'fiber_break',
+                    'fiber_degradation': 'fiber_degradation', 'fiber_jitter': 'fiber_jitter',
+                    'pigtail': 'ac_fault', 'ac_fault': 'ac_fault',
+                    'device': 'device_fault', 'device_fault': 'device_fault',
+                    'other': 'other'
                 }
                 category_key = category_mapping.get(fault_category, 'other')
             
@@ -154,8 +158,12 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             category_key = 'other'
             if fault_category:
                 category_mapping = {
-                    'power': 'power', 'fiber': 'fiber', 'pigtail': 'pigtail',
-                    'device': 'device', 'other': 'other'
+                    'power': 'power_fault', 'power_fault': 'power_fault',
+                    'fiber': 'fiber_break', 'fiber_break': 'fiber_break',
+                    'fiber_degradation': 'fiber_degradation', 'fiber_jitter': 'fiber_jitter',
+                    'pigtail': 'ac_fault', 'ac_fault': 'ac_fault',
+                    'device': 'device_fault', 'device_fault': 'device_fault',
+                    'other': 'other'
                 }
                 category_key = category_mapping.get(fault_category, 'other')
             
@@ -194,6 +202,24 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             else:
                 continue
             
+            # 尝试翻译遗留因为层级错乱或纯英文字符串导致翻译失败的原因字段
+            reason_display = fault.get_interruption_reason_display()
+            raw_reason = fault.interruption_reason
+            if not reason_display or reason_display == raw_reason:
+                # 在所有类别中全局搜索该 key 的中文
+                all_choices = dict(OtnFault.INTERRUPTION_REASON_CHOICES)
+                all_choices.update(dict(OtnFault.INTERRUPTION_REASON_DETAIL_CHOICES))
+                if raw_reason in all_choices:
+                    reason_display = all_choices[raw_reason]
+                else:
+                    reason_display = raw_reason if raw_reason else '-'
+            
+            # 如果依然是英文且包含'_'（如misoperation_device），尝试去掉后缀再匹配
+            if reason_display and reason_display == raw_reason and '_' in raw_reason:
+                base_reason = raw_reason.split('_')[0]
+                if base_reason in all_choices:
+                    reason_display = all_choices[base_reason]
+
             marker_data.append({
                 'lat': lat,
                 'lng': lng,
@@ -216,7 +242,7 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
                 'occurrence_time': occurrence_time_str,
                 'recovery_time': recovery_time_str,
                 'fault_duration': fault_duration_str,
-                'reason': fault.get_interruption_reason_display() or '-',
+                'reason': reason_display,
                 'fault_details': fault.fault_details or '无详细描述',
                 'process': fault.fault_details or '无处理过程',
                 'resource_type': fault.get_resource_type_display() or '-',
