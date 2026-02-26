@@ -190,23 +190,10 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             else:
                 continue
             
-            # 尝试翻译遗留因为层级错乱或纯英文字符串导致翻译失败的原因字段
+            # 直接获取标准配置即可，不再进行遍历全部选项以及拆解英文的复杂向后兼容推测
             reason_display = fault.get_interruption_reason_display()
-            raw_reason = fault.interruption_reason
-            if not reason_display or reason_display == raw_reason:
-                # 在所有类别中全局搜索该 key 的中文
-                all_choices = dict(OtnFault.INTERRUPTION_REASON_CHOICES)
-                all_choices.update(dict(OtnFault.INTERRUPTION_REASON_DETAIL_CHOICES))
-                if raw_reason in all_choices:
-                    reason_display = all_choices[raw_reason]
-                else:
-                    reason_display = raw_reason if raw_reason else '-'
-            
-            # 如果依然是英文且包含'_'（如misoperation_device），尝试去掉后缀再匹配
-            if reason_display and reason_display == raw_reason and '_' in raw_reason:
-                base_reason = raw_reason.split('_')[0]
-                if base_reason in all_choices:
-                    reason_display = all_choices[base_reason]
+            if not reason_display or reason_display == fault.interruption_reason:
+                reason_display = '-'
 
             marker_data.append({
                 'lat': lat,
