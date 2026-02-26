@@ -18,7 +18,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row">关联次要故障</th>
+                        <th scope="row">次要故障</th>
                         <td>
                             {% for fault in object.secondary_faults.all %}
                                 <a href="{{ fault.get_absolute_url }}">{{ fault }}</a>{% if not forloop.last %}、{% endif %}

@@ -835,7 +835,7 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
     secondary_faults = models.ManyToManyField(
         to=OtnFault,
         related_name='secondary_impacts',
-        verbose_name='关联次要故障',
+        verbose_name='次要故障',
         blank=True
     )
     tags = taggit.managers.TaggableManager(

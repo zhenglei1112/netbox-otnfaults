@@ -172,7 +172,7 @@ class OtnFaultImpactTable(NetBoxTable):
     )
     secondary_faults = tables.ManyToManyColumn(
         linkify_item=True,
-        verbose_name='关联次要故障'
+        verbose_name='次要故障'
     )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:otnfaultimpact_list'

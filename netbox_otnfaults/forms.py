@@ -218,7 +218,8 @@ class OtnFaultImpactForm(NetBoxModelForm):
     secondary_faults = DynamicModelMultipleChoiceField(
         queryset=OtnFault.objects.all(),
         required=False,
-        label='关联次要故障'
+        label='次要故障',
+        help_text='若业务中断是因为多次故障引起的（双断、三断等），关联故障为最后一次造成最终业务中断的故障，次要故障可选择前续涉及的多次故障（引起单断的故障）。'
     )
     comments = CommentField(
         label='评论',
