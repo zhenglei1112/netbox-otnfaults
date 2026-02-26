@@ -32,12 +32,10 @@ class FaultLegendControl {
     render() {
         // 故障类型图例（不同形状 - 象形设计）
         const categories = [
-            { key: 'fiber_break', name: FAULT_CATEGORY_NAMES.fiber_break || '光缆中断', shape: 'fiber_break' },
-            { key: 'ac_fault', name: FAULT_CATEGORY_NAMES.ac_fault || '空调故障', shape: 'ac_fault' },
-            { key: 'fiber_degradation', name: FAULT_CATEGORY_NAMES.fiber_degradation || '光缆劣化', shape: 'fiber_degradation' },
-            { key: 'fiber_jitter', name: FAULT_CATEGORY_NAMES.fiber_jitter || '光缆抖动', shape: 'fiber_jitter' },
-            { key: 'device_fault', name: FAULT_CATEGORY_NAMES.device_fault || '设备故障', shape: 'device_fault' },
-            { key: 'power_fault', name: FAULT_CATEGORY_NAMES.power_fault || '供电故障', shape: 'power_fault' }
+            { key: 'fiber_break', name: '光缆', shape: 'fiber_break' },
+            { key: 'ac_fault', name: '空调', shape: 'ac_fault' },
+            { key: 'device_fault', name: '设备', shape: 'device_fault' },
+            { key: 'power_fault', name: '供电', shape: 'power_fault' }
         ];
 
         // 故障状态图例（不同颜色）

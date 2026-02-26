@@ -400,20 +400,10 @@ class LayerToggleControl {
             checkbox.className = 'form-check-input mt-0';
             checkbox.dataset.category = cat.key;
 
-            const colorDot = document.createElement('span');
-            colorDot.style.cssText = `
-                width: 10px;
-                height: 10px;
-                background-color: ${cat.color};
-                border-radius: 50%;
-                display: inline-block;
-            `;
-
             const label = document.createElement('span');
             label.innerText = cat.name;
 
             item.appendChild(checkbox);
-            item.appendChild(colorDot);
             item.appendChild(label);
 
             item.onclick = (e) => {
