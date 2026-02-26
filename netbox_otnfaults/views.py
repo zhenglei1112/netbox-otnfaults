@@ -126,16 +126,10 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             fault_category = fault.fault_category
             category_key = 'other'
             if fault_category:
-                category_mapping = {
-                    'power': 'power_fault', 'power_fault': 'power_fault',
-                    'fiber': 'fiber_break', 'fiber_break': 'fiber_break',
-                    'fiber_degradation': 'fiber_degradation', 'fiber_jitter': 'fiber_jitter',
-                    'pigtail': 'ac_fault', 'ac_fault': 'ac_fault',
-                    'device': 'device_fault', 'device_fault': 'device_fault',
-                    'other': 'other'
-                }
-                category_key = category_mapping.get(fault_category, 'other')
-            
+                # 仅保留标准的分类键值，不再向下兼容历史杂乱数据
+                valid_categories = ['power_fault', 'fiber_break', 'fiber_degradation', 'fiber_jitter', 'ac_fault', 'device_fault']
+                category_key = fault_category if fault_category in valid_categories else 'other'
+                
             heatmap_data.append({
                 'lat': float(fault.interruption_latitude),
                 'lng': float(fault.interruption_longitude),
@@ -157,15 +151,9 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             fault_category = fault.fault_category
             category_key = 'other'
             if fault_category:
-                category_mapping = {
-                    'power': 'power_fault', 'power_fault': 'power_fault',
-                    'fiber': 'fiber_break', 'fiber_break': 'fiber_break',
-                    'fiber_degradation': 'fiber_degradation', 'fiber_jitter': 'fiber_jitter',
-                    'pigtail': 'ac_fault', 'ac_fault': 'ac_fault',
-                    'device': 'device_fault', 'device_fault': 'device_fault',
-                    'other': 'other'
-                }
-                category_key = category_mapping.get(fault_category, 'other')
+                # 仅保留标准的分类键值，不再向下兼容历史杂乱数据
+                valid_categories = ['power_fault', 'fiber_break', 'fiber_degradation', 'fiber_jitter', 'ac_fault', 'device_fault']
+                category_key = fault_category if fault_category in valid_categories else 'other'
             
             z_sites = [s.name for s in fault.interruption_location.all()]
             z_sites_str = '、'.join(z_sites) if z_sites else '未指定'
