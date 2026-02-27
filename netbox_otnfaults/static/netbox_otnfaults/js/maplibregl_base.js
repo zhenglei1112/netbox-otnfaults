@@ -64,6 +64,8 @@ class NetBoxMapBase {
       mapOptions.style = this._getLocalBasemapStyle(config);
     } else {
       // 使用网络底图
+
+      // mapOptions.style = 'http://192.168.30.34/map-assets/alidade_smooth_local.json';
       mapOptions.style =
         "https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=" +
         apiKey;

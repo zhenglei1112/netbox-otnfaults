@@ -120,7 +120,7 @@ class OTNMapCore {
    */
   _setupBasemapFeatures() {
     if (!this.config.useLocalBasemap) {
-      this.mapBase.emphasizeChinaBoundaries();
+      // 删除了对 emphasizeChinaBoundaries() 的调用，不再突出显示底图自带的省界
       this.mapBase.setLanguageToChinese();
       this.mapBase.filterLabels();
       this.mapBase.filterLabels();
@@ -139,6 +139,47 @@ class OTNMapCore {
    * 初始化共享图层 (站点和 OTN 路径底图)
    */
   _initSharedLayers() {
+    const firstSymbolId = this._findFirstSymbolLayerId();
+
+    // 0. 用户自定义 GeoJSON 底层 (如省份边界)
+    if (this.config.userGeojsonUrl) {
+      fetch(this.config.userGeojsonUrl)
+        .then(res => res.json())
+        .then(data => {
+          this.mapBase.addGeoJsonSource("user-geojson-source", data);
+
+          // 深灰色填充层
+          this.mapBase.addLayer(
+            {
+              id: "user-geojson-fill",
+              type: "fill",
+              source: "user-geojson-source",
+              paint: {
+                "fill-color": "#2c3e50", // 深灰蓝色
+                "fill-opacity": 0.05      // 极低透明度，显得更浅
+              }
+            },
+            buildingFirstSymbolId
+          );
+
+          // 边界线图层
+          this.mapBase.addLayer(
+            {
+              id: "user-geojson-line",
+              type: "line",
+              source: "user-geojson-source",
+              paint: {
+                "line-color": "rgba(255, 255, 255, 0.6)", // 更浅、半透明的白色边界线
+                "line-width": 1.2,
+                "line-opacity": 0.8
+              }
+            },
+            firstSymbolId
+          );
+        })
+        .catch(err => console.error("加载自定义 GeoJSON 失败:", err));
+    }
+
     // A. OTN 路径 PMTiles
     if (this.config.otnPathsPmtilesUrl) {
       this.map.addSource("otn_paths_pmtiles", {
@@ -279,6 +320,7 @@ class OTNMapCore {
       );
     }
 
+    // B. ...
     // C. 3D 建筑图层（缩放级别 >= 15 时显示）
     // 添加 OpenFreeMap 矢量瓦片源（包含 OSM 建筑高度数据）
     this.map.addSource('openfreemap-buildings', {
@@ -287,7 +329,7 @@ class OTNMapCore {
     });
 
     // 查找第一个符号图层，确保 3D 建筑在标签下方显示
-    const firstSymbolId = this._findFirstSymbolLayerId();
+    const buildingFirstSymbolId = this._findFirstSymbolLayerId();
 
     // 添加 3D 建筑图层
     this.mapBase.addLayer(
@@ -328,7 +370,7 @@ class OTNMapCore {
           'fill-extrusion-opacity': 0.8
         }
       },
-      firstSymbolId // 插入到符号图层之前
+      buildingFirstSymbolId // 插入到符号图层之前
     );
   }
 

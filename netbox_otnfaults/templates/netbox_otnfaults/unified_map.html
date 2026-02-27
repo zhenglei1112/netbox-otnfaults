@@ -120,6 +120,7 @@
     layers: {{ layers_config|safe }},
     projection: '{{ projection }}',
     mapDataUrl: '{{ map_data_url }}',
+    userGeojsonUrl: '{% static "netbox_otnfaults/data/中国_省.geojson" %}',
     {% if colors_config %}colorsConfig: {{ colors_config|safe }},{% endif %}
     {% if fault_list_url %}faultListUrl: '{{ fault_list_url }}',{% endif %}
     {% if target_lat %}targetLat: {{ target_lat }},{% endif %}
