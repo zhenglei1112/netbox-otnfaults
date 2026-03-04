@@ -356,7 +356,7 @@ class LayerToggleControl {
 
         const allCheckbox = document.createElement('input');
         allCheckbox.type = 'checkbox';
-        allCheckbox.checked = this.selectedCategories.length === 5;
+        allCheckbox.checked = this.selectedCategories.length === 7;
         allCheckbox.className = 'form-check-input mt-0';
         allCheckbox.id = 'layer-cat-all';
 

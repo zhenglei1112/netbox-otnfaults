@@ -48,7 +48,7 @@ GraphQL 优先: 对于 GIS 地图数据，编写 GraphQL 查询 (放在 graphql/
 序列化: REST API 序列化使用 serializers.NetBoxModelSerializer。
 
 4. 项目特性: OTN 与 GIS
-数据处理: 存在海量数据 (1.5TB 影像上下文)。必须优化性能。
+数据处理: 需优化性能。
 
 使用 PMTiles 或矢量瓦片 (Vector Tiles) 逻辑。
 
