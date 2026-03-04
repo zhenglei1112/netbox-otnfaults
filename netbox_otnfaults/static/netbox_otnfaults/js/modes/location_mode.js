@@ -87,7 +87,7 @@ const LocationModePlugin = {
       type: 'circle',
       source: 'highlight-sites',
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 16, 6, 18, 10, 20],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 8, 6, 10, 10, 12],
         'circle-color': ['get', 'color'], // 使用站点角色颜色
         'circle-opacity': 0.4,
         'circle-blur': 0.5
@@ -100,10 +100,10 @@ const LocationModePlugin = {
       type: 'circle',
       source: 'highlight-sites',
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 10, 6, 12, 10, 14],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 5, 6, 6, 10, 8],
         'circle-color': ['get', 'color'],
         'circle-opacity': 1,
-        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 3, 6, 3, 10, 4],
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 1.5, 6, 1.5, 10, 2],
         'circle-stroke-color': '#FFFFFF'
       }
     });
@@ -116,7 +116,7 @@ const LocationModePlugin = {
       layout: {
         'text-field': ['get', 'name'],
         'text-size': 11,
-        'text-offset': [0, 1.5],
+        'text-offset': [0, 1.0],
         'text-anchor': 'top',
         'text-allow-overlap': false
       },
