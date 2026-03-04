@@ -20,6 +20,8 @@ class NetBoxMapBase {
         '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
       projection_flat:
         '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',
+      compass:
+        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="transition: transform 0.1s ease-out;"><circle cx="12" cy="12" r="11" stroke="#ccc" stroke-width="1.5" fill="#fff" opacity="0.9"></circle><path d="M12 2 L16 12 L12 22 L8 12 Z" fill="#fff"></path><path d="M12 2 L16 12 L8 12 Z" fill="#f75b5b"></path><path d="M12 22 L16 12 L8 12 Z" fill="#f0f0f0"></path><line x1="12" y1="2" x2="12" y2="4" stroke="#999" stroke-width="1"></line><line x1="12" y1="20" x2="12" y2="22" stroke="#999" stroke-width="1"></line><line x1="2" y1="12" x2="4" y2="12" stroke="#999" stroke-width="1"></line><line x1="20" y1="12" x2="22" y2="12" stroke="#999" stroke-width="1"></line></svg>',
     };
   }
 
@@ -341,6 +343,84 @@ class NetBoxMapBase {
 
     this.homeControl = new HomeControl();
     this.map.addControl(this.homeControl, position);
+  }
+
+  /**
+   * 添加北向（指南针）控件，显示俯仰和方向角并可点击重置
+   */
+  addNorthControl(position = "top-right") {
+    const base = this;
+
+    class NorthControl {
+      onAdd(map) {
+        this.map = map;
+        this.container = document.createElement("div");
+        this.container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+
+        // 样式覆盖：为了在内部显示文字和图标
+        this.container.style.display = "flex";
+        this.container.style.flexDirection = "column";
+        this.container.style.alignItems = "center";
+        this.container.style.padding = "0";
+        this.container.style.cursor = "pointer";
+        this.container.title = "恢复北向和俯视 (Pitch: 0, Bearing: 0)";
+
+        // 按钮部分（包含指南针图标）
+        this.button = document.createElement("button");
+        this.button.className = "maplibregl-ctrl-icon";
+        this.button.type = "button";
+        this.button.innerHTML = base.svgIcons.compass;
+        this.button.style.width = "29px";
+        this.button.style.height = "29px";
+        this.button.style.display = "flex";
+        this.button.style.alignItems = "center";
+        this.button.style.justifyContent = "center";
+
+        this.container.appendChild(this.button);
+
+        // 绑定点击事件，恢复北向
+        this.button.addEventListener("click", () => {
+          this.map.easeTo({ bearing: 0, pitch: 0, duration: 1000 });
+        });
+
+        // 监听地图旋转和俯仰事件，更新UI
+        this._updateUI = this._updateUI.bind(this);
+        this.map.on("rotate", this._updateUI);
+        this.map.on("pitch", this._updateUI);
+        this.map.on("move", this._updateUI);
+
+        // 初始更新
+        this._updateUI();
+
+        return this.container;
+      }
+
+      onRemove() {
+        this.map.off("rotate", this._updateUI);
+        this.map.off("pitch", this._updateUI);
+        this.map.off("move", this._updateUI);
+        this.container.parentNode.removeChild(this.container);
+        this.map = undefined;
+      }
+
+      _updateUI() {
+        if (!this.map) return;
+        const bearing = this.map.getBearing();
+        const pitch = this.map.getPitch();
+
+        // 旋转指南针图标 (这里假设 svg 中的箭头指示北向)
+        const svg = this.button.querySelector("svg");
+        if (svg) {
+          // 由于 bearing 是顺时针旋转地图，北向其实是指南针旋转 -bearing
+          // 为了使得北向箭头随地图转动，图标旋转 -bearing
+          // 增加 3D 俯仰效果，通过 rotateX
+          svg.style.transform = `rotateX(${pitch}deg) rotateZ(${-bearing}deg)`;
+        }
+      }
+    }
+
+    this.northControl = new NorthControl();
+    this.map.addControl(this.northControl, position);
   }
 
   /**
