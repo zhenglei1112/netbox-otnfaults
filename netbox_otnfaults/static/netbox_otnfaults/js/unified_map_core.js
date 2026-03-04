@@ -378,7 +378,6 @@ class OTNMapCore {
     this.mapBase.addStandardControls();
     this.mapBase.addProjectionControl(); // 添加投影切换按钮
     this.mapBase.addHomeControl();
-    this.mapBase.addNorthControl();
 
     // 如果配置中包含 measures 控件
     const controlsConfig =
