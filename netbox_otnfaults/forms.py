@@ -105,6 +105,7 @@ class OtnFaultForm(NetBoxModelForm):
             'departure_time': DateTimePicker(),
             'arrival_time': DateTimePicker(),
             'repair_time': DateTimePicker(),
+            'fault_details': forms.Textarea(attrs={'rows': 5}),
         }
         
     def __init__(self, *args, **kwargs):
