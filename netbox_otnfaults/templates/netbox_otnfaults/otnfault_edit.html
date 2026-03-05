@@ -294,12 +294,150 @@
         }
     }
     
+    // 初始化选点定位功能
+    function initMapPicker() {
+        const longitudeInput = document.getElementById('id_interruption_longitude');
+        if (!longitudeInput) return;
+        
+        // 动态注入图标按钮到经度输入框右侧
+        const inputGroup = longitudeInput.closest('.input-group');
+        let btnOpenMap;
+        
+        if (inputGroup) {
+            btnOpenMap = document.createElement('button');
+            btnOpenMap.type = 'button';
+            btnOpenMap.className = 'btn btn-outline-secondary';
+            btnOpenMap.id = 'btn-open-map-picker';
+            btnOpenMap.title = '在地图上选点定位';
+            btnOpenMap.innerHTML = '<i class="mdi mdi-map-marker-radius"></i>';
+            btnOpenMap.style.cssText = 'padding: 0.375rem 0.5rem; line-height: 1; font-size: 1.1rem;';
+            inputGroup.appendChild(btnOpenMap);
+        } else {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'input-group';
+            longitudeInput.parentNode.insertBefore(wrapper, longitudeInput);
+            wrapper.appendChild(longitudeInput);
+            
+            btnOpenMap = document.createElement('button');
+            btnOpenMap.type = 'button';
+            btnOpenMap.className = 'btn btn-outline-secondary';
+            btnOpenMap.id = 'btn-open-map-picker';
+            btnOpenMap.title = '在地图上选点定位';
+            btnOpenMap.innerHTML = '<i class="mdi mdi-map-marker-radius"></i>';
+            btnOpenMap.style.cssText = 'padding: 0.375rem 0.5rem; line-height: 1; font-size: 1.1rem;';
+            wrapper.appendChild(btnOpenMap);
+        }
+        
+        // 创建模态窗口 (纯 DOM 控制，不依赖 bootstrap.Modal API)
+        const modalHtml = `
+        <div class="modal fade" id="mapPickerModal" tabindex="-1" aria-labelledby="mapPickerModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h5 class="modal-title" id="mapPickerModalLabel">
+                            <i class="mdi mdi-map-marker-radius me-1"></i>地图选点定位
+                        </h5>
+                        <button type="button" class="btn-close" id="mapPickerCloseBtn" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <iframe id="mapPickerIframe" style="width: 100%; height: 70vh; border: none;"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        const modalEl = document.getElementById('mapPickerModal');
+        const iframe = document.getElementById('mapPickerIframe');
+        const closeBtn = document.getElementById('mapPickerCloseBtn');
+        let backdrop = null;
+        
+        // 手动显示模态窗口
+        function showModal(url) {
+            iframe.src = url;
+            // 创建背景遮罩
+            backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop fade show';
+            backdrop.style.opacity = '0.85';
+            document.body.appendChild(backdrop);
+            // 显示模态
+            modalEl.style.display = 'block';
+            modalEl.classList.add('show');
+            modalEl.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+        }
+        
+        // 手动隐藏模态窗口
+        function hideModal() {
+            modalEl.classList.remove('show');
+            modalEl.style.display = 'none';
+            modalEl.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+            if (backdrop) {
+                backdrop.remove();
+                backdrop = null;
+            }
+            iframe.src = 'about:blank';
+        }
+        
+        // 关闭按钮
+        closeBtn.addEventListener('click', hideModal);
+        // 点击遮罩关闭
+        modalEl.addEventListener('click', function(e) {
+            if (e.target === modalEl) hideModal();
+        });
+        
+        btnOpenMap.addEventListener('click', function() {
+            // 获取下拉框中选择的 A 端站点和 Z 端站点
+            const aSiteSelect = document.querySelector('select[name="interruption_location_a"]');
+            const zSiteSelect = document.querySelector('select[name="interruption_location"]');
+            
+            const aSiteId = aSiteSelect ? aSiteSelect.value : '';
+            let zSites = [];
+            
+            if (zSiteSelect && zSiteSelect.options) {
+                for (let i = 0; i < zSiteSelect.options.length; i++) {
+                    if (zSiteSelect.options[i].selected && zSiteSelect.options[i].value) {
+                        zSites.push(zSiteSelect.options[i].value);
+                    }
+                }
+            }
+            
+            let url = '/plugins/otnfaults/map/location/?picker=true';
+            if (aSiteId) url += '&a_site=' + encodeURIComponent(aSiteId);
+            if (zSites.length > 0) url += '&z_sites=' + encodeURIComponent(zSites.join(','));
+            
+            // 获取当前经纬度作为初始定位（如果有）
+            const currentLat = document.getElementById('id_interruption_latitude').value;
+            const currentLng = document.getElementById('id_interruption_longitude').value;
+            if (currentLat && currentLng) {
+                url += '&q=' + currentLat + ',' + currentLng;
+            }
+            
+            showModal(url);
+        });
+        
+        // 监听来自 iframe 地图窗口的消息
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'OTN_LOCATION_PICKED') {
+                document.getElementById('id_interruption_latitude').value = event.data.lat;
+                document.getElementById('id_interruption_longitude').value = event.data.lng;
+                hideModal();
+            }
+            if (event.data && event.data.type === 'OTN_LOCATION_CANCEL') {
+                hideModal();
+            }
+        });
+    }
+
     // 初始化
     if (document.readyState === 'complete') {
         setTimeout(initCascadeFilter, 200);
+        setTimeout(initMapPicker, 200);
     } else {
         window.addEventListener('load', function() {
             setTimeout(initCascadeFilter, 200);
+            setTimeout(initMapPicker, 200);
         });
     }
 })();

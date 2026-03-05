@@ -728,6 +728,32 @@ class LocationMapView(PermissionRequiredMixin, View):
         q = request.GET.get('q', '')
         target_lat, target_lng = self._parse_coordinates(q)
         
+        # 解析 picker 参数
+        is_picker = request.GET.get('picker') == 'true'
+        a_site_id = request.GET.get('a_site', '')
+        z_sites_param = request.GET.get('z_sites', '')
+        
+        if is_picker and target_lat is None and target_lng is None:
+            # 如果是 picker 模式且没有指定 q 坐标，尝试根据 A/Z 站点计算中心
+            try:
+                site_ids = []
+                if a_site_id:
+                    site_ids.append(int(a_site_id))
+                if z_sites_param:
+                    for sid in z_sites_param.split(','):
+                        if sid.strip():
+                            site_ids.append(int(sid.strip()))
+                
+                if site_ids:
+                    sites = Site.objects.filter(id__in=site_ids, latitude__isnull=False, longitude__isnull=False)
+                    if sites.exists():
+                        lngs = [float(s.longitude) for s in sites]
+                        lats = [float(s.latitude) for s in sites]
+                        target_lng = sum(lngs) / len(lngs)
+                        target_lat = sum(lats) / len(lats)
+            except ValueError:
+                pass
+        
         # 解析 ?path_id=xxx 参数（用于单条路径高亮显示）
         path_id = request.GET.get('path_id', '')
         highlight_path_data = None
@@ -928,6 +954,7 @@ class LocationMapView(PermissionRequiredMixin, View):
             'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''),
             
             # 位置/路径模式特定数据
+            'is_picker': is_picker,
             'target_lat': target_lat,
             'target_lng': target_lng,
             'highlight_path_data': json.dumps(highlight_path_data, cls=DjangoJSONEncoder) if highlight_path_data else 'null',

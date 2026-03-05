@@ -112,6 +112,53 @@ class OTNMapCore {
 
       // 5. 添加通用控件 (必须在 load 事件内，确保样式和字形加载完成)
       this._addCommonControls();
+
+      // 6. 选点模式 (Picker Mode) 初始化逻辑
+      if (this.config.isPicker) {
+        this._initPickerMode();
+      }
+    });
+  }
+
+  /**
+   * 初始化选点模式交互
+   */
+  _initPickerMode() {
+    const latElem = document.getElementById("picker-lat");
+    const lngElem = document.getElementById("picker-lng");
+    const confirmBtn = document.getElementById("picker-confirm-btn");
+    const cancelBtn = document.getElementById("picker-cancel-btn");
+
+    if (!latElem || !lngElem || !confirmBtn || !cancelBtn) return;
+
+    // 更新显示的坐标
+    const updateCoordinates = () => {
+      const center = this.map.getCenter();
+      latElem.textContent = center.lat.toFixed(6);
+      lngElem.textContent = center.lng.toFixed(6);
+    };
+
+    // 初始显示
+    updateCoordinates();
+
+    // 监听地图移动事件实时更新
+    this.map.on("move", updateCoordinates);
+
+    // 确认按钮点击
+    confirmBtn.addEventListener("click", () => {
+      const center = this.map.getCenter();
+
+      // 与父窗口通信并回传经纬度数据（通过 iframe postMessage）
+      window.parent.postMessage({
+        type: "OTN_LOCATION_PICKED",
+        lat: parseFloat(center.lat.toFixed(6)),
+        lng: parseFloat(center.lng.toFixed(6))
+      }, "*");
+    });
+
+    // 取消按钮点击
+    cancelBtn.addEventListener("click", () => {
+      window.parent.postMessage({ type: "OTN_LOCATION_CANCEL" }, "*");
     });
   }
 
