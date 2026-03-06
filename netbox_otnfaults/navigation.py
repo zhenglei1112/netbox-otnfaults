@@ -62,5 +62,5 @@ menu = PluginMenu(
             ),
         )),
     ),
-    icon_class='mdi mdi-alert-circle-outline',
+    icon_class='mdi mdi-tools',
 )
