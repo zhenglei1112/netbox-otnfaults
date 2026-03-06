@@ -50,6 +50,79 @@ const LocationModePlugin = {
 
     // 3. 事件监听
     this._setupClickHandler();
+
+    // 4. 初始化搜索控件
+    this._initSearchControl();
+  },
+
+  // =============================================
+  // 搜索控件（复用 SearchControl，与 fault_mode 保持一致）
+  // =============================================
+
+  _initSearchControl() {
+    if (typeof SearchControl === 'undefined') return;
+
+    const map = this.map;
+
+    this.searchControl = new SearchControl({});
+    this.mapBase.addControl(this.searchControl, 'top-left');
+
+    // 覆盖 onResultClick：picker 模式下直接 flyTo，不依赖 FaultStatisticsControl
+    const originalOnResultClick = this.searchControl.onResultClick.bind(this.searchControl);
+    this.searchControl.onResultClick = (item) => {
+      this.searchControl.hideResults();
+      if (item.type === 'site' && item.longitude && item.latitude) {
+        map.flyTo({ center: [item.longitude, item.latitude], zoom: 12, speed: 2.5 });
+      } else if (item.type === 'path' && item.center) {
+        map.flyTo({ center: item.center, zoom: 8, speed: 2.5 });
+      } else {
+        // fallback 到原始逻辑
+        originalOnResultClick(item);
+      }
+    };
+
+    // 异步加载路径元数据（供路径搜索使用）
+    this._loadPathMetadata();
+  },
+
+  _loadPathMetadata() {
+    // 如果已加载，跳过
+    if (window.OTNPathsMetadata && window.OTNPathsMetadata.length > 0) return;
+
+    const apiKey = this.config && this.config.apiKey;
+    if (!apiKey) return; // 无 apiKey 时跳过，路径搜索功能不可用
+
+    fetch('/api/plugins/otnfaults/paths/?limit=0', {
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(r => r.json())
+      .then(data => {
+        const results = data.results || [];
+        window.OTNPathsMetadata = results
+          .filter(p => p.geometry)
+          .map(p => {
+            let geometry = p.geometry;
+            if (Array.isArray(geometry)) {
+              geometry = { type: 'LineString', coordinates: geometry };
+            }
+            return {
+              type: 'Feature',
+              geometry: geometry,
+              properties: {
+                id: p.id,
+                name: p.name,
+                a_site: p.site_a ? p.site_a.name : null,
+                z_site: p.site_z ? p.site_z.name : null,
+              }
+            };
+          });
+      })
+      .catch(() => {
+        // 静默失败：路径搜索功能不可用，但站点搜索仍可用
+      });
   },
 
   _initHighlightSites(sitesData) {
@@ -274,7 +347,10 @@ const LocationModePlugin = {
         )
       )
       .addTo(this.map);
-    marker.togglePopup();
+    // picker 模式下不自动弹出坐标信息
+    if (!this.config.isPicker) {
+      marker.togglePopup();
+    }
   },
 
   _setupClickHandler() {

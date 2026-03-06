@@ -39,7 +39,7 @@ MAP_MODES = {
         'projection': 'mercator',
         'controls': ['navigation', 'fullscreen', 'measures'],
         'layers': {},
-        'js_files': []
+        'js_files': ['controls/SearchControl.js']
     },
     'path': {
         'title': '路径地图',
@@ -47,7 +47,7 @@ MAP_MODES = {
         'projection': 'mercator',
         'controls': ['navigation', 'fullscreen', 'measures'],
         'layers': {},
-        'js_files': []
+        'js_files': ['controls/SearchControl.js']
     },
     'pathgroup': {
         'title': '路径组地图',
