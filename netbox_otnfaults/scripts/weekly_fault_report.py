@@ -66,12 +66,20 @@ class WeeklyFaultReport(Script):
         
         # 字段显示名称映射
         self.field_display_names = {
-            # 故障分类
+            # 旧故障分类保留用于兼容
             'power': '电力故障',
             'fiber': '光缆故障',
             'pigtail': '空调故障',
             'device': '设备故障',
             'other': '其他故障',
+            
+            # 现有的中文枚举定义（故障分类）
+            'power_fault': '供电故障',
+            'fiber_break': '光缆中断',
+            'ac_fault': '空调故障',
+            'fiber_degradation': '光缆劣化',
+            'fiber_jitter': '光缆抖动',
+            'device_fault': '设备故障',
             
             # 故障原因
             'road_construction': '道路施工',
@@ -321,7 +329,7 @@ class WeeklyFaultReport(Script):
     
     def get_top_power_fault_sites(self, resolved_faults):
         """获取电力故障最高的五个A端站点"""
-        power_faults = [f for f in resolved_faults if f.fault_category == 'power']
+        power_faults = [f for f in resolved_faults if f.fault_category in ('power', 'power_fault')]
         
         # 统计每个A端站点的电力故障数量
         site_counts = {}
@@ -337,7 +345,7 @@ class WeeklyFaultReport(Script):
     
     def get_top_fiber_fault_site_pairs(self, resolved_faults):
         """获取光缆故障最高的五对站点（A-Z对，合并AZ和ZA）"""
-        fiber_faults = [f for f in resolved_faults if f.fault_category == 'fiber']
+        fiber_faults = [f for f in resolved_faults if f.fault_category in ('fiber', 'fiber_break', 'fiber_degradation', 'fiber_jitter')]
         
         # 统计每个站点对的光缆故障数量
         pair_counts = {}

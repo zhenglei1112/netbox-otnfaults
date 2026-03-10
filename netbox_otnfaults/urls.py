@@ -2,6 +2,7 @@ from django.urls import include, path
 from utilities.urls import get_model_urls
 from netbox.views.generic import ObjectChangeLogView
 from . import models, views
+from . import dashboard_views
 
 urlpatterns = [
     # OTN故障 (OtnFault)
@@ -56,5 +57,9 @@ urlpatterns = [
 
     # OTN线路设计器
     path('route-editor/', views.RouteEditorView.as_view(), name='route_editor'),
+
+    # 大屏可视化系统
+    path('dashboard/', dashboard_views.DashboardPageView.as_view(), name='dashboard'),
+    path('dashboard/data/', dashboard_views.DashboardDataAPI.as_view(), name='dashboard_data'),
 ]
 

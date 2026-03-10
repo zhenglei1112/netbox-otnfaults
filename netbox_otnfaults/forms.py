@@ -60,7 +60,7 @@ class OtnFaultForm(NetBoxModelForm):
     fieldsets = (
         ('故障信息', (
             'urgency', 'province', 'interruption_location_a', 'interruption_location',
-            'interruption_longitude', 'interruption_latitude', 'fault_category',
+            'interruption_latitude', 'interruption_longitude', 'fault_category',
             'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 'fault_recovery_time',
             'first_report_source', 'line_manager', 'duty_officer', 'fault_details',
             'fault_status',
@@ -84,7 +84,7 @@ class OtnFaultForm(NetBoxModelForm):
         fields = (
             # 故障信息组字段
             'urgency', 'province', 'interruption_location_a', 'interruption_location',
-            'interruption_longitude', 'interruption_latitude', 'fault_category',
+            'interruption_latitude', 'interruption_longitude', 'fault_category',
             'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 'fault_recovery_time',
             'first_report_source', 'line_manager', 'duty_officer', 'fault_details',
             'fault_status',
@@ -180,7 +180,7 @@ class OtnFaultImportForm(NetBoxModelImportForm):
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time', 
             'departure_time', 'arrival_time', 'repair_time', 
             'timeout', 'timeout_reason', 'handler', 'cable_break_location', 'recovery_mode', 
-            'interruption_longitude', 'interruption_latitude', 
+            'interruption_latitude', 'interruption_longitude', 
             'fault_details', 'comments', 'tags'
         )
 
@@ -437,7 +437,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         FieldSet('q', 'filter_id', 'tag'),
         FieldSet(
             'fault_status', 'urgency', 'province', 'interruption_location_a', 
-            'interruption_location', 'interruption_longitude', 'interruption_latitude',
+            'interruption_location', 'interruption_latitude', 'interruption_longitude',
             'fault_category', 'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 
             'fault_recovery_time', 'first_report_source', 'line_manager', 
             'duty_officer', 'fault_details',

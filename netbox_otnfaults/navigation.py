@@ -60,6 +60,10 @@ menu = PluginMenu(
                 link='plugins:netbox_otnfaults:route_editor',
                 link_text='线路设计器',
             ),
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:dashboard',
+                link_text='态势大屏',
+            ),
         )),
     ),
     icon_class='mdi mdi-tools',

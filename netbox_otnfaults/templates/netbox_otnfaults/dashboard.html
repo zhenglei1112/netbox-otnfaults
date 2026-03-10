@@ -1,0 +1,233 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中交信通网络运行态势图</title>
+    <meta name="description" content="全国OTN光传送网络运行实时监控与自动化态势展示系统">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- MapLibre GL -->
+    <link href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}" rel="stylesheet">
+    <script src="{% static 'netbox_otnfaults/lib/maplibre-gl.js' %}"></script>
+
+    <!-- Dashboard CSS -->
+    <link href="{% static 'netbox_otnfaults/css/dashboard.css' %}" rel="stylesheet">
+</head>
+<body>
+
+    <!-- ═══ 顶部标题栏 ═══ -->
+    <header id="header-bar">
+        <div class="header-left">
+            <div class="system-status">
+                <span class="status-dot" id="connection-dot"></span>
+                <span class="status-text" id="connection-text">数据连接中...</span>
+            </div>
+        </div>
+        <div class="header-center">
+            <h1 class="main-title">
+                <span class="title-deco">◆</span>
+                中交信通网络运行态势图
+                <span class="title-deco">◆</span>
+            </h1>
+            <div class="title-sub" id="subtitle-info">自动化监控 · 智能播控</div>
+        </div>
+        <div class="header-right">
+            <div class="datetime-display">
+                <div class="date-text" id="current-date"></div>
+                <div class="time-text" id="current-time"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══ 主体区域 ═══ -->
+    <main id="main-content">
+        <!-- 左翼面板 - 宏观态势 -->
+        <aside id="panel-left" class="side-panel">
+            <!-- 网络健康度 -->
+            <div class="panel-card" id="health-card">
+                <div class="card-header">
+                    <span class="card-icon">◈</span>
+                    <span class="card-title">网络健康度</span>
+                </div>
+                <div class="card-body">
+                    <div class="health-gauge" id="health-gauge">
+                        <svg viewBox="0 0 120 120" class="gauge-svg">
+                            <circle cx="60" cy="60" r="52" class="gauge-bg"/>
+                            <circle cx="60" cy="60" r="52" class="gauge-fill" id="gauge-fill"
+                                    stroke-dasharray="327" stroke-dashoffset="327"/>
+                            <text x="60" y="52" class="gauge-value" id="gauge-value">--</text>
+                            <text x="60" y="76" class="gauge-label">健康指数</text>
+                        </svg>
+                    </div>
+                    <div class="health-stats">
+                        <div class="stat-item">
+                            <span class="stat-value text-critical" id="stat-active">--</span>
+                            <span class="stat-label">活跃故障</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value text-normal" id="stat-closed">--</span>
+                            <span class="stat-label">已关闭</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value text-minor" id="stat-total">--</span>
+                            <span class="stat-label">年度总数</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 故障分类统计 -->
+            <div class="panel-card" id="category-card">
+                <div class="card-header">
+                    <span class="card-icon">◈</span>
+                    <span class="card-title">故障分类统计</span>
+                </div>
+                <div class="card-body">
+                    <div class="bar-chart" id="category-chart"></div>
+                </div>
+            </div>
+
+            <!-- 24H趋势 -->
+            <div class="panel-card" id="trend-card">
+                <div class="card-header">
+                    <span class="card-icon">◈</span>
+                    <span class="card-title">24H 告警趋势</span>
+                </div>
+                <div class="card-body">
+                    <canvas id="trend-canvas" width="320" height="120"></canvas>
+                </div>
+            </div>
+
+            <!-- 省份分布 -->
+            <div class="panel-card" id="province-card">
+                <div class="card-header">
+                    <span class="card-icon">◈</span>
+                    <span class="card-title">活跃故障分布</span>
+                </div>
+                <div class="card-body">
+                    <div class="province-list" id="province-list"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 核心演播区 - 地图 -->
+        <div id="map-stage">
+            <div id="map-container"></div>
+
+            <!-- 播控状态指示器 -->
+            <div id="directing-indicator">
+                <span class="indicator-icon" id="directing-icon">⟳</span>
+                <span class="indicator-text" id="directing-text">全局巡航</span>
+            </div>
+
+            <!-- 故障弹窗（覆盖在地图上） -->
+            <div id="fault-popup" class="fault-popup hidden">
+                <div class="popup-header">
+                    <span class="popup-severity" id="popup-severity"></span>
+                    <span class="popup-title" id="popup-title"></span>
+                    <span class="popup-close" id="popup-close">✕</span>
+                </div>
+                <div class="popup-body" id="popup-body"></div>
+            </div>
+        </div>
+
+        <!-- 右翼面板 - 微观详情 -->
+        <aside id="panel-right" class="side-panel">
+            <!-- 当前焦点故障 -->
+            <div class="panel-card" id="focus-card">
+                <div class="card-header">
+                    <span class="card-icon">◈</span>
+                    <span class="card-title">当前焦点故障</span>
+                </div>
+                <div class="card-body" id="focus-content">
+                    <div class="empty-state">
+                        <div class="empty-icon">⊘</div>
+                        <div class="empty-text">等待故障事件...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 受影响业务 -->
+            <div class="panel-card" id="impact-card">
+                <div class="card-header">
+                    <span class="card-icon">◈</span>
+                    <span class="card-title">受影响业务</span>
+                </div>
+                <div class="card-body" id="impact-content">
+                    <div class="empty-state">
+                        <div class="empty-icon">⊘</div>
+                        <div class="empty-text">暂无数据</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 故障时间线 -->
+            <div class="panel-card" id="timeline-card" style="display: none;">
+                <div class="card-header">
+                    <span class="card-icon">◈</span>
+                    <span class="card-title">处理时间线</span>
+                </div>
+                <div class="card-body" id="timeline-content">
+                    <div class="empty-state">
+                        <div class="empty-icon">⊘</div>
+                        <div class="empty-text">暂无数据</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 故障队列 -->
+            <div class="panel-card" id="queue-card">
+                <div class="card-header">
+                    <span class="card-icon">◈</span>
+                    <span class="card-title">故障优先队列</span>
+                </div>
+                <div class="card-body">
+                    <div class="fault-queue" id="fault-queue"></div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- ═══ 底部信息条 ═══ -->
+    <footer id="footer-bar">
+        <div class="ticker-container">
+            <div class="ticker-label">
+                <span class="ticker-icon">⚡</span> 实时告警
+            </div>
+            <div class="ticker-track">
+                <div class="ticker-content" id="ticker-content"></div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ═══ 配置数据 ═══ -->
+    <script>
+        window.DASHBOARD_CONFIG = {
+            apikey: '{{ apikey }}',
+            mapCenter: {{ map_center|safe }},
+            mapZoom: {{ map_zoom }},
+            useLocalBasemap: {{ use_local_basemap|yesno:"true,false" }},
+            localTilesUrl: '{{ local_tiles_url }}',
+            localGlyphsUrl: '{{ local_glyphs_url }}',
+            otnPathsPmtilesUrl: '{{ otn_paths_pmtiles_url }}',
+            colors: {{ colors_config|safe }},
+            dataUrl: '{% url "plugins:netbox_otnfaults:dashboard_data" %}',
+            provinceGeoJsonUrl: '{% static "netbox_otnfaults/data/中国_省.geojson" %}',
+            refreshInterval: 30000,
+        };
+    </script>
+
+    <!-- JS Modules -->
+    <script src="{% static 'netbox_otnfaults/js/dashboard/map_engine.js' %}"></script>
+    <script src="{% static 'netbox_otnfaults/js/dashboard/directing_engine.js' %}"></script>
+    <script src="{% static 'netbox_otnfaults/js/dashboard/panels.js' %}"></script>
+    <script src="{% static 'netbox_otnfaults/js/dashboard/effects.js' %}"></script>
+    <script src="{% static 'netbox_otnfaults/js/dashboard/dashboard_app.js' %}"></script>
+</body>
+</html>
