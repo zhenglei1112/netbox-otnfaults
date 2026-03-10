@@ -184,7 +184,6 @@ window.MapEngine = (function () {
                         'fill-opacity': 0.6
                     }
                 });
-
                 // 省界描边
                 map.addLayer({
                     id: 'province-border',
@@ -205,6 +204,40 @@ window.MapEngine = (function () {
                         'line-color': 'rgba(0, 210, 255, 0.06)',
                         'line-width': 4,
                         'line-blur': 4
+                    }
+                });
+
+                // 省份/城市名称标注 (辅助定位)
+                map.addLayer({
+                    id: 'province-labels',
+                    type: 'symbol',
+                    source: 'provinces',
+                    minzoom: 5.5,
+                    filter: [
+                        'all',
+                        ['has', 'name'],
+                        ['!', ['in', '境界线', ['get', 'name']]],
+                        ['!', ['in', '国界', ['get', 'name']]],
+                        ['!', ['in', '九段线', ['get', 'name']]],
+                        ['!', ['in', '十段线', ['get', 'name']]]
+                    ],
+                    layout: {
+                        'text-field': ['get', 'name'],
+                        'text-font': ['Noto Sans SC Regular'],
+                        'text-size': ['interpolate', ['linear'], ['zoom'],
+                            6, 10,
+                            8, 14,
+                            10, 16
+                        ],
+                        'text-justify': 'center',
+                        'text-anchor': 'center',
+                        'text-padding': 120, // 显著增大碰撞缓冲区，降低显示密度
+                        'symbol-avoid-edges': true,
+                    },
+                    paint: {
+                        'text-color': 'rgba(160, 180, 200, 0.45)',
+                        'text-halo-color': 'rgba(6, 10, 20, 0.8)',
+                        'text-halo-width': 1.5,
                     }
                 });
             })
@@ -644,17 +677,31 @@ window.MapEngine = (function () {
         } else {
             map.addSource('faults', { type: 'geojson', data: geojson });
 
+            // 0. 定位引导环 (静态背景)
+            map.addLayer({
+                id: 'faults-localization-ring',
+                type: 'circle',
+                source: 'faults',
+                paint: {
+                    'circle-radius': 40,
+                    'circle-color': 'transparent',
+                    'circle-stroke-color': ['get', 'color'],
+                    'circle-stroke-width': 1,
+                    'circle-stroke-opacity': 0.15
+                }
+            });
+
             // 1. 脉冲扩散环（动画驱动）
             map.addLayer({
                 id: 'faults-pulse',
                 type: 'circle',
                 source: 'faults',
                 paint: {
-                    'circle-radius': 18,
+                    'circle-radius': 20,
                     'circle-color': 'transparent',
                     'circle-stroke-color': ['get', 'color'],
-                    'circle-stroke-width': 2,
-                    'circle-stroke-opacity': 0.6,
+                    'circle-stroke-width': 3,
+                    'circle-stroke-opacity': 0.7,
                 }
             });
 
@@ -664,9 +711,9 @@ window.MapEngine = (function () {
                 type: 'circle',
                 source: 'faults',
                 paint: {
-                    'circle-radius': 14,
+                    'circle-radius': 16,
                     'circle-color': ['get', 'color'],
-                    'circle-opacity': 0.12,
+                    'circle-opacity': 0.15,
                     'circle-blur': 1,
                 }
             });
@@ -677,12 +724,12 @@ window.MapEngine = (function () {
                 type: 'circle',
                 source: 'faults',
                 paint: {
-                    'circle-radius': 5,
+                    'circle-radius': 6,
                     'circle-color': ['get', 'color'],
-                    'circle-opacity': 0.9,
+                    'circle-opacity': 1.0,
                     'circle-stroke-color': '#ffffff',
-                    'circle-stroke-width': 1,
-                    'circle-stroke-opacity': 0.4,
+                    'circle-stroke-width': 1.5,
+                    'circle-stroke-opacity': 0.6,
                 }
             });
         }

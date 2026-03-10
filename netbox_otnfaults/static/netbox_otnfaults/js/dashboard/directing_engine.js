@@ -135,7 +135,8 @@ window.DirectingEngine = (function () {
             from: oldState,
             to: newState,
             name: STATE_NAMES[newState],
-            fault: currentFault
+            fault: currentFault,
+            region: currentState === STATE.REGION_TOUR ? REGIONS[regionIndex] : null
         });
     }
 
@@ -163,17 +164,28 @@ window.DirectingEngine = (function () {
     }
 
     /* ── 全局巡航 ── */
+    let cruiseStep = 0;           // 巡航步数计数，用于计算摆动序列
+
     function _executeGlobalCruise() {
         // 飞回全国视图 (MapEngine.resetView 现在保持当前角度)
         MapEngine.resetView().then(function () {
-            // 获取地图当前的实际偏航角
-            var mapInstance = MapEngine.getMap();
-            var currentBearing = mapInstance ? mapInstance.getBearing() : 0;
+            // 始终以初始化位置 (Bearing = 0) 作为摆动的中心基准
+            // 摆动序列: 0 -> 10 -> -10 -> 10 ...
+            var swingRange = 10;
+            var targetBearing = 0;
 
-            // 基于当前角度顺时针旋转 45 度，周期为 40 秒
-            // 这样无论从哪个区域状态返回，旋转都是平滑连续的增量旋转
-            var targetBearing = currentBearing + 45;
-            MapEngine.rotateTo(targetBearing, CRUISE_ROTATE_DURATION);
+            if (cruiseStep > 0) {
+                // 如果不是第一次进入巡航，则在 10 和 -10 之间交替
+                targetBearing = (cruiseStep % 2 === 1) ? swingRange : -swingRange;
+            } else {
+                // 第一次进入巡航，先向正向偏转
+                targetBearing = swingRange;
+            }
+
+            cruiseStep++;
+
+            // 执行极慢速旋转
+            MapEngine.rotateTo(targetBearing, 25000);
 
             // 等待后切换到区域轮播
             timer = setTimeout(function () {
@@ -274,7 +286,7 @@ window.DirectingEngine = (function () {
         var distance = Math.sqrt(dx * dx + dy * dy);
         var duration = Math.min(6000, Math.max(3000, distance * 300));
 
-        MapEngine.flyTo(currentFault.lng, currentFault.lat, 9, {
+        MapEngine.flyTo(currentFault.lng, currentFault.lat, 8, {
             duration: duration,
             pitch: 55,
         }).then(function () {

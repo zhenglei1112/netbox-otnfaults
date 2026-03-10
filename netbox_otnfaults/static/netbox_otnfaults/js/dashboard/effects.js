@@ -130,6 +130,9 @@ window.Effects = (function () {
                 icon.textContent = '⊕';
                 icon.style.animation = 'breathe-major 2s ease-in-out infinite';
                 icon.style.color = 'var(--color-normal)';
+                if (stateInfo.region) {
+                    text.textContent = stateInfo.name + ' · ' + stateInfo.region.name;
+                }
                 break;
             case 'FAULT_INTERRUPT':
             case 'CAMERA_FLIGHT':
