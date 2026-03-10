@@ -212,6 +212,7 @@
             apikey: '{{ apikey }}',
             mapCenter: {{ map_center|safe }},
             mapZoom: {{ map_zoom }},
+            mapPitch: {{ map_pitch|default:45 }},
             useLocalBasemap: {{ use_local_basemap|yesno:"true,false" }},
             localTilesUrl: '{{ local_tiles_url }}',
             localGlyphsUrl: '{{ local_glyphs_url }}',

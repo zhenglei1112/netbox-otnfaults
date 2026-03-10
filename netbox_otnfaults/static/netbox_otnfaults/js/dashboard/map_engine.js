@@ -26,11 +26,11 @@ window.MapEngine = (function () {
             style: style,
             center: CONFIG.mapCenter,
             zoom: CONFIG.mapZoom,
-            pitch: 45,
+            pitch: CONFIG.mapPitch || 48,  // 增加初始俯仰角以显示 3D
             bearing: 0,
-            maxPitch: 70,
+            maxPitch: 85, // 允许更大的倾斜以便查看 3D
             attributionControl: false,
-            antialias: true,
+            antialias: true, // 开启抗锯齿对 3D 渲染很重要
         });
 
         // 禁用大屏交互（自动播控模式）
@@ -174,36 +174,57 @@ window.MapEngine = (function () {
                     data: data
                 });
 
-                // 省区底色
+                // 1. 底部悬浮投影 (向下延伸后的深视感)
                 map.addLayer({
-                    id: 'province-fill',
+                    id: 'province-shadow',
                     type: 'fill',
                     source: 'provinces',
                     paint: {
-                        'fill-color': '#0b1225',
-                        'fill-opacity': 0.6
-                    }
-                });
-                // 省界描边
-                map.addLayer({
-                    id: 'province-border',
-                    type: 'line',
-                    source: 'provinces',
-                    paint: {
-                        'line-color': 'rgba(0, 210, 255, 0.2)',
-                        'line-width': 1
+                        'fill-color': '#02050a',
+                        'fill-opacity': 0.9,
+                        'fill-translate': [5, 10], // 减小偏移，因为厚度向下延申
+                        'fill-translate-anchor': 'viewport'
                     }
                 });
 
-                // 省界发光
+                // 2. 3D 立体省份 (向下延伸：使业务线/点在顶面显示)
                 map.addLayer({
-                    id: 'province-border-glow',
+                    id: 'province-extrusion',
+                    type: 'fill-extrusion',
+                    source: 'provinces',
+                    paint: {
+                        'fill-extrusion-color': '#0f2040',
+                        'fill-extrusion-height': 0,        // 顶面设为地平线 0
+                        'fill-extrusion-base': -200000,    // 底座向地心深挖，形成向下厚度
+                        'fill-extrusion-opacity': 0.9      // 增加不透明度，强化侧边厚度感
+                    }
+                });
+
+                // 3. 顶面边界轮廓线
+                map.addLayer({
+                    id: 'province-border-top',
+                    type: 'line',
+                    source: 'provinces',
+                    filter: ['==', '$type', 'Polygon'], // Ensure it renders slightly above cleanly
+                    paint: {
+                        'line-color': 'rgba(0, 210, 255, 0.4)',
+                        'line-width': 1.5,
+                        // Not natively supported to offset line height purely in GL easily without line-extrusion, 
+                        // but it naturally drapes over the fill-extrusion if drawn after or we rely on map style.
+                        // For true 3D edge, we might need a separate source or rely on MapLibre's draping behavior.
+                    }
+                });
+
+                // 为了更好的 3D 发光效果，我们可以增强全局的光照 (如果在 initMap 中未设置)
+                // 这里暂用底层环境光模拟发光边缘
+                map.addLayer({
+                    id: 'province-border-glow-bottom',
                     type: 'line',
                     source: 'provinces',
                     paint: {
-                        'line-color': 'rgba(0, 210, 255, 0.06)',
-                        'line-width': 4,
-                        'line-blur': 4
+                        'line-color': 'rgba(0, 210, 255, 0.1)',
+                        'line-width': 10,
+                        'line-blur': 10
                     }
                 });
 

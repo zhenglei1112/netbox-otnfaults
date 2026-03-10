@@ -4,6 +4,7 @@ OTN 全国网络故障自动化大屏 - 后端视图
 提供大屏页面渲染和聚合数据 API。
 """
 from django.shortcuts import render
+from django.templatetags.static import static
 from django.http import JsonResponse
 from django.utils import timezone
 from django.conf import settings
@@ -88,6 +89,7 @@ class DashboardPageView(PermissionRequiredMixin, View):
             'apikey': plugin_settings.get('map_api_key', ''),
             'map_center': json.dumps(plugin_settings.get('map_default_center', [108.9, 34.3])),
             'map_zoom': plugin_settings.get('map_default_zoom', 4.2),
+            'map_pitch': plugin_settings.get('map_default_pitch', 45),
             'use_local_basemap': plugin_settings.get('use_local_basemap', False),
             'local_tiles_url': plugin_settings.get('local_tiles_url', ''),
             'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
