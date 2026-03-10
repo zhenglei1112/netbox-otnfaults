@@ -430,6 +430,7 @@ class OtnFaultImpactEditView(generic.ObjectEditView):
     """故障影响业务编辑视图"""
     queryset = OtnFaultImpact.objects.all()
     form = OtnFaultImpactForm
+    template_name = 'netbox_otnfaults/otnfaultimpact_edit.html'
 
     def get_return_url(self, request, obj=None):
         # 首先尝试从对象获取故障信息
