@@ -13,6 +13,7 @@
         {% render_field form.fault_status %}
         {% render_field form.urgency %}
         {% render_field form.province %}
+        {% render_field form.line_manager %}
         {% render_field form.interruption_location_a %}
         {% render_field form.interruption_location %}
         {% render_field form.interruption_latitude %}
@@ -20,11 +21,13 @@
         {% render_field form.fault_category %}
         {% render_field form.interruption_reason %}
         {% render_field form.interruption_reason_detail %}
-        {% render_field form.fault_occurrence_time %}
-        {% render_field form.fault_recovery_time %}
         {% render_field form.first_report_source %}
-        {% render_field form.line_manager %}
         {% render_field form.duty_officer %}
+        {% render_field form.fault_occurrence_time %}
+        {% render_field form.dispatch_time %}
+        {% render_field form.departure_time %}
+        {% render_field form.arrival_time %}
+        {% render_field form.fault_recovery_time %}
         {% render_field form.fault_details %}
     </div>
 </div>
@@ -41,9 +44,6 @@
         {% render_field form.maintenance_mode %}
         {% render_field form.handling_unit %}
         {% render_field form.contract %}
-        {% render_field form.dispatch_time %}
-        {% render_field form.departure_time %}
-        {% render_field form.arrival_time %}
         {% render_field form.timeout %}
         {% render_field form.timeout_reason %}
         {% render_field form.handler %}
@@ -167,6 +167,8 @@
         }
     }
     
+    let isCascadeUpdating = false;
+    
     function initCascadeFilter() {
         const categorySelect = document.querySelector('select[name="fault_category"]');
         const reasonSelect = document.querySelector('select[name="interruption_reason"]');
@@ -202,25 +204,32 @@
         
         // 监听故障分类变化
         categoryTS.on('change', function(value) {
+            if (isCascadeUpdating) return;
+            isCascadeUpdating = true;
             console.log('[CascadeFilter] 故障分类变化:', value);
             updateReasonOptions(value, reasonTS);
             // 清空二级原因
-            detailTS.clear();
+            detailTS.clear(true);
             detailTS.clearOptions();
             detailTS.addOption({ value: '', text: '---------' });
             detailTS.refreshOptions(false);
             
             // 切换光缆补充信息显隐
             toggleFiberFields(value);
+            isCascadeUpdating = false;
         });
         
         // 监听一级原因变化
         reasonTS.on('change', function(value) {
+            if (isCascadeUpdating) return;
+            isCascadeUpdating = true;
             console.log('[CascadeFilter] 一级原因变化:', value);
             updateDetailOptions(value, detailTS);
+            isCascadeUpdating = false;
         });
         
         // 初始化：根据当前选中值筛选
+        isCascadeUpdating = true;
         if (categorySelect.value) {
             updateReasonOptions(categorySelect.value, reasonTS, true);
             toggleFiberFields(categorySelect.value);
@@ -232,14 +241,17 @@
         if (reasonSelect.value) {
             updateDetailOptions(reasonSelect.value, detailTS, true);
         }
+        
+        // 确保异步调用结束后再解开
+        setTimeout(() => { isCascadeUpdating = false; }, 50);
     }
     
     function updateReasonOptions(category, reasonTS, preserveValue = false) {
         const currentValue = preserveValue ? reasonTS.getValue() : '';
         const allowedReasons = CATEGORY_TO_REASON_MAP[category] || [];
         
-        // 清空选项
-        reasonTS.clear();
+        // 清空选项 (silent = true以防止触发 change 事件)
+        reasonTS.clear(true);
         reasonTS.clearOptions();
         
         // 添加空选项
@@ -266,7 +278,7 @@
         const allowedDetails = REASON_TO_DETAIL_MAP[reason] || [];
         
         // 清空选项
-        detailTS.clear();
+        detailTS.clear(true);
         detailTS.clearOptions();
         
         // 添加空选项
@@ -445,10 +457,132 @@
         }
         
         resourceTypeTS.on('change', function(value) {
+            if (isCascadeUpdating) return;
+            isCascadeUpdating = true;
             if (value === 'leased') {
                 maintenanceModeTS.setValue('leased_owned');
             } else if (value === 'coordinated') {
                 maintenanceModeTS.setValue('coordinated');
+            }
+            setTimeout(() => { isCascadeUpdating = false; }, 10);
+        });
+    }
+
+    function initManagerLogic() {
+        const provinceSelect = document.querySelector('select[name="province"]');
+        const lineManagerSelect = document.querySelector('select[name="line_manager"]');
+        
+        if (!provinceSelect || !lineManagerSelect) return;
+        
+        const provinceTS = provinceSelect.tomselect;
+        const lineManagerTS = lineManagerSelect.tomselect;
+        
+        if (!provinceTS || !lineManagerTS) {
+            setTimeout(initManagerLogic, 100);
+            return;
+        }
+
+        // 线路主管分工地图 (Key 为省份简称或关键字，Value 为主管姓名)
+        const MANAGER_MAP = {
+            '甘肃': '冯鑫源', '宁夏': '冯鑫源', '青海': '冯鑫源', '新疆': '冯鑫源',
+            '广东': '姜川', '湖南': '姜川', '福建': '姜川', '重庆': '姜川', '贵州': '姜川', '云南': '姜川',
+            '北京': '李立彬', '天津': '李立彬', '河北': '李立彬', '河南': '李立彬', '山西': '李立彬', '广西': '李立彬',
+            '湖北': '孙振伟', '安徽': '孙振伟', '江苏': '孙振伟', '上海': '孙振伟',
+            '黑龙江': '李小涛', '吉林': '李小涛', '辽宁': '李小涛'
+        };
+
+        provinceTS.on('change', function(value) {
+            if (!value) return;
+            
+            // 安全获取选中省份的显示文本 (兼容 Netbox AJAX 传入项和静态项)
+            let provinceText = '';
+            const opt = provinceTS.options[value];
+            if (opt) {
+                provinceText = opt.display || opt.name || opt.text || opt.label || '';
+            }
+            // 后备方案：从 DOM 节点直接获取
+            if (!provinceText) {
+                const itemNode = provinceTS.getItem(value);
+                if (itemNode) {
+                    provinceText = itemNode.textContent || itemNode.innerText || '';
+                }
+            }
+            // 最后的后备方案：原生 select
+            if (!provinceText && provinceSelect.selectedIndex >= 0) {
+                const selectedOption = provinceSelect.options[provinceSelect.selectedIndex];
+                if (selectedOption) provinceText = selectedOption.text || '';
+            }
+            
+            provinceText = provinceText.trim();
+            console.log('[ManagerLogic] 省份变更: "' + provinceText + '", Value:', value);
+            if (!provinceText) return;
+
+            // 匹配分工
+            let managerName = null;
+            for (const key in MANAGER_MAP) {
+                if (provinceText.includes(key)) {
+                    managerName = MANAGER_MAP[key];
+                    break;
+                }
+            }
+
+            if (managerName) {
+                console.log('[ManagerLogic] 匹配到主管分工:', managerName);
+                
+                // 执行查找主管的 API 请求
+                const searchAndSetUser = (queryUrl) => {
+                    fetch(queryUrl, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                        return res.json();
+                    })
+                    .then(data => {
+                        let targetUser = null;
+                        if (data.results && data.results.length > 0) {
+                            // 在结果中查找匹配的姓名 (匹配 display, username, last_name+first_name 等)
+                            targetUser = data.results.find(u => 
+                                (u.display && u.display.includes(managerName)) || 
+                                (u.username && u.username.includes(managerName))
+                            ) || data.results[0]; // 退化选择第一个
+                        }
+                        
+                        if (targetUser) {
+                            console.log('[ManagerLogic] API 查找到主管:', targetUser.display || targetUser.username, 'ID:', targetUser.id);
+                            // TomSelect 兼容性处理：添加选项时提供尽可能多的字段标签，并确保 value 是字符串型（避免全等比较失败）
+                            const userIdStr = targetUser.id.toString();
+                            const userName = targetUser.display || targetUser.username;
+                            
+                            lineManagerTS.addOption({
+                                value: userIdStr,
+                                id: userIdStr,
+                                text: userName,
+                                label: userName,
+                                name: userName,
+                                display: userName
+                            });
+                            
+                            // 优先触发选择并同步数据
+                            lineManagerTS.setValue(userIdStr);
+                            lineManagerTS.addItem(userIdStr);
+                        } else if (queryUrl.includes('?q=')) {
+                            // 如果带 q 查不到，尝试进行全量（限100）遍历查找（应对姓、名拆分情况）
+                            console.warn('[ManagerLogic] q 搜索失败，尝试全量查找...');
+                            searchAndSetUser('/api/users/users/?limit=100');
+                        } else {
+                            console.warn('[ManagerLogic] 未在系统中找到名为', managerName, '的用户');
+                        }
+                    })
+                    .catch(e => console.error('[ManagerLogic] 自动匹配主管 API 异常:', e));
+                };
+
+                // 首次尝试使用 q=姓名 搜索
+                searchAndSetUser(`/api/users/users/?q=${encodeURIComponent(managerName)}`);
             }
         });
     }
@@ -458,11 +592,13 @@
         setTimeout(initCascadeFilter, 200);
         setTimeout(initMapPicker, 200);
         setTimeout(initFiberLogic, 200);
+        setTimeout(initManagerLogic, 200);
     } else {
         window.addEventListener('load', function() {
             setTimeout(initCascadeFilter, 200);
             setTimeout(initMapPicker, 200);
             setTimeout(initFiberLogic, 200);
+            setTimeout(initManagerLogic, 200);
         });
     }
 })();

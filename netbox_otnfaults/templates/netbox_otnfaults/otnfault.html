@@ -58,6 +58,16 @@
           </td>
         </tr>
         <tr>
+          <th scope="row">线路主管</th>
+          <td>
+            {% if object.line_manager %}
+            <a href="{{ object.line_manager.get_absolute_url }}">{{ object.line_manager }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
           <th scope="row">故障位置A端站点</th>
           <td>
             {% if object.interruption_location_a %}
@@ -116,30 +126,8 @@
           <td>{{ object.get_interruption_reason_detail_display|default:"—" }}</td>
         </tr>
         <tr>
-          <th scope="row">故障中断时间</th>
-          <td>{{ object.fault_occurrence_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">故障恢复时间</th>
-          <td>{{ object.fault_recovery_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">故障历时</th>
-          <td>{{ object.fault_duration|default:"—" }}</td>
-        </tr>
-        <tr>
           <th scope="row">第一报障来源</th>
           <td>{{ object.get_first_report_source_display|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">线路主管</th>
-          <td>
-            {% if object.line_manager %}
-            <a href="{{ object.line_manager.get_absolute_url }}">{{ object.line_manager }}</a>
-            {% else %}
-            —
-            {% endif %}
-          </td>
         </tr>
         <tr>
           <th scope="row">值守人员</th>
@@ -150,6 +138,30 @@
             —
             {% endif %}
           </td>
+        </tr>
+        <tr>
+          <th scope="row">故障中断时间</th>
+          <td>{{ object.fault_occurrence_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">处理派发时间</th>
+          <td>{{ object.dispatch_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">维修出发时间</th>
+          <td>{{ object.departure_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">到达现场时间</th>
+          <td>{{ object.arrival_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">故障恢复时间</th>
+          <td>{{ object.fault_recovery_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">故障历时</th>
+          <td>{{ object.fault_duration|default:"—" }}</td>
         </tr>
         <tr>
           <th scope="row">故障详情和处理过程</th>
@@ -245,18 +257,7 @@
             {% endif %}
           </td>
         </tr>
-        <tr>
-          <th scope="row">处理派发时间</th>
-          <td>{{ object.dispatch_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">维修出发时间</th>
-          <td>{{ object.departure_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">到达现场时间</th>
-          <td>{{ object.arrival_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
+
         <tr>
           <th scope="row">规定时间内完成修复</th>
           <td>

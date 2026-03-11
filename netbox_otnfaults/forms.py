@@ -59,16 +59,17 @@ class OtnFaultForm(NetBoxModelForm):
     
     fieldsets = (
         ('故障信息', (
-            'urgency', 'province', 'interruption_location_a', 'interruption_location',
+            'urgency', 'province', 'line_manager',
+            'interruption_location_a', 'interruption_location',
             'interruption_latitude', 'interruption_longitude', 'fault_category',
-            'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 'fault_recovery_time',
-            'first_report_source', 'line_manager', 'duty_officer', 'fault_details',
-            'fault_status',
+            'interruption_reason', 'interruption_reason_detail',
+            'first_report_source', 'duty_officer',
+            'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
+            'fault_details', 'fault_status',
         )),
         ('光缆中断补充信息', (
             'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
-            'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
-            'departure_time', 'arrival_time', 'repair_time', 'timeout',
+            'maintenance_mode', 'handling_unit', 'contract', 'repair_time', 'timeout',
             'timeout_reason', 'handler',
         )),
         ('供电故障补充信息', (
@@ -437,17 +438,17 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
         FieldSet(
-            'fault_status', 'urgency', 'province', 'interruption_location_a', 
-            'interruption_location', 'interruption_latitude', 'interruption_longitude',
-            'fault_category', 'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 
-            'fault_recovery_time', 'first_report_source', 'line_manager', 
-            'duty_officer', 'fault_details',
+            'fault_status', 'urgency', 'province', 'line_manager',
+            'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
+            'fault_category', 'interruption_reason', 'interruption_reason_detail',
+            'first_report_source', 'duty_officer',
+            'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
+            'fault_details',
             name='故障信息'
         ),
         FieldSet(
             'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
-            'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
-            'departure_time', 'arrival_time', 'timeout',
+            'maintenance_mode', 'handling_unit', 'contract', 'timeout',
             'timeout_reason', 'handler', 'comments',
             name='光缆中断补充信息'
         ),
