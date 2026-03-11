@@ -31,8 +31,10 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             Q(fault_details__icontains=value) |
             Q(handler__icontains=value) |
             Q(timeout_reason__icontains=value) |
-            Q(comments__icontains=value)
-        )
+            Q(comments__icontains=value) |
+            Q(interruption_location_a__name__icontains=value) |
+            Q(interruption_location__name__icontains=value)
+        ).distinct()
 
     def filter_bidirectional_pair(self, queryset, name, value):
         try:
