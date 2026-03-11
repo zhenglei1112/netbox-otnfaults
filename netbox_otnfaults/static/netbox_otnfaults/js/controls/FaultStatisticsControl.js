@@ -122,8 +122,6 @@ class FaultStatisticsControl {
     let validDurationCount = 0;
     const siteCounts = {};
     const pathCounts = {};
-    const businessCounts = {};
-    const provinceCounts = {}; // 新增：省份统计
 
     faults.forEach((f) => {
       // 统计站点（只统计A端有值且Z端为空的故障）
@@ -155,26 +153,7 @@ class FaultStatisticsControl {
         });
       }
 
-      // 新增：统计影响业务
-      // in FaultDataService.js, it maps m.impacted_business -> properties.impactedBusiness
-      const impactedBusinessStr = f.impactedBusiness || f.impacted_business; // 兼容驼峰和蛇形
 
-      if (impactedBusinessStr && typeof impactedBusinessStr === 'string') {
-        const businesses = impactedBusinessStr.split('、');
-        businesses.forEach(b => {
-          const name = b.trim();
-          // 过滤无效值和默认占位符
-          if (name && name !== '无重保/影响业务') {
-            businessCounts[name] = (businessCounts[name] || 0) + 1;
-          }
-        });
-      }
-
-      // 新增：统计省份
-      const province = f.province || (f.raw && f.raw.province);
-      if (province && province !== '未指定') {
-        provinceCounts[province] = (provinceCounts[province] || 0) + 1;
-      }
 
       // 统计时长
       if (f.occurrence_time) {
@@ -205,13 +184,7 @@ class FaultStatisticsControl {
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 5); // [name, {count, ...}]
 
-    // 影响业务统计 (全部显示，按次数排序)
-    const impactedBusinesses = Object.entries(businessCounts)
-      .sort((a, b) => b[1] - a[1]);
 
-    // 省份统计 (全部显示，按次数排序)
-    const provinceStats = Object.entries(provinceCounts)
-      .sort((a, b) => b[1] - a[1]);
 
     const avgDuration =
       validDurationCount > 0
@@ -222,9 +195,7 @@ class FaultStatisticsControl {
       total: totalFaults,
       avgDuration,
       topSites,
-      topPaths,
-      impactedBusinesses,
-      provinceStats, // 新增返回
+      topPaths
     };
   }
 
@@ -269,21 +240,7 @@ class FaultStatisticsControl {
       : "mdi mdi-chevron-down toggle-icon";
     const contentDisplay = this.minimized ? "none" : "block";
 
-    // 抽屉状态 (默认：业务展开，Top5折叠)
-    // 使用 dataset 或内存状态维护，这里简单起见，如果尚未初始化状态，则默认初始化
-    if (this.sectionStates === undefined) {
-      this.sectionStates = {
-        business: true, // true = open
-        province: false,
-        top5: false
-      };
-    }
 
-    const businessDisplay = this.sectionStates.business ? 'block' : 'none';
-    const businessIcon = this.sectionStates.business ? 'mdi mdi-chevron-down' : 'mdi mdi-chevron-right';
-
-    const top5Display = this.sectionStates.top5 ? 'block' : 'none';
-    const top5Icon = this.sectionStates.top5 ? 'mdi mdi-chevron-down' : 'mdi mdi-chevron-right';
 
     this.container.innerHTML = `
             <div class="card shadow-sm" style="width: 240px; opacity: 0.95;">
@@ -305,45 +262,8 @@ class FaultStatisticsControl {
                 </div>
                 
                 <div class="card-body p-0 stats-content" style="display: ${contentDisplay}; border-top: 1px solid var(--bs-border-color);">
-                    
-                    <!-- 1. 影响业务统计 (抽屉) -->
-                    <div class="stats-section">
-                        <div class="d-flex justify-content-between align-items-center px-2 py-1 bg-light border-bottom" 
-                             style="cursor: pointer; font-size: 12px;"
-                             onclick="window.faultStatisticsControl.toggleSection('business', this)">
-                            <span class="fw-bold text-secondary">影响业务统计</span>
-                            <i class="${businessIcon}"></i>
-                        </div>
-                        <div class="section-content px-2 ${this.sectionStates.business ? 'expanded' : 'collapsed'}" 
-                             style="font-size: 12px; max-height: ${this.sectionStates.business ? '200px' : '0'}; overflow-y: auto;">
-                            ${this.renderBusinessList(stats.impactedBusinesses)}
-                        </div>
-                    </div>
-
-                    <!-- 2. 省份统计 (抽屉) -->
-                    <div class="stats-section border-top">
-                        <div class="d-flex justify-content-between align-items-center px-2 py-1 bg-light border-bottom" 
-                             style="cursor: pointer; font-size: 12px;"
-                             onclick="window.faultStatisticsControl.toggleSection('province', this)">
-                            <span class="fw-bold text-secondary">省份统计</span>
-                            <i class="${this.sectionStates.province ? 'mdi mdi-chevron-down' : 'mdi mdi-chevron-right'}"></i>
-                        </div>
-                        <div class="section-content px-2 ${this.sectionStates.province ? 'expanded' : 'collapsed'}" 
-                             style="font-size: 12px; max-height: ${this.sectionStates.province ? '200px' : '0'}; overflow-y: auto;">
-                            ${this.renderProvinceList(stats.provinceStats)}
-                        </div>
-                    </div>
-
-                    <!-- 3. Top 5 故障统计 (抽屉) -->
-                     <div class="stats-section border-top">
-                        <div class="d-flex justify-content-between align-items-center px-2 py-1 bg-light border-bottom" 
-                             style="cursor: pointer; font-size: 12px;"
-                             onclick="window.faultStatisticsControl.toggleSection('top5', this)">
-                            <span class="fw-bold text-secondary">Top 5 故障统计</span>
-                            <i class="${top5Icon}"></i>
-                        </div>
-                        <div class="section-content px-2 ${this.sectionStates.top5 ? 'expanded' : 'collapsed'}" 
-                             style="max-height: ${this.sectionStates.top5 ? '500px' : '0'};">
+                    <!-- Top 5 故障统计 -->
+                    <div class="stats-section px-2 pb-2">
                              ${this.createSection(
         "Top 5 故障站点",
         stats.topSites,
@@ -354,9 +274,7 @@ class FaultStatisticsControl {
         stats.topPaths,
         "path"
       )}
-                        </div>
                     </div>
-
                 </div>
             </div>
         `;
@@ -395,78 +313,7 @@ class FaultStatisticsControl {
     this.renderVisibility(); // 保持折叠状态
   }
 
-  renderBusinessList(items) {
-    if (!items || items.length === 0) {
-      return '<div class="text-muted text-center py-1">无影响业务记录</div>';
-    }
 
-    // Calculate max value for the progress bar
-    let maxVal = 0;
-    if (items.length > 0) {
-      maxVal = items[0][1];
-    }
-
-    // items 是 [name, count] 数组
-    return items.map(([name, count], index) => {
-      const percent = maxVal > 0 ? (count / maxVal) * 100 : 0;
-      const safeName = name.replace(/'/g, "\\'");
-
-      return `
-          <div class="mb-2 clickable-stat-row business-highlight-item" 
-               title="${name}"
-               data-business-name="${safeName}"
-               style="cursor: default;">
-              <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 12px;">
-                  <div class="text-truncate me-2 text-body-secondary" style="max-width: 180px;">${index + 1
-        }. ${name}</div>
-                  <span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${count}</span>
-              </div>
-              <div class="progress" style="height: 4px; background-color: #e9ecef;">
-                   <div class="progress-bar" role="progressbar" 
-                        style="width: ${percent}%; background-color: var(--bs-link-color, #0097a7);">
-                   </div>
-              </div>
-          </div>
-      `;
-    }).join('');
-  }
-
-  renderProvinceList(items) {
-    if (!items || items.length === 0) {
-      return '<div class="text-muted text-center py-1">无省份记录</div>';
-    }
-
-    // Calculate max value for the progress bar
-    let maxVal = 0;
-    if (items.length > 0) {
-      maxVal = items[0][1];
-    }
-
-    // items 是 [name, count] 数组
-    return items.map(([name, count], index) => {
-      const percent = maxVal > 0 ? (count / maxVal) * 100 : 0;
-      const safeName = name.replace(/'/g, "\\'");
-
-      return `
-          <div class="mb-2 clickable-stat-row hover-highlight-item" 
-               title="悬停高亮"
-               data-highlight-type="province"
-               data-highlight-name="${safeName}"
-               style="cursor: default;">
-              <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 12px;">
-                  <div class="text-truncate me-2 text-body-secondary" style="max-width: 180px;">${index + 1
-        }. ${name}</div>
-                  <span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${count}</span>
-              </div>
-              <div class="progress" style="height: 4px; background-color: #e9ecef;">
-                   <div class="progress-bar" role="progressbar" 
-                        style="width: ${percent}%; background-color: var(--bs-link-color, #0097a7);">
-                   </div>
-              </div>
-          </div>
-      `;
-    }).join('');
-  }
 
   createSection(title, items, type) {
     if (items.length === 0) return "";
@@ -1333,37 +1180,12 @@ class FaultStatisticsControl {
     });
   }
 
-  /**
-   * 根据业务名称高亮相关故障
-   * @param {string} businessName - 业务名称
-   */
-  highlightBusinessFaults(businessName) {
 
-
-    // 筛选包含该业务的故障
-    const relatedFaults = (this.faultDataList || []).filter(f => {
-      const impactedBusiness = f.impactedBusiness || f.impacted_business;
-
-      if (!impactedBusiness) return false;
-      const businesses = impactedBusiness.split('、').map(b => b.trim());
-      return businesses.includes(businessName);
-    });
-
-
-
-    if (relatedFaults.length === 0) {
-      console.warn('[BusinessHighlight] 未找到匹配的故障！');
-      return;
-    }
-
-    // 启动高亮动画
-    this._startBusinessHighlightAnimation(relatedFaults);
-  }
 
   /**
-   * 清除业务故障高亮
+   * 清除故障高亮
    */
-  clearBusinessHighlight() {
+  clearHighlight() {
     // 停止动画循环
     if (this._businessHighlightRunning) {
       this._businessHighlightRunning = false;
@@ -1384,13 +1206,13 @@ class FaultStatisticsControl {
   }
 
   /**
-   * 启动业务高亮动画
+   * 启动故障高亮动画
    * @private
    * @param {Array} faults - 要高亮的故障列表
    */
-  _startBusinessHighlightAnimation(faults) {
+  _startHighlightAnimation(faults) {
     // 确保先清除之前的动画
-    this.clearBusinessHighlight();
+    this.clearHighlight();
 
     // 准备数据 - 统一收集所有故障点，带类型信息
     this._businessHighlightData = {
@@ -1448,14 +1270,14 @@ class FaultStatisticsControl {
     }
 
     // 启动动画循环
-    this._animateBusinessHighlight();
+    this._animateHighlight();
   }
 
   /**
-   * 业务高亮动画循环
+   * 故障高亮动画循环
    * @private
    */
-  _animateBusinessHighlight() {
+  _animateHighlight() {
     if (!this._businessHighlightRunning) {
       return;
     }
@@ -1493,31 +1315,14 @@ class FaultStatisticsControl {
 
     // 继续动画
     this._businessAnimationFrameId = requestAnimationFrame(
-      this._animateBusinessHighlight.bind(this)
+      this._animateHighlight.bind(this)
     );
   }
 
   /**
-   * 绑定业务统计项、站点和路径的悬停高亮事件
+   * 绑定站点和路径的悬停高亮事件
    */
   _bindBusinessHighlightEvents() {
-    // 绑定业务统计项
-    const businessItems = this.container.querySelectorAll('.business-highlight-item');
-    businessItems.forEach((item) => {
-      item.addEventListener('mouseenter', (e) => {
-        const businessName = e.currentTarget.dataset.businessName;
-        if (businessName) {
-          e.currentTarget.style.backgroundColor = 'rgba(0, 151, 167, 0.1)';
-          this.highlightBusinessFaults(businessName);
-        }
-      });
-
-      item.addEventListener('mouseleave', (e) => {
-        e.currentTarget.style.backgroundColor = '';
-        this.clearBusinessHighlight();
-      });
-    });
-
     // 绑定站点和路径项（通用处理）
     const hoverItems = this.container.querySelectorAll('.hover-highlight-item');
     hoverItems.forEach((item) => {
@@ -1533,7 +1338,7 @@ class FaultStatisticsControl {
 
       item.addEventListener('mouseleave', (e) => {
         e.currentTarget.style.backgroundColor = '';
-        this.clearBusinessHighlight();
+        this.clearHighlight();
       });
     });
   }
@@ -1541,8 +1346,8 @@ class FaultStatisticsControl {
   /**
    * 根据类型和名称高亮故障
    * @private
-   * @param {string} type - 类型: 'site', 'path' 或 'province'
-   * @param {string} name - 站点名称、路径名称或省份名称
+   * @param {string} type - 类型: 'site' 或 'path'
+   * @param {string} name - 站点名称或路径名称
    */
   _highlightByTypeAndName(type, name) {
     let relatedFaults = [];
@@ -1561,12 +1366,6 @@ class FaultStatisticsControl {
           return this.matchesPath(f.a_site, f.z_sites, siteA, siteZ);
         });
       }
-    } else if (type === 'province') {
-      // 筛选属于该省份的故障（与calculateStatsFromList使用相同逻辑）
-      relatedFaults = (this.faultDataList || []).filter(f => {
-        const province = f.province || (f.raw && f.raw.province);
-        return province === name && province !== '未指定';
-      });
     }
 
     if (relatedFaults.length === 0) {
@@ -1574,7 +1373,7 @@ class FaultStatisticsControl {
       return;
     }
 
-    // 复用业务高亮动画
-    this._startBusinessHighlightAnimation(relatedFaults);
+    // 复用通用高亮动画
+    this._startHighlightAnimation(relatedFaults);
   }
 }

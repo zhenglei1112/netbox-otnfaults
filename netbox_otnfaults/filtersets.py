@@ -42,13 +42,21 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             if len(ids) != 2:
                 return queryset.none()
             id1, id2 = ids
-            # interruption_location 是 ManyToMany 字段，使用 __in 查询检查是否包含该站点
-            # 只筛选光缆故障 (fault_category='fiber')
+            
+            # 定义所有光缆相关分类
+            fiber_categories = [
+                'fiber', # 兼容旧数据或前端标识
+                'fiber_break', 
+                'fiber_degradation', 
+                'fiber_jitter'
+            ]
+            
+            # 筛选双向匹配且属于光缆分类的故障
             return queryset.filter(
-                fault_category='fiber'
+                fault_category__in=fiber_categories
             ).filter(
-                Q(interruption_location_a_id=id1, interruption_location__in=[id2]) |
-                Q(interruption_location_a_id=id2, interruption_location__in=[id1])
+                Q(interruption_location_a_id=id1, interruption_location=id2) |
+                Q(interruption_location_a_id=id2, interruption_location=id1)
             ).distinct()
         except (ValueError, TypeError):
             return queryset.none()
