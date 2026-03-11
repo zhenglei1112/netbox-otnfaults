@@ -1,0 +1,74 @@
+<script>
+(function() {
+    'use strict';
+    
+    function initDurationCalculator(startId, endId) {
+        const startEl = document.getElementById(startId);
+        const endEl = document.getElementById(endId);
+        if (!startEl || !endEl) return;
+
+        // Create a display element
+        const displayEl = document.createElement('div');
+        displayEl.className = 'form-text mt-1 text-primary';
+        displayEl.style.fontWeight = 'bold';
+        
+        // Append to the parent container of the end input
+        endEl.parentNode.appendChild(displayEl);
+
+        function calculateDuration() {
+            if (!startEl.value || !endEl.value) {
+                displayEl.innerHTML = '';
+                return;
+            }
+
+            const start = new Date(startEl.value.replace(/-/g, "/")); // Compatibility for parsing
+            const end = new Date(endEl.value.replace(/-/g, "/"));
+
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                displayEl.innerHTML = '';
+                return;
+            }
+
+            const diffSeconds = (end.getTime() - start.getTime()) / 1000;
+            
+            if (diffSeconds < 0) {
+                displayEl.innerHTML = '<span class="text-danger"><i class="mdi mdi-alert"></i> 恢复时间不能早于中断/故障时间</span>';
+                return;
+            }
+
+            const totalHours = (diffSeconds / 3600).toFixed(2);
+            const days = Math.floor(diffSeconds / (3600 * 24));
+            const hours = Math.floor((diffSeconds % (3600 * 24)) / 3600);
+            const minutes = Math.floor((diffSeconds % 3600) / 60);
+
+            let durationStr = '';
+            if (days > 0) durationStr += `${days}天`;
+            if (hours > 0 || days > 0) durationStr += `${hours}时`;
+            // Always show minutes even if 0
+            durationStr += `${minutes}分`;
+
+            displayEl.innerHTML = `<i class="mdi mdi-clock-outline"></i> 故障历时: ${durationStr} ，共计 ${totalHours} 小时`;
+        }
+
+        startEl.addEventListener('change', calculateDuration);
+        endEl.addEventListener('change', calculateDuration);
+        // Sometimes flatpickr sets value without firing change event on input initially
+        setTimeout(calculateDuration, 500);
+    }
+
+    // Initialize for common cases
+    if (document.readyState === 'complete') {
+        setTimeout(function() {
+            initDurationCalculator('id_fault_occurrence_time', 'id_fault_recovery_time'); // OtnFault
+            initDurationCalculator('id_service_interruption_time', 'id_service_recovery_time'); // OtnFaultImpact
+        }, 500);
+    } else {
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                initDurationCalculator('id_fault_occurrence_time', 'id_fault_recovery_time'); // OtnFault
+                initDurationCalculator('id_service_interruption_time', 'id_service_recovery_time'); // OtnFaultImpact
+            }, 500);
+        });
+    }
+})();
+</script>
