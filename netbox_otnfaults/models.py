@@ -519,7 +519,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     
     # 13) 规定时间内完成修复，布尔型字段
     timeout = models.BooleanField(
-        default=False,
+        default=True,
         verbose_name='规定时间内完成修复'
     )
     
