@@ -55,6 +55,29 @@ urlpatterns = [
     path('path-group-sites/<int:pk>/edit/', views.OtnPathGroupSiteEditView.as_view(), name='otnpathgroupsite_edit'),
     path('path-group-sites/<int:pk>/delete/', views.OtnPathGroupSiteDeleteView.as_view(), name='otnpathgroupsite_delete'),
 
+    # 裸纤业务 (BareFiberService)
+    path('bare-fiber-services/', views.BareFiberServiceListView.as_view(), name='barefiberservice_list'),
+    path('bare-fiber-services/add/', views.BareFiberServiceEditView.as_view(), name='barefiberservice_add'),
+    path('bare-fiber-services/import/', views.BareFiberServiceBulkImportView.as_view(), name='barefiberservice_bulk_import'),
+    path('bare-fiber-services/edit/', views.BareFiberServiceBulkEditView.as_view(), name='barefiberservice_bulk_edit'),
+    path('bare-fiber-services/bulk-delete/', views.BareFiberServiceBulkDeleteView.as_view(), name='barefiberservice_bulk_delete'),
+    path('bare-fiber-services/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'barefiberservice'))),
+    path('bare-fiber-services/<int:pk>/edit/', views.BareFiberServiceEditView.as_view(), name='barefiberservice_edit'),
+    path('bare-fiber-services/<int:pk>/delete/', views.BareFiberServiceDeleteView.as_view(), name='barefiberservice_delete'),
+    path('bare-fiber-services/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='barefiberservice_changelog', kwargs={'model': models.BareFiberService}),
+
+    # 电路业务 (CircuitService)
+    path('circuit-services/', views.CircuitServiceListView.as_view(), name='circuitservice_list'),
+    path('circuit-services/add/', views.CircuitServiceEditView.as_view(), name='circuitservice_add'),
+    path('circuit-services/import/', views.CircuitServiceBulkImportView.as_view(), name='circuitservice_bulk_import'),
+    path('circuit-services/edit/', views.CircuitServiceBulkEditView.as_view(), name='circuitservice_bulk_edit'),
+    path('circuit-services/bulk-delete/', views.CircuitServiceBulkDeleteView.as_view(), name='circuitservice_bulk_delete'),
+    path('circuit-services/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'circuitservice'))),
+    path('circuit-services/<int:pk>/edit/', views.CircuitServiceEditView.as_view(), name='circuitservice_edit'),
+    path('circuit-services/<int:pk>/delete/', views.CircuitServiceDeleteView.as_view(), name='circuitservice_delete'),
+    path('circuit-services/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='circuitservice_changelog', kwargs={'model': models.CircuitService}),
+
+
     # OTN线路设计器
     path('route-editor/', views.RouteEditorView.as_view(), name='route_editor'),
 

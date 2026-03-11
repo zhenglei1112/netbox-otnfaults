@@ -5,4 +5,45 @@
 {{ block.super }}
 {% include 'netbox_otnfaults/inc/flatpickr_zh.html' %}
 {% include 'netbox_otnfaults/inc/duration_calc.html' %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('id_service_type');
+
+    function toggleFields() {
+        if (!typeSelect) return;
+        const val = typeSelect.value;
+        
+        // NetBox 默认表单行元素一般是 .row 或者包含 mb-3 的 div，为了保险起见，往上找带有 label 的容器或者最大的包裹层
+        const getRow = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.closest('.row.mb-3') || el.closest('.field-group') || el.parentElement.parentElement : null;
+        };
+
+        const bfParent = getRow('id_bare_fiber_service');
+        const cgParent = getRow('id_circuit_service_group');
+        const cParent = getRow('id_circuit_service');
+
+        if (val === 'bare_fiber') {
+            if (bfParent) bfParent.style.display = '';
+            if (cgParent) cgParent.style.display = 'none';
+            if (cParent) cParent.style.display = 'none';
+        } else if (val === 'circuit') {
+            if (bfParent) bfParent.style.display = 'none';
+            if (cgParent) cgParent.style.display = '';
+            if (cParent) cParent.style.display = '';
+        } else {
+            if (bfParent) bfParent.style.display = 'none';
+            if (cgParent) cgParent.style.display = 'none';
+            if (cParent) cParent.style.display = 'none';
+        }
+    }
+
+    if (typeSelect) {
+        typeSelect.addEventListener('change', toggleFields);
+        // 初始化可能需要一点延迟，确保 DOM 已经完全生成
+        setTimeout(toggleFields, 100);
+    }
+});
+</script>
 {% endblock %}

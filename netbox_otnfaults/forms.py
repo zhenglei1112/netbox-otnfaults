@@ -1,17 +1,18 @@
-from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm, NetBoxModelImportForm
+from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm, NetBoxModelImportForm, NetBoxModelBulkEditForm
 from .models import (
     OtnFault, OtnFaultImpact, FaultCategoryChoices, UrgencyChoices, 
     MaintenanceModeChoices, ResourceTypeChoices, CableRouteChoices,
     FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices,
     PowerDataTypeChoices, PowerRecoveryModeChoices, PowerMaintenanceModeChoices,
-    OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite
+    OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite, BareFiberService,
+    CircuitService, ServiceGroupChoices, BandwidthChoices, ServiceTypeChoices
 )
 from django import forms
-from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField
+from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField, TagFilterField
 from utilities.forms.rendering import FieldSet
 from utilities.forms.widgets import DateTimePicker
 from dcim.models import Site, Region
-from tenancy.models import Tenant
+from tenancy.models import Tenant, TenantGroup
 from django.contrib.auth import get_user_model
 from netbox_contract.models import ServiceProvider, Contract
 
@@ -222,16 +223,23 @@ class OtnFaultImpactImportForm(NetBoxModelImportForm):
         to_field_name='fault_number',
         help_text='故障编号'
     )
-    impacted_service = CSVModelChoiceField(
-        queryset=Tenant.objects.all(),
+    bare_fiber_service = CSVModelChoiceField(
+        queryset=BareFiberService.objects.all(),
         to_field_name='name',
-        help_text='影响业务（租户名称）'
+        required=False,
+        help_text='裸纤业务'
+    )
+    circuit_service = CSVModelChoiceField(
+        queryset=CircuitService.objects.all(),
+        to_field_name='name',
+        required=False,
+        help_text='电路业务'
     )
 
     class Meta:
         model = OtnFaultImpact
         fields = (
-            'otn_fault', 'impacted_service', 
+            'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service', 
             'service_interruption_time', 'service_recovery_time', 
             'comments', 'tags'
         )
@@ -242,9 +250,23 @@ class OtnFaultImpactForm(NetBoxModelForm):
         queryset=OtnFault.objects.all(),
         label='直接故障'
     )
-    impacted_service = DynamicModelChoiceField(
-        queryset=Tenant.objects.all(),
-        label='影响业务'
+    circuit_service_group = forms.ChoiceField(
+        choices=[('', '---------')] + [(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES],
+        required=False,
+        label='电路业务组'
+    )
+    bare_fiber_service = DynamicModelChoiceField(
+        queryset=BareFiberService.objects.all(),
+        required=False,
+        label='业务名称'
+    )
+    circuit_service = DynamicModelChoiceField(
+        queryset=CircuitService.objects.all(),
+        required=False,
+        label='业务名称',
+        query_params={
+            'service_group': '$circuit_service_group'
+        }
     )
     secondary_faults = DynamicModelMultipleChoiceField(
         queryset=OtnFault.objects.all(),
@@ -260,7 +282,7 @@ class OtnFaultImpactForm(NetBoxModelForm):
     class Meta:
         model = OtnFaultImpact
         fields = (
-            'otn_fault', 'secondary_faults', 'impacted_service',
+            'otn_fault', 'secondary_faults', 'service_type', 'bare_fiber_service', 'circuit_service_group', 'circuit_service',
             'service_interruption_time', 'service_recovery_time',
             'comments', 'tags',
         )
@@ -271,6 +293,9 @@ class OtnFaultImpactForm(NetBoxModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        if self.instance.pk and self.instance.circuit_service:
+            self.fields['circuit_service_group'].initial = self.instance.circuit_service.service_group
         
         # 如果从URL参数传递了故障ID，设置默认值
         if 'initial' in kwargs and 'otn_fault' in kwargs['initial']:
@@ -430,10 +455,20 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='直接故障'
     )
-    impacted_service = DynamicModelChoiceField(
-        queryset=Tenant.objects.all(),
+    service_type = forms.ChoiceField(
+        choices=add_blank_choice(ServiceTypeChoices),
         required=False,
-        label='影响业务'
+        label='业务类型'
+    )
+    bare_fiber_service = DynamicModelChoiceField(
+        queryset=BareFiberService.objects.all(),
+        required=False,
+        label='裸纤业务'
+    )
+    circuit_service = DynamicModelChoiceField(
+        queryset=CircuitService.objects.all(),
+        required=False,
+        label='电路业务'
     )
     service_interruption_time = forms.DateTimeField(
         required=False,
@@ -452,11 +487,11 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
     model = OtnFaultImpact
     fieldsets = (
         ('故障影响业务', (
-            'otn_fault', 'impacted_service', 'service_interruption_time', 'service_recovery_time', 'comments',
+            'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service', 'service_interruption_time', 'service_recovery_time', 'comments',
         )),
     )
     nullable_fields = (
-        'service_interruption_time', 'service_recovery_time', 'comments',
+        'service_interruption_time', 'service_recovery_time', 'comments', 'bare_fiber_service', 'circuit_service'
     )
 
 class OtnFaultFilterForm(NetBoxModelFilterSetForm):
@@ -671,10 +706,20 @@ class OtnFaultImpactFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='直接故障'
     )
-    impacted_service = DynamicModelChoiceField(
-        queryset=Tenant.objects.all(),
+    service_type = forms.ChoiceField(
+        choices=add_blank_choice(ServiceTypeChoices),
         required=False,
-        label='影响业务'
+        label='业务类型'
+    )
+    bare_fiber_service = DynamicModelChoiceField(
+        queryset=BareFiberService.objects.all(),
+        required=False,
+        label='裸纤业务'
+    )
+    circuit_service = DynamicModelChoiceField(
+        queryset=CircuitService.objects.all(),
+        required=False,
+        label='电路业务'
     )
 
 class OtnPathForm(NetBoxModelForm):
@@ -859,3 +904,100 @@ class OtnPathGroupSiteForm(NetBoxModelForm):
     class Meta:
         model = OtnPathGroupSite
         fields = ('path_group', 'site', 'role', 'position', 'comments', 'tags')
+
+
+class BareFiberServiceForm(NetBoxModelForm):
+    """裸纤业务编辑表单"""
+    tenant_group = DynamicModelChoiceField(
+        queryset=TenantGroup.objects.all(),
+        required=False,
+        label='租户组'
+    )
+    comments = CommentField(
+        label='评论',
+        help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
+    )
+
+    class Meta:
+        model = BareFiberService
+        fields = ('name', 'slug', 'tenant_group', 'comments', 'tags')
+
+
+class BareFiberServiceFilterForm(NetBoxModelFilterSetForm):
+    """裸纤业务过滤表单"""
+    model = BareFiberService
+    tag = TagFilterField(BareFiberService)
+    tenant_group = DynamicModelChoiceField(
+        queryset=TenantGroup.objects.all(),
+        required=False,
+        label='租户组'
+    )
+
+
+class BareFiberServiceImportForm(NetBoxModelImportForm):
+    """裸纤业务导入表单"""
+    class Meta:
+        model = BareFiberService
+        fields = ('name', 'slug', 'tenant_group', 'comments', 'tags')
+
+
+class BareFiberServiceBulkEditForm(NetBoxModelBulkEditForm):
+    """裸纤业务批量编辑表单"""
+    model = BareFiberService
+    tenant_group = DynamicModelChoiceField(
+        queryset=TenantGroup.objects.all(),
+        required=False,
+        label='租户组'
+    )
+    nullable_fields = ('tenant_group',)
+
+
+class CircuitServiceForm(NetBoxModelForm):
+    """电路业务编辑表单"""
+    comments = CommentField(
+        label='评论',
+        help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
+    )
+
+    class Meta:
+        model = CircuitService
+        fields = ('name', 'slug', 'service_group', 'bandwidth', 'comments', 'tags')
+
+
+class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
+    """电路业务过滤表单"""
+    model = CircuitService
+    tag = TagFilterField(CircuitService)
+    service_group = forms.ChoiceField(
+        choices=[('', '---------')] + [(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES],
+        required=False,
+        label='业务组'
+    )
+    bandwidth = forms.ChoiceField(
+        choices=[('', '---------')] + [(v, l) for v, l, *_ in BandwidthChoices.CHOICES],
+        required=False,
+        label='带宽'
+    )
+
+
+class CircuitServiceImportForm(NetBoxModelImportForm):
+    """电路业务导入表单"""
+    class Meta:
+        model = CircuitService
+        fields = ('name', 'slug', 'service_group', 'bandwidth', 'comments', 'tags')
+
+
+class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
+    """电路业务批量编辑表单"""
+    model = CircuitService
+    service_group = forms.ChoiceField(
+        choices=[('', '---------')] + [(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES],
+        required=False,
+        label='业务组'
+    )
+    bandwidth = forms.ChoiceField(
+        choices=[('', '---------')] + [(v, l) for v, l, *_ in BandwidthChoices.CHOICES],
+        required=False,
+        label='带宽'
+    )
+    nullable_fields = ('service_group', 'bandwidth')

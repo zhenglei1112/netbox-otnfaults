@@ -2,18 +2,20 @@ from netbox.views import generic
 from django.shortcuts import render
 from utilities.views import register_model_view, ViewTab
 from django_tables2 import RequestConfig
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, FaultCategoryChoices, FaultStatusChoices, OtnPathGroupSite
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, FaultCategoryChoices, FaultStatusChoices, OtnPathGroupSite, BareFiberService, CircuitService
 from dcim.models import Site
 from .forms import (
     OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
     OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm, OtnFaultImportForm, OtnFaultImpactImportForm,
     OtnPathForm, OtnPathFilterForm, OtnPathImportForm, OtnPathBulkEditForm,
-    OtnPathGroupForm, OtnPathGroupFilterForm, OtnPathGroupSiteForm
+    OtnPathGroupForm, OtnPathGroupFilterForm, OtnPathGroupSiteForm,
+    BareFiberServiceForm, BareFiberServiceFilterForm, BareFiberServiceImportForm, BareFiberServiceBulkEditForm,
+    CircuitServiceForm, CircuitServiceFilterForm, CircuitServiceImportForm, CircuitServiceBulkEditForm
 )
-from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet
+from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet
 from .tables import (
     OtnFaultTable, OtnFaultImpactTable, OtnPathTable, OtnPathGroupTable,
-    OtnPathGroupSiteTable
+    OtnPathGroupSiteTable, BareFiberServiceTable, CircuitServiceTable
 )
 from django.utils import timezone
 from datetime import timedelta
@@ -142,8 +144,8 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
         marker_faults = all_faults.select_related(
             'province', 'interruption_location_a', 'handling_unit'
         ).prefetch_related(
-            'interruption_location', 'images', 'impacts', 'impacts__impacted_service',
-            'secondary_impacts', 'secondary_impacts__impacted_service'
+            'interruption_location', 'images', 'impacts', 'impacts__bare_fiber_service', 'impacts__circuit_service',
+            'secondary_impacts', 'secondary_impacts__bare_fiber_service', 'secondary_impacts__circuit_service'
         )
         
         marker_data = []
@@ -163,17 +165,23 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             # 使用字典去重，key 为 impact.pk
             unique_impacts = {impact.pk: impact for impact in all_impacts}.values()
 
-            impacted_businesses = [impact.impacted_service.name for impact in unique_impacts if impact.impacted_service]
-            impacted_business_str = '、'.join(impacted_businesses) if impacted_businesses else '无重保/影响业务'
-            
+            impacted_businesses = []
             impacts_details = []
             for impact in unique_impacts:
-                if impact.impacted_service:
+                business_name = None
+                if impact.service_type == 'bare_fiber' and impact.bare_fiber_service:
+                    business_name = impact.bare_fiber_service.name
+                elif impact.service_type == 'circuit' and impact.circuit_service:
+                    business_name = impact.circuit_service.name
+                    
+                if business_name:
+                    impacted_businesses.append(business_name)
                     impacts_details.append({
-                        'name': impact.impacted_service.name,
+                        'name': business_name,
                         'duration_hours': impact.service_duration_hours
                     })
-            
+
+            impacted_business_str = '、'.join(impacted_businesses) if impacted_businesses else '无重保/影响业务'
             # 简化逻辑：直接获取属性
             occurrence_time_str = fault.fault_occurrence_time.strftime('%Y-%m-%d %H:%M:%S') if fault.fault_occurrence_time else '未记录'
             recovery_time_str = fault.fault_recovery_time.strftime('%Y-%m-%d %H:%M:%S') if fault.fault_recovery_time else '未恢复'
@@ -1066,4 +1074,94 @@ class RouteEditorView(PermissionRequiredMixin, View):
             # 数据 API
             'map_data_url': reverse('plugins:netbox_otnfaults:otnfault_map_data') + '?mode=route_editor',
         })
+
+
+# ========== 裸纤业务视图 ==========
+
+class BareFiberServiceListView(generic.ObjectListView):
+    """裸纤业务列表视图"""
+    queryset = BareFiberService.objects.all()
+    table = BareFiberServiceTable
+    filterset = BareFiberServiceFilterSet
+    filterset_form = BareFiberServiceFilterForm
+
+@register_model_view(BareFiberService)
+class BareFiberServiceView(generic.ObjectView):
+    """裸纤业务详情视图"""
+    queryset = BareFiberService.objects.all()
+
+class BareFiberServiceEditView(generic.ObjectEditView):
+    """裸纤业务编辑视图"""
+    queryset = BareFiberService.objects.all()
+    form = BareFiberServiceForm
+
+class BareFiberServiceDeleteView(generic.ObjectDeleteView):
+    """裸纤业务删除视图"""
+    queryset = BareFiberService.objects.all()
+
+class BareFiberServiceBulkImportView(generic.BulkImportView):
+    """裸纤业务批量导入视图"""
+    queryset = BareFiberService.objects.all()
+    model = BareFiberService
+    model_form = BareFiberServiceImportForm
+    table = BareFiberServiceTable
+
+class BareFiberServiceBulkDeleteView(generic.BulkDeleteView):
+    """裸纤业务批量删除视图"""
+    queryset = BareFiberService.objects.all()
+    table = BareFiberServiceTable
+
+@register_model_view(BareFiberService, 'bulk_edit', path='edit', detail=False)
+class BareFiberServiceBulkEditView(generic.BulkEditView):
+    """裸纤业务批量编辑视图"""
+    queryset = BareFiberService.objects.all()
+    filterset = BareFiberServiceFilterSet
+    table = BareFiberServiceTable
+    form = BareFiberServiceBulkEditForm
+
+
+# ========== 电路业务视图 ==========
+
+class CircuitServiceListView(generic.ObjectListView):
+    """电路业务列表视图"""
+    queryset = CircuitService.objects.all()
+    table = CircuitServiceTable
+    filterset = CircuitServiceFilterSet
+    filterset_form = CircuitServiceFilterForm
+
+@register_model_view(CircuitService)
+class CircuitServiceView(generic.ObjectView):
+    """电路业务详情视图"""
+    queryset = CircuitService.objects.all()
+
+class CircuitServiceEditView(generic.ObjectEditView):
+    """电路业务编辑视图"""
+    queryset = CircuitService.objects.all()
+    form = CircuitServiceForm
+
+class CircuitServiceDeleteView(generic.ObjectDeleteView):
+    """电路业务删除视图"""
+    queryset = CircuitService.objects.all()
+
+class CircuitServiceBulkImportView(generic.BulkImportView):
+    """电路业务批量导入视图"""
+    queryset = CircuitService.objects.all()
+    model = CircuitService
+    model_form = CircuitServiceImportForm
+    table = CircuitServiceTable
+
+class CircuitServiceBulkDeleteView(generic.BulkDeleteView):
+    """电路业务批量删除视图"""
+    queryset = CircuitService.objects.all()
+    table = CircuitServiceTable
+
+@register_model_view(CircuitService, 'bulk_edit', path='edit', detail=False)
+class CircuitServiceBulkEditView(generic.BulkEditView):
+    """电路业务批量编辑视图"""
+    queryset = CircuitService.objects.all()
+    filterset = CircuitServiceFilterSet
+    table = CircuitServiceTable
+    form = CircuitServiceBulkEditForm
+
+
 

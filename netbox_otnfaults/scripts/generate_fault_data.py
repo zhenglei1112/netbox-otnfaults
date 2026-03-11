@@ -417,9 +417,25 @@ class GenerateFaultData(Script):
                 minutes=service_recovery_advance
             )
             
+            # 随机决定关联哪种业务
+            service_type = random.choice(['bare_fiber', 'circuit'])
+            bare_fiber_service = None
+            circuit_service = None
+            
+            if service_type == 'bare_fiber':
+                bare_fiber_service = BareFiberService.objects.order_by('?').first() if BareFiberService.objects.exists() else None
+                if not bare_fiber_service:
+                    continue
+            else:
+                circuit_service = CircuitService.objects.order_by('?').first() if CircuitService.objects.exists() else None
+                if not circuit_service:
+                    continue
+
             impact = OtnFaultImpact(
                 otn_fault=fault,
-                impacted_service=random.choice(self.tenants),
+                service_type=service_type,
+                bare_fiber_service=bare_fiber_service,
+                circuit_service=circuit_service,
                 service_interruption_time=service_interruption_time,
                 service_recovery_time=service_recovery_time,
                 comments=f"故障 #{fault_index+1} 影响的业务 #{i+1}"

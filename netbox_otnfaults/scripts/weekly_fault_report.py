@@ -298,7 +298,12 @@ class WeeklyFaultReport(Script):
             
             # 遍历故障影响的业务
             for impact in fault.impacts.all():
-                service_name = impact.impacted_service.name if impact.impacted_service else "未知业务"
+                if impact.service_type == 'bare_fiber' and impact.bare_fiber_service:
+                    service_name = impact.bare_fiber_service.name
+                elif impact.service_type == 'circuit' and impact.circuit_service:
+                    service_name = impact.circuit_service.name
+                else:
+                    service_name = "未知业务"
                 
                 # 初始化业务分组
                 if service_name not in service_groups:

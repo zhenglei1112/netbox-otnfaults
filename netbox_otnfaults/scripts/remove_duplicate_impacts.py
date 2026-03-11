@@ -2,7 +2,7 @@
 NetBox自定义脚本：清理故障影响业务的重复数据
 
 功能：
-1. 查找重复的 OtnFaultImpact 数据（基于 otn_fault 和 impacted_service 判断）
+1. 查找重复的 OtnFaultImpact 数据（基于 otn_fault、service_type、bare_fiber_service、circuit_service 判断）
 2. 随机保留一条，删除其余重复记录
 
 使用方式：
@@ -51,7 +51,7 @@ class RemoveDuplicateImpacts(Script):
         impact_groups = {}
         
         for impact in all_impacts:
-            key = (impact.otn_fault_id, impact.impacted_service_id)
+            key = (impact.otn_fault_id, impact.service_type, impact.bare_fiber_service_id, impact.circuit_service_id)
             if key not in impact_groups:
                 impact_groups[key] = []
             impact_groups[key].append(impact.id)
@@ -69,7 +69,7 @@ class RemoveDuplicateImpacts(Script):
         kept_count = 0
         
         for key, ids in duplicate_groups.items():
-            fault_id, service_id = key
+            fault_id, service_type, bf_id, cir_id = key
             
             # 随机选择一个保留
             id_to_keep = random.choice(ids)
@@ -79,7 +79,7 @@ class RemoveDuplicateImpacts(Script):
             ids_to_delete.extend(current_group_delete)
             kept_count += 1
             
-            self.log_info(f"故障ID {fault_id} - 业务ID {service_id}: 发现 {len(ids)} 条记录. 保留 ID {id_to_keep}, 计划删除 IDs {current_group_delete}")
+            self.log_info(f"故障ID {fault_id} - 类型 {service_type} - 裸纤ID {bf_id} - 电路ID {cir_id}: 发现 {len(ids)} 条记录. 保留 ID {id_to_keep}, 计划删除 IDs {current_group_delete}")
             
         delete_count = len(ids_to_delete)
         

@@ -1,5 +1,5 @@
 from netbox.filtersets import NetBoxModelFilterSet
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, BareFiberService, CircuitService
 from django.db.models import Q
 import django_filters
 
@@ -73,7 +73,7 @@ class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
     class Meta:
         model = OtnFaultImpact
         fields = (
-            'id', 'service_interruption_time',
+            'id', 'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service', 'service_interruption_time',
             'service_recovery_time', 'comments',
         )
 
@@ -114,6 +114,34 @@ class OtnPathFilterSet(NetBoxModelFilterSet):
         )
 
 
+class CircuitServiceFilterSet(NetBoxModelFilterSet):
+    """电路业务过滤器"""
+    class Meta:
+        model = CircuitService
+        fields = ('id', 'name', 'slug', 'service_group', 'bandwidth')
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(name__icontains=value) |
+            Q(slug__icontains=value) |
+            Q(comments__icontains=value)
+        )
+class BareFiberServiceFilterSet(NetBoxModelFilterSet):
+    """裸纤业务过滤器"""
+    class Meta:
+        model = BareFiberService
+        fields = ('id', 'name', 'slug', 'tenant_group')
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(name__icontains=value) |
+            Q(slug__icontains=value) |
+            Q(comments__icontains=value)
+        )
 class OtnPathGroupFilterSet(NetBoxModelFilterSet):
     """路径组过滤器"""
 

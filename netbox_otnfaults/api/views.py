@@ -10,9 +10,9 @@ from django.utils.decorators import method_decorator
 from datetime import timedelta
 import json
 import logging
-from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite
-from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer
-from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet
+from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
+from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer, BareFiberServiceSerializer, CircuitServiceSerializer
+from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,19 @@ class OtnPathGroupSiteViewSet(NetBoxModelViewSet):
     queryset = OtnPathGroupSite.objects.all()
     serializer_class = OtnPathGroupSiteSerializer
 
+
+class BareFiberServiceViewSet(NetBoxModelViewSet):
+    """裸纤业务 API ViewSet"""
+    queryset = BareFiberService.objects.all()
+    serializer_class = BareFiberServiceSerializer
+    filterset_class = BareFiberServiceFilterSet
+
+
+class CircuitServiceViewSet(NetBoxModelViewSet):
+    """电路业务 API ViewSet"""
+    queryset = CircuitService.objects.all()
+    serializer_class = CircuitServiceSerializer
+    filterset_class = CircuitServiceFilterSet
 
 class HeatmapDataView(APIView):
     """热力图数据API视图（优化版）"""

@@ -120,7 +120,7 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
         ).select_related(
             'province', 'interruption_location_a', 'handling_unit'
         ).prefetch_related(
-            'interruption_location', 'impacts', 'impacts__impacted_service'
+            'interruption_location', 'impacts', 'impacts__bare_fiber_service', 'impacts__circuit_service'
         )
 
         active_faults = []
@@ -141,11 +141,12 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
 
             z_sites = [s.name for s in fault.interruption_location.all()]
             impact_count = fault.impacts.count()
-            impact_names = [
-                imp.impacted_service.name
-                for imp in fault.impacts.all()
-                if imp.impacted_service
-            ]
+            impact_names = []
+            for imp in fault.impacts.all():
+                if imp.service_type == 'bare_fiber' and imp.bare_fiber_service:
+                    impact_names.append(imp.bare_fiber_service.name)
+                elif imp.service_type == 'circuit' and imp.circuit_service:
+                    impact_names.append(imp.circuit_service.name)
 
             # 计算优先级得分
             age_minutes = (now - fault.fault_occurrence_time).total_seconds() / 60

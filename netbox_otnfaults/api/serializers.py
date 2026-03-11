@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from netbox.api.serializers import NetBoxModelSerializer, WritableNestedSerializer
-from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite
+from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
 from django.contrib.auth import get_user_model
 from dcim.models import Site, Region
 from tenancy.models import Tenant
@@ -55,6 +55,26 @@ class NestedServiceProviderSerializer(WritableNestedSerializer):
         fields = ('id', 'display', 'name')
         brief_fields = ('id', 'display', 'name')
 
+class NestedBareFiberServiceSerializer(WritableNestedSerializer):
+    url = serializers.HyperlinkedIdentityField(
+        view_name='plugins-api:netbox_otnfaults-api:barefiberservice-detail'
+    )
+
+    class Meta:
+        model = BareFiberService
+        fields = ('id', 'url', 'display', 'name', 'slug')
+        brief_fields = ('id', 'url', 'display', 'name', 'slug')
+
+class NestedCircuitServiceSerializer(WritableNestedSerializer):
+    url = serializers.HyperlinkedIdentityField(
+        view_name='plugins-api:netbox_otnfaults-api:circuitservice-detail'
+    )
+
+    class Meta:
+        model = CircuitService
+        fields = ('id', 'url', 'display', 'name', 'slug')
+        brief_fields = ('id', 'url', 'display', 'name', 'slug')
+
 class NestedJournalEntrySerializer(WritableNestedSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name='extras-api:journalentry-detail'
@@ -98,19 +118,20 @@ class OtnFaultSerializer(NetBoxModelSerializer):
 
 class OtnFaultImpactSerializer(NetBoxModelSerializer):
     otn_fault = serializers.PrimaryKeyRelatedField(queryset=OtnFault.objects.all())
-    impacted_service = NestedTenantSerializer()
+    bare_fiber_service = NestedBareFiberServiceSerializer(required=False, allow_null=True)
+    circuit_service = NestedCircuitServiceSerializer(required=False, allow_null=True)
     journal_entries = NestedJournalEntrySerializer(many=True, read_only=True)
 
     class Meta:
         model = OtnFaultImpact
         fields = (
-            'id', 'url', 'display', 'otn_fault', 'impacted_service',
+            'id', 'url', 'display', 'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
             'tags', 'comments', 'custom_fields', 'created', 'last_updated',
             'journal_entries',
         )
         brief_fields = (
-            'id', 'url', 'display', 'otn_fault', 'impacted_service',
+            'id', 'url', 'display', 'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service',
             'service_interruption_time', 'service_recovery_time',
         )
         read_only_fields = ('service_duration', 'journal_entries')
@@ -165,5 +186,25 @@ class OtnPathGroupSiteSerializer(NetBoxModelSerializer):
         model = OtnPathGroupSite
         fields = (
             'id', 'url', 'display', 'path_group', 'site', 'role', 'position',
+            'comments', 'tags', 'custom_fields', 'created', 'last_updated',
+        )
+
+
+class BareFiberServiceSerializer(NetBoxModelSerializer):
+    """裸纤业务序列化器"""
+    class Meta:
+        model = BareFiberService
+        fields = (
+            'id', 'url', 'display', 'name', 'slug', 'tenant_group',
+            'comments', 'tags', 'custom_fields', 'created', 'last_updated',
+        )
+
+
+class CircuitServiceSerializer(NetBoxModelSerializer):
+    """电路业务序列化器"""
+    class Meta:
+        model = CircuitService
+        fields = (
+            'id', 'url', 'display', 'name', 'slug', 'service_group', 'bandwidth',
             'comments', 'tags', 'custom_fields', 'created', 'last_updated',
         )

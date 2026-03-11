@@ -27,6 +27,30 @@ menu = PluginMenu(
                 )
             ),
         )),
+        ('业务', (
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:barefiberservice_list',
+                link_text='裸纤业务',
+                buttons=(
+                    PluginMenuButton(
+                        link='plugins:netbox_otnfaults:barefiberservice_add',
+                        title='添加',
+                        icon_class='mdi mdi-plus-thick',
+                    ),
+                )
+            ),
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:circuitservice_list',
+                link_text='电路业务',
+                buttons=(
+                    PluginMenuButton(
+                        link='plugins:netbox_otnfaults:circuitservice_add',
+                        title='添加',
+                        icon_class='mdi mdi-plus-thick',
+                    ),
+                )
+            ),
+        )),
         ('路径', (
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:otnpathgroup_list',

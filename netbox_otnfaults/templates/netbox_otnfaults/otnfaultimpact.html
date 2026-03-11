@@ -28,10 +28,24 @@
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row">影响业务</th>
+                        <th scope="row">业务类型</th>
                         <td>
-                            {% if object.impacted_service %}
-                                <a href="{{ object.impacted_service.get_absolute_url }}">{{ object.impacted_service }}</a>
+                            {% if object.service_type %}
+                                {% with color=object.get_service_type_color %}
+                                <span class="badge" style="background-color: {{ color }}; color: #fff;">{{ object.get_service_type_display }}</span>
+                                {% endwith %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">业务名称</th>
+                        <td>
+                            {% if object.service_type == 'bare_fiber' and object.bare_fiber_service %}
+                                <a href="{{ object.bare_fiber_service.get_absolute_url }}">{{ object.bare_fiber_service }}</a>
+                            {% elif object.service_type == 'circuit' and object.circuit_service %}
+                                <a href="{{ object.circuit_service.get_absolute_url }}">{{ object.circuit_service }}</a>
                             {% else %}
                                 —
                             {% endif %}

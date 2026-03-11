@@ -855,6 +855,17 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             self.fault_number = f'{prefix}{new_number:03d}'
         super().save(*args, **kwargs)
 
+class ServiceTypeChoices(ChoiceSet):
+    key = 'OtnFaultImpact.service_type'
+
+    BARE_FIBER = 'bare_fiber'
+    CIRCUIT = 'circuit'
+
+    CHOICES = [
+        (BARE_FIBER, '裸纤业务', 'blue'),
+        (CIRCUIT, '电路业务', 'green'),
+    ]
+
 class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
     otn_fault = models.ForeignKey(
         to=OtnFault,
@@ -862,11 +873,27 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         related_name='impacts',
         verbose_name='直接故障'
     )
-    impacted_service = models.ForeignKey(
-        to=Tenant,
+    service_type = models.CharField(
+        max_length=20,
+        choices=ServiceTypeChoices,
+        default=ServiceTypeChoices.BARE_FIBER,
+        verbose_name='业务类型'
+    )
+    bare_fiber_service = models.ForeignKey(
+        to='BareFiberService',
         on_delete=models.PROTECT,
-        related_name='otn_fault_impacts',
-        verbose_name='影响业务'
+        related_name='fault_impacts',
+        verbose_name='裸纤业务',
+        blank=True,
+        null=True
+    )
+    circuit_service = models.ForeignKey(
+        to='CircuitService',
+        on_delete=models.PROTECT,
+        related_name='fault_impacts',
+        verbose_name='电路业务',
+        blank=True,
+        null=True
     )
     service_interruption_time = models.DateTimeField(
         verbose_name='业务故障时间'
@@ -895,14 +922,55 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         verbose_name_plural = '故障影响业务'
         constraints = [
             models.UniqueConstraint(
-                fields=['otn_fault', 'impacted_service'],
-                name='unique_otn_fault_impacted_service',
-                violation_error_message='此故障下已经有该影响业务，不能重复添加。'
+                fields=['otn_fault', 'bare_fiber_service'],
+                condition=models.Q(bare_fiber_service__isnull=False),
+                name='unique_otn_fault_bare_fiber',
+                violation_error_message='此故障下已经有该裸纤业务，不能重复添加。'
+            ),
+            models.UniqueConstraint(
+                fields=['otn_fault', 'circuit_service'],
+                condition=models.Q(circuit_service__isnull=False),
+                name='unique_otn_fault_circuit',
+                violation_error_message='此故障下已经有该电路业务，不能重复添加。'
             )
         ]
 
     def __str__(self):
-        return f"{self.otn_fault} - {self.impacted_service}"
+        service = self.bare_fiber_service if self.service_type == ServiceTypeChoices.BARE_FIBER else self.circuit_service
+        return f"{self.otn_fault} - {service}"
+
+    def clean(self):
+        super().clean()
+        
+        if self.service_type == ServiceTypeChoices.BARE_FIBER and not self.bare_fiber_service:
+            raise ValidationError({'bare_fiber_service': '选择裸纤业务类型时必须指定具体的裸纤业务。'})
+            
+        if self.service_type == ServiceTypeChoices.CIRCUIT and not self.circuit_service:
+            raise ValidationError({'circuit_service': '选择电路业务类型时必须指定具体的电路业务。'})
+            
+        # 清除未选中类型的数据
+        if self.service_type == ServiceTypeChoices.BARE_FIBER:
+            self.circuit_service = None
+        elif self.service_type == ServiceTypeChoices.CIRCUIT:
+            self.bare_fiber_service = None
+            
+        # 防止重复添加相同的业务
+        if hasattr(self, 'otn_fault_id') and self.otn_fault_id:
+            if self.service_type == ServiceTypeChoices.BARE_FIBER and self.bare_fiber_service:
+                qs = OtnFaultImpact.objects.filter(otn_fault_id=self.otn_fault_id, bare_fiber_service=self.bare_fiber_service)
+                if self.pk:
+                    qs = qs.exclude(pk=self.pk)
+                if qs.exists():
+                    raise ValidationError({'bare_fiber_service': '此故障下已经有该裸纤业务，不能重复添加。'})
+            elif self.service_type == ServiceTypeChoices.CIRCUIT and self.circuit_service:
+                qs = OtnFaultImpact.objects.filter(otn_fault_id=self.otn_fault_id, circuit_service=self.circuit_service)
+                if self.pk:
+                    qs = qs.exclude(pk=self.pk)
+                if qs.exists():
+                    raise ValidationError({'circuit_service': '此故障下已经有该电路业务，不能重复添加。'})
+
+    def get_service_type_color(self):
+        return ServiceTypeChoices.colors.get(self.service_type)
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_otnfaults:otnfaultimpact', args=[self.pk])
@@ -1158,3 +1226,115 @@ class OtnPath(NetBoxModel):
 
     def get_cable_type_color(self):
         return CableTypeChoices.colors.get(self.cable_type)
+
+
+class BareFiberService(NetBoxModel):
+    """裸纤业务模型"""
+    name = models.CharField(
+        max_length=200,
+        verbose_name='名称'
+    )
+    slug = models.CharField(
+        max_length=50,
+        verbose_name='缩写'
+    )
+    tenant_group = models.ForeignKey(
+        to='tenancy.TenantGroup',
+        on_delete=models.PROTECT,
+        related_name='bare_fiber_services',
+        verbose_name='租户组',
+        blank=True,
+        null=True
+    )
+    tags = taggit.managers.TaggableManager(
+        through='extras.TaggedItem',
+        to='extras.Tag',
+        blank=True
+    )
+    comments = models.TextField(blank=True, verbose_name='评论')
+
+    class Meta:
+        ordering = ('name',)
+        verbose_name = '裸纤业务'
+        verbose_name_plural = '裸纤业务'
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse('plugins:netbox_otnfaults:barefiberservice', args=[self.pk])
+
+
+class ServiceGroupChoices(ChoiceSet):
+    key = 'CircuitService.service_group'
+
+    MARKET = 'market'
+    JINHANG = 'jinhang'
+    LANXUN = 'lanxun'
+
+    CHOICES = [
+        (MARKET, '市场', 'blue'),
+        (JINHANG, '金航', 'green'),
+        (LANXUN, '缆讯', 'purple'),
+    ]
+
+
+class BandwidthChoices(ChoiceSet):
+    key = 'CircuitService.bandwidth'
+
+    BW_10G = '10g'
+    BW_100G = '100g'
+    BW_GE = 'ge'
+
+    CHOICES = [
+        (BW_10G, '10G', 'blue'),
+        (BW_100G, '100G', 'green'),
+        (BW_GE, 'GE', 'orange'),
+    ]
+
+
+class CircuitService(NetBoxModel):
+    """电路业务模型"""
+    name = models.CharField(
+        max_length=200,
+        verbose_name='编号'
+    )
+    slug = models.CharField(
+        max_length=50,
+        verbose_name='缩写'
+    )
+    service_group = models.CharField(
+        max_length=20,
+        choices=ServiceGroupChoices,
+        verbose_name='业务组',
+        blank=True
+    )
+    bandwidth = models.CharField(
+        max_length=20,
+        choices=BandwidthChoices,
+        verbose_name='带宽',
+        blank=True
+    )
+    tags = taggit.managers.TaggableManager(
+        through='extras.TaggedItem',
+        to='extras.Tag',
+        blank=True
+    )
+    comments = models.TextField(blank=True, verbose_name='评论')
+
+    class Meta:
+        ordering = ('name',)
+        verbose_name = '电路业务'
+        verbose_name_plural = '电路业务'
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse('plugins:netbox_otnfaults:circuitservice', args=[self.pk])
+
+    def get_service_group_color(self):
+        return ServiceGroupChoices.colors.get(self.service_group)
+
+    def get_bandwidth_color(self):
+        return BandwidthChoices.colors.get(self.bandwidth)

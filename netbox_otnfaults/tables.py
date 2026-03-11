@@ -1,7 +1,7 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from netbox.tables import NetBoxTable, columns
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, PathGroupSiteRoleChoices
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, PathGroupSiteRoleChoices, BareFiberService, CircuitService
 
 class OtnPathGroupSiteTable(NetBoxTable):
     """路径组站点关联表"""
@@ -154,9 +154,13 @@ class OtnFaultImpactTable(NetBoxTable):
         linkify=True,
         verbose_name='直接故障'
     )
-    impacted_service = tables.Column(
-        linkify=True,
-        verbose_name='影响业务'
+    service_type = columns.ChoiceFieldColumn(
+        verbose_name='业务类型'
+    )
+    service_name = tables.Column(
+        verbose_name='业务名称',
+        orderable=False,
+        empty_values=()
     )
     service_interruption_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
@@ -181,14 +185,26 @@ class OtnFaultImpactTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = OtnFaultImpact
         fields = (
-            'pk', 'otn_fault', 'secondary_faults', 'impacted_service',
+            'pk', 'otn_fault', 'secondary_faults', 'service_type', 'service_name',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
             'comments', 'tags', 'actions',
         )
         default_columns = (
-            'otn_fault', 'impacted_service',
+            'otn_fault', 'service_type', 'service_name',
             'service_interruption_time', 'service_duration', 'tags',
         )
+
+    def render_service_name(self, record):
+        from django.utils.html import format_html
+        if record.service_type == 'bare_fiber' and record.bare_fiber_service:
+            url = record.bare_fiber_service.get_absolute_url()
+            name = record.bare_fiber_service.name
+            return format_html('<a href="{}">{}</a>', url, name)
+        elif record.service_type == 'circuit' and record.circuit_service:
+            url = record.circuit_service.get_absolute_url()
+            name = record.circuit_service.name
+            return format_html('<a href="{}">{}</a>', url, name)
+        return '—'
 
     def render_service_duration(self, record):
         """渲染业务中断历时为可视化进度条（使用内联样式）"""
@@ -293,4 +309,60 @@ class OtnPathGroupTable(NetBoxTable):
 
     def render_path_count(self, record):
         return record.paths.count()
+
+
+class BareFiberServiceTable(NetBoxTable):
+    """裸纤业务列表表格"""
+    name = tables.Column(
+        linkify=True,
+        verbose_name='名称'
+    )
+    slug = tables.Column(
+        verbose_name='缩写'
+    )
+    tenant_group = tables.Column(
+        linkify=True,
+        verbose_name='租户组'
+    )
+    tags = columns.TagColumn(
+        url_name='plugins:netbox_otnfaults:barefiberservice_list'
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = BareFiberService
+        fields = (
+            'pk', 'name', 'slug', 'tenant_group', 'tags', 'actions',
+        )
+        default_columns = (
+            'name', 'slug', 'tenant_group', 'tags',
+        )
+
+
+class CircuitServiceTable(NetBoxTable):
+    """电路业务列表表格"""
+    name = tables.Column(
+        linkify=True,
+        verbose_name='编号'
+    )
+    slug = tables.Column(
+        verbose_name='缩写'
+    )
+    service_group = columns.ChoiceFieldColumn(
+        verbose_name='业务组'
+    )
+    bandwidth = columns.ChoiceFieldColumn(
+        verbose_name='带宽'
+    )
+    tags = columns.TagColumn(
+        url_name='plugins:netbox_otnfaults:circuitservice_list'
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = CircuitService
+        fields = (
+            'pk', 'name', 'slug', 'service_group', 'bandwidth', 'tags', 'actions',
+        )
+        default_columns = (
+            'name', 'slug', 'service_group', 'bandwidth', 'tags',
+        )
 
