@@ -104,6 +104,12 @@ class WeeklyFaultReport(Script):
             'leased': '租赁纤芯',
             'provincial_provided': '一二期配套',
             
+            # 维护方式
+            'outsourced': '代维',
+            'coordinated': '协调',
+            'self_maintained': '自维',
+            'leased_owned': '租赁自带',
+            
             # 光缆路由属性
             'highway': '高速公路',
             'non_highway': '非高速',

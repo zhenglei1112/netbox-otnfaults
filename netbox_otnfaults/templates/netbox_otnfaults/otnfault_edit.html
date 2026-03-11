@@ -430,14 +430,39 @@
         });
     }
 
+    function initFiberLogic() {
+        const resourceTypeSelect = document.querySelector('select[name="resource_type"]');
+        const maintenanceModeSelect = document.querySelector('select[name="maintenance_mode"]');
+        
+        if (!resourceTypeSelect || !maintenanceModeSelect) return;
+        
+        const resourceTypeTS = resourceTypeSelect.tomselect;
+        const maintenanceModeTS = maintenanceModeSelect.tomselect;
+        
+        if (!resourceTypeTS || !maintenanceModeTS) {
+            setTimeout(initFiberLogic, 100);
+            return;
+        }
+        
+        resourceTypeTS.on('change', function(value) {
+            if (value === 'leased') {
+                maintenanceModeTS.setValue('leased_owned');
+            } else if (value === 'coordinated') {
+                maintenanceModeTS.setValue('coordinated');
+            }
+        });
+    }
+
     // 初始化
     if (document.readyState === 'complete') {
         setTimeout(initCascadeFilter, 200);
         setTimeout(initMapPicker, 200);
+        setTimeout(initFiberLogic, 200);
     } else {
         window.addEventListener('load', function() {
             setTimeout(initCascadeFilter, 200);
             setTimeout(initMapPicker, 200);
+            setTimeout(initFiberLogic, 200);
         });
     }
 })();

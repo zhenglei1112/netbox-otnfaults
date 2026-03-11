@@ -124,6 +124,7 @@ class GenerateFaultData(Script):
             'outsourced',      # 代维
             'coordinated',     # 协调
             'self_maintained', # 自维
+            'leased_owned',    # 租赁自带
         ]
         
         # 光纤来源选项

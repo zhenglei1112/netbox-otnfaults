@@ -51,11 +51,13 @@ class MaintenanceModeChoices(ChoiceSet):
     OUTSOURCED = 'outsourced'
     COORDINATED = 'coordinated'
     SELF_MAINTAINED = 'self_maintained'
+    LEASED_OWNED = 'leased_owned'
 
     CHOICES = [
         (OUTSOURCED, '代维', 'blue'),
         (COORDINATED, '协调', 'green'),
         (SELF_MAINTAINED, '自维', 'purple'),
+        (LEASED_OWNED, '租赁自带', 'cyan'),
     ]
 
 
