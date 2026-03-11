@@ -62,6 +62,20 @@
     </div>
 </div>
 
+<div class="field-group my-5" id="fault-review-info">
+    <div class="row mb-3">
+        <h2 class="col-9 offset-3 mb-0">故障复核</h2>
+    </div>
+    <div class="row">
+        {% render_field form.manager_reviewed %}
+        {% render_field form.manager_reviewer %}
+        {% render_field form.manager_review_time %}
+        {% render_field form.noc_reviewed %}
+        {% render_field form.noc_reviewer %}
+        {% render_field form.noc_review_time %}
+    </div>
+</div>
+
 <div class="field-group my-5">
     <div class="row mb-3">
         <h2 class="col-9 offset-3 mb-0">其他信息</h2>
@@ -588,18 +602,57 @@
         });
     }
 
+    // 故障复核逻辑：自动填入操作人与当前时间
+    function initReviewLogic() {
+        const currentUser = "{{ request.user.first_name }}{{ request.user.last_name }}" || "{{ request.user.username }}";
+        
+        function setupReviewerSync(checkId, nameId, timeId) {
+            const checkEl = document.getElementById(checkId);
+            const nameEl = document.getElementById(nameId);
+            const timeEl = document.getElementById(timeId);
+            
+            if (checkEl && nameEl && timeEl) {
+                checkEl.addEventListener('change', function() {
+                    if (this.checked) {
+                        nameEl.value = currentUser;
+                        const now = new Date();
+                        const f = (n) => n.toString().padStart(2, '0');
+                        
+                        if (timeEl._flatpickr) {
+                            timeEl._flatpickr.setDate(now);
+                        } else {
+                            timeEl.value = `${now.getFullYear()}-${f(now.getMonth()+1)}-${f(now.getDate())} ${f(now.getHours())}:${f(now.getMinutes())}:${f(now.getSeconds())}`;
+                        }
+                    } else {
+                        nameEl.value = '';
+                        if (timeEl._flatpickr) {
+                            timeEl._flatpickr.clear();
+                        } else {
+                            timeEl.value = '';
+                        }
+                    }
+                });
+            }
+        }
+        
+        setupReviewerSync('id_manager_reviewed', 'id_manager_reviewer', 'id_manager_review_time');
+        setupReviewerSync('id_noc_reviewed', 'id_noc_reviewer', 'id_noc_review_time');
+    }
+
     // 初始化
     if (document.readyState === 'complete') {
         setTimeout(initCascadeFilter, 200);
         setTimeout(initMapPicker, 200);
         setTimeout(initFiberLogic, 200);
         setTimeout(initManagerLogic, 200);
+        setTimeout(initReviewLogic, 200);
     } else {
         window.addEventListener('load', function() {
             setTimeout(initCascadeFilter, 200);
             setTimeout(initMapPicker, 200);
             setTimeout(initFiberLogic, 200);
             setTimeout(initManagerLogic, 200);
+            setTimeout(initReviewLogic, 200);
         });
     }
 })();

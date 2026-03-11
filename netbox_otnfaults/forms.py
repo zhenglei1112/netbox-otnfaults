@@ -56,6 +56,26 @@ class OtnFaultForm(NetBoxModelForm):
         label='评论',
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
     )
+    manager_reviewer = forms.CharField(
+        required=False,
+        label='线路主管复核人',
+        widget=forms.TextInput(attrs={'readonly': True, 'class': 'form-control'})
+    )
+    manager_review_time = forms.DateTimeField(
+        required=False,
+        label='线路主管复核时间',
+        widget=forms.DateTimeInput(attrs={'readonly': True, 'class': 'form-control'})
+    )
+    noc_reviewer = forms.CharField(
+        required=False,
+        label='网管人员复核人',
+        widget=forms.TextInput(attrs={'readonly': True, 'class': 'form-control'})
+    )
+    noc_review_time = forms.DateTimeField(
+        required=False,
+        label='网管人员复核时间',
+        widget=forms.DateTimeInput(attrs={'readonly': True, 'class': 'form-control'})
+    )
     
     fieldsets = (
         ('故障信息', (
@@ -74,6 +94,10 @@ class OtnFaultForm(NetBoxModelForm):
         )),
         ('供电故障补充信息', (
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
+        )),
+        ('故障复核', (
+            'manager_reviewed', 'manager_reviewer', 'manager_review_time',
+            'noc_reviewed', 'noc_reviewer', 'noc_review_time',
         )),
         (None, (
             'comments', 'tags',
@@ -96,6 +120,9 @@ class OtnFaultForm(NetBoxModelForm):
             'timeout_reason', 'closure_time',
             # 供电故障补充信息组字段
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
+            # 故障复核信息字段
+            'manager_reviewed', 'manager_reviewer', 'manager_review_time',
+            'noc_reviewed', 'noc_reviewer', 'noc_review_time',
             # 其他字段
             'comments', 'tags',
         )
@@ -456,6 +483,11 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         FieldSet(
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
             name='供电故障补充信息'
+        ),
+        FieldSet(
+            'manager_reviewed', 'manager_reviewer', 'manager_review_time',
+            'noc_reviewed', 'noc_reviewer', 'noc_review_time',
+            name='故障复核'
         ),
     )
     

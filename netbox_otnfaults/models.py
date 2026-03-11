@@ -620,6 +620,38 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='维护方式'
     )
     
+    # 故障复核信息
+    manager_reviewed = models.BooleanField(
+        default=False,
+        verbose_name='线路主管复核'
+    )
+    manager_reviewer = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='线路主管复核人'
+    )
+    manager_review_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='线路主管复核时间'
+    )
+    noc_reviewed = models.BooleanField(
+        default=False,
+        verbose_name='网管人员复核'
+    )
+    noc_reviewer = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='网管人员复核人'
+    )
+    noc_review_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='网管人员复核时间'
+    )
+    
     tags = taggit.managers.TaggableManager(
         through='extras.TaggedItem',
         to='extras.Tag',
