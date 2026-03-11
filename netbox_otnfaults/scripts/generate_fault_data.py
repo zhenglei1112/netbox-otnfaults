@@ -126,11 +126,12 @@ class GenerateFaultData(Script):
             'self_maintained', # 自维
         ]
         
-        # 资源类型选项
+        # 光纤来源选项
         self.resource_types = [
             'self_built',   # 自建光缆
             'coordinated',  # 协调资源
             'leased',       # 租赁纤芯
+            'provincial_provided', # 一二期配套
         ]
         
         # 恢复方式选项
@@ -190,7 +191,7 @@ class GenerateFaultData(Script):
         # 读取服务提供商
         self.service_providers = list(ServiceProvider.objects.all())
         if not self.service_providers:
-            self.log_warning("系统中没有服务提供商数据，处理单位字段将为空")
+            self.log_warning("系统中没有服务提供商数据，代维方/租赁方字段将为空")
         
         self.log_success(f"系统数据读取完成：用户({len(self.users)})、站点({len(self.sites)})、"
                         f"省份({len(self.provinces)})、业务({len(self.tenants)})、"

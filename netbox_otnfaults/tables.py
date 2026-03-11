@@ -88,7 +88,7 @@ class OtnFaultTable(NetBoxTable):
         verbose_name='恢复方式'
     )
     resource_type = columns.ChoiceFieldColumn(
-        verbose_name='资源类型'
+        verbose_name='光纤来源'
     )
     cable_route = columns.ChoiceFieldColumn(
         verbose_name='光缆路由属性'

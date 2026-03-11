@@ -176,7 +176,7 @@
       <h5 class="card-header">光缆中断补充信息</h5>
       <table class="table table-hover attr-table">
         <tr>
-          <th scope="row">资源类型</th>
+          <th scope="row">光纤来源</th>
           <td>
             {% if object.resource_type %}
             {% badge object.get_resource_type_display bg_color=object.get_resource_type_color %}
@@ -226,7 +226,7 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">处理单位</th>
+          <th scope="row">代维方/租赁方</th>
           <td>
             {% if object.handling_unit %}
             <a href="{{ object.handling_unit.get_absolute_url }}">{{ object.handling_unit }}</a>
@@ -236,7 +236,7 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">代维合同</th>
+          <th scope="row">代维/租赁合同</th>
           <td>
             {% if object.contract %}
             <a href="{{ object.contract.get_absolute_url }}">{{ object.contract }}</a>

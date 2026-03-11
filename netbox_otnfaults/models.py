@@ -113,7 +113,7 @@ class ResourceTypeChoices(ChoiceSet):
         (SELF_BUILT, '自建光缆', 'green'),
         (COORDINATED, '协调资源', 'blue'),
         (LEASED, '租赁纤芯', 'purple'),
-        (PROVINCIAL, '省厅提供', 'cyan'),
+        (PROVINCIAL, '一二期配套', 'cyan'),
     ]
 
 
@@ -469,7 +469,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         to='netbox_contract.ServiceProvider',
         on_delete=models.PROTECT,
         related_name='handled_otn_faults',
-        verbose_name='处理单位',
+        verbose_name='代维方/租赁方',
         blank=True,
         null=True
     )
@@ -479,7 +479,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         to='netbox_contract.Contract',
         on_delete=models.PROTECT,
         related_name='otn_faults',
-        verbose_name='代维合同',
+        verbose_name='代维/租赁合同',
         blank=True,
         null=True
     )
@@ -535,7 +535,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         choices=ResourceTypeChoices,
         blank=True,
         null=True,
-        verbose_name='资源类型'
+        verbose_name='光纤来源'
     )
     
     # 16) 光缆路由属性，为选择性字段，分为高速公路、非高速两类，默认值为高速公路，可空

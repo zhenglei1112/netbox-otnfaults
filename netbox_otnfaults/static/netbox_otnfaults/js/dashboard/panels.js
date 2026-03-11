@@ -292,7 +292,7 @@ window.Panels = (function () {
             '<div class="focus-row"><span class="focus-label">发生</span><span class="focus-value">' + occurTime + '</span></div>' +
             '<div class="focus-row"><span class="focus-label">历时</span><span class="focus-value">' + (fault.duration || '处理中') + '</span></div>' +
             '<div class="focus-row"><span class="focus-label">处理人</span><span class="focus-value">' + (fault.handler || '') + '</span></div>' +
-            '<div class="focus-row"><span class="focus-label">处理单位</span><span class="focus-value">' + (fault.handling_unit || '') + '</span></div>' +
+            '<div class="focus-row"><span class="focus-label">代维方/租赁方</span><span class="focus-value">' + (fault.handling_unit || '') + '</span></div>' +
             '</div>';
     }
 

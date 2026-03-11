@@ -42,12 +42,12 @@ class OtnFaultForm(NetBoxModelForm):
     handling_unit = DynamicModelChoiceField(
         queryset=ServiceProvider.objects.all(),
         required=False,
-        label='处理单位'
+        label='代维方/租赁方'
     )
     contract = DynamicModelChoiceField(
         queryset=Contract.objects.all(),
         required=False,
-        label='代维合同',
+        label='代维/租赁合同',
         query_params={
             'external_party_object': '$handling_unit',
         }
@@ -106,6 +106,7 @@ class OtnFaultForm(NetBoxModelForm):
             'arrival_time': DateTimePicker(),
             'repair_time': DateTimePicker(),
             'fault_details': forms.Textarea(attrs={'rows': 5}),
+            'timeout_reason': forms.TextInput(),
         }
         
     def __init__(self, *args, **kwargs):
@@ -150,13 +151,13 @@ class OtnFaultImportForm(NetBoxModelImportForm):
         queryset=ServiceProvider.objects.all(),
         required=False,
         to_field_name='name',
-        help_text='处理单位名称'
+        help_text='代维方/租赁方名称'
     )
     contract = CSVModelChoiceField(
         queryset=Contract.objects.all(),
         required=False,
         to_field_name='name',
-        help_text='代维合同名称'
+        help_text='代维/租赁合同名称'
     )
     interruption_location_a = CSVModelChoiceField(
         queryset=Site.objects.all(),
@@ -284,12 +285,12 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     handling_unit = DynamicModelChoiceField(
         queryset=ServiceProvider.objects.all(),
         required=False,
-        label='处理单位'
+        label='代维方/租赁方'
     )
     contract = DynamicModelChoiceField(
         queryset=Contract.objects.all(),
         required=False,
-        label='代维合同',
+        label='代维/租赁合同',
         query_params={
             'external_party_object': '$handling_unit',
         }
@@ -333,7 +334,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     resource_type = forms.ChoiceField(
         choices=add_blank_choice(ResourceTypeChoices),
         required=False,
-        label='资源类型'
+        label='光纤来源'
     )
     cable_route = forms.ChoiceField(
         choices=add_blank_choice(CableRouteChoices),
@@ -484,12 +485,12 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     handling_unit = DynamicModelChoiceField(
         queryset=ServiceProvider.objects.all(),
         required=False,
-        label='处理单位'
+        label='代维方/租赁方'
     )
     contract = DynamicModelChoiceField(
         queryset=Contract.objects.all(),
         required=False,
-        label='代维合同',
+        label='代维/租赁合同',
         query_params={
             'service_provider_id': '$handling_unit',
         }
@@ -528,7 +529,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     resource_type = forms.ChoiceField(
         choices=add_blank_choice(ResourceTypeChoices),
         required=False,
-        label='资源类型'
+        label='光纤来源'
     )
     cable_route = forms.ChoiceField(
         choices=add_blank_choice(CableRouteChoices),

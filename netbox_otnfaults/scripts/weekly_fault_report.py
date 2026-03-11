@@ -6,7 +6,7 @@ NetBox自定义脚本：上周故障统计报告
 2. 筛选故障发生时间在上一周内的所有故障记录
 3. 分离已恢复和未恢复的故障，单独列出未恢复故障编号
 4. 统计以下指标：故障总数量、故障总历时、平均故障历时
-5. 按多个维度分组统计：省份、故障分类、故障原因、第一报障来源、资源类型、光缆路由属性
+5. 按多个维度分组统计：省份、故障分类、故障原因、第一报障来源、光纤来源、光缆路由属性
 6. 按故障涉及业务分组统计：故障数量、总历时
 7. 结果以Markdown形式输出表格
 
@@ -98,10 +98,11 @@ class WeeklyFaultReport(Script):
             'other': '其他',
             
 
-            # 资源类型
+            # 光纤来源
             'self_built': '自建光缆',
             'coordinated': '协调资源',
             'leased': '租赁纤芯',
+            'provincial_provided': '一二期配套',
             
             # 光缆路由属性
             'highway': '高速公路',
@@ -267,7 +268,7 @@ class WeeklyFaultReport(Script):
     
 
     def group_statistics_by_resource_type(self, resolved_faults):
-        """按资源类型分组统计"""
+        """按光纤来源分组统计"""
         return self.group_statistics_by_field(
             resolved_faults,
             lambda fault: fault.resource_type
@@ -507,7 +508,7 @@ class WeeklyFaultReport(Script):
             )
         
 
-        # 按资源类型统计
+        # 按光纤来源统计
         if stats['by_resource_type']:
             rows = []
             for resource_name, resource_stats in sorted(stats['by_resource_type'].items(), key=lambda x: x[1]['count'], reverse=True):
@@ -518,8 +519,8 @@ class WeeklyFaultReport(Script):
                     f"{resource_stats['avg_duration']:.2f}",
                 ])
             report += self.generate_markdown_table(
-                "按资源类型统计",
-                ["资源类型", "故障数量", "总历时(小时)", "平均历时(小时)"],
+                "按光纤来源统计",
+                ["光纤来源", "故障数量", "总历时(小时)", "平均历时(小时)"],
                 rows
             )
         
@@ -705,9 +706,9 @@ class WeeklyFaultReport(Script):
             report_lines.append("")
         
 
-        # 按资源类型统计
+        # 按光纤来源统计
         if stats['by_resource_type']:
-            report_lines.append("按资源类型统计：")
+            report_lines.append("按光纤来源统计：")
             for resource_name, resource_stats in sorted(stats['by_resource_type'].items(), key=lambda x: x[1]['count'], reverse=True):
                 report_lines.append(f"  {resource_name}: {resource_stats['count']}次, "
                                   f"总历时{resource_stats['total_duration']:.2f}小时, "
