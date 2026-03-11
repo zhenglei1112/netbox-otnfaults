@@ -188,7 +188,10 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         max_length=20,
         unique=True,
         verbose_name='故障编号',
-        help_text='系统自动生成，格式为FYYYYMMDDNNN'
+        help_text='系统自动生成，格式为FYYYYMMDDNNN',
+        error_messages={
+            'unique': '已存在相同编号的故障记录。'
+        }
     )
     duty_officer = models.ForeignKey(
         to=settings.AUTH_USER_MODEL,
@@ -890,7 +893,13 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         ordering = ('-service_interruption_time',)
         verbose_name = '故障影响业务'
         verbose_name_plural = '故障影响业务'
-        unique_together = ('otn_fault', 'impacted_service')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['otn_fault', 'impacted_service'],
+                name='unique_otn_fault_impacted_service',
+                violation_error_message='此故障下已经有该影响业务，不能重复添加。'
+            )
+        ]
 
     def __str__(self):
         return f"{self.otn_fault} - {self.impacted_service}"
@@ -983,12 +992,18 @@ class OtnPathGroup(NetBoxModel):
     name = models.CharField(
         max_length=100,
         unique=True,
-        verbose_name='名称'
+        verbose_name='名称',
+        error_messages={
+            'unique': '已存在相同名称的路径组。'
+        }
     )
     slug = models.SlugField(
         max_length=100,
         unique=True,
-        verbose_name='缩写'
+        verbose_name='缩写',
+        error_messages={
+            'unique': '已存在相同缩写的路径组。'
+        }
     )
     description = models.CharField(
         max_length=200,
@@ -1055,7 +1070,13 @@ class OtnPathGroupSite(NetBoxModel):
 
     class Meta:
         ordering = ('path_group', 'position', 'pk')
-        unique_together = ('path_group', 'site')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['path_group', 'site'],
+                name='unique_path_group_site',
+                violation_error_message='该路径组已包含选定的站点。'
+            )
+        ]
         verbose_name = '路径组站点'
         verbose_name_plural = '路径组站点'
 
