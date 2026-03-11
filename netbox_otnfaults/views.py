@@ -304,7 +304,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             }, cls=DjangoJSONEncoder),
 
             # 调试模式参数
-            'debug_mode': True,
+            'debug_mode': False,
             'show_debug_panel': False,
             'debug_date': '2025-12-05 00:00:00',
         })
