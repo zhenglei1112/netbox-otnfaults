@@ -857,7 +857,7 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         to=OtnFault,
         on_delete=models.CASCADE,
         related_name='impacts',
-        verbose_name='关联故障'
+        verbose_name='直接故障'
     )
     impacted_service = models.ForeignKey(
         to=Tenant,
@@ -876,7 +876,7 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
     secondary_faults = models.ManyToManyField(
         to=OtnFault,
         related_name='secondary_impacts',
-        verbose_name='次要故障',
+        verbose_name='其他关联故障',
         blank=True
     )
     tags = taggit.managers.TaggableManager(

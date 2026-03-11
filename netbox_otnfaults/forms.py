@@ -240,7 +240,7 @@ class OtnFaultImpactImportForm(NetBoxModelImportForm):
 class OtnFaultImpactForm(NetBoxModelForm):
     otn_fault = DynamicModelChoiceField(
         queryset=OtnFault.objects.all(),
-        label='关联故障'
+        label='直接故障'
     )
     impacted_service = DynamicModelChoiceField(
         queryset=Tenant.objects.all(),
@@ -249,8 +249,8 @@ class OtnFaultImpactForm(NetBoxModelForm):
     secondary_faults = DynamicModelMultipleChoiceField(
         queryset=OtnFault.objects.all(),
         required=False,
-        label='次要故障',
-        help_text='若业务中断是因为多次故障引起的（双断、三断等），关联故障为最后一次造成最终业务中断的故障，次要故障可选择前续涉及的多次故障（引起单断的故障）。'
+        label='其他关联故障',
+        help_text='若业务中断是因为多次故障引起的（双断、三断等），直接故障为最后一次造成最终业务中断的故障，其他关联故障可选择前续涉及的多次故障（引起单断的故障）。'
     )
     comments = CommentField(
         label='评论',
@@ -428,7 +428,7 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
     otn_fault = DynamicModelChoiceField(
         queryset=OtnFault.objects.all(),
         required=False,
-        label='关联故障'
+        label='直接故障'
     )
     impacted_service = DynamicModelChoiceField(
         queryset=Tenant.objects.all(),
@@ -669,7 +669,7 @@ class OtnFaultImpactFilterForm(NetBoxModelFilterSetForm):
     otn_fault = DynamicModelChoiceField(
         queryset=OtnFault.objects.all(),
         required=False,
-        label='关联故障'
+        label='直接故障'
     )
     impacted_service = DynamicModelChoiceField(
         queryset=Tenant.objects.all(),
