@@ -131,7 +131,7 @@ class FaultStatisticsControl {
       }
 
       // 统计路径（仅统计光缆类故障且A、Z端都有值的故障）
-      const fiberCategories = ['fiber_break', 'fiber_degradation', 'fiber_jitter', 'fiber'];
+      const fiberCategories = ['fiber_break', 'fiber_degradation', 'fiber_jitter'];
       if (f.a_site && f.z_sites && fiberCategories.includes(f.category)) {
         const siteA = f.a_site;
         const zSitesList = this.splitZSites(f.z_sites);

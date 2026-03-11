@@ -138,13 +138,14 @@ class FindNearestSitesForFaults(Script):
         """
         self.log_info("正在扫描故障记录...")
         
-        # 获取所有有经纬度的故障记录，且故障类型为光缆故障（fiber）
+        # 获取所有有经纬度的故障记录，且故障类型为光缆相关故障
+        fiber_categories = ['fiber', 'fiber_break', 'fiber_degradation', 'fiber_jitter']
         faults = OtnFault.objects.exclude(
             interruption_latitude__isnull=True
         ).exclude(
             interruption_longitude__isnull=True
         ).filter(
-            fault_category='fiber'  # 只处理光缆故障
+            fault_category__in=fiber_categories
         )
         
         faults_to_process = []
@@ -438,7 +439,7 @@ class FindNearestSitesForFaults(Script):
         result_message = (
             f"处理完成！\n"
             f"• 有经纬度的站点数量：{len(sites_with_coords)} 个\n"
-            f"• 有经纬度的光缆故障记录：{OtnFault.objects.exclude(interruption_latitude__isnull=True).exclude(interruption_longitude__isnull=True).filter(fault_category='fiber').count()} 条\n"
+            f"• 有经纬度的光缆故障记录：{OtnFault.objects.exclude(interruption_latitude__isnull=True).exclude(interruption_longitude__isnull=True).filter(fault_category__in=['fiber', 'fiber_break', 'fiber_degradation', 'fiber_jitter']).count()} 条\n"
             f"• 需要处理的光缆故障记录：{total_to_process} 条\n"
             f"• 成功更新：{successful_updates} 条\n"
             f"• 更新失败：{failed_updates} 条\n"

@@ -89,11 +89,13 @@ class GenerateFaultData(Script):
         
         # 故障分类选项
         self.fault_categories = [
-            'power',    # 电力故障
-            'fiber',    # 光缆故障
-            'pigtail',  # 空调故障
-            'device',   # 设备故障
-            'other',    # 其他故障
+            'power_fault',       # 供电故障
+            'fiber_break',       # 光缆中断
+            'fiber_degradation', # 光缆劣化
+            'fiber_jitter',      # 光缆抖动
+            'ac_fault',          # 空调故障
+            'device_fault',      # 设备故障
+            'other',             # 其他故障
         ]
         
         # 故障原因选项

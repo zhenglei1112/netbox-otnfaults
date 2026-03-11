@@ -302,10 +302,12 @@ const FaultModePlugin = {
         console.error('[FaultMode] FAULT_SVG_ICONS not found, using fallback');
         const fallbackSVG = '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="4" fill="white"/></svg>';
         window.FAULT_SVG_ICONS = {
-          fiber: fallbackSVG,
-          power: fallbackSVG,
-          pigtail: fallbackSVG,
-          device: fallbackSVG,
+          fiber_break: fallbackSVG,
+          ac_fault: fallbackSVG,
+          fiber_degradation: fallbackSVG,
+          fiber_jitter: fallbackSVG,
+          device_fault: fallbackSVG,
+          power_fault: fallbackSVG,
           other: fallbackSVG
         };
       }
