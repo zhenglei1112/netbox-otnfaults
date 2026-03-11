@@ -164,6 +164,10 @@
           <td>{{ object.fault_duration|default:"—" }}</td>
         </tr>
         <tr>
+          <th scope="row">故障处理人</th>
+          <td>{{ object.handler|default:"—" }}</td>
+        </tr>
+        <tr>
           <th scope="row">故障详情和处理过程</th>
           <td>{{ object.fault_details|default:"—" }}</td>
         </tr>
@@ -271,10 +275,6 @@
         <tr>
           <th scope="row">超时原因</th>
           <td>{{ object.timeout_reason|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">故障处理人</th>
-          <td>{{ object.handler|default:"—" }}</td>
         </tr>
       </table>
     </div>

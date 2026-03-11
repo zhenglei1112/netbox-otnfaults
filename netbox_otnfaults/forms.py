@@ -65,12 +65,12 @@ class OtnFaultForm(NetBoxModelForm):
             'interruption_reason', 'interruption_reason_detail',
             'first_report_source', 'duty_officer',
             'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
-            'fault_details', 'fault_status',
+            'handler', 'fault_details', 'fault_status',
         )),
         ('光缆中断补充信息', (
             'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'repair_time', 'timeout',
-            'timeout_reason', 'handler',
+            'timeout_reason',
         )),
         ('供电故障补充信息', (
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
@@ -87,13 +87,13 @@ class OtnFaultForm(NetBoxModelForm):
             'urgency', 'province', 'interruption_location_a', 'interruption_location',
             'interruption_latitude', 'interruption_longitude', 'fault_category',
             'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 'fault_recovery_time',
-            'first_report_source', 'line_manager', 'duty_officer', 'fault_details',
+            'first_report_source', 'line_manager', 'duty_officer', 'handler', 'fault_details',
             'fault_status',
             # 光缆中断补充信息组字段
             'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
-            'timeout_reason', 'handler',
+            'timeout_reason',
             # 供电故障补充信息组字段
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
             # 其他字段
@@ -443,13 +443,13 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             'fault_category', 'interruption_reason', 'interruption_reason_detail',
             'first_report_source', 'duty_officer',
             'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
-            'fault_details',
+            'handler', 'fault_details',
             name='故障信息'
         ),
         FieldSet(
             'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'timeout',
-            'timeout_reason', 'handler', 'comments',
+            'timeout_reason', 'comments',
             name='光缆中断补充信息'
         ),
         FieldSet(

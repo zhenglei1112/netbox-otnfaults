@@ -556,7 +556,8 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         max_length=100,
         blank=True,
         null=True,
-        verbose_name='故障处理人'
+        verbose_name='故障处理人',
+        help_text='用于填写处理故障的本公司内部员工、代维单位处理人员或协调纤芯处理方的具体人员或单位名称'
     )
     
     # 18) 处理状态，为选择型字段，分为处理中、临时恢复、挂起、关闭
