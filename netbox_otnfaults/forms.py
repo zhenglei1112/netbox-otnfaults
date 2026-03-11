@@ -70,7 +70,7 @@ class OtnFaultForm(NetBoxModelForm):
         ('光缆中断补充信息', (
             'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'repair_time', 'timeout',
-            'timeout_reason',
+            'timeout_reason', 'closure_time',
         )),
         ('供电故障补充信息', (
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
@@ -93,7 +93,7 @@ class OtnFaultForm(NetBoxModelForm):
             'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
-            'timeout_reason',
+            'timeout_reason', 'closure_time',
             # 供电故障补充信息组字段
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
             # 其他字段
@@ -106,6 +106,7 @@ class OtnFaultForm(NetBoxModelForm):
             'departure_time': DateTimePicker(),
             'arrival_time': DateTimePicker(),
             'repair_time': DateTimePicker(),
+            'closure_time': DateTimePicker(),
             'fault_details': forms.Textarea(attrs={'rows': 5}),
             'timeout_reason': forms.TextInput(),
         }
@@ -449,7 +450,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         FieldSet(
             'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'timeout',
-            'timeout_reason', 'comments',
+            'timeout_reason', 'closure_time', 'comments',
             name='光缆中断补充信息'
         ),
         FieldSet(

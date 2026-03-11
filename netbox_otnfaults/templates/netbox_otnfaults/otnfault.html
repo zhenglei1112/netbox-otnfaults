@@ -276,6 +276,10 @@
           <th scope="row">超时原因</th>
           <td>{{ object.timeout_reason|default:"—" }}</td>
         </tr>
+        <tr>
+          <th scope="row">封包时间</th>
+          <td>{{ object.closure_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
       </table>
     </div>
   </div>

@@ -582,13 +582,19 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     )
     
     # 20) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
-    # 20) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
     recovery_mode = models.CharField(
         max_length=30,
         choices=RecoveryModeChoices,
         blank=True,
         null=True,
         verbose_name='恢复方式'
+    )
+    
+    # 21) 封包时间，格式为2024/11/17  10:23:34
+    closure_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='封包时间'
     )
     
     # 供电故障补充信息
