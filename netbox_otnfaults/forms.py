@@ -561,7 +561,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='代维/租赁合同',
         query_params={
-            'service_provider_id': '$handling_unit',
+            'external_party_object': '$handling_unit',
         }
     )
     fault_category = forms.ChoiceField(
