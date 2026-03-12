@@ -126,7 +126,7 @@ class CircuitServiceFilterSet(NetBoxModelFilterSet):
     """电路业务过滤器"""
     class Meta:
         model = CircuitService
-        fields = ('id', 'name', 'slug', 'service_group', 'bandwidth')
+        fields = ('id', 'name', 'slug', 'service_group', 'bandwidth', 'business_manager')
 
     def search(self, queryset, name, value):
         if not value.strip():

@@ -39,6 +39,24 @@
                             {% endif %}
                         </td>
                     </tr>
+                    <tr>
+                        <th scope="row">业务主管</th>
+                        <td>
+                            {% if object.business_manager %}
+                                {{ object.business_manager.last_name }}{{ object.business_manager.first_name }} ({{ object.business_manager.username }})
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">计费起始时间</th>
+                        <td>{{ object.billing_start_time|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">计费结束时间</th>
+                        <td>{{ object.billing_end_time|default:"—" }}</td>
+                    </tr>
                 </table>
         </div>
         {% include 'inc/panels/tags.html' %}

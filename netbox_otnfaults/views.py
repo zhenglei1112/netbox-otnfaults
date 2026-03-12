@@ -1139,6 +1139,7 @@ class CircuitServiceEditView(generic.ObjectEditView):
     """电路业务编辑视图"""
     queryset = CircuitService.objects.all()
     form = CircuitServiceForm
+    template_name = 'netbox_otnfaults/circuitservice_edit.html'
 
 class CircuitServiceDeleteView(generic.ObjectDeleteView):
     """电路业务删除视图"""

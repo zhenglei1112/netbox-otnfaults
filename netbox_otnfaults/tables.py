@@ -365,6 +365,18 @@ class CircuitServiceTable(NetBoxTable):
     bandwidth = columns.ChoiceFieldColumn(
         verbose_name='带宽'
     )
+    business_manager = tables.Column(
+        linkify=True,
+        verbose_name='业务主管'
+    )
+    billing_start_time = tables.DateColumn(
+        format='Y-m-d',
+        verbose_name='计费起始时间'
+    )
+    billing_end_time = tables.DateColumn(
+        format='Y-m-d',
+        verbose_name='计费结束时间'
+    )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:circuitservice_list'
     )
@@ -372,9 +384,9 @@ class CircuitServiceTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CircuitService
         fields = (
-            'pk', 'name', 'slug', 'service_group', 'bandwidth', 'tags', 'actions',
+            'pk', 'name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
         )
         default_columns = (
-            'name', 'slug', 'service_group', 'bandwidth', 'tags',
+            'name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time', 'tags',
         )
 

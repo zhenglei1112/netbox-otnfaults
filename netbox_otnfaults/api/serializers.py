@@ -205,9 +205,12 @@ class BareFiberServiceSerializer(NetBoxModelSerializer):
 
 class CircuitServiceSerializer(NetBoxModelSerializer):
     """电路业务序列化器"""
+    business_manager = NestedUserSerializer(required=False)
+
     class Meta:
         model = CircuitService
         fields = (
             'id', 'url', 'display', 'name', 'slug', 'service_group', 'bandwidth',
+            'business_manager', 'billing_start_time', 'billing_end_time',
             'comments', 'tags', 'custom_fields', 'created', 'last_updated',
         )

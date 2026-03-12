@@ -1010,20 +1010,41 @@ class BareFiberServiceBulkEditForm(NetBoxModelBulkEditForm):
 
 class CircuitServiceForm(NetBoxModelForm):
     """电路业务编辑表单"""
+    business_manager = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='业务主管'
+    )
     comments = CommentField(
         label='评论',
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
     )
 
+    fieldsets = (
+        FieldSet('name', 'slug', 'service_group', 'bandwidth', 'business_manager', name='电路业务'),
+        FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
+        FieldSet('tags', name='其他'),
+    )
+
     class Meta:
         model = CircuitService
-        fields = ('name', 'slug', 'service_group', 'bandwidth', 'comments', 'tags')
+        fields = ('name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
+        widgets = {
+            'billing_start_time': DatePicker(),
+            'billing_end_time': DatePicker(),
+        }
 
 
 class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
     """电路业务过滤表单"""
     model = CircuitService
     tag = TagFilterField(CircuitService)
+
+    fieldsets = (
+        FieldSet('q', 'filter_id', 'tag'),
+        FieldSet('service_group', 'bandwidth', 'business_manager', name='属性'),
+    )
+
     service_group = forms.ChoiceField(
         choices=[('', '---------')] + [(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES],
         required=False,
@@ -1034,13 +1055,25 @@ class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='带宽'
     )
+    business_manager = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='业务主管'
+    )
 
 
 class CircuitServiceImportForm(NetBoxModelImportForm):
     """电路业务导入表单"""
+    business_manager = CSVModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        to_field_name='username',
+        help_text='业务主管用户名'
+    )
+
     class Meta:
         model = CircuitService
-        fields = ('name', 'slug', 'service_group', 'bandwidth', 'comments', 'tags')
+        fields = ('name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
 
 
 class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
@@ -1056,4 +1089,25 @@ class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='带宽'
     )
-    nullable_fields = ('service_group', 'bandwidth')
+    business_manager = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='业务主管'
+    )
+    billing_start_time = forms.DateField(
+        required=False,
+        label='计费起始时间',
+        widget=DatePicker()
+    )
+    billing_end_time = forms.DateField(
+        required=False,
+        label='计费结束时间',
+        widget=DatePicker()
+    )
+
+    fieldsets = (
+        FieldSet('service_group', 'bandwidth', 'business_manager', name='基本信息'),
+        FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
+    )
+
+    nullable_fields = ('service_group', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time')
