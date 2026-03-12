@@ -1094,6 +1094,7 @@ class BareFiberServiceEditView(generic.ObjectEditView):
     """裸纤业务编辑视图"""
     queryset = BareFiberService.objects.all()
     form = BareFiberServiceForm
+    template_name = 'netbox_otnfaults/barefiberservice_edit.html'
 
 class BareFiberServiceDeleteView(generic.ObjectDeleteView):
     """裸纤业务删除视图"""

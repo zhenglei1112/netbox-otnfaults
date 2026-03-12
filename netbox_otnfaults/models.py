@@ -1246,12 +1246,38 @@ class BareFiberService(NetBoxModel):
         blank=True,
         null=True
     )
+    business_manager = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='managed_bare_fiber_services',
+        verbose_name='业务主管',
+        blank=True,
+        null=True
+    )
+    billing_start_time = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name='计费起始时间'
+    )
+    billing_end_time = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name='计费结束时间'
+    )
     tags = taggit.managers.TaggableManager(
         through='extras.TaggedItem',
         to='extras.Tag',
         blank=True
     )
     comments = models.TextField(blank=True, verbose_name='评论')
+
+    def clean(self):
+        super().clean()
+        if self.billing_start_time and self.billing_end_time:
+            if self.billing_end_time < self.billing_start_time:
+                raise ValidationError({
+                    'billing_end_time': '计费结束时间需晚于计费起始时间'
+                })
 
     class Meta:
         ordering = ('name',)

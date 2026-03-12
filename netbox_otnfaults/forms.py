@@ -10,7 +10,7 @@ from .models import (
 from django import forms
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField, TagFilterField
 from utilities.forms.rendering import FieldSet
-from utilities.forms.widgets import DateTimePicker
+from utilities.forms.widgets import DateTimePicker, DatePicker
 from dcim.models import Site, Region
 from tenancy.models import Tenant, TenantGroup
 from django.contrib.auth import get_user_model
@@ -79,7 +79,7 @@ class OtnFaultForm(NetBoxModelForm):
     )
     
     fieldsets = (
-        ('故障信息', (
+        FieldSet(
             'urgency', 'province', 'line_manager',
             'interruption_location_a', 'interruption_location',
             'interruption_latitude', 'interruption_longitude', 'fault_category',
@@ -87,22 +87,24 @@ class OtnFaultForm(NetBoxModelForm):
             'first_report_source', 'duty_officer',
             'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
             'handler', 'fault_details', 'fault_status',
-        )),
-        ('光缆中断补充信息', (
+            name='故障信息'
+        ),
+        FieldSet(
             'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'repair_time', 'timeout',
             'timeout_reason', 'closure_time',
-        )),
-        ('供电故障补充信息', (
+            name='光缆中断补充信息'
+        ),
+        FieldSet(
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
-        )),
-        ('故障复核', (
+            name='供电故障补充信息'
+        ),
+        FieldSet(
             'manager_reviewed', 'manager_reviewer', 'manager_review_time',
             'noc_reviewed', 'noc_reviewer', 'noc_review_time',
-        )),
-        (None, (
-            'comments', 'tags',
-        )),
+            name='故障复核'
+        ),
+        FieldSet('comments', 'tags', name='其他'),
     )
 
     class Meta:
@@ -913,32 +915,65 @@ class BareFiberServiceForm(NetBoxModelForm):
         required=False,
         label='租户组'
     )
+    business_manager = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='业务主管'
+    )
     comments = CommentField(
         label='评论',
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
     )
 
+    fieldsets = (
+        FieldSet('name', 'slug', 'tenant_group', 'business_manager', name='裸纤业务'),
+        FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
+        FieldSet('tags', name='其他'),
+    )
+
     class Meta:
         model = BareFiberService
-        fields = ('name', 'slug', 'tenant_group', 'comments', 'tags')
+        fields = ('name', 'slug', 'tenant_group', 'business_manager', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
+        widgets = {
+            'billing_start_time': DatePicker(),
+            'billing_end_time': DatePicker(),
+        }
 
 
 class BareFiberServiceFilterForm(NetBoxModelFilterSetForm):
     """裸纤业务过滤表单"""
     model = BareFiberService
     tag = TagFilterField(BareFiberService)
+    
+    fieldsets = (
+        FieldSet('q', 'filter_id', 'tag'),
+        FieldSet('tenant_group', 'business_manager', name='属性'),
+    )
+    
     tenant_group = DynamicModelChoiceField(
         queryset=TenantGroup.objects.all(),
         required=False,
         label='租户组'
     )
+    business_manager = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='业务主管'
+    )
 
 
 class BareFiberServiceImportForm(NetBoxModelImportForm):
     """裸纤业务导入表单"""
+    business_manager = CSVModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        to_field_name='username',
+        help_text='业务主管用户名'
+    )
+
     class Meta:
         model = BareFiberService
-        fields = ('name', 'slug', 'tenant_group', 'comments', 'tags')
+        fields = ('name', 'slug', 'tenant_group', 'business_manager', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
 
 
 class BareFiberServiceBulkEditForm(NetBoxModelBulkEditForm):
@@ -949,7 +984,28 @@ class BareFiberServiceBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='租户组'
     )
-    nullable_fields = ('tenant_group',)
+    business_manager = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='业务主管'
+    )
+    billing_start_time = forms.DateField(
+        required=False,
+        label='计费起始时间',
+        widget=DatePicker()
+    )
+    billing_end_time = forms.DateField(
+        required=False,
+        label='计费结束时间',
+        widget=DatePicker()
+    )
+
+    fieldsets = (
+        FieldSet('tenant_group', 'business_manager', name='基本信息'),
+        FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
+    )
+
+    nullable_fields = ('tenant_group', 'business_manager', 'billing_start_time', 'billing_end_time')
 
 
 class CircuitServiceForm(NetBoxModelForm):

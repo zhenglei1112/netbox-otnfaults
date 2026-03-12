@@ -25,6 +25,18 @@
                             {% endif %}
                         </td>
                     </tr>
+                    <tr>
+                        <th scope="row">业务主管</th>
+                        <td>{{ object.business_manager|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">计费起始时间</th>
+                        <td>{{ object.billing_start_time|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">计费结束时间</th>
+                        <td>{{ object.billing_end_time|default:"—" }}</td>
+                    </tr>
                 </table>
         </div>
         {% include 'inc/panels/tags.html' %}

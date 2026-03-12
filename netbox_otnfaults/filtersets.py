@@ -140,7 +140,7 @@ class BareFiberServiceFilterSet(NetBoxModelFilterSet):
     """裸纤业务过滤器"""
     class Meta:
         model = BareFiberService
-        fields = ('id', 'name', 'slug', 'tenant_group')
+        fields = ('id', 'name', 'slug', 'tenant_group', 'business_manager')
 
     def search(self, queryset, name, value):
         if not value.strip():

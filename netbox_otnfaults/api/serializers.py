@@ -192,10 +192,13 @@ class OtnPathGroupSiteSerializer(NetBoxModelSerializer):
 
 class BareFiberServiceSerializer(NetBoxModelSerializer):
     """裸纤业务序列化器"""
+    business_manager = NestedUserSerializer(required=False)
+    
     class Meta:
         model = BareFiberService
         fields = (
             'id', 'url', 'display', 'name', 'slug', 'tenant_group',
+            'business_manager', 'billing_start_time', 'billing_end_time',
             'comments', 'tags', 'custom_fields', 'created', 'last_updated',
         )
 

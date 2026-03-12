@@ -324,6 +324,18 @@ class BareFiberServiceTable(NetBoxTable):
         linkify=True,
         verbose_name='租户组'
     )
+    business_manager = tables.Column(
+        linkify=True,
+        verbose_name='业务主管'
+    )
+    billing_start_time = tables.DateColumn(
+        format='Y-m-d',
+        verbose_name='计费起始时间'
+    )
+    billing_end_time = tables.DateColumn(
+        format='Y-m-d',
+        verbose_name='计费结束时间'
+    )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:barefiberservice_list'
     )
@@ -331,10 +343,10 @@ class BareFiberServiceTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = BareFiberService
         fields = (
-            'pk', 'name', 'slug', 'tenant_group', 'tags', 'actions',
+            'pk', 'name', 'slug', 'tenant_group', 'business_manager', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
         )
         default_columns = (
-            'name', 'slug', 'tenant_group', 'tags',
+            'name', 'slug', 'tenant_group', 'business_manager', 'billing_start_time', 'billing_end_time', 'tags',
         )
 
 
