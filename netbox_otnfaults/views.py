@@ -1090,6 +1090,104 @@ class BareFiberServiceView(generic.ObjectView):
     """裸纤业务详情视图"""
     queryset = BareFiberService.objects.all()
 
+    def get_extra_context(self, request, instance):
+        # 获取每页数量，默认25
+        per_page = request.GET.get('per_page', 25)
+        try:
+            per_page = int(per_page)
+        except ValueError:
+            per_page = 25
+
+        # 时间过滤
+        time_filter = request.GET.get('time_filter', 'all')
+        now = timezone.now()
+        qs = instance.fault_impacts.all()
+        
+        if time_filter == 'this_week':
+            # 本周一 00:00:00
+            start_of_week = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+            qs = qs.filter(service_interruption_time__gte=start_of_week)
+        elif time_filter == 'this_month':
+            # 本月1日 00:00:00
+            start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            qs = qs.filter(service_interruption_time__gte=start_of_month)
+        elif time_filter == 'this_year':
+            # 本年1月1日 00:00:00
+            start_of_year = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            qs = qs.filter(service_interruption_time__gte=start_of_year)
+        elif time_filter == 'last_7_days':
+            qs = qs.filter(service_interruption_time__gte=now - timedelta(days=7))
+        elif time_filter == 'last_30_days':
+            qs = qs.filter(service_interruption_time__gte=now - timedelta(days=30))
+
+        # 统计数据
+        fault_count = qs.count()
+        total_seconds = 0
+        recovered_count = 0
+        
+        for impact in qs:
+            if impact.service_interruption_time and impact.service_recovery_time:
+                duration = impact.service_recovery_time - impact.service_interruption_time
+                total_seconds += duration.total_seconds()
+                recovered_count += 1
+                
+        total_duration_hours = total_seconds / 3600
+        avg_duration_hours = (total_seconds / recovered_count / 3600) if recovered_count > 0 else 0
+
+        # 本月SLA统计
+        import calendar
+        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        _, last_day = calendar.monthrange(now.year, now.month)
+        end_of_month = now.replace(day=last_day, hour=23, minute=59, second=59, microsecond=999999)
+        
+        # 计算本月总秒数
+        month_total_seconds = (end_of_month - start_of_month).total_seconds()
+        
+        # 获取本月内的所有影响记录
+        month_qs = instance.fault_impacts.filter(
+            service_interruption_time__lt=end_of_month,
+            service_recovery_time__gt=start_of_month
+        )
+        
+        month_fault_seconds = 0
+        for impact in month_qs:
+            if impact.service_interruption_time and impact.service_recovery_time:
+                # 只计算在本月内的时长重叠部分
+                overlap_start = max(impact.service_interruption_time, start_of_month)
+                overlap_end = min(impact.service_recovery_time, end_of_month)
+                if overlap_end > overlap_start:
+                    month_fault_seconds += (overlap_end - overlap_start).total_seconds()
+        
+        sla_this_month = ((month_total_seconds - month_fault_seconds) / month_total_seconds * 100) if month_total_seconds > 0 else 100
+        sla_this_month = max(0, min(100, sla_this_month)) # 限制在0-100之间
+
+        # 显示该裸纤业务关联的所有故障影响业务记录
+        fault_impacts_table = OtnFaultImpactTable(qs)
+        # 排除复选框和操作按钮列，使表格只读
+        if 'pk' in fault_impacts_table.columns:
+            fault_impacts_table.columns.hide('pk')
+        if 'actions' in fault_impacts_table.columns:
+            fault_impacts_table.columns.hide('actions')
+            
+        # 配置分页（使用独立的页码参数 `fault_impacts_page` 或默认 `page`）
+        page = request.GET.get('page', 1)
+        try:
+            page = int(page)
+        except ValueError:
+            page = 1
+            
+        fault_impacts_table.paginate(page=page, per_page=per_page)
+        
+        return {
+            'fault_impacts_table': fault_impacts_table,
+            'per_page': per_page,
+            'time_filter': time_filter,
+            'fault_count': fault_count,
+            'total_duration_hours': round(total_duration_hours, 2),
+            'avg_duration_hours': round(avg_duration_hours, 2),
+            'sla_this_month': round(sla_this_month, 4),
+        }
+
 class BareFiberServiceEditView(generic.ObjectEditView):
     """裸纤业务编辑视图"""
     queryset = BareFiberService.objects.all()

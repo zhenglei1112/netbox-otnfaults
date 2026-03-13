@@ -1,7 +1,16 @@
 {% extends 'generic/object.html' %}
 {% load i18n %}
+{% load plugins %}
+{% load render_table from django_tables2 %}
 
 {% block content %}
+<style>
+  /* 隐藏django_tables2默认分页 */
+  .fault-impacts-table-container ul.pagination {
+    display: none !important;
+  }
+</style>
+
 <div class="row mb-3">
     <div class="col col-md-6">
         <div class="card">
@@ -42,5 +51,83 @@
         {% include 'inc/panels/tags.html' %}
         {% include 'inc/panels/comments.html' %}
     </div>
+</div>
+
+<div class="row mb-3">
+  <div class="col col-md-12">
+    <div class="card">
+      <h5 class="card-header d-flex align-items-center">
+        <span class="text-nowrap">业务关联的故障信息</span>
+        <div class="flex-grow-1 text-center">
+          <span class="form-text text-primary m-0" style="font-weight: bold; font-size: 12px;">
+            <i class="mdi mdi-clock-outline"></i> 故障数量 {{ fault_count|default:"0" }} 次 ，总故障时长 {{ total_duration_hours|default:"0" }} 小时 ，平均故障时长 {{ avg_duration_hours|default:"0" }} 小时 ，本月SLA {{ sla_this_month|default:"100" }}%
+          </span>
+        </div>
+        
+        <div class="btn-group btn-group-sm" role="group">
+          <a href="?time_filter=all" class="btn btn-ghost-primary {% if time_filter == 'all' or not time_filter %}active{% endif %}">全部</a>
+          <a href="?time_filter=this_week" class="btn btn-ghost-primary {% if time_filter == 'this_week' %}active{% endif %}">本周</a>
+          <a href="?time_filter=this_month" class="btn btn-ghost-primary {% if time_filter == 'this_month' %}active{% endif %}">本月</a>
+          <a href="?time_filter=this_year" class="btn btn-ghost-primary {% if time_filter == 'this_year' %}active{% endif %}">本年</a>
+          <a href="?time_filter=last_7_days" class="btn btn-ghost-primary {% if time_filter == 'last_7_days' %}active{% endif %}">过去七天</a>
+          <a href="?time_filter=last_30_days" class="btn btn-ghost-primary {% if time_filter == 'last_30_days' %}active{% endif %}">过去一个月</a>
+        </div>
+      </h5>
+      
+      <div class="fault-impacts-table-container">{% render_table fault_impacts_table %}</div>
+      
+      {% if fault_impacts_table.page %}
+      <div class="card-footer d-flex justify-content-between align-items-center noprint">
+        <nav aria-label="分页">
+          <ul class="pagination pagination-sm mb-0">
+            {% if fault_impacts_table.page.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?time_filter={{ time_filter }}&page={{ fault_impacts_table.page.previous_page_number }}&per_page={{ per_page }}">&lsaquo;</a>
+            </li>
+            {% endif %}
+            
+            {% for num in fault_impacts_table.paginator.page_range %}
+              {% if num == fault_impacts_table.page.number %}
+              <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+              </li>
+              {% elif num == 1 or num == fault_impacts_table.paginator.num_pages or num >= fault_impacts_table.page.number|add:"-2" and num <= fault_impacts_table.page.number|add:"2" %}
+              <li class="page-item">
+                <a class="page-link" href="?time_filter={{ time_filter }}&page={{ num }}&per_page={{ per_page }}">{{ num }}</a>
+              </li>
+              {% elif num == fault_impacts_table.page.number|add:"-3" or num == fault_impacts_table.page.number|add:"3" %}
+              <li class="page-item disabled">
+                <span class="page-link">...</span>
+              </li>
+              {% endif %}
+            {% endfor %}
+            
+            {% if fault_impacts_table.page.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?time_filter={{ time_filter }}&page={{ fault_impacts_table.page.next_page_number }}&per_page={{ per_page }}">&rsaquo;</a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+        
+        <span class="text-muted small">显示 {{ fault_impacts_table.page.start_index }}-{{ fault_impacts_table.page.end_index }} 共 {{ fault_impacts_table.paginator.count }}</span>
+        
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            每页
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item {% if per_page == 25 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=25">25</a></li>
+            <li><a class="dropdown-item {% if per_page == 50 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=50">50</a></li>
+            <li><a class="dropdown-item {% if per_page == 100 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=100">100</a></li>
+            <li><a class="dropdown-item {% if per_page == 250 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=250">250</a></li>
+            <li><a class="dropdown-item {% if per_page == 500 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=500">500</a></li>
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+      
+    </div>
+  </div>
 </div>
 {% endblock %}
