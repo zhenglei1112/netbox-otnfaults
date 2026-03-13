@@ -80,19 +80,19 @@ class OtnFaultForm(NetBoxModelForm):
     
     fieldsets = (
         FieldSet(
-            'urgency', 'province', 'line_manager',
+            'fault_category', 'urgency', 'province',
             'interruption_location_a', 'interruption_location',
-            'interruption_latitude', 'interruption_longitude', 'fault_category',
+            'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail',
             'first_report_source', 'duty_officer',
             'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
-            'handler', 'fault_details', 'fault_status',
+            'closure_time', 'handler', 'fault_details', 'fault_status',
             name='故障信息'
         ),
         FieldSet(
-            'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
+            'line_manager', 'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'repair_time', 'timeout',
-            'timeout_reason', 'closure_time',
+            'timeout_reason',
             name='光缆中断补充信息'
         ),
         FieldSet(
@@ -111,16 +111,16 @@ class OtnFaultForm(NetBoxModelForm):
         model = OtnFault
         fields = (
             # 故障信息组字段
-            'urgency', 'province', 'interruption_location_a', 'interruption_location',
-            'interruption_latitude', 'interruption_longitude', 'fault_category',
+            'fault_category', 'urgency', 'province', 'interruption_location_a', 'interruption_location',
+            'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 'fault_recovery_time',
-            'first_report_source', 'line_manager', 'duty_officer', 'handler', 'fault_details',
+            'closure_time', 'first_report_source', 'duty_officer', 'handler', 'fault_details',
             'fault_status',
             # 光缆中断补充信息组字段
-            'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
+            'line_manager', 'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
-            'timeout_reason', 'closure_time',
+            'timeout_reason',
             # 供电故障补充信息组字段
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
             # 故障复核信息字段
@@ -503,18 +503,18 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
         FieldSet(
-            'fault_status', 'urgency', 'province', 'line_manager',
+            'fault_category', 'fault_status', 'urgency', 'province',
             'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
-            'fault_category', 'interruption_reason', 'interruption_reason_detail',
+            'interruption_reason', 'interruption_reason_detail',
             'first_report_source', 'duty_officer',
             'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
-            'handler', 'fault_details',
+            'closure_time', 'handler', 'fault_details',
             name='故障信息'
         ),
         FieldSet(
-            'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
+            'line_manager', 'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'timeout',
-            'timeout_reason', 'closure_time', 'comments',
+            'timeout_reason', 'comments',
             name='光缆中断补充信息'
         ),
         FieldSet(

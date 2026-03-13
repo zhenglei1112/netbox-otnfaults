@@ -28,6 +28,16 @@
           <td>{{ object.fault_number|default:"—" }}</td>
         </tr>
         <tr>
+          <th scope="row">故障分类</th>
+          <td>
+            {% if object.fault_category %}
+            {% badge object.get_fault_category_display bg_color=object.get_fault_category_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
           <th scope="row">处理状态</th>
           <td>
             {% if object.fault_status %}
@@ -52,16 +62,6 @@
           <td>
             {% if object.province %}
             <a href="{{ object.province.get_absolute_url }}">{{ object.province }}</a>
-            {% else %}
-            —
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
-          <th scope="row">线路主管</th>
-          <td>
-            {% if object.line_manager %}
-            <a href="{{ object.line_manager.get_absolute_url }}">{{ object.line_manager }}</a>
             {% else %}
             —
             {% endif %}
@@ -107,16 +107,7 @@
             {% endif %}
           </td>
         </tr>
-        <tr>
-          <th scope="row">故障分类</th>
-          <td>
-            {% if object.fault_category %}
-            {% badge object.get_fault_category_display bg_color=object.get_fault_category_color %}
-            {% else %}
-            —
-            {% endif %}
-          </td>
-        </tr>
+
         <tr>
           <th scope="row">一级原因</th>
           <td>{{ object.get_interruption_reason_display|default:"—" }}</td>
@@ -158,6 +149,10 @@
         <tr>
           <th scope="row">故障恢复时间</th>
           <td>{{ object.fault_recovery_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">封包时间</th>
+          <td>{{ object.closure_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
         </tr>
         <tr>
           <th scope="row">故障历时</th>
@@ -218,6 +213,16 @@
     <div class="card">
       <h5 class="card-header">光缆中断补充信息</h5>
       <table class="table table-hover attr-table">
+        <tr>
+          <th scope="row">线路主管</th>
+          <td>
+            {% if object.line_manager %}
+            <a href="{{ object.line_manager.get_absolute_url }}">{{ object.line_manager }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
         <tr>
           <th scope="row">光纤来源</th>
           <td>
@@ -302,10 +307,6 @@
         <tr>
           <th scope="row">超时原因</th>
           <td>{{ object.timeout_reason|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">封包时间</th>
-          <td>{{ object.closure_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
         </tr>
       </table>
     </div>

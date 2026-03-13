@@ -10,15 +10,15 @@
         {% if form.fault_number_display %}
         {% render_field form.fault_number_display %}
         {% endif %}
+        {% render_field form.fault_category %}
         {% render_field form.fault_status %}
         {% render_field form.urgency %}
         {% render_field form.province %}
-        {% render_field form.line_manager %}
         {% render_field form.interruption_location_a %}
         {% render_field form.interruption_location %}
         {% render_field form.interruption_latitude %}
         {% render_field form.interruption_longitude %}
-        {% render_field form.fault_category %}
+
         {% render_field form.interruption_reason %}
         {% render_field form.interruption_reason_detail %}
         {% render_field form.first_report_source %}
@@ -28,6 +28,7 @@
         {% render_field form.departure_time %}
         {% render_field form.arrival_time %}
         {% render_field form.fault_recovery_time %}
+        {% render_field form.closure_time %}
         {% render_field form.handler %}
         {% render_field form.fault_details %}
     </div>
@@ -38,6 +39,7 @@
         <h2 class="col-9 offset-3 mb-0">光缆中断补充信息</h2>
     </div>
     <div class="row">
+        {% render_field form.line_manager %}
         {% render_field form.resource_type %}
         {% render_field form.cable_route %}
         {% render_field form.cable_break_location %}
@@ -47,7 +49,6 @@
         {% render_field form.contract %}
         {% render_field form.timeout %}
         {% render_field form.timeout_reason %}
-        {% render_field form.closure_time %}
     </div>
 </div>
 
