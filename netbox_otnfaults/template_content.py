@@ -1,6 +1,8 @@
 from netbox.plugins import PluginTemplateExtension
 from .models import OtnPath, OtnFault
 from django.db.models import Q
+from .tables import OtnFaultTable, ContractOtnFaultTable
+from django_tables2.config import RequestConfig
 
 class SiteOtnPaths(PluginTemplateExtension):
     """
@@ -42,4 +44,34 @@ class SiteOtnFaults(PluginTemplateExtension):
             'site_id': obj.pk,
         })
 
-template_extensions = [SiteOtnPaths, SiteOtnFaults]
+
+class ContractOtnFaults(PluginTemplateExtension):
+    """
+    在外购合同详情页注入关联的故障列表。
+    通过 right_page 方法在右侧面板显示。
+    """
+    models = ['netbox_contract.contract']
+    
+    def right_page(self):
+        obj = self.context['object']
+        request = self.context['request']
+        
+        # 获取关联该合同的故障
+        faults_qs = OtnFault.objects.filter(contract=obj).prefetch_related(
+            'interruption_location_a', 'interruption_location', 'tags'
+        )
+        faults_count = faults_qs.count()
+        
+        # 实例化表格
+        faults_table = ContractOtnFaultTable(faults_qs)
+        
+        # 为表格指定前缀以区分参数冲突（虽然现在不分页了，但保留前缀是好习惯）
+        faults_table.prefix = 'faults_'
+        
+        return self.render('netbox_otnfaults/inc/contract_otn_faults.html', extra_context={
+            'faults_table': faults_table,
+            'faults_count': faults_count,
+            'contract_id': obj.pk,
+        })
+
+template_extensions = [SiteOtnPaths, SiteOtnFaults, ContractOtnFaults]

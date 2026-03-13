@@ -1162,12 +1162,14 @@ class OtnPathGroupSite(NetBoxModel):
 class CableTypeChoices(ChoiceSet):
     key = 'OtnPath.cable_type'
 
-    TYPE_96 = '96'
-    TYPE_114 = '114'
+    SELF_BUILT = 'self_built'
+    COORDINATED = 'coordinated'
+    LEASED = 'leased'
 
     CHOICES = [
-        (TYPE_96, '96芯', 'blue'),
-        (TYPE_114, '144芯', 'green'),
+        (SELF_BUILT, '自建', 'green'),
+        (COORDINATED, '协调', 'blue'),
+        (LEASED, '租赁', 'purple'),
     ]
 
 

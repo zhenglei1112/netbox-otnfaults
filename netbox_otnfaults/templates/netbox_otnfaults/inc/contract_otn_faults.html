@@ -1,0 +1,10 @@
+<div class="card mb-4" id="contract_otn_faults">
+    <h5 class="card-header">关联故障</h5>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            {% load render_table from django_tables2 %}
+            {% render_table faults_table %}
+        </div>
+    </div>
+</div>
+

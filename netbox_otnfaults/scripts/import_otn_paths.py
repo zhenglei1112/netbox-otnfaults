@@ -209,7 +209,11 @@ class ImportOtnPaths(Script):
                         else:
                             length_m += math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
 
-                    cable_type_choice = random.choice([CableTypeChoices.TYPE_96, CableTypeChoices.TYPE_114])
+                    cable_type_choice = random.choice([
+                        CableTypeChoices.SELF_BUILT,
+                        CableTypeChoices.COORDINATED,
+                        CableTypeChoices.LEASED
+                    ])
 
                     otn_path = OtnPath(
                         name=path_name,

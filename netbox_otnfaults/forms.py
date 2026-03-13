@@ -748,6 +748,9 @@ class OtnPathForm(NetBoxModelForm):
             'name', 'cable_type', 'site_a', 'site_z', 'geometry',
             'calculated_length', 'description', 'comments', 'tags',
         )
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 2}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -824,7 +827,7 @@ class OtnPathBulkEditForm(NetBoxModelBulkEditForm):
     )
     description = forms.CharField(
         required=False,
-        widget=forms.Textarea,
+        widget=forms.Textarea(attrs={'rows': 2}),
         label='描述'
     )
     comments = CommentField(

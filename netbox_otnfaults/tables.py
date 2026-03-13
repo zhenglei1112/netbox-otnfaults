@@ -149,6 +149,75 @@ class OtnFaultTable(NetBoxTable):
             info['display']
         )
 
+class ContractOtnFaultTable(NetBoxTable):
+    """用于在合同详情页精简显示的故障表格"""
+    fault_number = tables.Column(
+        linkify=True,
+        verbose_name='故障编号'
+    )
+    duty_officer = tables.Column(
+        linkify=True,
+        verbose_name='值守人员'
+    )
+    fault_occurrence_time = tables.DateTimeColumn(
+        format='Y-m-d H:i:s',
+        verbose_name='故障中断时间'
+    )
+    fault_category = columns.ChoiceFieldColumn(
+        verbose_name='故障分类'
+    )
+    urgency = columns.ChoiceFieldColumn(
+        verbose_name='紧急程度'
+    )
+    fault_status = columns.ChoiceFieldColumn(
+        verbose_name='处理状态'
+    )
+    fault_duration = tables.Column(
+        verbose_name='故障历时',
+        orderable=False
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = OtnFault
+        fields = (
+            'pk', 'fault_number', 'duty_officer', 'fault_occurrence_time',
+            'fault_category', 'urgency', 'fault_status', 'fault_duration',
+        )
+        default_columns = (
+            'fault_number', 'duty_officer', 'fault_occurrence_time',
+            'fault_category', 'urgency', 'fault_status', 'fault_duration',
+        )
+
+    def render_fault_duration(self, record):
+        """复用故障历时渲染逻辑"""
+        info = record.fault_duration_info
+        if not info:
+            return '—'
+        
+        color_map = {
+            'green': 'linear-gradient(90deg, #28a745, #34ce57)',
+            'yellow': 'linear-gradient(90deg, #ffc107, #ffda47)',
+            'orange': 'linear-gradient(90deg, #fd7e14, #ff9636)',
+            'red': 'linear-gradient(90deg, #dc3545, #f34b5b)',
+        }
+        fill_bg = color_map.get(info['color'], color_map['green'])
+        
+        from django.utils.html import format_html
+        return format_html(
+            '<div style="position:relative;width:120px;height:22px;background:#e9ecef;'
+            'border-radius:4px;overflow:hidden;display:inline-block" title="{}">'
+            '<div style="position:absolute;left:0;top:0;bottom:0;width:{}%;'
+            'border-radius:4px;background:{}"></div>'
+            '<span style="position:absolute;width:100%;text-align:center;'
+            'font-size:12px;font-weight:500;line-height:22px;color:#333;'
+            'text-shadow:0 0 2px rgba(255,255,255,0.8)">{}</span>'
+            '</div>',
+            info['full_text'],
+            info['percentage'],
+            fill_bg,
+            info['display']
+        )
+
 class OtnFaultImpactTable(NetBoxTable):
     otn_fault = tables.Column(
         linkify=True,
