@@ -1,4 +1,4 @@
-﻿{% extends 'generic/object.html' %}
+{% extends 'generic/object.html' %}
 {% load plugins %}
 {% load render_table from django_tables2 %}
 
@@ -37,11 +37,11 @@
         </tr>
         <tr>
           <th scope="row">缩写</th>
-          <td>{{ object.slug }}</td>
+          <td>{{ object.slug|default:"—" }}</td>
         </tr>
         <tr>
           <th scope="row">描述</th>
-          <td>{{ object.description|default:"" }}</td>
+          <td>{{ object.description|default:"—" }}</td>
         </tr>
       </table>
     </div>
@@ -301,7 +301,7 @@
 
 {% block javascript %}
 <script>
-const pathGroupId = {{ object.pk }};
+const pathGroupId = {{ object.pk|default:"null" }};
 
 function getCSRFToken() {
   const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));

@@ -201,7 +201,7 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             # 直接获取标准配置即可，不再进行遍历全部选项以及拆解英文的复杂向后兼容推测
             reason_display = fault.get_interruption_reason_display()
             if not reason_display or reason_display == fault.interruption_reason:
-                reason_display = '-'
+                reason_display = '—'
 
             marker_data.append({
                 'lat': lat,
@@ -228,13 +228,13 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
                 'reason': reason_display,
                 'fault_details': fault.fault_details or '无详细描述',
                 'process': fault.fault_details or '无处理过程',
-                'resource_type': fault.get_resource_type_display() or '-',
-                'cable_route': fault.get_cable_route_display() or '-',
-                'cable_break_location': fault.get_cable_break_location_display() or '-',
-                'recovery_mode': fault.get_recovery_mode_display() or '-',
-                'maintenance_mode': fault.get_maintenance_mode_display() or '-',
-                'handling_unit': fault.handling_unit.name if fault.handling_unit else '-',
-                'handler': fault.handler or '-',
+                'resource_type': fault.get_resource_type_display() or '—',
+                'cable_route': fault.get_cable_route_display() or '—',
+                'cable_break_location': fault.get_cable_break_location_display() or '—',
+                'recovery_mode': fault.get_recovery_mode_display() or '—',
+                'maintenance_mode': fault.get_maintenance_mode_display() or '—',
+                'handling_unit': fault.handling_unit.name if fault.handling_unit else '—',
+                'handler': fault.handler or '—',
                 'images': [{'name': img.name, 'url': img.image.url} for img in fault.images.all()] if hasattr(fault, 'images') else [],
                 'has_images': fault.images.exists() if hasattr(fault, 'images') else False,
                 'image_count': fault.images.count() if hasattr(fault, 'images') else 0

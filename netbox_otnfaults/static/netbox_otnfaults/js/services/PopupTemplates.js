@@ -29,7 +29,7 @@ class PopupTemplates {
           .map((impact) => {
             const durationText = impact.duration_hours
               ? `${impact.duration_hours}小时`
-              : "-";
+              : "—";
             return `<div class="popup-impact-item"><span class="popup-impact-name">${impact.name}</span><span class="popup-impact-duration">${durationText}</span></div>`;
           })
           .join("");

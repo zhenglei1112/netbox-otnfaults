@@ -334,7 +334,7 @@ window.Panels = (function () {
         el.innerHTML = '<div class="timeline">' +
             steps.map(function (s, i) {
                 var cls = s.time ? 'completed' : (i === lastCompleted + 1 ? 'active' : '');
-                var timeStr = s.time ? new Date(s.time).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '--';
+                var timeStr = s.time ? new Date(s.time).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
                 return '<div class="timeline-item ' + cls + '">' +
                     '<div class="timeline-label">' + s.label + '</div>' +
                     '<div class="timeline-time">' + timeStr + '</div>' +

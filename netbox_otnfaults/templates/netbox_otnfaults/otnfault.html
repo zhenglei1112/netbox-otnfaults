@@ -216,7 +216,7 @@
             {% if object.manager_reviewed %}
             <span class="text-success"><i class="mdi mdi-check-bold"></i></span> ({{ object.manager_reviewer|default:"—" }} 于 {{ object.manager_review_time|date:"Y-m-d H:i:s"|default:"—" }})
             {% else %}
-            <span class="text-secondary"><i class="mdi mdi-minus"></i></span>
+            —
             {% endif %}
           </td>
         </tr>
@@ -226,7 +226,7 @@
             {% if object.noc_reviewed %}
             <span class="text-success"><i class="mdi mdi-check-bold"></i></span> ({{ object.noc_reviewer|default:"—" }} 于 {{ object.noc_review_time|date:"Y-m-d H:i:s"|default:"—" }})
             {% else %}
-            <span class="text-secondary"><i class="mdi mdi-minus"></i></span>
+            —
             {% endif %}
           </td>
         </tr>
