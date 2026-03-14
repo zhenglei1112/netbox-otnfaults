@@ -398,11 +398,11 @@ class BareFiberServiceTable(NetBoxTable):
         verbose_name='业务主管'
     )
     billing_start_time = tables.DateColumn(
-        format='Y-m-d',
+        format='Y年n月j日',
         verbose_name='计费起始时间'
     )
     billing_end_time = tables.DateColumn(
-        format='Y-m-d',
+        format='Y年n月j日',
         verbose_name='计费结束时间'
     )
     tags = columns.TagColumn(
@@ -439,11 +439,11 @@ class CircuitServiceTable(NetBoxTable):
         verbose_name='业务主管'
     )
     billing_start_time = tables.DateColumn(
-        format='Y-m-d',
+        format='Y年n月j日',
         verbose_name='计费起始时间'
     )
     billing_end_time = tables.DateColumn(
-        format='Y-m-d',
+        format='Y年n月j日',
         verbose_name='计费结束时间'
     )
     tags = columns.TagColumn(

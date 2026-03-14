@@ -40,11 +40,11 @@
                     </tr>
                     <tr>
                         <th scope="row">计费起始时间</th>
-                        <td>{{ object.billing_start_time|default:"—" }}</td>
+                        <td>{{ object.billing_start_time|date:"Y年n月j日"|default:"—" }}</td>
                     </tr>
                     <tr>
                         <th scope="row">计费结束时间</th>
-                        <td>{{ object.billing_end_time|default:"—" }}</td>
+                        <td>{{ object.billing_end_time|date:"Y年n月j日"|default:"—" }}</td>
                     </tr>
                 </table>
         </div>
@@ -65,12 +65,12 @@
         </div>
         
         <div class="btn-group btn-group-sm" role="group">
-          <a href="?time_filter=all" class="btn btn-ghost-primary {% if time_filter == 'all' or not time_filter %}active{% endif %}">全部</a>
-          <a href="?time_filter=this_week" class="btn btn-ghost-primary {% if time_filter == 'this_week' %}active{% endif %}">本周</a>
-          <a href="?time_filter=this_month" class="btn btn-ghost-primary {% if time_filter == 'this_month' %}active{% endif %}">本月</a>
-          <a href="?time_filter=this_year" class="btn btn-ghost-primary {% if time_filter == 'this_year' %}active{% endif %}">本年</a>
-          <a href="?time_filter=last_7_days" class="btn btn-ghost-primary {% if time_filter == 'last_7_days' %}active{% endif %}">过去七天</a>
-          <a href="?time_filter=last_30_days" class="btn btn-ghost-primary {% if time_filter == 'last_30_days' %}active{% endif %}">过去一个月</a>
+          <a href="?time_filter=all" class="btn btn-outline-primary {% if time_filter == 'all' or not time_filter %}active{% endif %}">全部</a>
+          <a href="?time_filter=this_week" class="btn btn-outline-primary {% if time_filter == 'this_week' %}active{% endif %}">本周</a>
+          <a href="?time_filter=this_month" class="btn btn-outline-primary {% if time_filter == 'this_month' %}active{% endif %}">本月</a>
+          <a href="?time_filter=this_year" class="btn btn-outline-primary {% if time_filter == 'this_year' %}active{% endif %}">本年</a>
+          <a href="?time_filter=last_7_days" class="btn btn-outline-primary {% if time_filter == 'last_7_days' %}active{% endif %}">过去七天</a>
+          <a href="?time_filter=last_30_days" class="btn btn-outline-primary {% if time_filter == 'last_30_days' %}active{% endif %}">过去一个月</a>
         </div>
       </h5>
       
