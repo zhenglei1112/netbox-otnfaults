@@ -1,37 +1,33 @@
-# 故障类型英转中映射脚本实施计划
+# Netbox OTN 可视化插件 - 故障详情页时间轴视图实现计划
 
-## 1. 需求分析
-用户需要编写一个NetBox自定义脚本，将系统中历史存在的英文故障类型（`power`, `device`, `fiber`, `other`, `pigtail`）映射并更新为现有的中文故障类型对应的系统内部标识（Choices）。
+## 1. 需求说明
+将故障详情页内的 5 个关键时间字段（故障中断、处理派发、维修出发、到达现场、故障恢复）按照提供的设计图样式转换为顶部的水平时间轴节点视图，并在时间轴上方显示故障发生日期和总处理时长。节点之间需要显示各阶段的耗时。
 
-现有中文选项定义（位于 `models.py` 的 `FaultCategoryChoices`）：
-- `fiber_break`: 光缆中断
-- `ac_fault`: 空调故障
-- `fiber_degradation`: 光缆劣化
-- `fiber_jitter`: 光缆抖动
-- `device_fault`: 设备故障
-- `power_fault`: 供电故障
+## 2. 设计与实现步骤
 
-根据既往逻辑（如 `weekly_fault_report.py` 中遗留的映射逻辑）：
-- `power` -> `power_fault` (供电故障)
-- `device` -> `device_fault` (设备故障)
-- `fiber` -> `fiber_break` (光缆故障/中断)
-- `pigtail` -> `ac_fault` (在历史代码中pigtail映射为空调故障)
-- `other` -> 现有无“其他”分类，将其置空 (`None`) 或保留，这里考虑将其置空。
+### 第 1 步：模型方法扩展 (netbox_otnfaults/models.py)
+在 `OtnFault` 模型中新增一个方法或属性（如 `timeline_steps` 和一段通用的时长计算方法），返回构造时间轴所需的数据字典：
+- **阶段状态与时间**：
+  1. 故障中断 (`fault_occurrence_time`)
+  2. 处理派发 (`dispatch_time`)
+  3. 维修出发 (`departure_time`)
+  4. 到达现场 (`arrival_time`)
+  5. 故障恢复 (`fault_recovery_time`)
+- **耗时计算**：提取相邻两个存在的时间戳作差，格式化为 `X分Y秒` 或是 `X天Y小时Z分W秒` 的短格式文本。如果某个时间未填写，则后续耗时显示空白或隐藏。
+- **总耗时**：计算 `fault_occurrence_time` 到 `fault_recovery_time` 的差值。
 
-## 2. 实施方案
-### 2.1 编写修复脚本
-在 `netbox_otnfaults/scripts/` 目录下创建新脚本 `update_fault_types.py`。
-该脚本继承自 `Script`（NetBox 自定义脚本标准）。
-脚本执行时：
-1. 遍历所有 `OtnFault` 数据。
-2. 检查 `fault_category` 字段。
-3. 如果满足旧的英文名称，则修改为对应的标准Choice关键字，并记录日志。
-4. 使用 `commit` 变量控制是否真正保存到数据库。
+### 第 2 步：完善模板展示 (netbox_otnfaults/templates/netbox_otnfaults/otnfault.html)
+- 在页面的 `{% block content %}` 顶部（2列布局之前）创建一个新的排版区域（全宽的 `card` 或无边框容器）。
+- 利用自定义 CSS（甚至直接写在 `<style>` 标签或模板内部）重现原图中的深色底框、各彩色的发光节点圆圈、渐变连线及时间文本。
+- 将原来的以 `table` 行显示的那几个时间（如故障中断时间到封包时间的表格行）或者保留封包时间，但去除前 5 个基础时间点的表格行以避免信息重复。
 
-### 2.2 修复 `weekly_fault_report.py`（附带）
-原本的报表代码里硬编码了 `power`, `fiber` 等关键字，故障类型迁移后，相关的 `get_top_power_fault_sites` 等方法中的判定需要改为新的标准字典，保证报表在数据更新后依旧可用。
+### 第 3 步：样式细节开发 (CSS & HTML 结构)
+- 容器背景采用深蓝/黑灰色（近似 `#232734`）。
+- 节点：分为 `red`, `blue`, `cyan`, `green`, `bright-green`。
+- 图标：使用 MDI 字体图标如 `mdi-flash`, `mdi-refresh`, `mdi-truck`, `mdi-map-marker`, `mdi-check`。
+- 采用 Flexbox 布局让节点居中对齐，并在每个节点间加入带有对应颜色渐变的连接线和用时微章。
+- 日期和总时长的药丸形徽章置于容器左上角。
 
-## 3. 任务分解
-1. [x] 撰写实施计划。
-2. [ ] 编写数据迁移修复脚本 `scripts/update_fault_types.py`。
-3. [ ] 修复并调整 `scripts/weekly_fault_report.py` 中的过时映射逻辑。
+## 3. 测试与验证
+1. 在无真实后端数据情况下，可以通过审查浏览器 HTML/CSS 以及运行模板单元验证逻辑。
+2. 添加测试时间数据，验证是否只有 `fault_occurrence_time` 时，后续节点灰色或者无连线时长；完整 5 个时间时的正常展现，时长计算逻辑是否准确无误。

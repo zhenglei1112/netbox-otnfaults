@@ -695,22 +695,28 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     def get_fault_category_color(self):
         return FaultCategoryChoices.colors.get(self.fault_category)
 
-    @property
-    def fault_duration(self):
-        if self.fault_occurrence_time and self.fault_recovery_time:
-            duration = self.fault_recovery_time - self.fault_occurrence_time
+    def _format_duration(self, start, end):
+        if start and end:
+            duration = end - start
             days = duration.days
             seconds = duration.seconds
             hours = seconds // 3600
             minutes = (seconds % 3600) // 60
-            seconds = seconds % 60
+            secs = seconds % 60
             
-            # 计算总小时数（包括天数转换的小时数）
-            total_seconds = duration.total_seconds()
-            total_hours = total_seconds / 3600
+            total_hours = duration.total_seconds() / 3600
             
-            return f"{days}天{hours}小时{minutes}分{seconds}秒（{total_hours:.2f}小时）"
+            return f"{days}天{hours}小时{minutes}分{secs}秒（{total_hours:.2f}小时）"
         return None
+
+    @property
+    def fault_duration(self):
+        return self._format_duration(self.fault_occurrence_time, self.fault_recovery_time)
+
+    @property
+    def processing_duration(self):
+        """处理历时：从处理派发到故障恢复之间的时间"""
+        return self._format_duration(self.dispatch_time, self.fault_recovery_time)
 
     @property
     def fault_duration_info(self):
@@ -766,6 +772,90 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             total_hours = duration.total_seconds() / 3600
             return f"{total_hours:.2f}小时"
         return None
+
+    @property
+    def timeline_data(self):
+        """
+        返回时间轴需要的数据
+        """
+        def format_td(td):
+            if td is None:
+                return ""
+            total_seconds = int(td.total_seconds())
+            if total_seconds < 0:
+                return "0秒"
+            days = total_seconds // 86400
+            hours = (total_seconds % 86400) // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            
+            parts = []
+            if days > 0:
+                parts.append(f"{days}天")
+            if hours > 0:
+                parts.append(f"{hours}小时")
+            if minutes > 0:
+                parts.append(f"{minutes}分")
+            if seconds > 0 or not parts:
+                parts.append(f"{seconds}秒")
+                
+            return "".join(parts)
+
+        # 基础时间点（前5个为必选）
+        times = [
+            self.fault_occurrence_time,
+            self.dispatch_time,
+            self.departure_time,
+            self.arrival_time,
+            self.fault_recovery_time
+        ]
+        labels = ['故障中断', '处理派发', '维修出发', '到达现场', '故障恢复']
+
+        # 仅当故障类型为光纤类时，才在末尾显示封包时间（不参与历时计算）
+        if self.is_fiber_fault:
+            times.append(self.closure_time)
+            labels.append('封包时间')
+        
+        steps = []
+        for i in range(len(times)):
+            t = times[i]
+            active = t is not None
+            
+            # Django 时区处理
+            dt_local = timezone.localtime(t) if t else None
+            time_str = dt_local.strftime('%H:%M:%S') if dt_local else ''
+            
+            # 如果日期与故障发生日期不同，则附加日期（用于跨天显示）
+            if dt_local and self.fault_occurrence_time:
+                occur_local = timezone.localtime(self.fault_occurrence_time)
+                if dt_local.date() != occur_local.date():
+                    time_str += f"\n({dt_local.strftime('%m-%d')})"
+            
+            # 历时计算仅限前 4 个间隔（即截止到“故障恢复”前）
+            duration_to_next = ""
+            if i < 4 and t and times[i+1]:
+                duration_to_next = format_td(times[i+1] - t)
+                
+            steps.append({
+                'label': labels[i],
+                'time': time_str,
+                'active': active,
+                'duration_to_next': duration_to_next,
+                'is_connected_to_next': i < len(times) - 1 and times[i+1] is not None
+            })
+            
+        # 总处理时长 & 日期
+        start_t = self.fault_occurrence_time
+        end_t = self.fault_recovery_time
+        
+        date_str = timezone.localtime(start_t).strftime('%Y-%m-%d') if start_t else ''
+        total_duration = format_td(end_t - start_t) if start_t and end_t else ''
+
+        return {
+            'date': date_str,
+            'total_duration': total_duration,
+            'steps': steps
+        }
 
     def get_urgency_color(self):
         """获取紧急程度的颜色"""

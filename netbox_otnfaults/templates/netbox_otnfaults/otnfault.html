@@ -130,33 +130,6 @@
             {% endif %}
           </td>
         </tr>
-        <tr>
-          <th scope="row">故障中断时间</th>
-          <td>{{ object.fault_occurrence_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">处理派发时间</th>
-          <td>{{ object.dispatch_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">维修出发时间</th>
-          <td>{{ object.departure_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">到达现场时间</th>
-          <td>{{ object.arrival_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">故障恢复时间</th>
-          <td>{{ object.fault_recovery_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">封包时间</th>
-          <td>{{ object.closure_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
-        </tr>
-        <tr>
-          <th scope="row">故障历时</th>
-          <td>{{ object.fault_duration|default:"—" }}</td>
         </tr>
         <tr>
           <th scope="row">故障处理人</th>
@@ -168,8 +141,71 @@
         </tr>
       </table>
     </div>
+
+    <!-- 进度与时长分析 -->
+    <div class="card mb-3">
+      <div class="card-body p-3">
+        <!-- Duration Summary Line -->
+        <div class="d-flex align-items-center justify-content-center mb-3 pb-2 border-bottom">
+          <div class="me-4">
+            <span class="fw-semibold text-muted small me-2">故障历时:</span>
+            <span class="text-dark small">{{ object.fault_duration|default:"—" }}</span>
+          </div>
+          <div>
+            <span class="fw-semibold text-muted small me-2">处理历时:</span>
+            <span class="text-dark small">{{ object.processing_duration|default:"—" }}</span>
+          </div>
+        </div>
+
+        {% with timeline=object.timeline_data %}
+        <!-- Timeline Chart -->
+        <div class="timeline-container py-4" style="position: relative;">
+          <div style="display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: flex-start; gap: 20px 0; position: relative; width: 100%;">
+            {% for step in timeline.steps %}
+            <div class="timeline-step" style="position: relative; z-index: 2; flex: 1 1 0; min-width: 80px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
+              <!-- Container for icon and connecting lines -->
+              <div style="position: relative; width: 100%; display: flex; justify-content: center; height: 36px; margin-bottom: 12px;">
+                {% if not forloop.first %}
+                <div style="position: absolute; top: 16px; left: 0; right: 50%; height: 5px; z-index: 1;
+                            {% if step.active %}background: linear-gradient(to right, {% if forloop.counter == 2 %}#e74c3c, #3498db{% elif forloop.counter == 3 %}#3498db, #1abc9c{% elif forloop.counter == 4 %}#1abc9c, #2ecc71{% elif forloop.counter == 5 %}#2ecc71, #27ae60{% else %}#27ae60, #95a5a6{% endif %});{% else %}background-color: #dee2e6;{% endif %}">
+                </div>
+                {% endif %}
+
+                {% if not forloop.last %}
+                <div style="position: absolute; top: 16px; left: 50%; right: 0; height: 5px; z-index: 1;
+                            {% if step.is_connected_to_next %}background-color: {% if forloop.counter == 1 %}#e74c3c{% elif forloop.counter == 2 %}#3498db{% elif forloop.counter == 3 %}#1abc9c{% elif forloop.counter == 4 %}#2ecc71{% else %}#27ae60{% endif %};{% else %}background-color: #dee2e6;{% endif %}">
+                  {% if step.duration_to_next %}
+                  <div style="position: absolute; left: 100%; top: -28px; transform: translateX(-50%); z-index: 5;">
+                    <span class="badge rounded-pill border bg-white text-muted shadow-sm" style="font-weight: normal; font-size: 0.6rem; padding: 2px 4px; white-space: nowrap;">
+                      {{ step.duration_to_next }}
+                    </span>
+                  </div>
+                  {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="timeline-icon d-flex align-items-center justify-content-center shadow-sm" 
+                     style="width: 36px; height: 36px; border-radius: 50%; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+                            background-color: {% if step.active %}{% cycle '#e74c3c' '#3498db' '#1abc9c' '#2ecc71' '#27ae60' '#95a5a6' %}{% else %}#dee2e6{% endif %};
+                            border: 2px solid #fff; z-index: 3; flex-shrink: 0;">
+                  <i class="mdi {% cycle 'mdi-flash' 'mdi-refresh' 'mdi-truck' 'mdi-map-marker' 'mdi-check' 'mdi-archive' %} fs-5" style="color: {% if step.active %}#fff{% else %}var(--bs-gray-500){% endif %};"></i>
+                </div>
+              </div>
+              <div class="timeline-label fw-semibold text-dark mb-0" style="font-size: 0.75rem; line-height: 1.1; margin-top: 0; word-wrap: break-word; overflow-wrap: break-word; hyphens: auto; text-align: center;">{{ step.label }}</div>
+              <div class="timeline-time text-muted" style="font-size: 0.7rem; font-family: var(--bs-font-monospace); line-height: 1.1; text-align: center;">
+                {{ step.time|default:"—" }}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endwith %}
+      </div>
+    </div>
   </div>
   <div class="col col-md-6">
+
+
     <!-- 故障复核信息组 -->
     <div class="card mb-3">
       <h5 class="card-header">故障复核</h5>
