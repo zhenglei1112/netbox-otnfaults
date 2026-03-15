@@ -15,7 +15,8 @@ from .forms import (
 from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet
 from .tables import (
     OtnFaultTable, OtnFaultImpactTable, OtnPathTable, OtnPathGroupTable,
-    OtnPathGroupSiteTable, BareFiberServiceTable, CircuitServiceTable
+    OtnPathGroupSiteTable, BareFiberServiceTable, CircuitServiceTable,
+    OtnFaultImpactSummaryTable
 )
 from django.utils import timezone
 from datetime import timedelta
@@ -337,9 +338,9 @@ class OtnFaultView(generic.ObjectView):
     queryset = OtnFault.objects.all()
 
     def get_extra_context(self, request, instance):
-        # 合并主故障和次要故障的影响记录
         impacts = (instance.impacts.all() | instance.secondary_impacts.all()).distinct()
-        table = OtnFaultImpactTable(impacts)
+        # 使用精简版表格，移除多余的“直接故障”列
+        table = OtnFaultImpactSummaryTable(impacts)
         table.configure(request)
         return {
             'impacts_table': table,

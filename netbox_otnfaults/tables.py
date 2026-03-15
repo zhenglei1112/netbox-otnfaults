@@ -247,6 +247,11 @@ class OtnFaultImpactTable(NetBoxTable):
         linkify_item=True,
         verbose_name='其他关联故障'
     )
+    service_group = tables.Column(
+        verbose_name='业务组',
+        orderable=False,
+        empty_values=()
+    )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:otnfaultimpact_list'
     )
@@ -255,7 +260,7 @@ class OtnFaultImpactTable(NetBoxTable):
         model = OtnFaultImpact
         fields = (
             'pk', 'otn_fault', 'secondary_faults', 'service_type', 'service_name',
-            'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'service_group', 'service_interruption_time', 'service_recovery_time', 'service_duration',
             'comments', 'tags', 'actions',
         )
         default_columns = (
@@ -273,6 +278,11 @@ class OtnFaultImpactTable(NetBoxTable):
             url = record.circuit_service.get_absolute_url()
             name = record.circuit_service.name
             return format_html('<a href="{}">{}</a>', url, name)
+        return '—'
+
+    def render_service_group(self, record):
+        if record.service_type == 'circuit' and record.circuit_service:
+            return record.circuit_service.get_service_group_display()
         return '—'
 
     def render_service_duration(self, record):
@@ -303,6 +313,19 @@ class OtnFaultImpactTable(NetBoxTable):
             info['percentage'],
             fill_bg,
             info['display']
+        )
+
+class OtnFaultImpactSummaryTable(OtnFaultImpactTable):
+    """故障详情页关联业务的精简表格渲染"""
+    class Meta(OtnFaultImpactTable.Meta):
+        fields = (
+            'pk', 'secondary_faults', 'service_type', 'service_name', 'service_group',
+            'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'comments', 'tags', 'actions',
+        )
+        default_columns = (
+            'service_type', 'service_name', 'service_group',
+            'service_interruption_time', 'service_recovery_time', 'service_duration',
         )
 
 class OtnPathTable(NetBoxTable):
