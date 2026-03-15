@@ -16,7 +16,7 @@ from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilte
 from .tables import (
     OtnFaultTable, OtnFaultImpactTable, OtnPathTable, OtnPathGroupTable,
     OtnPathGroupSiteTable, BareFiberServiceTable, CircuitServiceTable,
-    OtnFaultImpactSummaryTable
+    OtnFaultImpactSummaryTable, OtnFaultImpactDetailTable
 )
 from django.utils import timezone
 from datetime import timedelta
@@ -1163,7 +1163,7 @@ class BareFiberServiceView(generic.ObjectView):
         sla_this_month = max(0, min(100, sla_this_month)) # 限制在0-100之间
 
         # 显示该裸纤业务关联的所有故障影响业务记录
-        fault_impacts_table = OtnFaultImpactTable(qs)
+        fault_impacts_table = OtnFaultImpactDetailTable(qs)
         # 排除复选框和操作按钮列，使表格只读
         if 'pk' in fault_impacts_table.columns:
             fault_impacts_table.columns.hide('pk')
@@ -1306,7 +1306,7 @@ class CircuitServiceView(generic.ObjectView):
         sla_this_month = max(0, min(100, sla_this_month)) # 限制在0-100之间
 
         # 显示该电路业务关联的所有故障影响业务记录
-        fault_impacts_table = OtnFaultImpactTable(qs)
+        fault_impacts_table = OtnFaultImpactDetailTable(qs)
         # 排除复选框和操作按钮列，使表格只读
         if 'pk' in fault_impacts_table.columns:
             fault_impacts_table.columns.hide('pk')
