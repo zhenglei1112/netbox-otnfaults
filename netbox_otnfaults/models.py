@@ -825,10 +825,10 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             dt_local = timezone.localtime(t) if t else None
             time_str = dt_local.strftime('%H:%M:%S') if dt_local else ''
             
-            # 如果日期与故障发生日期不同，则附加日期（用于跨天显示）
+            # 如果是第一个节点（故障中断）或者日期与故障发生日期不同，则附加日期（用于跨天显示）
             if dt_local and self.fault_occurrence_time:
                 occur_local = timezone.localtime(self.fault_occurrence_time)
-                if dt_local.date() != occur_local.date():
+                if i == 0 or dt_local.date() != occur_local.date():
                     time_str += f"\n({dt_local.strftime('%m-%d')})"
             
             # 历时计算仅限前 4 个间隔（即截止到“故障恢复”前）
