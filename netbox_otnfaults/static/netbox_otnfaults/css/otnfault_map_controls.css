@@ -990,12 +990,8 @@
     filter: invert(0.85) sepia(0) hue-rotate(0deg) saturate(0) brightness(1.2);
 }
 
-[data-bs-theme="dark"] .maplibregl-ctrl-icon svg,
-[data-bs-theme="dark"] .maplibregl-ctrl-compass svg,
 [data-bs-theme="dark"] .search-icon i,
 [data-bs-theme="dark"] .spatial-select-main-btn i {
-    fill: var(--bs-body-color) !important;
-    stroke: var(--bs-body-color);
     color: var(--bs-body-color) !important;
 }
 
@@ -1006,7 +1002,7 @@
 [data-bs-theme="dark"] .layer-toggle-control,
 [data-bs-theme="dark"] .view-control-menu,
 [data-bs-theme="dark"] .spatial-select-control,
-[data-bs-theme="dark"] .fault-statistics {
+[data-bs-theme="dark"] .fault-statistics .card {
     background-color: var(--bs-tertiary-bg, #2b3035) !important;
     color: var(--bs-body-color) !important;
     border-color: var(--bs-border-color, #495057) !important;
@@ -1113,6 +1109,17 @@
 [data-bs-theme="dark"] .stats-popup-title-link,
 [data-bs-theme="dark"] .mode-card-label {
     color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .stats-popup-sites,
+[data-bs-theme="dark"] .stats-popup-meta,
+[data-bs-theme="dark"] .stats-popup-info,
+[data-bs-theme="dark"] .stats-time-title,
+[data-bs-theme="dark"] .stats-time-label,
+[data-bs-theme="dark"] .stats-time-unit,
+[data-bs-theme="dark"] .stats-chart-title,
+[data-bs-theme="dark"] .stats-tag-sub {
+    color: var(--bs-secondary-color) !important;
 }
 
 [data-bs-theme="dark"] .stats-popup-body,
