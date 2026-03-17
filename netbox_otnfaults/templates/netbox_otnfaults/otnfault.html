@@ -124,11 +124,11 @@
         <div class="d-flex align-items-center justify-content-center mb-3 pb-2 border-bottom">
           <div class="me-4">
             <span class="fw-semibold text-muted small me-2">故障历时:</span>
-            <span class="text-dark small">{{ object.fault_duration|default:"—" }}</span>
+            <span class="text-body small">{{ object.fault_duration|default:"—" }}</span>
           </div>
           <div>
             <span class="fw-semibold text-muted small me-2">处理历时:</span>
-            <span class="text-dark small">{{ object.processing_duration|default:"—" }}</span>
+            <span class="text-body small">{{ object.processing_duration|default:"—" }}</span>
           </div>
         </div>
 
@@ -142,16 +142,16 @@
               <div style="position: relative; width: 100%; display: flex; justify-content: center; height: 36px; margin-bottom: 12px;">
                 {% if not forloop.first %}
                 <div style="position: absolute; top: 16px; left: 0; right: 50%; height: 5px; z-index: 1;
-                            {% if step.active %}background: linear-gradient(to right, {% if forloop.counter == 2 %}#e74c3c, #3498db{% elif forloop.counter == 3 %}#3498db, #1abc9c{% elif forloop.counter == 4 %}#1abc9c, #2ecc71{% elif forloop.counter == 5 %}#2ecc71, #27ae60{% else %}#27ae60, #059669{% endif %});{% else %}background-color: #dee2e6;{% endif %}">
+                            {% if step.active %}background: linear-gradient(to right, {% if forloop.counter == 2 %}#e74c3c, #3498db{% elif forloop.counter == 3 %}#3498db, #1abc9c{% elif forloop.counter == 4 %}#1abc9c, #2ecc71{% elif forloop.counter == 5 %}#2ecc71, #27ae60{% else %}#27ae60, #059669{% endif %});{% else %}background-color: var(--bs-border-color);{% endif %}">
                 </div>
                 {% endif %}
  
                 {% if not forloop.last %}
                 <div style="position: absolute; top: 16px; left: 50%; right: 0; height: 5px; z-index: 1;
-                            {% if step.is_connected_to_next %}background-color: {% if forloop.counter == 1 %}#e74c3c{% elif forloop.counter == 2 %}#3498db{% elif forloop.counter == 3 %}#1abc9c{% elif forloop.counter == 4 %}#2ecc71{% else %}#27ae60{% endif %};{% else %}background-color: #dee2e6;{% endif %}">
+                            {% if step.is_connected_to_next %}background-color: {% if forloop.counter == 1 %}#e74c3c{% elif forloop.counter == 2 %}#3498db{% elif forloop.counter == 3 %}#1abc9c{% elif forloop.counter == 4 %}#2ecc71{% else %}#27ae60{% endif %};{% else %}background-color: var(--bs-border-color);{% endif %}">
                   {% if step.duration_to_next %}
                   <div style="position: absolute; left: 100%; top: -28px; transform: translateX(-50%); z-index: 5;">
-                    <span class="badge rounded-pill border bg-white text-muted shadow-sm" style="font-weight: normal; font-size: 0.6rem; padding: 2px 4px; white-space: nowrap;">
+                    <span class="badge rounded-pill border bg-body text-muted shadow-sm" style="font-weight: normal; font-size: 0.6rem; padding: 2px 4px; white-space: nowrap;">
                       {{ step.duration_to_next }}
                     </span>
                   </div>
@@ -161,12 +161,12 @@
  
                 <div class="timeline-icon d-flex align-items-center justify-content-center shadow-sm" 
                      style="width: 36px; height: 36px; border-radius: 50%; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-                            background-color: {% if step.active %}{% if forloop.counter == 1 %}#e74c3c{% elif forloop.counter == 2 %}#3498db{% elif forloop.counter == 3 %}#1abc9c{% elif forloop.counter == 4 %}#2ecc71{% elif forloop.counter == 5 %}#27ae60{% else %}#059669{% endif %}{% else %}#dee2e6{% endif %};
-                            border: 2px solid #fff; z-index: 3; flex-shrink: 0;">
-                  <i class="mdi {% if forloop.counter == 1 %}mdi-flash{% elif forloop.counter == 2 %}mdi-refresh{% elif forloop.counter == 3 %}mdi-truck{% elif forloop.counter == 4 %}mdi-map-marker{% elif forloop.counter == 5 %}mdi-check{% else %}mdi-archive{% endif %} fs-5" style="color: {% if step.active %}#fff{% else %}var(--bs-gray-500){% endif %};"></i>
+                            background-color: {% if step.active %}{% if forloop.counter == 1 %}#e74c3c{% elif forloop.counter == 2 %}#3498db{% elif forloop.counter == 3 %}#1abc9c{% elif forloop.counter == 4 %}#2ecc71{% elif forloop.counter == 5 %}#27ae60{% else %}#059669{% endif %}{% else %}var(--bs-border-color){% endif %};
+                            border: 2px solid var(--bs-body-bg); z-index: 3; flex-shrink: 0;">
+                  <i class="mdi {% if forloop.counter == 1 %}mdi-flash{% elif forloop.counter == 2 %}mdi-refresh{% elif forloop.counter == 3 %}mdi-truck{% elif forloop.counter == 4 %}mdi-map-marker{% elif forloop.counter == 5 %}mdi-check{% else %}mdi-archive{% endif %} fs-5" style="color: {% if step.active %}#fff{% else %}var(--bs-secondary-color){% endif %};"></i>
                 </div>
               </div>
-              <div class="timeline-label fw-semibold text-dark mb-0" style="font-size: 0.75rem; line-height: 1.1; margin-top: 0; word-wrap: break-word; overflow-wrap: break-word; hyphens: auto; text-align: center;">{{ step.label }}</div>
+              <div class="timeline-label fw-semibold text-body mb-0" style="font-size: 0.75rem; line-height: 1.1; margin-top: 0; word-wrap: break-word; overflow-wrap: break-word; hyphens: auto; text-align: center;">{{ step.label }}</div>
               <div class="timeline-time text-muted" style="font-size: 0.7rem; font-family: var(--bs-font-monospace); line-height: 1.1; text-align: center;">
                 {{ step.time|default:"—" }}
               </div>
