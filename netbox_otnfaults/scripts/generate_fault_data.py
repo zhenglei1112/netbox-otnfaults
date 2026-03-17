@@ -111,7 +111,7 @@ class GenerateFaultData(Script):
         ]
         
         # 紧急程度选项
-        self.urgency_levels = ['high', 'medium', 'low']
+        self.urgency_levels = ['high', 'low']
         
         # 第一报障来源选项
         self.report_sources = [

@@ -35,12 +35,10 @@ class UrgencyChoices(ChoiceSet):
     key = 'OtnFault.urgency'
 
     HIGH = 'high'
-    MEDIUM = 'medium'
     LOW = 'low'
 
     CHOICES = [
         (HIGH, '高', 'red'),
-        (MEDIUM, '中', 'orange'),
         (LOW, '低', 'yellow'),
     ]
 
