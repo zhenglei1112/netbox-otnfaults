@@ -7,6 +7,7 @@ class FaultLegendControl {
     constructor() {
         this.container = null;
         this.visible = false;
+        this.isCollapsed = true; // 默认状态为收起
     }
 
     onAdd(map) {
@@ -63,8 +64,14 @@ class FaultLegendControl {
         `).join('');
 
         this.container.innerHTML = `
-            <div class="card shadow-sm legend-card bg-body" style="opacity: 0.95;">
-                <div class="card-body p-2">
+            <div class="legend-collapse-btn shadow-sm bg-body" title="展开图例" style="display: ${this.isCollapsed ? 'flex' : 'none'};">
+                <i class="mdi mdi-arrow-top-left fs-5"></i>
+            </div>
+            <div class="card shadow-sm legend-card bg-body" style="opacity: 0.95; display: ${this.isCollapsed ? 'none' : 'block'};">
+                <div class="card-header p-1 px-2 border-bottom text-start">
+                    <span class="legend-title"><i class="mdi mdi-information-outline me-1"></i>图例</span>
+                </div>
+                <div class="card-body p-2 position-relative">
                     <div class="legend-section">
                         <div class="legend-header text-body-secondary">故障类型</div>
                         <div class="legend-body mt-1">
@@ -78,14 +85,47 @@ class FaultLegendControl {
                             ${statusItems}
                         </div>
                     </div>
+                    
+                    <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 legend-close-btn position-absolute" style="bottom: 4px; right: 8px;" title="收起图例">
+                        <i class="mdi mdi-arrow-bottom-right fs-5"></i>
+                    </button>
                 </div>
             </div>
             <style>
                 .fault-legend-control {
                     pointer-events: auto;
+                    margin-bottom: 20px !important;
+                    margin-right: 20px !important;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: flex-end;
+                    justify-content: flex-end;
+                }
+                .legend-collapse-btn {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    border: 1px solid var(--bs-border-color, #dee2e6);
+                    color: var(--bs-body-color);
+                    transition: background-color 0.2s;
+                }
+                .legend-collapse-btn:hover {
+                    background-color: var(--bs-tertiary-bg, #e9ecef) !important;
                 }
                 .legend-card {
-                    min-width: 100px;
+                    min-width: 120px;
+                }
+                .legend-title {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--bs-body-color);
+                }
+                .legend-close-btn:hover {
+                    color: var(--bs-primary) !important;
                 }
                 .legend-section {
                     margin-bottom: 0;
@@ -125,6 +165,25 @@ class FaultLegendControl {
                 }
             </style>
         `;
+
+        // 绑定收缩与展开事件
+        const collapseBtn = this.container.querySelector('.legend-collapse-btn');
+        const expandCard = this.container.querySelector('.legend-card');
+        const closeBtn = this.container.querySelector('.legend-close-btn');
+
+        if (collapseBtn && expandCard && closeBtn) {
+            collapseBtn.addEventListener('click', () => {
+                this.isCollapsed = false;
+                collapseBtn.style.display = 'none';
+                expandCard.style.display = 'block';
+            });
+
+            closeBtn.addEventListener('click', () => {
+                this.isCollapsed = true;
+                expandCard.style.display = 'none';
+                collapseBtn.style.display = 'flex';
+            });
+        }
     }
 
     /**
