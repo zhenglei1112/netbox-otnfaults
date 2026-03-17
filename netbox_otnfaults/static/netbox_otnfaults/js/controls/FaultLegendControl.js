@@ -63,18 +63,20 @@ class FaultLegendControl {
         `).join('');
 
         this.container.innerHTML = `
-            <div class="legend-card">
-                <div class="legend-section">
-                    <div class="legend-header">故障类型</div>
-                    <div class="legend-body">
-                        ${categoryItems}
+            <div class="card shadow-sm legend-card bg-body" style="opacity: 0.95;">
+                <div class="card-body p-2">
+                    <div class="legend-section">
+                        <div class="legend-header text-body-secondary">故障类型</div>
+                        <div class="legend-body mt-1">
+                            ${categoryItems}
+                        </div>
                     </div>
-                </div>
-                <div class="legend-divider"></div>
-                <div class="legend-section">
-                    <div class="legend-header">故障状态</div>
-                    <div class="legend-body">
-                        ${statusItems}
+                    <div class="legend-divider border-top my-2"></div>
+                    <div class="legend-section">
+                        <div class="legend-header text-body-secondary">故障状态</div>
+                        <div class="legend-body mt-1">
+                            ${statusItems}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -83,28 +85,15 @@ class FaultLegendControl {
                     pointer-events: auto;
                 }
                 .legend-card {
-                    background: rgba(255, 255, 255, 0.95);
-                    border-radius: 8px;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-                    padding: 8px 12px;
                     min-width: 100px;
                 }
                 .legend-section {
-                    margin-bottom: 6px;
-                }
-                .legend-section:last-child {
                     margin-bottom: 0;
-                }
-                .legend-divider {
-                    height: 1px;
-                    background: #e9ecef;
-                    margin: 6px 0;
                 }
                 .legend-header {
                     font-size: 11px;
                     font-weight: 600;
-                    color: #6c757d;
-                    margin-bottom: 4px;
+                    margin-bottom: 2px;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
                 }
@@ -132,7 +121,7 @@ class FaultLegendControl {
                     flex-shrink: 0;
                 }
                 .legend-label {
-                    color: #495057;
+                    color: inherit;
                 }
             </style>
         `;

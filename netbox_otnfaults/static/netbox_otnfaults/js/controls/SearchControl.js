@@ -45,7 +45,7 @@ class SearchControl {
     createSearchBox() {
         // 搜索框容器
         const wrapper = document.createElement('div');
-        wrapper.className = 'search-wrapper';
+        wrapper.className = 'search-wrapper card flex-row align-items-center shadow-sm bg-body';
         
         // 搜索图标
         const icon = document.createElement('span');
@@ -81,7 +81,7 @@ class SearchControl {
         
         // 结果列表容器
         this.resultList = document.createElement('div');
-        this.resultList.className = 'search-results';
+        this.resultList.className = 'search-results card shadow-sm mt-1 bg-body text-body';
         this.resultList.style.display = 'none';
         
         this.container.appendChild(wrapper);
@@ -203,13 +203,13 @@ class SearchControl {
         
         // 站点分组
         if (siteResults.length > 0) {
-            html += `<div class="search-group-header site-group"><i class="mdi mdi-map-marker"></i>站点 (${siteResults.length})</div>`;
+            html += `<div class="search-group-header site-group bg-body-tertiary text-body-secondary border-bottom"><i class="mdi mdi-map-marker"></i>站点 (${siteResults.length})</div>`;
             html += siteResults.map(item => this.renderSiteItem(item, query)).join('');
         }
         
         // 路径分组
         if (pathResults.length > 0) {
-            html += `<div class="search-group-header path-group"><i class="mdi mdi-vector-polyline"></i>路径 (${pathResults.length})</div>`;
+            html += `<div class="search-group-header path-group bg-body-tertiary text-body-secondary border-bottom"><i class="mdi mdi-vector-polyline"></i>路径 (${pathResults.length})</div>`;
             html += pathResults.map(item => this.renderPathItem(item, query)).join('');
         }
         
@@ -234,7 +234,7 @@ class SearchControl {
         const regionText = item.region ? ` · ${item.region}` : '';
         
         return `
-            <div class="search-result-item" data-type="site">
+            <div class="search-result-item bg-body text-body" data-type="site">
                 <div class="search-result-icon site-icon">
                     <i class="mdi mdi-map-marker"></i>
                 </div>
@@ -252,7 +252,7 @@ class SearchControl {
         const highlightedName = this.highlightMatch(item.name, query);
         
         return `
-            <div class="search-result-item" data-type="path">
+            <div class="search-result-item bg-body text-body" data-type="path">
                 <div class="search-result-icon path-icon">
                     <i class="mdi mdi-vector-polyline"></i>
                 </div>

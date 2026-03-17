@@ -436,6 +436,66 @@ class OTNMapCore {
     if (window.maplibreGLMeasures) {
       this._addMeasuresControl();
     }
+
+    // --- 全局事件注册 ---
+    window.addEventListener("otn-fault-focus", (e) => {
+      const faultId = e.detail?.id;
+      if (faultId && window.PluginManager) {
+        window.PluginManager.emit("focusFault", faultId);
+      }
+    });
+
+    // 强制地图原生控件使用 Bootstrap 类，以适配深色/浅色背景
+    setTimeout(() => {
+        document.querySelectorAll('.maplibregl-ctrl-group').forEach(el => {
+            el.classList.add('bg-body', 'border', 'border-secondary-subtle');
+            el.style.backgroundColor = 'var(--bs-body-bg)';
+        });
+        document.querySelectorAll('.maplibregl-ctrl-group button').forEach(el => {
+            el.style.backgroundColor = 'transparent';
+            el.classList.add('border-bottom', 'border-secondary-subtle');
+        });
+    }, 1000);
+
+    // --- 监听主题切换事件 ---
+    window.addEventListener("otn-theme-changed", (e) => {
+      const isDark = e.detail.theme === 'dark';
+      const mapBase = this.mapBase;
+      const config = this.config;
+      
+      // 更新本文件内管理的矢量层风格
+      if (mapBase.map.getLayer("user-geojson-fill")) {
+        mapBase.map.setPaintProperty("user-geojson-fill", "fill-color", isDark ? "#082f49" : "#ffffff");
+      }
+      if (mapBase.map.getLayer("user-geojson-line")) {
+        mapBase.map.setPaintProperty("user-geojson-line", "line-color", isDark ? "#38bdf8" : "#2d8cf0");
+        mapBase.map.setPaintProperty("user-geojson-line", "line-opacity", isDark ? 0.3 : 0.6);
+      }
+      if (mapBase.map.getLayer("user-geojson-highlight")) {
+        mapBase.map.setPaintProperty("user-geojson-highlight", "line-color", isDark ? "#38bdf8" : "#2d8cf0");
+      }
+
+      if (config.layers && config.layers.sites !== false && mapBase.map.getLayer("netbox-sites-labels")) {
+        mapBase.map.setPaintProperty("netbox-sites-labels", "text-color", isDark ? "#e2e8f0" : "#1f2937");
+        mapBase.map.setPaintProperty("netbox-sites-labels", "text-halo-color", isDark ? "#0f172a" : "#ffffff");
+      }
+    });
+
+    // --- 在线地图样式重载 (setStyle后) ---
+    window.addEventListener("otn-map-style-reloaded", () => {
+       // 当在线底图通过 setStyle 改变时，MapLibre 会清掉 source 及层，需要整体重新加载
+       console.log("[OTNMapCore] Style reloaded, reconstructing business layers...");
+       // Maplibre 的 bug/feature：setStyle 之后，所有自定义 source 都丢了，所以需要彻底重走流程
+       // 为简化实现，业务中建议直接 reload iframe。在这里给上层抛出一个建议刷新的事件。
+       window.dispatchEvent(new CustomEvent('otn-require-map-reload'));
+    });
+
+    // 暴露全局应用对象
+    window.OTNMapApp = {
+      map: this.map,
+      mapBase: this.mapBase,
+      config: this.config,
+    };
   }
 
   _addMeasuresControl() {

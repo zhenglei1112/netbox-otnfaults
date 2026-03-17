@@ -7,21 +7,64 @@
    MapLibre 控件样式覆盖
    ================================= */
 
-/* 去掉控件组的外边框（box-shadow），只保留按钮之间的内边框 */
+/* 控件组基础样式 - 增强辨识度与悬停一致性 */
 .maplibregl-ctrl-group:not(:empty) {
-    box-shadow: none !important;
-    border: none !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid var(--bs-border-color, #dee2e6) !important;
+    background-color: var(--bs-body-bg, #fff) !important;
+    backdrop-filter: blur(8px);
+    overflow: hidden;
 }
 
-/* 控件按钮去掉额外边框 */
+[data-bs-theme="dark"] .maplibregl-ctrl-group:not(:empty) {
+    background-color: var(--bs-tertiary-bg, #2b3035) !important;
+    border-color: var(--bs-border-color, #495057) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+    --slider-track: #6b7280;
+}
+
+.maplibregl-ctrl-group:not(:empty) {
+    --slider-track: #dee2e6;
+}
+
 .maplibregl-ctrl-group button {
     border: none !important;
     outline: none !important;
+    background-color: transparent !important;
+    transition: background-color 0.15s ease;
 }
 
-/* 只保留按钮之间的分隔线 */
+.maplibregl-ctrl-group button:hover {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-bs-theme="dark"] .maplibregl-ctrl-group button:hover {
+    background-color: var(--bs-secondary-bg, #3d4146) !important;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)) !important;
+}
+
+/* 搜索控件容器强制透明，由内部 wrapper 渲染背景 */
+.search-control {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.search-wrapper {
+    background-color: var(--bs-body-bg, #fff) !important;
+    border: 1px solid var(--bs-border-color, #dee2e6) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+    backdrop-filter: blur(8px);
+}
+
+[data-bs-theme="dark"] .search-wrapper {
+    background-color: var(--bs-tertiary-bg, #2b3035) !important;
+    border-color: var(--bs-border-color, #495057) !important;
+}
+
+/* 按钮之间的分隔线 */
 .maplibregl-ctrl-group button+button {
-    border-top: 1px solid #ddd !important;
+    border-top: 1px solid var(--bs-border-color, #eee) !important;
 }
 
 /* =================================
@@ -51,10 +94,17 @@
     stroke-width: 25 !important;
 }
 
-/* 测距控件按钮悬停和激活状态 */
-.maplibregl-measures button:hover svg,
+/* 测距控件按钮激活状态 */
+.maplibregl-measures button.active {
+    background-color: var(--bs-primary-bg-subtle, rgba(13, 110, 253, 0.15)) !important;
+}
+
 .maplibregl-measures button.active svg {
-    stroke: #D20C0C !important;
+    stroke: var(--bs-primary, #0d6efd) !important;
+}
+
+[data-bs-theme="dark"] .maplibregl-measures button svg {
+    stroke: var(--bs-body-color, #f8f9fa) !important;
 }
 
 /* 隐藏测量面积按钮 */
@@ -102,12 +152,12 @@
 
 .mode-card:hover:not(.active) {
     border-color: var(--bs-primary-border-subtle, #86b7fe);
-    background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.04);
+    background-color: var(--bs-tertiary-bg, #f8f9fa);
 }
 
 .mode-card.active {
-    border-color: var(--bs-primary, #0d6efd);
-    background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.08);
+    border-color: var(--bs-primary, #0d6efd) !important;
+    background-color: var(--bs-primary-bg-subtle, #cfe2ff) !important;
 }
 
 .mode-card-label {
@@ -118,7 +168,7 @@
 }
 
 .mode-card.active .mode-card-label {
-    color: var(--bs-primary, #0d6efd);
+    color: var(--bs-primary, #0d6efd) !important;
 }
 
 .mode-card-desc {
@@ -126,16 +176,65 @@
     color: var(--bs-secondary-color, #6c757d);
 }
 
-/* 时间范围滑动条 */
+/* 视图菜单通用项目样式 */
+.view-control-menu label, 
+.view-control-menu .dropdown-item {
+    padding: 6px 12px;
+    margin-bottom: 0;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.15s;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    width: 100%;
+    color: var(--bs-body-color);
+}
+
+.view-control-menu label:hover,
+.view-control-menu .dropdown-item:hover {
+    background-color: var(--bs-tertiary-bg, #f8f9fa) !important;
+    color: var(--bs-body-color) !important;
+}
+
+.category-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 8px;
+    padding: 0 4px;
+}
+
+.category-item {
+    min-height: 24px;
+}
+
+/* 时间范围滑动条总体样式 */
 .time-range-slider {
     width: 100%;
     height: 6px;
     -webkit-appearance: none;
     appearance: none;
-    background: linear-gradient(to right, var(--bs-primary, #0d6efd) 0%, #dee2e6 100%);
     border-radius: 3px;
     outline: none;
     cursor: pointer;
+    margin: 10px 0;
+    display: block !important;
+}
+
+/* 轨道样式补充 */
+.time-range-slider::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: transparent !important;
+}
+
+.time-range-slider::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: transparent !important;
 }
 
 .time-range-slider::-webkit-slider-thumb {
@@ -143,17 +242,18 @@
     appearance: none;
     width: 16px;
     height: 16px;
-    background: var(--bs-primary, #0d6efd);
+    background: #0d6efd !important;
     border: 2px solid #fff;
     border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    margin-top: -5px; /* (6px - 16px) / 2 */
 }
 
 .time-range-slider::-moz-range-thumb {
     width: 16px;
     height: 16px;
-    background: var(--bs-primary, #0d6efd);
+    background: #0d6efd !important;
     border: 2px solid #fff;
     border-radius: 50%;
     cursor: pointer;
@@ -700,9 +800,16 @@
     padding: 0;
     border: none;
     background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 4px;
     color: var(--bs-secondary-color, #6c757d);
     cursor: pointer;
     transition: all 0.2s ease-in-out;
+}
+
+[data-bs-theme="dark"] .spatial-select-main-btn {
+    background: var(--bs-tertiary-bg, #2b3035) !important;
+    border-color: var(--bs-border-color, #495057) !important;
 }
 
 .spatial-select-main-btn i {
@@ -867,3 +974,177 @@
     background: #0d6efd;
     color: #fff;
 }
+
+/* =================================
+   深色模式适配 (Dark Theme Support)
+   ================================= */
+/* 控件组样式已在文件头部统一处理 */
+
+
+/* 反转 Maplibregl 内置（基于 background-image 的）纯黑 SVG 图标的颜色以适应深色底 */
+[data-bs-theme="dark"] .maplibregl-ctrl-icon,
+[data-bs-theme="dark"] button.maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon,
+[data-bs-theme="dark"] button.maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon,
+[data-bs-theme="dark"] button.maplibregl-ctrl-compass .maplibregl-ctrl-icon,
+[data-bs-theme="dark"] button.maplibregl-ctrl-fullscreen .maplibregl-ctrl-icon {
+    filter: invert(0.85) sepia(0) hue-rotate(0deg) saturate(0) brightness(1.2);
+}
+
+[data-bs-theme="dark"] .maplibregl-ctrl-icon svg,
+[data-bs-theme="dark"] .maplibregl-ctrl-compass svg,
+[data-bs-theme="dark"] .search-icon i,
+[data-bs-theme="dark"] .spatial-select-main-btn i {
+    fill: var(--bs-body-color) !important;
+    stroke: var(--bs-body-color);
+    color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .maplibregl-popup-content,
+[data-bs-theme="dark"] .search-results,
+[data-bs-theme="dark"] .legend-container,
+[data-bs-theme="dark"] .fault-legend-control .card,
+[data-bs-theme="dark"] .layer-toggle-control,
+[data-bs-theme="dark"] .view-control-menu,
+[data-bs-theme="dark"] .spatial-select-control,
+[data-bs-theme="dark"] .fault-statistics {
+    background-color: var(--bs-tertiary-bg, #2b3035) !important;
+    color: var(--bs-body-color) !important;
+    border-color: var(--bs-border-color, #495057) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-bs-theme="dark"] .search-results {
+    margin-top: 2px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-bs-theme="dark"] .dropdown-item {
+    color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .dropdown-item:hover {
+    background-color: var(--bs-tertiary-bg) !important;
+    color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .view-control-menu label {
+    color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .view-control-menu label:hover {
+    background-color: var(--bs-tertiary-bg) !important;
+}
+
+[data-bs-theme="dark"] .search-input {
+    color: var(--bs-body-color) !important;
+    background-color: transparent !important;
+}
+
+[data-bs-theme="dark"] .search-input::placeholder {
+    color: var(--bs-secondary-color) !important;
+}
+
+[data-bs-theme="dark"] .search-result-item:hover {
+    background-color: var(--bs-tertiary-bg) !important;
+}
+
+/* 深色模式 - 模式卡片 */
+[data-bs-theme="dark"] .mode-card {
+    background-color: var(--bs-body-bg) !important;
+    color: var(--bs-body-color) !important;
+    border-color: var(--bs-border-color) !important;
+}
+
+[data-bs-theme="dark"] .mode-card.active {
+    border-color: #3b82f6 !important;
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3) !important;
+}
+
+[data-bs-theme="dark"] .mode-card:hover:not(.active) {
+    background-color: var(--bs-tertiary-bg) !important;
+}
+
+[data-bs-theme="dark"] .mode-card-label {
+    color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .mode-card.active .mode-card-label {
+    color: var(--bs-primary) !important;
+}
+
+[data-bs-theme="dark"] .mode-card-desc {
+    color: var(--bs-secondary-color) !important;
+}
+
+[data-bs-theme="dark"] .search-group-header,
+[data-bs-theme="dark"] .legend-header,
+[data-bs-theme="dark"] .layer-toggle-header {
+    background-color: var(--bs-tertiary-bg) !important;
+    border-bottom-color: var(--bs-border-color) !important;
+    color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .search-result-name {
+    color: var(--bs-body-color, #f8f9fa) !important;
+}
+
+[data-bs-theme="dark"] .search-result-region,
+[data-bs-theme="dark"] .search-result-sub {
+    color: var(--bs-secondary-color, #adb5bd) !important;
+}
+
+[data-bs-theme="dark"] .search-no-result {
+    background-color: var(--bs-body-bg) !important;
+    color: var(--bs-secondary-color) !important;
+}
+
+[data-bs-theme="dark"] .maplibregl-popup-tip {
+    border-top-color: var(--bs-body-bg) !important;
+    border-bottom-color: var(--bs-body-bg) !important;
+}
+
+[data-bs-theme="dark"] .stats-popup-header {
+    background-color: var(--bs-tertiary-bg) !important;
+    border-bottom-color: var(--bs-border-color) !important;
+}
+
+[data-bs-theme="dark"] .stats-popup-title,
+[data-bs-theme="dark"] .stats-popup-title-link,
+[data-bs-theme="dark"] .mode-card-label {
+    color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .stats-popup-body,
+[data-bs-theme="dark"] .fault-popup .popup-footer,
+[data-bs-theme="dark"] .fault-popup .popup-impacts {
+    border-color: var(--bs-border-color) !important;
+}
+
+[data-bs-theme="dark"] .time-range-slider {
+    background: linear-gradient(to right, var(--bs-primary) 0%, var(--bs-secondary-bg) 100%) !important;
+}
+
+[data-bs-theme="dark"] .fault-popup-thumbnail {
+    border-color: var(--bs-border-color) !important;
+}
+
+[data-bs-theme="dark"] .layer-toggle-menu {
+    border-color: var(--bs-border-color) !important;
+    background-color: var(--bs-body-bg) !important;
+}
+
+[data-bs-theme="dark"] .layer-toggle-item:hover {
+    background-color: var(--bs-tertiary-bg) !important;
+}
+
+[data-bs-theme="dark"] .spatial-select-confirm-header,
+[data-bs-theme="dark"] .spatial-select-selected-list {
+    background-color: var(--bs-tertiary-bg) !important;
+    color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .spatial-select-confirm-dialog {
+    background-color: var(--bs-body-bg) !important;
+    color: var(--bs-body-color) !important;
+}

@@ -31,11 +31,12 @@ class LayerToggleControl {
     onAdd(map) {
         this.map = map;
         this.container = document.createElement('div');
-        this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group layer-toggle-control';
+        this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group layer-toggle-control bg-body';
+        this.container.style.overflow = 'visible';
 
         // 主按钮图标
         this.button = document.createElement('button');
-        this.button.className = 'maplibregl-ctrl-icon toggle-button';
+        this.button.className = 'maplibregl-ctrl-icon toggle-button bg-transparent';
         this.button.innerHTML = window.mapBase.svgIcons.filter;
         this.button.title = '视图与时间设置';
 
@@ -69,13 +70,13 @@ class LayerToggleControl {
             this.hideTimer = null;
         }
         this.createMenu();
-        this.menu.style.display = 'block';
     }
 
     hideMenuWithDelay() {
         this.hideTimer = setTimeout(() => {
             if (this.menu) {
-                this.menu.style.display = 'none';
+                this.container.removeChild(this.menu);
+                this.menu = null;
             }
         }, 200); // 200ms delay
     }
@@ -84,7 +85,7 @@ class LayerToggleControl {
         if (this.menu) return;
 
         const menu = document.createElement('div');
-        menu.className = 'heatmap-time-range-menu view-control-menu';
+        menu.className = 'heatmap-time-range-menu view-control-menu card shadow bg-body p-2 border border-secondary-subtle';
 
         // Ensure menu is appended to container so mouseleave works for both button and menu
         this.container.appendChild(menu);
@@ -109,17 +110,9 @@ class LayerToggleControl {
                 // 更新所有卡片样式（移除选中状态）
                 modeGroup.querySelectorAll('.mode-card').forEach(c => {
                     c.classList.remove('active');
-                    c.style.borderColor = '#dee2e6';
-                    c.style.backgroundColor = '#fff';
-                    const label = c.querySelector('.mode-card-label');
-                    if (label) label.style.color = '#212529';
                 });
                 // 高亮选中的卡片
                 card.classList.add('active');
-                card.style.borderColor = '#0d6efd';
-                card.style.backgroundColor = 'rgba(13, 110, 253, 0.08)';
-                const selectedLabel = card.querySelector('.mode-card-label');
-                if (selectedLabel) selectedLabel.style.color = '#0d6efd';
                 this.setMode(mode.value);
             };
             modeGroup.appendChild(card);
@@ -161,10 +154,9 @@ class LayerToggleControl {
     /* --- UI Helpers --- */
     addHeader(container, text) {
         const header = document.createElement('div');
-        header.className = 'dropdown-header';
+        header.className = 'dropdown-header bg-body-tertiary text-body-secondary rounded-1 mb-1';
         header.style.padding = '4px 16px';
         header.style.fontSize = '12px';
-        header.style.color = 'var(--bs-secondary-color)';
         header.innerText = text;
         container.appendChild(header);
     }
@@ -184,57 +176,18 @@ class LayerToggleControl {
         card.className = 'mode-card' + (active ? ' active' : '');
         card.dataset.mode = value;
 
-        const activeBorderColor = '#0d6efd';
-        const activeBgColor = 'rgba(13, 110, 253, 0.08)';
-        const inactiveBorderColor = '#dee2e6';
-        const inactiveBgColor = '#fff';
-
-        card.style.cssText = `
-            flex: 1;
-            min-width: 70px;
-            padding: 8px 12px;
-            border: 2px solid ${active ? activeBorderColor : inactiveBorderColor};
-            border-radius: 8px;
-            background-color: ${active ? activeBgColor : inactiveBgColor};
-            cursor: pointer;
-            text-align: center;
-            white-space: nowrap;
-            transition: all 0.15s ease-in-out;
-        `;
-
         const labelEl = document.createElement('div');
         labelEl.className = 'mode-card-label';
-        labelEl.style.cssText = `
-            font-size: 13px;
-            font-weight: 600;
-            color: ${active ? '#0d6efd' : '#212529'};
-            margin-bottom: 2px;
-        `;
         labelEl.innerText = label;
 
         const descEl = document.createElement('div');
         descEl.className = 'mode-card-desc';
-        descEl.style.cssText = `
-            font-size: 10px;
-            color: #6c757d;
-        `;
         descEl.innerText = desc;
 
         card.appendChild(labelEl);
         card.appendChild(descEl);
 
-        card.onmouseenter = () => {
-            if (!card.classList.contains('active')) {
-                card.style.borderColor = '#86b7fe';
-                card.style.backgroundColor = 'rgba(13, 110, 253, 0.04)';
-            }
-        };
-        card.onmouseleave = () => {
-            if (!card.classList.contains('active')) {
-                card.style.borderColor = inactiveBorderColor;
-                card.style.backgroundColor = inactiveBgColor;
-            }
-        };
+        // Mouse events styling is now fully handled by CSS
 
         return card;
     }
@@ -257,16 +210,12 @@ class LayerToggleControl {
         slider.max = String(this.timeRangeOptions.length - 1);
         slider.value = String(this.timeRangeOptions.findIndex(opt => opt.value === this.currentTimeRange));
         slider.className = 'time-range-slider';
-        slider.style.cssText = `
-            width: 100%;
-            height: 6px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: linear-gradient(to right, var(--bs-link-color, #0d6efd) 0%, var(--bs-link-color, #0d6efd) ${(parseInt(slider.value) / (this.timeRangeOptions.length - 1)) * 100}%, #dee2e6 ${(parseInt(slider.value) / (this.timeRangeOptions.length - 1)) * 100}%, #dee2e6 100%);
-            border-radius: 3px;
-            outline: none;
-            cursor: pointer;
-        `;
+        slider.style.display = 'block';
+        // 动态设置初始渐变背景
+        const initialPercent = (parseInt(slider.value) / (this.timeRangeOptions.length - 1)) * 100;
+        const initialGradient = `linear-gradient(to right, #0d6efd 0%, #0d6efd ${initialPercent}%, transparent ${initialPercent}%, transparent 100%)`;
+        slider.style.setProperty('background-image', initialGradient, 'important');
+        slider.style.setProperty('background-color', 'var(--slider-track, #6b7280)', 'important');
 
         // 刻度标签容器
         const ticksContainer = document.createElement('div');
@@ -324,7 +273,9 @@ class LayerToggleControl {
 
         // 更新滑动条背景渐变
         const percent = (index / (this.timeRangeOptions.length - 1)) * 100;
-        slider.style.background = `linear-gradient(to right, var(--bs-link-color, #0d6efd) 0%, var(--bs-link-color, #0d6efd) ${percent}%, #dee2e6 ${percent}%, #dee2e6 100%)`;
+        const gradient = `linear-gradient(to right, #0d6efd 0%, #0d6efd ${percent}%, transparent ${percent}%, transparent 100%)`;
+        slider.style.setProperty('background-image', gradient, 'important');
+        slider.style.setProperty('background-color', 'var(--slider-track, #6b7280)', 'important');
 
         // 更新刻度标签高亮
         const ticks = ticksContainer.querySelectorAll('span');
@@ -347,16 +298,15 @@ class LayerToggleControl {
      */
     createCategoryFilter(container) {
         const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'padding: 4px 12px 8px 12px;';
+        wrapper.className = 'category-filter-wrapper p-2';
 
         // 全选复选框
         const allItem = document.createElement('label');
-        allItem.className = 'd-flex align-items-center gap-2 mb-2';
-        allItem.style.cssText = 'cursor: pointer; font-size: 12px;';
+        allItem.className = 'd-flex align-items-center mb-2';
 
         const allCheckbox = document.createElement('input');
         allCheckbox.type = 'checkbox';
-        allCheckbox.checked = this.selectedCategories.length === 7;
+        allCheckbox.checked = this.selectedCategories.length >= 7;
         allCheckbox.className = 'form-check-input mt-0';
         allCheckbox.id = 'layer-cat-all';
 
@@ -377,7 +327,7 @@ class LayerToggleControl {
 
         // 分类网格（2列布局）
         const grid = document.createElement('div');
-        grid.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px;';
+        grid.className = 'category-grid';
 
         const categories = [
             { key: 'fiber_break', name: window.FAULT_CATEGORY_NAMES?.fiber_break || '光缆中断', color: window.FAULT_CATEGORY_COLORS?.fiber_break || '#dc3545' },
@@ -391,8 +341,7 @@ class LayerToggleControl {
 
         categories.forEach(cat => {
             const item = document.createElement('label');
-            item.className = 'd-flex align-items-center gap-2';
-            item.style.cssText = 'cursor: pointer; font-size: 12px;';
+            item.className = 'category-item d-flex align-items-center';
 
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
@@ -433,8 +382,8 @@ class LayerToggleControl {
         item.style.cursor = 'pointer';
 
         item.innerHTML = `
-            <input type="checkbox" ${checked ? 'checked' : ''} style="pointer-events: none;">
-            <span>${label}</span>
+            <input type="checkbox" class="form-check-input mt-0" ${checked ? 'checked' : ''} style="pointer-events: none;">
+            <span class="ms-1">${label}</span>
         `;
 
         item.onclick = (e) => {

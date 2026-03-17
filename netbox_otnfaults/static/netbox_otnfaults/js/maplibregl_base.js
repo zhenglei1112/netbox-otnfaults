@@ -58,30 +58,112 @@ class NetBoxMapBase {
       console.warn("pmtiles 库未加载，路径数据可能无法正常加载");
     }
 
+    // 获取当前系统的深色模式状态
+    this.currentTheme = document.documentElement.getAttribute('data-bs-theme') || 'light';
+
     // 根据配置选择底图
     if (this.useLocalBasemap) {
       // 使用本地底图样式
-      mapOptions.style = this._getLocalBasemapStyle(config);
+      mapOptions.style = this._getLocalBasemapStyle(config, this.currentTheme);
     } else {
       // 使用网络底图
-
-      mapOptions.style = 'http://192.168.30.34/map-assets/alidade_smooth_local.json';
-      // mapOptions.style =
-      //   "https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=" +
-      //   apiKey;
+      if (this.currentTheme === 'dark') {
+        mapOptions.style = 'https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json?api_key=' + apiKey;
+      } else {
+        mapOptions.style = 'http://192.168.30.34/map-assets/alidade_smooth_local.json';
+        // mapOptions.style =
+        //   "https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=" +
+        //   apiKey;
+      }
     }
 
     this.map = new maplibregl.Map(mapOptions);
+
+    // 绑定主题切换监听器
+    this._setupThemeObserver(config, apiKey);
 
     return this.map;
   }
 
   /**
-   * 获取本地底图样式配置（样式来自 test.html）
+   * 监听全局主题切换
+   */
+  _setupThemeObserver(config, apiKey) {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "attributes" && mutation.attributeName === "data-bs-theme") {
+          const newTheme = document.documentElement.getAttribute('data-bs-theme') || 'light';
+          if (newTheme !== this.currentTheme) {
+            this.currentTheme = newTheme;
+            this.applyTheme(newTheme, config, apiKey);
+          }
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-bs-theme"]
+    });
+  }
+
+  /**
+   * 动态应用地图主题
+   */
+  applyTheme(theme, config, apiKey) {
+    if (!this.map) return;
+    
+    // 触发全局自定义事件，通知业务图层更新
+    window.dispatchEvent(new CustomEvent('otn-theme-changed', { detail: { theme: theme } }));
+
+    if (this.useLocalBasemap) {
+      // 本地地图：使用 setPaintProperty 动态切换各个源层颜色
+      const isDark = theme === 'dark';
+      
+      // 1. 背景色
+      this.setLayoutProperty("background", "background-color", isDark ? "#060a14" : "#cbd2d3");
+      // 2. 陆地
+      this.setLayoutProperty("landuse_base", "fill-color", isDark ? "#0f172a" : "#f5f5f0");
+      // 3. 绿地
+      this.setLayoutProperty("landuse_green", "fill-color", isDark ? "#1e293b" : "#dbece0");
+      this.setLayoutProperty("landuse_green", "fill-opacity", isDark ? 0.3 : 0.6);
+      // 4. 水系
+      this.setLayoutProperty("water", "fill-color", isDark ? "#020617" : "#cbd2d3");
+      // 5. 道路边框
+      this.setLayoutProperty("roads_casing", "line-color", isDark ? "#334155" : "#cfcfcf");
+      // 6. 道路填充
+      this.setLayoutProperty("roads_inner", "line-color", isDark ? "#1e293b" : "#ffffff");
+      // 7. 边界线
+      this.setLayoutProperty("boundary", "line-color", isDark ? "#475569" : "#aeb0b5");
+      // 8. 城市标题
+      this.setLayoutProperty("place_label", "text-color", isDark ? "#94a3b8" : "#434850");
+      this.setLayoutProperty("place_label", "text-halo-color", isDark ? "#0f172a" : "#ffffff");
+
+    } else {
+      // 在线底图：直接更换 Style URL
+      const styleUrl = theme === 'dark' 
+          ? 'https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json?api_key=' + apiKey
+          : 'http://192.168.30.34/map-assets/alidade_smooth_local.json';
+          
+      this.map.setStyle(styleUrl);
+      
+      // 注意：setStyle 会抹去所有后续手动 addLayer 加的业务图层
+      // 需要通知核心类在 style.load 之后重新挂载业务图层。
+      // 为此，地图应当在 styledata 之后恢复业务逻辑
+      this.map.once('style.load', () => {
+         window.dispatchEvent(new CustomEvent('otn-map-style-reloaded'));
+      });
+    }
+  }
+
+  /**
+   * 获取本地底图样式配置（支持主题）
    * @param {Object} config - 全局配置对象
+   * @param {string} theme - 'dark' 或 'light'
    * @returns {Object} MapLibre GL 样式对象
    */
-  _getLocalBasemapStyle(config) {
+  _getLocalBasemapStyle(config, theme = 'light') {
+    const isDark = theme === 'dark';
     return {
       version: 8,
       glyphs:
@@ -99,21 +181,21 @@ class NetBoxMapBase {
         // OTN 路径数据源现在统一在 otnfault_map_app.js 中添加
       },
       layers: [
-        // === 1. 背景 (海洋颜色) - 冷淡的灰蓝色 ===
+        // === 1. 背景 (海洋颜色) ===
         {
           id: "background",
           type: "background",
-          paint: { "background-color": "#cbd2d3" },
+          paint: { "background-color": isDark ? "#060a14" : "#cbd2d3" },
         },
-        // === 2. 陆地 - 极浅的暖灰色 ===
+        // === 2. 陆地 ===
         {
           id: "landuse_base",
           type: "fill",
           source: "china_local",
           "source-layer": "landuse",
-          paint: { "fill-color": "#f5f5f0" },
+          paint: { "fill-color": isDark ? "#0f172a" : "#f5f5f0" },
         },
-        // === 3. 绿地/公园 - 低饱和度浅绿 ===
+        // === 3. 绿地/公园 ===
         {
           id: "landuse_green",
           type: "fill",
@@ -121,19 +203,19 @@ class NetBoxMapBase {
           "source-layer": "landuse",
           filter: ["in", "class", "park", "grass", "wood", "scrub"],
           paint: {
-            "fill-color": "#dbece0",
-            "fill-opacity": 0.6,
+            "fill-color": isDark ? "#1e293b" : "#dbece0",
+            "fill-opacity": isDark ? 0.3 : 0.6,
           },
         },
-        // === 4. 水系 - 与背景融合或稍深 ===
+        // === 4. 水系 ===
         {
           id: "water",
           type: "fill",
           source: "china_local",
           "source-layer": "water",
-          paint: { "fill-color": "#cbd2d3" },
+          paint: { "fill-color": isDark ? "#020617" : "#cbd2d3" },
         },
-        // === 5. 道路 (底层描边) - 浅灰色 ===
+        // === 5. 道路 (底层描边) ===
         {
           id: "roads_casing",
           type: "line",
@@ -141,7 +223,7 @@ class NetBoxMapBase {
           "source-layer": "transportation",
           minzoom: 5,
           paint: {
-            "line-color": "#cfcfcf",
+            "line-color": isDark ? "#334155" : "#cfcfcf",
             "line-width": {
               stops: [
                 [5, 1],
@@ -151,7 +233,7 @@ class NetBoxMapBase {
             },
           },
         },
-        // === 6. 道路 (顶层填充) - 纯白色 ===
+        // === 6. 道路 (顶层填充) ===
         {
           id: "roads_inner",
           type: "line",
@@ -159,7 +241,7 @@ class NetBoxMapBase {
           "source-layer": "transportation",
           minzoom: 5,
           paint: {
-            "line-color": "#ffffff",
+            "line-color": isDark ? "#1e293b" : "#ffffff",
             "line-width": {
               stops: [
                 [5, 0.5],
@@ -176,12 +258,12 @@ class NetBoxMapBase {
           source: "china_local",
           "source-layer": "boundary",
           paint: {
-            "line-color": "#aeb0b5",
+            "line-color": isDark ? "#475569" : "#aeb0b5",
             "line-width": 1,
             "line-dasharray": [2, 2],
           },
         },
-        // === 8. 城市名称 - 深蓝灰色，高可读性 ===
+        // === 8. 城市名称 ===
         {
           id: "place_label",
           type: "symbol",
@@ -200,8 +282,8 @@ class NetBoxMapBase {
             "text-max-width": 8,
           },
           paint: {
-            "text-color": "#434850",
-            "text-halo-color": "#ffffff",
+            "text-color": isDark ? "#94a3b8" : "#434850",
+            "text-halo-color": isDark ? "#0f172a" : "#ffffff",
             "text-halo-width": 2,
             "text-halo-blur": 0.5,
           },
@@ -577,11 +659,21 @@ class NetBoxMapBase {
   }
 
   /**
-   * 设置布局属性
+   * 设置布局属性与画笔属性并安全处理图层是否存在
    */
   setLayoutProperty(layerId, prop, value) {
     if (this.map.getLayer(layerId)) {
-      this.map.setLayoutProperty(layerId, prop, value);
+      // 区分是 paint property 还是 layout property
+      const stylePropertyMap = [
+        "visibility", "line-cap", "line-join", "symbol-placement", "symbol-spacing",
+        "icon-image", "icon-size", "text-field", "text-font", "text-size", "text-max-width", "text-offset", "text-anchor"
+      ];
+      
+      if (stylePropertyMap.includes(prop)) {
+        this.map.setLayoutProperty(layerId, prop, value);
+      } else {
+        this.map.setPaintProperty(layerId, prop, value);
+      }
     }
   }
 
