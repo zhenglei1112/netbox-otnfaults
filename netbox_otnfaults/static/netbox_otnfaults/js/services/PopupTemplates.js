@@ -12,9 +12,13 @@ class PopupTemplates {
     // 提取历时中的小时数
     let durationHtml = "";
     if (props.faultDuration && props.faultDuration !== "未知") {
-      const hourMatch = props.faultDuration.match(/（([\d.]+)小时）/);
-      const hours = hourMatch ? hourMatch[1] : props.faultDuration;
-      durationHtml = `<div class="popup-row"><span class="popup-label">历时</span><span>${hours}小时</span></div>`;
+      if (props.faultDuration === "无法计算" || props.faultDuration === "—") {
+        durationHtml = `<div class="popup-row"><span class="popup-label">历时</span><span>—</span></div>`;
+      } else {
+        const hourMatch = props.faultDuration.match(/（([\d.]+)小时）/);
+        const hours = hourMatch ? hourMatch[1] : props.faultDuration;
+        durationHtml = `<div class="popup-row"><span class="popup-label">历时</span><span>${hours}小时</span></div>`;
+      }
     }
 
     // 影响业务

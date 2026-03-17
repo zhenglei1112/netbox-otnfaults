@@ -1107,7 +1107,11 @@
 
 [data-bs-theme="dark"] .stats-popup-title,
 [data-bs-theme="dark"] .stats-popup-title-link,
-[data-bs-theme="dark"] .mode-card-label {
+[data-bs-theme="dark"] .mode-card-label,
+[data-bs-theme="dark"] .fault-popup .popup-sites,
+[data-bs-theme="dark"] .fault-popup .popup-row span:last-child,
+[data-bs-theme="dark"] .fault-popup .popup-impact-name,
+[data-bs-theme="dark"] .fault-popup .popup-impact-duration {
     color: var(--bs-body-color) !important;
 }
 
@@ -1118,7 +1122,9 @@
 [data-bs-theme="dark"] .stats-time-label,
 [data-bs-theme="dark"] .stats-time-unit,
 [data-bs-theme="dark"] .stats-chart-title,
-[data-bs-theme="dark"] .stats-tag-sub {
+[data-bs-theme="dark"] .stats-tag-sub,
+[data-bs-theme="dark"] .fault-popup .popup-label,
+[data-bs-theme="dark"] .fault-popup .popup-impacts-title {
     color: var(--bs-secondary-color) !important;
 }
 
@@ -1126,6 +1132,10 @@
 [data-bs-theme="dark"] .fault-popup .popup-footer,
 [data-bs-theme="dark"] .fault-popup .popup-impacts {
     border-color: var(--bs-border-color) !important;
+}
+
+[data-bs-theme="dark"] .fault-popup .popup-footer a {
+    color: var(--bs-link-color, #6ea8fe) !important;
 }
 
 [data-bs-theme="dark"] .time-range-slider {

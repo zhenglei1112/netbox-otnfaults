@@ -68,7 +68,7 @@ class NetBoxMapBase {
     } else {
       // 使用网络底图
       if (this.currentTheme === 'dark') {
-        mapOptions.style = 'https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json?api_key=' + apiKey;
+        mapOptions.style = 'http://192.168.30.34/map-assets/alidade_smooth_dark_local.json';
       } else {
         mapOptions.style = 'http://192.168.30.34/map-assets/alidade_smooth_local.json';
         // mapOptions.style =
@@ -142,7 +142,7 @@ class NetBoxMapBase {
     } else {
       // 在线底图：直接更换 Style URL
       const styleUrl = theme === 'dark' 
-          ? 'https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json?api_key=' + apiKey
+          ? 'http://192.168.30.34/map-assets/alidade_smooth_dark_local.json'
           : 'http://192.168.30.34/map-assets/alidade_smooth_local.json';
           
       this.map.setStyle(styleUrl);
