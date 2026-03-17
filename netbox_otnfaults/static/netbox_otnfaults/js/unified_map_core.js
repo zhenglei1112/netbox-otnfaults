@@ -216,9 +216,9 @@ class OTNMapCore {
               type: "line",
               source: "user-geojson-source",
               paint: {
-                "line-color": "rgba(255, 255, 255, 0.6)", // 更浅、半透明的白色边界线
-                "line-width": 1.2,
-                "line-opacity": 0.8
+                "line-color": "rgba(90, 140, 190, 0.7)", // 适度显眼但不突出的蓝灰色省界线
+                "line-width": 1.5,
+                "line-opacity": 0.9
               }
             },
             firstSymbolId

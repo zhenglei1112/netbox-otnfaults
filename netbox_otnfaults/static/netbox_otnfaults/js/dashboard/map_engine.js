@@ -207,7 +207,7 @@ window.MapEngine = (function () {
                     source: 'provinces',
                     filter: ['==', '$type', 'Polygon'], // Ensure it renders slightly above cleanly
                     paint: {
-                        'line-color': 'rgba(0, 210, 255, 0.4)',
+                        'line-color': 'rgba(100, 130, 170, 0.7)',
                         'line-width': 1.5,
                         // Not natively supported to offset line height purely in GL easily without line-extrusion, 
                         // but it naturally drapes over the fill-extrusion if drawn after or we rely on map style.
@@ -222,7 +222,7 @@ window.MapEngine = (function () {
                     type: 'line',
                     source: 'provinces',
                     paint: {
-                        'line-color': 'rgba(0, 210, 255, 0.1)',
+                        'line-color': 'rgba(100, 130, 170, 0.25)',
                         'line-width': 10,
                         'line-blur': 10
                     }
