@@ -1,0 +1,73 @@
+<style>
+  .otn-cal { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .otn-cal th { font-size: .7rem; color: #6c757d; text-align: center; padding: 2px 0; font-weight: 500; }
+  .otn-cal td { text-align: center; vertical-align: top; padding: 1px; height: 38px; position: relative; }
+  .otn-cal-day {
+    font-size: .72rem; color: var(--nbx-body-color, #495057); font-weight: 500;
+    line-height: 1; margin-bottom: 2px;
+  }
+  .otn-cal-today .otn-cal-day {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #0d6efd; color: #fff; font-weight: 700;
+  }
+  .otn-cal-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; }
+  .otn-cal-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 0 1px rgba(0,0,0,.25);
+  }
+  .otn-cal-empty { background: transparent; }
+  .otn-cal td:hover { background: rgba(13,110,253,.06); border-radius: 4px; }
+  .otn-cal-hdr { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 4px; }
+  .otn-cal-hdr span { font-size: .85rem; font-weight: 600; color: var(--nbx-body-color, #212529); }
+  .otn-cal-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; justify-content: center; }
+  .otn-cal-legend-item { display: flex; align-items: center; gap: 3px; font-size: .65rem; color: #6c757d; }
+  .otn-cal-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  /* 周末列高亮 */
+  .otn-cal th.otn-weekend { color: #dc3545; }
+</style>
+
+<div class="otn-cal-hdr">
+  <span>{{ year }}年{{ month }}月</span>
+</div>
+
+<table class="otn-cal">
+  <thead>
+    <tr>
+      <th>一</th><th>二</th><th>三</th><th>四</th><th>五</th>
+      <th class="otn-weekend">六</th><th class="otn-weekend">日</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for week in weeks %}
+    <tr>
+      {% for cell in week %}
+        {% if cell %}
+          <td class="{% if cell.is_today %}otn-cal-today{% endif %}">
+            <div class="otn-cal-day">{{ cell.day }}</div>
+            {% if cell.dots %}
+            <div class="otn-cal-dots">
+              {% for dot_color in cell.dots %}
+                <span class="otn-cal-dot" style="background:{{ dot_color }}"></span>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </td>
+        {% else %}
+          <td class="otn-cal-empty"></td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if legend %}
+<div class="otn-cal-legend">
+  {% for item in legend %}
+  <span class="otn-cal-legend-item">
+    <span class="otn-cal-legend-dot" style="background:{{ item.color }}"></span>{{ item.label }}
+  </span>
+  {% endfor %}
+</div>
+{% endif %}

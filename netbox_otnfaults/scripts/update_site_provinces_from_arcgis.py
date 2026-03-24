@@ -74,6 +74,12 @@ class UpdateSiteProvincesFromArcGIS(Script):
         super().__init__()
         # ArcGIS省份面图层服务URL
         self.arcgis_url = "http://192.168.30.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0"
+        
+        # 使用 requests.Session() 进行 TCP 连接复用，极大提升高频接口请求性能
+        self.session = requests.Session()
+        
+        # 使用本地缓存降低网络请求，对小数点后3位（约111米）以内的坐标进行结果重用
+        self._province_cache = {}
     
     def build_spatial_query_url(self, longitude, latitude):
         """
@@ -121,12 +127,18 @@ class UpdateSiteProvincesFromArcGIS(Script):
             (成功与否, 省份名称或错误消息)
         """
         try:
+            # 缓存检测
+            # 对坐标取3位小数精度，在查找省份这一宏观维度下3位精度（百米级别）极其可靠
+            cache_key = f"{round(float(longitude), 3)}_{round(float(latitude), 3)}"
+            if cache_key in self._province_cache:
+                return True, self._province_cache[cache_key]
+                
             # 构建查询URL
             query_url = self.build_spatial_query_url(longitude, latitude)
             
-            # 发送查询请求
+            # 发送查询请求，使用 session 维持长连接
             self.log_debug(f"查询URL: {query_url}")
-            response = requests.get(query_url, timeout=30)
+            response = self.session.get(query_url, timeout=30)
             response.raise_for_status()
             
             # 解析响应
@@ -144,17 +156,18 @@ class UpdateSiteProvincesFromArcGIS(Script):
                 return False, "未找到包含该点的省份"
             
             # 提取省份名称
-            # 注意：字段名可能是PR_NAME（大写）或PR_Name
             feature = features[0]
             attributes = feature.get('attributes', {})
             
-            # 尝试不同的字段名
             province_name = attributes.get('PR_NAME') or attributes.get('PR_Name')
             
             if not province_name:
                 return False, "省份名称字段为空"
             
-            return True, province_name.strip()
+            result_name = province_name.strip()
+            # 将成功查询的结果写入缓存
+            self._province_cache[cache_key] = result_name
+            return True, result_name
             
         except requests.exceptions.RequestException as e:
             return False, f"网络请求失败: {str(e)}"
@@ -329,14 +342,22 @@ class UpdateSiteProvincesFromArcGIS(Script):
         already_correct = 0
         
         self.log_info(f"开始处理 {total_to_process} 个站点...")
+        start_time = time.time()
         
         # 处理每个站点
         for i, site in enumerate(sites_to_process):
             processed += 1
             
-            # 进度反馈
-            if processed % 10 == 0 or processed == total_to_process:
-                self.log_info(f"已处理 {processed}/{total_to_process} 个站点...")
+            # 进度反馈：改用每处理 20 个站点，打印带有预估耗时的复合进度提示
+            if processed % 20 == 0 or processed == total_to_process:
+                elapsed = time.time() - start_time
+                percent = (processed / total_to_process) * 100
+                rate = processed / elapsed if elapsed > 0 else 0
+                eta = (total_to_process - processed) / rate if rate > 0 else 0
+                self.log_info(
+                    f"进度: {percent:.1f}% | 已处理: {processed}/{total_to_process} | "
+                    f"用时: {elapsed:.1f}s | 预估剩余: {eta:.1f}s | 速度: {rate:.1f} 站点/s"
+                )
             
             try:
                 # 查询省份
@@ -392,8 +413,8 @@ class UpdateSiteProvincesFromArcGIS(Script):
                     self.log_info(f"提交第 {processed//batch_size} 批更改...")
                     transaction.commit()
                 
-                # 避免请求过快
-                time.sleep(0.1)
+                # 由于使用了 Session 且有了缓存加持，可以移除原先每次循环强制阻断的 sleep
+                # time.sleep(0.1)
                 
             except Exception as e:
                 failed += 1

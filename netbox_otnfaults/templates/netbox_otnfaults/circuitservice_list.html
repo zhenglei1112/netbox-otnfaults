@@ -1,0 +1,98 @@
+{% extends 'generic/object_list.html' %}
+{% load helpers %}
+
+{% block content %}
+  {{ block.super }}
+  
+  <style>
+    /* 隐藏django_tables2默认分页 */
+    .table-container ul.pagination, .table-responsive ul.pagination {
+      display: none !important;
+    }
+  </style>
+
+  {% if table.page %}
+  <div class="card-footer d-flex justify-content-between align-items-center noprint custom-pagination" style="background-color: var(--bs-card-bg); border-top: 1px solid var(--bs-card-border-color); border-bottom-left-radius: var(--bs-card-inner-border-radius); border-bottom-right-radius: var(--bs-card-inner-border-radius);">
+    <nav aria-label="分页">
+      <ul class="pagination pagination-sm mb-0">
+        {% if table.page.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?{% querystring request page=table.page.previous_page_number %}">&lsaquo;</a>
+        </li>
+        {% endif %}
+        
+        {% for num in table.paginator.page_range %}
+          {% if num == table.page.number %}
+          <li class="page-item active">
+            <span class="page-link">{{ num }}</span>
+          </li>
+          {% elif num == 1 or num == table.paginator.num_pages or num >= table.page.number|add:"-2" and num <= table.page.number|add:"2" %}
+          <li class="page-item">
+            <a class="page-link" href="?{% querystring request page=num %}">{{ num }}</a>
+          </li>
+          {% elif num == table.page.number|add:"-3" or num == table.page.number|add:"3" %}
+          <li class="page-item disabled">
+            <span class="page-link">...</span>
+          </li>
+          {% endif %}
+        {% endfor %}
+        
+        {% if table.page.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?{% querystring request page=table.page.next_page_number %}">&rsaquo;</a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+
+    <span class="text-muted small">显示 {{ table.page.start_index }}-{{ table.page.end_index }} 共 {{ table.paginator.count }}</span>
+
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        每页
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item per-page-option" data-limit="25" href="?{% querystring request per_page=25 page=1 %}">25</a></li>
+        <li><a class="dropdown-item per-page-option" data-limit="50" href="?{% querystring request per_page=50 page=1 %}">50</a></li>
+        <li><a class="dropdown-item per-page-option" data-limit="100" href="?{% querystring request per_page=100 page=1 %}">100</a></li>
+        <li><a class="dropdown-item per-page-option" data-limit="250" href="?{% querystring request per_page=250 page=1 %}">250</a></li>
+        <li><a class="dropdown-item per-page-option" data-limit="500" href="?{% querystring request per_page=500 page=1 %}">500</a></li>
+      </ul>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 自动将自定义分页移动到表格容器的 card 底部，替换原有的分页
+        var tableContainer = document.querySelector('.table-responsive') || document.querySelector('.table-container') || document.querySelector('.card-body');
+        if (tableContainer) {
+            var card = tableContainer.closest('.card');
+            var customPagination = document.querySelector('.custom-pagination');
+            if (card && customPagination) {
+                // 如果原卡片有 footer 先隐藏
+                var defaultFooters = card.querySelectorAll('.card-footer');
+                defaultFooters.forEach(function(footer) {
+                    if (footer !== customPagination) {
+                        footer.style.display = 'none';
+                    }
+                });
+                card.appendChild(customPagination);
+            }
+        }
+
+        // 高亮当前 per_page
+        const urlParams = new URLSearchParams(window.location.search);
+        const limitStr = urlParams.get('per_page') || '25';
+        const limitMap = { '25': 0, '50': 1, '100': 2, '250': 3, '500': 4 };
+        const index = limitMap[limitStr];
+        
+        if (index !== undefined) {
+            const options = document.querySelectorAll('.per-page-option');
+            if (options[index]) {
+                options[index].classList.add('active');
+            }
+        }
+    });
+  </script>
+  {% endif %}
+{% endblock %}

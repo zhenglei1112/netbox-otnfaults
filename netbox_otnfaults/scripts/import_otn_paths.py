@@ -1,5 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist
-from extras.scripts import Script
+from extras.scripts import Script, IntegerVar
 from netbox_otnfaults.models import OtnPath, CableTypeChoices
 from dcim.models import Site
 from django.db.models import Q
@@ -13,6 +13,11 @@ class ImportOtnPaths(Script):
     class Meta:
         name = "Import OTN Paths from ArcGIS"
         description = "Fetch line and point data from ArcGIS and create OtnPath objects."
+
+    distance_threshold = IntegerVar(
+        default=100,
+        description="路径端点匹配站点的最大合法距离范围，单位为米 (m)。超过此容差距离的端点将被抛弃并关联归为【未指定】站点。"
+    )
 
     def haversine(self, lat1, lon1, lat2, lon2):
         R = 6371e3  # Earth radius in meters
@@ -92,6 +97,8 @@ class ImportOtnPaths(Script):
         return nearest_site_name, min_dist
 
     def run(self, data, commit):
+        threshold_m = data.get('distance_threshold', 100)
+        
         # Ensure 'Unspecified' site exists
         unspecified_site, _ = Site.objects.get_or_create(
             slug='unspecified',
@@ -107,8 +114,7 @@ class ImportOtnPaths(Script):
 
         # 1. Fetch Point Data (Sites)
         point_urls = [
-            "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/0",
-            "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/1"
+            "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN2026/FeatureServer/0"
         ]
         
         all_point_features = []
@@ -122,16 +128,17 @@ class ImportOtnPaths(Script):
 
         self.log_info(f"Total reference points loaded: {len(all_point_features)}")
 
+        unmatched_paths_count = 0
+        total_processed_paths = 0
+
         # 2. Process Line Layers
         line_configs = [
-            {"url": "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/2", "desc": "8800"},
-            {"url": "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN/FeatureServer/3", "desc": "9800"}
+            {"url": "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN2026/FeatureServer/1"}
         ]
 
         for config in line_configs:
             url = config['url']
-            desc_val = config['desc']
-            self.log_info(f"Processing line layer: {desc_val}")
+            self.log_info(f"Processing line layer from: {url}")
 
             res = self.fetch_arcgis_data(url)
             if not res or 'features' not in res:
@@ -148,6 +155,8 @@ class ImportOtnPaths(Script):
                     if not path or len(path) < 2:
                         continue
                     
+                    total_processed_paths += 1
+                    
                     start_point = path[0]
                     end_point = path[-1]
 
@@ -159,7 +168,7 @@ class ImportOtnPaths(Script):
                     nb_site_z = None
 
                     # Resolve Site A
-                    if dist_a > 100 or not site_a_name:
+                    if dist_a > threshold_m or not site_a_name:
                         nb_site_a = unspecified_site
                     else:
                         try:
@@ -171,7 +180,7 @@ class ImportOtnPaths(Script):
                             nb_site_a = unspecified_site
 
                     # Resolve Site Z
-                    if dist_z > 100 or not site_z_name:
+                    if dist_z > threshold_m or not site_z_name:
                         nb_site_z = unspecified_site
                     else:
                         try:
@@ -185,6 +194,9 @@ class ImportOtnPaths(Script):
                     # Construct OtnPath Name
                     # Use site A and Z names, which might be '未指定'
                     path_name = f"{nb_site_a.name}-{nb_site_z.name}"
+                    
+                    if nb_site_a == unspecified_site or nb_site_z == unspecified_site:
+                        unmatched_paths_count += 1
 
                     # Check for existing duplicate path (Bidirectional)
                     # A-Z or Z-A should be considered same path logic
@@ -215,12 +227,18 @@ class ImportOtnPaths(Script):
                         CableTypeChoices.LEASED
                     ])
 
+                    attributes = feature.get('attributes', {})
+                    # 避免可能的大小写拼写问题，提供多种防御提取
+                    o_name = attributes.get('O_Name') or attributes.get('O_NAME') or ''
+                    o_com = attributes.get('O_Com') or attributes.get('O_COM') or ''
+
                     otn_path = OtnPath(
                         name=path_name,
                         site_a=nb_site_a,
                         site_z=nb_site_z,
                         cable_type=cable_type_choice,
-                        description=desc_val,
+                        description=o_name[:200],  # Description 最大长度限飞
+                        comments=o_com,
                         calculated_length=Decimal(str(length_m)).quantize(Decimal("0.00")),
                         geometry=path  # Save the single path array [coord, coord, ...]
                     )
@@ -235,3 +253,15 @@ class ImportOtnPaths(Script):
                         except Exception as e:
                             self.log_failure(f"Failed to save {path_name}: {str(e)}")
 
+        # 最终审查报告输出
+        report_msg = (
+            f"运行完毕！共处理了 {total_processed_paths} 条目标路径。\n"
+        )
+        if unmatched_paths_count > 0:
+            report_msg += f"注意：其中有 {unmatched_paths_count} 条光路因为找不到相距 {threshold_m} 米内的归属机房实体，由于规则已被妥协关联至兜底的【未指定】站点中。"
+            self.log_warning(report_msg)
+        else:
+            report_msg += "完美情况：所有光路的起始点与终点都 100% 精准匹配到了具体存在的实体站点（机房）。"
+            self.log_success(report_msg)
+            
+        return report_msg

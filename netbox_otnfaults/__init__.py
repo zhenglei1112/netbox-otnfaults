@@ -39,6 +39,13 @@ class OtnFaultsConfig(PluginConfig):
         
         # Register API URLs
         from . import api
+        
+        # Register Dashboard Widgets
+        try:
+            from . import dashboard
+        except ImportError:
+            pass
+        
 
 config = OtnFaultsConfig
 
