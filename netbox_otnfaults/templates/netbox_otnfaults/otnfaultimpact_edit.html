@@ -23,17 +23,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const bfParent = getRow('id_bare_fiber_service');
         const cgParent = getRow('id_circuit_service_group');
         const cParent = getRow('id_circuit_service');
+        const saParent = getRow('id_service_site_a');
+        const szParent = getRow('id_service_site_z');
 
         if (val === 'bare_fiber') {
             if (bfParent) bfParent.style.display = '';
+            if (saParent) saParent.style.display = '';
+            if (szParent) szParent.style.display = '';
             if (cgParent) cgParent.style.display = 'none';
             if (cParent) cParent.style.display = 'none';
         } else if (val === 'circuit') {
             if (bfParent) bfParent.style.display = 'none';
+            if (saParent) saParent.style.display = 'none';
+            if (szParent) szParent.style.display = 'none';
             if (cgParent) cgParent.style.display = '';
             if (cParent) cParent.style.display = '';
         } else {
             if (bfParent) bfParent.style.display = 'none';
+            if (saParent) saParent.style.display = 'none';
+            if (szParent) szParent.style.display = 'none';
             if (cgParent) cgParent.style.display = 'none';
             if (cParent) cParent.style.display = 'none';
         }

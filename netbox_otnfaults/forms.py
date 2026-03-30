@@ -270,6 +270,16 @@ class OtnFaultImpactForm(NetBoxModelForm):
             'service_group': '$circuit_service_group'
         }
     )
+    service_site_a = DynamicModelChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        label='业务站点A'
+    )
+    service_site_z = DynamicModelChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        label='业务站点Z'
+    )
     secondary_faults = DynamicModelMultipleChoiceField(
         queryset=OtnFault.objects.all(),
         required=False,
@@ -284,7 +294,7 @@ class OtnFaultImpactForm(NetBoxModelForm):
     class Meta:
         model = OtnFaultImpact
         fields = (
-            'otn_fault', 'secondary_faults', 'service_type', 'bare_fiber_service', 'circuit_service_group', 'circuit_service',
+            'otn_fault', 'secondary_faults', 'service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z', 'circuit_service_group', 'circuit_service',
             'service_interruption_time', 'service_recovery_time',
             'comments', 'tags',
         )

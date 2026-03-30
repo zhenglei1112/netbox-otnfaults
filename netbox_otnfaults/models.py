@@ -983,6 +983,24 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         blank=True,
         null=True
     )
+    service_site_a = models.ForeignKey(
+        to='dcim.Site',
+        on_delete=models.SET_NULL,
+        related_name='impact_service_site_a',
+        verbose_name='业务站点A',
+        blank=True,
+        null=True,
+        help_text='仅裸纤业务时使用'
+    )
+    service_site_z = models.ForeignKey(
+        to='dcim.Site',
+        on_delete=models.SET_NULL,
+        related_name='impact_service_site_z',
+        verbose_name='业务站点Z',
+        blank=True,
+        null=True,
+        help_text='仅裸纤业务时使用'
+    )
     service_interruption_time = models.DateTimeField(
         verbose_name='业务故障时间'
     )
@@ -1041,6 +1059,8 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
             self.circuit_service = None
         elif self.service_type == ServiceTypeChoices.CIRCUIT:
             self.bare_fiber_service = None
+            self.service_site_a = None
+            self.service_site_z = None
             
         # 防止重复添加相同的业务
         if hasattr(self, 'otn_fault_id') and self.otn_fault_id:

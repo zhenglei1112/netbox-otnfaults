@@ -51,6 +51,28 @@
                             {% endif %}
                         </td>
                     </tr>
+                    {% if object.service_type == 'bare_fiber' %}
+                    <tr>
+                        <th scope="row">业务站点A</th>
+                        <td>
+                            {% if object.service_site_a %}
+                                <a href="{{ object.service_site_a.get_absolute_url }}">{{ object.service_site_a }}</a>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">业务站点Z</th>
+                        <td>
+                            {% if object.service_site_z %}
+                                <a href="{{ object.service_site_z.get_absolute_url }}">{{ object.service_site_z }}</a>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
                     <tr>
                         <th scope="row">业务故障时间</th>
                         <td>{{ object.service_interruption_time|date:"Y-m-d H:i:s"|default:"—" }}</td>
