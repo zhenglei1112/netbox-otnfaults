@@ -20,6 +20,7 @@ NetBox自定义脚本：从ArcGIS FeatureServer导入站点信息
 3. 运行脚本
 """
 
+import math
 import requests
 import json
 import random
@@ -29,6 +30,9 @@ from django.contrib.auth import get_user_model
 from dcim.models import Site
 from dcim.choices import SiteStatusChoices
 from extras.scripts import Script, BooleanVar, IntegerVar
+
+# 空间去重距离阈值（米）
+DISTANCE_THRESHOLD_METERS = 100
 
 
 class ImportSitesFromArcGIS(Script):
@@ -76,6 +80,81 @@ class ImportSitesFromArcGIS(Script):
         # 使用字母和数字生成随机字符串
         characters = string.ascii_lowercase + string.digits
         return ''.join(random.choice(characters) for _ in range(length))
+    
+    @staticmethod
+    def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """
+        使用Haversine公式计算两个经纬度坐标之间的距离（米）
+        
+        参数:
+            lat1, lon1: 第一个点的纬度和经度
+            lat2, lon2: 第二个点的纬度和经度
+            
+        返回:
+            两点之间的距离（米）
+        """
+        R = 6371000  # 地球平均半径（米）
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        delta_phi = math.radians(lat2 - lat1)
+        delta_lambda = math.radians(lon2 - lon1)
+        
+        a = (math.sin(delta_phi / 2) ** 2
+             + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        
+        return R * c
+    
+    def find_nearby_site(self, latitude: Decimal, longitude: Decimal,
+                         existing_sites: list[dict]) -> dict | None:
+        """
+        在已有站点列表中查找距离阈值内的站点
+        
+        参数:
+            latitude: 待检查点的纬度
+            longitude: 待检查点的经度
+            existing_sites: 已有站点列表，每项含 name/latitude/longitude
+            
+        返回:
+            距离最近且在阈值内的站点字典，不存在则返回 None
+        """
+        if latitude is None or longitude is None:
+            return None
+        
+        lat1 = float(latitude)
+        lon1 = float(longitude)
+        closest_site = None
+        closest_distance = float('inf')
+        
+        for site in existing_sites:
+            dist = self.haversine_distance(lat1, lon1, site['latitude'], site['longitude'])
+            if dist < closest_distance:
+                closest_distance = dist
+                closest_site = site
+        
+        if closest_site and closest_distance <= DISTANCE_THRESHOLD_METERS:
+            closest_site = {**closest_site, 'distance': closest_distance}
+            return closest_site
+        
+        return None
+    
+    def load_existing_sites_with_coords(self) -> list[dict]:
+        """
+        预加载所有含经纬度的已有站点
+        
+        返回:
+            站点字典列表，每项含 name/latitude/longitude
+        """
+        sites = Site.objects.exclude(
+            latitude__isnull=True
+        ).exclude(
+            longitude__isnull=True
+        ).values_list('name', 'latitude', 'longitude')
+        
+        return [
+            {'name': name, 'latitude': float(lat), 'longitude': float(lng)}
+            for name, lat, lng in sites
+        ]
     
     def fetch_arcgis_data(self, endpoint_url):
         """
@@ -172,10 +251,17 @@ class ImportSitesFromArcGIS(Script):
         返回:
             (成功与否, 消息)
         """
-        name = site_info['name']
+        original_name = site_info['name']
         latitude = site_info['latitude']
         longitude = site_info['longitude']
         
+        # 处理名称冲突：不以名称查重，遇到重名自动添加后缀以满足唯一性
+        name = original_name
+        counter = 1
+        while Site.objects.filter(name=name).exists():
+            name = f"{original_name}-{counter}"
+            counter += 1
+            
         # 生成随机缩写
         slug = self.generate_random_slug()
         
@@ -252,6 +338,10 @@ class ImportSitesFromArcGIS(Script):
         
         self.log_info("开始从ArcGIS导入站点信息")
         
+        # 预加载已有站点坐标（用于空间去重）
+        existing_sites_with_coords = self.load_existing_sites_with_coords()
+        self.log_info(f"已加载 {len(existing_sites_with_coords)} 个含坐标的已有站点（用于空间去重，阈值={DISTANCE_THRESHOLD_METERS}米）")
+        
         # 收集所有站点信息
         all_sites_info = []
         
@@ -269,27 +359,37 @@ class ImportSitesFromArcGIS(Script):
         
         self.log_info(f"从ArcGIS共获取 {len(all_sites_info)} 个站点信息")
         
-        # 去重（按名称）
-        unique_sites = {}
+        # 记录名称重复明细，但不再按名称去重（因为仅以位置查重）
+        name_count = {}  # 每个名称出现的次数
         for site_info in all_sites_info:
             name = site_info['name']
-            if name not in unique_sites:
-                unique_sites[name] = site_info
+            name_count[name] = name_count.get(name, 0) + 1
         
-        self.log_info(f"去重后剩余 {len(unique_sites)} 个唯一站点")
+        # 筛选出出现多次的名称
+        duplicate_name_details = {
+            name: count for name, count in name_count.items() if count > 1
+        }
+        
+        self.log_info(f"数据源同名情况: 有 {len(duplicate_name_details)} 个名称存在重复。将保留全部进入位置查重。")
+        if duplicate_name_details:
+            for name, count in duplicate_name_details.items():
+                self.log_info(f"  数据源重复: '{name}' 出现 {count} 次")
         
         # 限制导入数量
         if max_sites > 0:
-            sites_to_process = list(unique_sites.values())[:max_sites]
+            sites_to_process = all_sites_info[:max_sites]
             self.log_info(f"根据最大导入数量限制，将处理 {len(sites_to_process)} 个站点")
         else:
-            sites_to_process = list(unique_sites.values())
+            sites_to_process = all_sites_info
         
         # 统计信息
         total_sites = len(sites_to_process)
-        existing_sites = 0
+        nearby_sites = 0
         created_sites = 0
         failed_sites = 0
+        
+        # 详细记录列表
+        nearby_site_details = []     # 位置相近明细
         
         self.log_info(f"开始处理 {total_sites} 个站点...")
         
@@ -300,15 +400,34 @@ class ImportSitesFromArcGIS(Script):
             # 进度反馈
             if (i + 1) % 10 == 0:
                 self.log_info(f"已处理 {i + 1}/{total_sites} 个站点...")
-            
-            # 检查站点是否已存在
-            if self.site_exists(name):
-                self.log_success(f"站点已存在: {name}")
-                existing_sites += 1
+                        # 检查是否有位置相近的已有站点（空间去重）
+            nearby = self.find_nearby_site(
+                site_info['latitude'], site_info['longitude'],
+                existing_sites_with_coords
+            )
+            if nearby:
+                detail_msg = (
+                    f"{name} ↔ {nearby['name']} "
+                    f"(距离 {nearby['distance']:.1f}m)"
+                )
+                self.log_warning(
+                    f"跳过站点: {name} — 与已有站点 '{nearby['name']}' "
+                    f"距离仅 {nearby['distance']:.1f} 米（阈值 {DISTANCE_THRESHOLD_METERS} 米）"
+                )
+                nearby_sites += 1
+                nearby_site_details.append(detail_msg)
                 continue
             
             # 创建站点
             success, message = self.create_site(site_info, dry_run=(dry_run or not commit))
+            
+            # 新建成功后将站点加入空间去重列表，避免本批次内重复
+            if success and site_info['latitude'] is not None and site_info['longitude'] is not None:
+                existing_sites_with_coords.append({
+                    'name': name,
+                    'latitude': float(site_info['latitude']),
+                    'longitude': float(site_info['longitude']),
+                })
             
             if success:
                 self.log_success(message)
@@ -320,13 +439,28 @@ class ImportSitesFromArcGIS(Script):
         # 生成结果报告
         result_message = (
             f"导入完成！\n"
-            f"• 从ArcGIS获取站点: {len(all_sites_info)} 个\n"
-            f"• 去重后唯一站点: {len(unique_sites)} 个\n"
-            f"• 处理站点总数: {total_sites} 个\n"
-            f"• 已存在站点: {existing_sites} 个\n"
+            f"• 从ArcGIS获取站点（处理总数）: {total_sites} 个\n"
+            f"• 数据源同名重复: {len(duplicate_name_details)} 个名称\n"
+            f"• 跳过站点（位置相近）: {nearby_sites} 个\n"
             f"• 成功创建站点: {created_sites} 个\n"
             f"• 创建失败站点: {failed_sites} 个\n"
         )
+        
+        # 附加数据源同名重复明细
+        if duplicate_name_details:
+            result_message += f"\n{'='*50}\n"
+            result_message += f"数据源同名重复明细（只按位置去重，同名将被保留并自动加后缀）:\n"
+            for idx, (name, count) in enumerate(
+                sorted(duplicate_name_details.items(), key=lambda x: x[1], reverse=True), 1
+            ):
+                result_message += f"  {idx}. {name} （出现 {count} 次）\n"
+        
+        # 附加位置相近站点明细
+        if nearby_site_details:
+            result_message += f"\n{'='*50}\n"
+            result_message += f"位置相近跳过站点明细（共 {len(nearby_site_details)} 个，阈值 {DISTANCE_THRESHOLD_METERS}m）:\n"
+            for idx, detail in enumerate(nearby_site_details, 1):
+                result_message += f"  {idx}. {detail}\n"
         
         if dry_run or not commit:
             result_message += "\n注意：当前为模拟模式，站点未实际创建。\n"

@@ -25,8 +25,15 @@ import random
 import string
 from decimal import Decimal
 from django.contrib.auth import get_user_model
+import re
 from dcim.models import Region
 from extras.scripts import Script, BooleanVar, IntegerVar
+
+# 省份名称后缀，按长度降序排列以优先匹配最长后缀
+PROVINCE_SUFFIXES = [
+    '壮族自治区', '回族自治区', '维吾尔自治区',
+    '特别行政区', '自治区', '省', '市',
+]
 
 
 class ImportProvincesFromArcGIS(Script):
@@ -57,6 +64,24 @@ class ImportProvincesFromArcGIS(Script):
         super().__init__()
         # ArcGIS端点URL - 全国省份图
         self.endpoint = "http://192.168.30.216:6080/arcgis/rest/services/OTN/province/FeatureServer/0/query?where=1%3D1&outFields=PR_Name&returnGeometry=false&f=json"
+    
+    @staticmethod
+    def normalize_province_name(name: str) -> str:
+        """
+        标准化省份名称，去掉常见后缀
+        
+        示例:
+            北京市 → 北京
+            河北省 → 河北
+            广西壮族自治区 → 广西
+            内蒙古自治区 → 内蒙古
+            香港特别行政区 → 香港
+        """
+        name = name.strip()
+        for suffix in PROVINCE_SUFFIXES:
+            if name.endswith(suffix) and len(name) > len(suffix):
+                return name[:-len(suffix)]
+        return name
     
     def generate_random_slug(self, length=6):
         """
@@ -101,38 +126,46 @@ class ImportProvincesFromArcGIS(Script):
     
     def extract_province_info(self, feature):
         """
-        从ArcGIS特征中提取省份信息
+        从ArcGIS特征中提取省份信息，并标准化名称
         
         参数:
             feature: ArcGIS特征
             
         返回:
-            省份信息字典，包含name
+            省份信息字典，包含name(标准化后)和original_name(原始名)
         """
         attributes = feature.get('attributes', {})
         
         # 注意：字段名是 PR_NAME（大写），不是 PR_Name
-        name = attributes.get('PR_NAME', '').strip()
+        original_name = attributes.get('PR_NAME', '').strip()
         
         # 验证数据
-        if not name:
+        if not original_name:
             return None
         
+        normalized = self.normalize_province_name(original_name)
+        
         return {
-            'name': name
+            'name': normalized,
+            'original_name': original_name,
         }
     
     def region_exists(self, region_name):
         """
-        检查地区是否已存在
+        检查地区是否已存在（同时检查标准化名称和常见变体）
         
         参数:
-            region_name: 地区名称
+            region_name: 标准化后的地区名称
             
         返回:
             如果地区存在返回True，否则返回False
         """
-        return Region.objects.filter(name=region_name).exists()
+        # 构建所有可能的名称变体
+        variants = {region_name}
+        for suffix in PROVINCE_SUFFIXES:
+            variants.add(region_name + suffix)
+        
+        return Region.objects.filter(name__in=variants).exists()
     
     def create_region(self, province_info, dry_run=True):
         """
@@ -206,14 +239,31 @@ class ImportProvincesFromArcGIS(Script):
         
         self.log_info(f"成功提取 {len(all_provinces_info)} 个省份信息")
         
-        # 去重（按名称）
+        # 去重（按标准化名称）并记录合并明细
         unique_provinces = {}
+        merge_details = {}  # 标准化名称 → [原始名称列表]
         for province_info in all_provinces_info:
-            name = province_info['name']
+            name = province_info['name']  # 已标准化
+            original = province_info['original_name']
+            
+            if name not in merge_details:
+                merge_details[name] = []
+            merge_details[name].append(original)
+            
             if name not in unique_provinces:
                 unique_provinces[name] = province_info
         
-        self.log_info(f"去重后剩余 {len(unique_provinces)} 个唯一省份")
+        # 找出被合并的名称（同一标准化名有多个不同原始名）
+        merged_names = {
+            k: v for k, v in merge_details.items()
+            if len(set(v)) > 1
+        }
+        
+        self.log_info(f"去重后剩余 {len(unique_provinces)} 个唯一省份（标准化名称合并了 {len(merged_names)} 组变体）")
+        if merged_names:
+            for norm_name, originals in merged_names.items():
+                unique_originals = sorted(set(originals))
+                self.log_info(f"  名称合并: {' / '.join(unique_originals)} → {norm_name}")
         
         # 限制导入数量
         if max_provinces > 0:

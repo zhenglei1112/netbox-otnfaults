@@ -110,6 +110,26 @@ class OtnFaultTable(NetBoxTable):
     fault_status = columns.ChoiceFieldColumn(
         verbose_name='处理状态'
     )
+    manager_reviewed = columns.BooleanColumn(
+        verbose_name='线路主管复核'
+    )
+    manager_reviewer = tables.Column(
+        verbose_name='线路主管复核人'
+    )
+    manager_review_time = tables.DateTimeColumn(
+        format='Y-m-d H:i:s',
+        verbose_name='线路主管复核时间'
+    )
+    noc_reviewed = columns.BooleanColumn(
+        verbose_name='网管人员复核'
+    )
+    noc_reviewer = tables.Column(
+        verbose_name='网管人员复核人'
+    )
+    noc_review_time = tables.DateTimeColumn(
+        format='Y-m-d H:i:s',
+        verbose_name='网管人员复核时间'
+    )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:otnfault_list'
     )
@@ -123,11 +143,15 @@ class OtnFaultTable(NetBoxTable):
             'province', 'line_manager', 'resource_type', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'handler', 'cable_break_location', 'recovery_mode', 'handling_unit', 'contract',
-            'fault_status', 'comments', 'tags', 'actions',
+            'fault_status',
+            'manager_reviewed', 'manager_reviewer', 'manager_review_time',
+            'noc_reviewed', 'noc_reviewer', 'noc_review_time',
+            'comments', 'tags', 'actions',
         )
         default_columns = (
             'fault_number', 'fault_category', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_duration', 'fault_status',
+            'manager_reviewed', 'noc_reviewed',
         )
 
     def render_fault_category(self, value, record):
