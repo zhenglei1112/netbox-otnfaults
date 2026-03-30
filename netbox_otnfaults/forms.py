@@ -23,7 +23,10 @@ class OtnFaultForm(NetBoxModelForm):
     )
     interruption_location_a = DynamicModelChoiceField(
         queryset=Site.objects.all(),
-        label='故障位置A端站点'
+        label='故障位置A端站点',
+        query_params={
+            'region_id': '$province'
+        }
     )
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
@@ -364,7 +367,10 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     interruption_location_a = DynamicModelChoiceField(
         queryset=Site.objects.all(),
         required=False,
-        label='故障位置A端站点'
+        label='故障位置A端站点',
+        query_params={
+            'region_id': '$province'
+        }
     )
     fault_category = forms.ChoiceField(
         choices=add_blank_choice(FaultCategoryChoices),
@@ -546,7 +552,10 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     interruption_location_a = DynamicModelChoiceField(
         queryset=Site.objects.all(),
         required=False,
-        label='故障位置A端站点'
+        label='故障位置A端站点',
+        query_params={
+            'region_id': '$province'
+        }
     )
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
