@@ -93,7 +93,7 @@ class OtnFaultForm(NetBoxModelForm):
             'line_manager', 'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'repair_time', 'timeout',
             'timeout_reason',
-            name='光缆中断补充信息'
+            name='线路主管补充信息'
         ),
         FieldSet(
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
@@ -116,7 +116,7 @@ class OtnFaultForm(NetBoxModelForm):
             'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 'fault_recovery_time',
             'closure_time', 'first_report_source', 'duty_officer', 'handler', 'fault_details',
             'fault_status',
-            # 光缆中断补充信息组字段
+            # 线路主管补充信息组字段
             'line_manager', 'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
@@ -515,7 +515,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             'line_manager', 'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'timeout',
             'timeout_reason', 'comments',
-            name='光缆中断补充信息'
+            name='线路主管补充信息'
         ),
         FieldSet(
             'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',

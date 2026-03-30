@@ -115,10 +115,10 @@ class GenerateFaultData(Script):
         
         # 第一报障来源选项
         self.report_sources = [
-            'national_backbone',  # 国干网网管
-            'future_network',     # 未来网络网管
-            'customer_support',   # 客户报障
-            'other',              # 其他
+            'customer_support',   # 客户报障（含未来网络报障）
+            'nms_self_check',     # 网管自查
+            'env_alarm',          # 动环报警
+            'other',              # 其他来源
         ]
         
         # 维护方式选项

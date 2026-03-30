@@ -5,7 +5,7 @@ NetBox自定义脚本：调整故障时间分布
 1. 将非"处理中"状态的故障数据的故障中断时间、故障恢复时间调整为2025-1-1至2025-12-5之间随机分布
 2. 保持故障历时不变
 3. 如果是光缆故障，同步调整处理派发时间、维修出发时间、到达现场时间（保持时间逻辑关系）
-4. 如果是非光缆故障，清空光缆中断补充信息相关字段
+4. 如果是非光缆故障，清空线路主管补充信息相关字段
 
 使用方式：
 在NetBox的"自定义脚本"界面中：
@@ -112,7 +112,7 @@ class AdjustFaultTimes(Script):
                 self._adjust_fiber_fault_times(fault, new_occurrence_time, new_recovery_time, original_duration_seconds)
                 stats['fiber_updated'] += 1
             else:
-                # 非光缆故障：清空光缆中断补充信息相关字段
+                # 非光缆故障：清空线路主管补充信息相关字段
                 self._clear_fiber_related_fields(fault)
                 stats['non_fiber_updated'] += 1
                 stats['non_fiber_cleared'] += 1
@@ -216,7 +216,7 @@ class AdjustFaultTimes(Script):
     
     def _clear_fiber_related_fields(self, fault):
         """
-        清空非光缆故障的光缆中断补充信息相关字段
+        清空非光缆故障的线路主管补充信息相关字段
         
         需要清空的字段：
         - cable_break_location (光缆中断部位)
