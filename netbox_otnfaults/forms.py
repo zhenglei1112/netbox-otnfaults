@@ -31,7 +31,10 @@ class OtnFaultForm(NetBoxModelForm):
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
         required=False,
-        label='故障位置Z端站点'
+        label='故障位置Z端站点',
+        query_params={
+            'connected_to_a': '$interruption_location_a'
+        }
     )
     province = DynamicModelChoiceField(
         queryset=Region.objects.all(),
@@ -146,6 +149,8 @@ class OtnFaultForm(NetBoxModelForm):
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # 初始设置 API 数据源（前端会动态挂载 connected_to_a 参数）
+        self.fields['interruption_location'].widget.attrs['data-url'] = '/api/plugins/otnfaults/connected-sites/'
         # 对于现有故障，添加只读的故障编号显示字段
         if self.instance.pk:
             # 添加一个只读字段来显示故障编号
@@ -560,7 +565,10 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     interruption_location = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
         required=False,
-        label='故障位置Z端站点'
+        label='故障位置Z端站点',
+        query_params={
+            'connected_to_a': '$interruption_location_a'
+        }
     )
     province = DynamicModelChoiceField(
         queryset=Region.objects.all(),
@@ -585,6 +593,11 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             'external_party_object': '$handling_unit',
         }
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['interruption_location'].widget.attrs['data-url'] = '/api/plugins/otnfaults/connected-sites/'
+
     fault_category = forms.ChoiceField(
         choices=add_blank_choice(FaultCategoryChoices),
         required=False,

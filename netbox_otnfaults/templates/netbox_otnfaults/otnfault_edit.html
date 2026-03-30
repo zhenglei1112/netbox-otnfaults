@@ -640,6 +640,135 @@
         setupReviewerSync('id_noc_reviewed', 'id_noc_reviewer', 'id_noc_review_time');
     }
 
+    // Z端快捷定位：根据A端站点自动查找有路径连通的站点，并提供快捷选择
+    function initPathShortcuts() {
+        const aSiteSelect = document.querySelector('select[name="interruption_location_a"]');
+        const zSiteSelect = document.querySelector('select[name="interruption_location"]');
+        
+        if (!aSiteSelect || !zSiteSelect) return;
+        
+        const aSiteTS = aSiteSelect.tomselect;
+        const zSiteTS = zSiteSelect.tomselect;
+        
+        if (!aSiteTS || !zSiteTS) {
+            setTimeout(initPathShortcuts, 100);
+            return;
+        }
+
+        // 创建快捷标签行容器
+        let shortcutsRow = document.getElementById('z-site-shortcuts-row');
+        let shortcutsContainer = null;
+        if (!shortcutsRow) {
+            shortcutsRow = document.createElement('div');
+            shortcutsRow.id = 'z-site-shortcuts-row';
+            // 使用标准的 Bootstrap row 布局，并用 mb-3 保持与表单行距一致
+            shortcutsRow.className = 'row mb-3';
+            
+            // 左侧留白 (匹配 label 的宽度)，右侧放置提示区域
+            shortcutsRow.innerHTML = `
+                <div class="col-sm-3"></div>
+                <div class="col-sm-9" id="z-site-shortcuts-container"></div>
+            `;
+            
+            // 将新行插入到 Z 端站点输入框这一行的正下方
+            let zRow = zSiteSelect.closest('.row');
+            if (zRow && zRow.parentNode) {
+                zRow.parentNode.insertBefore(shortcutsRow, zRow.nextSibling);
+            } else {
+                zSiteSelect.parentNode.appendChild(shortcutsRow);
+            }
+        }
+        shortcutsContainer = document.getElementById('z-site-shortcuts-container');
+
+        function fetchAndRenderShortcuts(siteAId) {
+            shortcutsContainer.innerHTML = ''; // 清空提示
+            if (!siteAId) return;
+
+            // 提示正在加载
+            shortcutsContainer.innerHTML = '<span class="text-muted small"><i class="mdi mdi-loading mdi-spin"></i> 正在查找光缆路径连通站点...</span>';
+
+            fetch(`/api/plugins/otnfaults/paths/?site=${siteAId}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.results || data.results.length === 0) {
+                    shortcutsContainer.innerHTML = '<span class="text-muted small">该站点未查询到连通的光缆路径。您仍可自行搜索并选择Z端站点。</span>';
+                    return;
+                }
+
+                // 提取连接的Z端站点并去重
+                const connectedSites = {};
+                data.results.forEach(path => {
+                    let connectedSite = null;
+                    if (path.site_a && path.site_a.id && path.site_a.id.toString() !== siteAId.toString()) {
+                        connectedSite = path.site_a;
+                    } else if (path.site_z && path.site_z.id && path.site_z.id.toString() !== siteAId.toString()) {
+                        connectedSite = path.site_z;
+                    }
+                    if (connectedSite && !connectedSites[connectedSite.id]) {
+                        connectedSites[connectedSite.id] = connectedSite;
+                    }
+                });
+
+                const siteIds = Object.keys(connectedSites);
+                if (siteIds.length === 0) {
+                    shortcutsContainer.innerHTML = '<span class="text-muted small">该站点光缆路径可能为自环或无其他连接。您可自行搜索Z端站点。</span>';
+                    return;
+                }
+
+                // 渲染快捷按钮
+                let html = '<span class="text-muted small me-2">路径快捷选择：</span>';
+                siteIds.forEach(id => {
+                    const site = connectedSites[id];
+                    html += `<span class="badge bg-info text-dark me-1 z-site-shortcut-btn" style="cursor:pointer;" data-id="${id}" data-name="${site.name}">${site.name} <i class="mdi mdi-plus"></i></span>`;
+                });
+                shortcutsContainer.innerHTML = html;
+
+                // 绑定点击事件
+                shortcutsContainer.querySelectorAll('.z-site-shortcut-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const idStr = this.getAttribute('data-id');
+                        const nameStr = this.getAttribute('data-name');
+                        // 尝试添加选中项到 TomSelect
+                        zSiteTS.addOption({
+                            value: idStr,
+                            id: idStr,
+                            text: nameStr,
+                            label: nameStr,
+                            name: nameStr,
+                            display: nameStr
+                        });
+                        // 注意：对于多选字段，addItem 默认是追加
+                        zSiteTS.addItem(idStr);
+                        // 可以选择性地给予一小点视觉反馈
+                        this.classList.replace('bg-info', 'bg-success');
+                        this.classList.replace('text-dark', 'text-white');
+                        setTimeout(() => {
+                            this.classList.replace('bg-success', 'bg-info');
+                            this.classList.replace('text-white', 'text-dark');
+                        }, 500);
+                    });
+                });
+            })
+            .catch(e => {
+                console.error('[PathShortcuts] 查找连接连通站点失败:', e);
+                shortcutsContainer.innerHTML = '';
+            });
+        }
+
+        aSiteTS.on('change', fetchAndRenderShortcuts);
+        
+        // 如果页面加载时 A 端已选中数值，仅渲染快捷选项不触发全局 change（防止覆盖现有选中项）
+        if (aSiteSelect.value) {
+            fetchAndRenderShortcuts(aSiteSelect.value);
+        }
+    }
+
     // 初始化
     if (document.readyState === 'complete') {
         setTimeout(initCascadeFilter, 200);
@@ -647,6 +776,7 @@
         setTimeout(initFiberLogic, 200);
         setTimeout(initManagerLogic, 200);
         setTimeout(initReviewLogic, 200);
+        setTimeout(initPathShortcuts, 200);
     } else {
         window.addEventListener('load', function() {
             setTimeout(initCascadeFilter, 200);
@@ -654,6 +784,7 @@
             setTimeout(initFiberLogic, 200);
             setTimeout(initManagerLogic, 200);
             setTimeout(initReviewLogic, 200);
+            setTimeout(initPathShortcuts, 200);
         });
     }
 })();

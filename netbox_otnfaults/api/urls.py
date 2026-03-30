@@ -17,6 +17,7 @@ urlpatterns = [
     re_path(r'^path-groups/(?P<pk>\d+)/batch-add/?$', views.path_group_batch_add, name='path-group-batch-add'),
     re_path(r'^path-groups/(?P<pk>\d+)/clear-paths/?$', views.path_group_clear_paths, name='path-group-clear-paths'),
     re_path(r'^path-groups/(?P<pk>\d+)/clear-sites/?$', views.path_group_clear_sites, name='path-group-clear-sites'),
+    path('connected-sites/', views.connected_sites_view, name='connected-sites'),
     path('heatmap-data/', views.HeatmapDataView.as_view(), name='heatmap-data'),
     path('route-snapper/calculate/', views.RouteSnapperView.as_view(), name='route-snapper-calculate'),
 ] + router.urls

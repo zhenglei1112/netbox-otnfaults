@@ -7,12 +7,15 @@ from django.core.cache import cache
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.db.models import Q
 from datetime import timedelta
 import json
 import logging
 from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
 from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer, BareFiberServiceSerializer, CircuitServiceSerializer
 from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet
+from dcim.models import Site
+from dcim.api.serializers import SiteSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +69,45 @@ class CircuitServiceViewSet(NetBoxModelViewSet):
     queryset = CircuitService.objects.all()
     serializer_class = CircuitServiceSerializer
     filterset_class = CircuitServiceFilterSet
+
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.authentication import SessionAuthentication
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def connected_sites_view(request):
+    """
+    Z端站点自定义查询接口
+    如果传了 q，则全局搜索所有站点
+    如果传了 connected_to_a 且没有 q，则只返回与 A 站点连通的站点
+    """
+    site_a_id = request.GET.get('connected_to_a')
+    q = request.GET.get('q', '')
+    
+    queryset = Site.objects.all()
+    
+    if q:
+        # 用户输入了内容，执行全局模糊搜索
+        queryset = queryset.filter(Q(name__icontains=q) | Q(facility__icontains=q))
+    elif site_a_id:
+        # 用户只是点开了下拉列表，默认只展示连通的站点
+        from ..models import OtnPath
+        paths = OtnPath.objects.filter(Q(site_a_id=site_a_id) | Q(site_z_id=site_a_id))
+        connected_site_ids = set()
+        for p in paths:
+            if p.site_a_id and str(p.site_a_id) != str(site_a_id):
+                connected_site_ids.add(p.site_a_id)
+            if p.site_z_id and str(p.site_z_id) != str(site_a_id):
+                connected_site_ids.add(p.site_z_id)
+        queryset = queryset.filter(id__in=connected_site_ids)
+        
+    queryset = queryset[:50]
+    # 使用 Base Serializer 的 request context，Netbox 自动追加 display 字段供 Select2 使用
+    serializer = SiteSerializer(queryset, many=True, context={'request': request})
+    
+    # 按照 Netbox 选择器所需的格式返回
+    return Response({'results': serializer.data})
+
 
 class HeatmapDataView(APIView):
     """热力图数据API视图（优化版）"""
