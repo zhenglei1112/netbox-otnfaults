@@ -489,6 +489,7 @@ class OtnFaultImpactDetailTable(NetBoxTable):
 class OtnFaultImpactSummaryTable(OtnFaultImpactTable):
     """故障详情页关联业务的精简表格渲染"""
     class Meta(OtnFaultImpactTable.Meta):
+        empty_text = '— 找不到 故障影响业务 —'
         fields = (
             'pk', 'secondary_faults', 'service_type', 'service_name', 'service_group',
             'service_interruption_time', 'service_recovery_time', 'service_duration',

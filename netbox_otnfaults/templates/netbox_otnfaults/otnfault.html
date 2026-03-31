@@ -405,7 +405,10 @@
         </div>
         {% endif %}
       </h5>
-      {% render_table impacts_table %}
+      <style>.impacts-table-container .table td[colspan] { text-align: center; }</style>
+      <div class="impacts-table-container">
+        {% render_table impacts_table %}
+      </div>
     </div>
   </div>
 </div>
