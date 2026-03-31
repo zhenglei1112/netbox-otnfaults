@@ -21,21 +21,33 @@
     };
 
     function applyChineseLocale() {
-        // 查找页面中所有 flatpickr 实例并重新配置 locale
+        // 查找页面中所有 flatpickr 实例并重新配置
         var flatpickrInputs = document.querySelectorAll('.flatpickr-input');
         if (flatpickrInputs.length === 0) {
             return;
         }
 
+        var now = new Date();
         flatpickrInputs.forEach(function(input) {
             if (input._flatpickr) {
-                // 获取当前值
-                var currentValue = input._flatpickr.selectedDates;
-                // 设置中文 locale
-                input._flatpickr.set('locale', zhLocale);
-                // 恢复选中的日期
+                var fp = input._flatpickr;
+                // 保存当前已选日期和原始配置
+                var currentValue = fp.selectedDates.length > 0 ? fp.selectedDates.slice() : null;
+                var origConfig = Object.assign({}, fp.config);
+
+                // 销毁旧实例
+                fp.destroy();
+
+                // 用原始配置重建，覆盖 defaultHour/defaultMinute 和 locale
+                origConfig.locale = zhLocale;
+                origConfig.defaultHour = now.getHours();
+                origConfig.defaultMinute = now.getMinutes();
+
+                var newFp = flatpickr(input, origConfig);
+
+                // 恢复之前选中的日期
                 if (currentValue && currentValue.length > 0) {
-                    input._flatpickr.setDate(currentValue, false);
+                    newFp.setDate(currentValue, false);
                 }
             }
         });

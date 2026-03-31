@@ -591,11 +591,11 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='恢复方式'
     )
     
-    # 21) 封包时间，格式为2024/11/17  10:23:34
+    # 21) 封包完成时间，格式为2024/11/17  10:23:34
     closure_time = models.DateTimeField(
         blank=True,
         null=True,
-        verbose_name='封包时间'
+        verbose_name='封包完成时间'
     )
     
     # 供电故障补充信息
@@ -809,10 +809,10 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         ]
         labels = ['故障中断', '处理派发', '维修出发', '到达现场', '故障恢复']
 
-        # 仅当故障类型为光纤类时，才在末尾显示封包时间（不参与历时计算）
+        # 仅当故障类型为光纤类时，才在末尾显示封包完成时间（不参与历时计算）
         if self.is_fiber_fault:
             times.append(self.closure_time)
-            labels.append('封包时间')
+            labels.append('封包完成时间')
         
         steps = []
         for i in range(len(times)):
