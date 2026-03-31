@@ -27,28 +27,25 @@
             return;
         }
 
-        var now = new Date();
         flatpickrInputs.forEach(function(input) {
             if (input._flatpickr) {
                 var fp = input._flatpickr;
-                // 保存当前已选日期和原始配置
-                var currentValue = fp.selectedDates.length > 0 ? fp.selectedDates.slice() : null;
-                var origConfig = Object.assign({}, fp.config);
-
-                // 销毁旧实例
-                fp.destroy();
-
-                // 用原始配置重建，覆盖 defaultHour/defaultMinute 和 locale
-                origConfig.locale = zhLocale;
-                origConfig.defaultHour = now.getHours();
-                origConfig.defaultMinute = now.getMinutes();
-
-                var newFp = flatpickr(input, origConfig);
-
-                // 恢复之前选中的日期
+                // 获取当前值
+                var currentValue = fp.selectedDates;
+                // 设置中文 locale
+                fp.set('locale', zhLocale);
+                // 恢复选中的日期
                 if (currentValue && currentValue.length > 0) {
-                    newFp.setDate(currentValue, false);
+                    fp.setDate(currentValue, false);
                 }
+
+                // 添加 onOpen 钩子：当字段为空时，自动填入当前日期时间
+                var origOnOpen = fp.config.onOpen || [];
+                fp.config.onOpen = (Array.isArray(origOnOpen) ? origOnOpen : [origOnOpen]).concat(function(selectedDates, dateStr, instance) {
+                    if (selectedDates.length === 0) {
+                        instance.setDate(new Date(), true);
+                    }
+                });
             }
         });
     }
