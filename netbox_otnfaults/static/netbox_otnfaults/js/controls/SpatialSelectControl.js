@@ -80,7 +80,11 @@ class SpatialSelectControl {
         mainBtn.className = 'spatial-select-main-btn';
         mainBtn.title = '图上选择站点路径';
         mainBtn.innerHTML = '<i class="mdi mdi-selection-drag"></i>';
-        mainBtn.addEventListener('click', () => this._toggleMenu());
+        mainBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._toggleMenu();
+        });
         this.container.appendChild(mainBtn);
         this.mainBtn = mainBtn;
 
@@ -107,6 +111,8 @@ class SpatialSelectControl {
         // 菜单项点击
         this.menuContainer.querySelectorAll('.spatial-select-menu-item').forEach(item => {
             item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const mode = item.dataset.mode;
                 this._activateMode(mode);
             });

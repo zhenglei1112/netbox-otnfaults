@@ -22,22 +22,15 @@ class OtnPathGroupSiteTable(NetBoxTable):
     position = tables.Column(
         verbose_name='排序'
     )
+    
     actions = columns.ActionsColumn(
-        actions=('edit', 'delete'),
-        extra_buttons='''
-            <a href="{% url 'plugins:netbox_otnfaults:otnpathgroupsite_edit' pk=record.pk %}" class="btn btn-sm btn-warning">
-                <i class="mdi mdi-pencil"></i>
-            </a>
-            <a href="{% url 'plugins:netbox_otnfaults:otnpathgroupsite_delete' pk=record.pk %}" class="btn btn-sm btn-danger">
-                <i class="mdi mdi-trash-can-outline"></i>
-            </a>
-        '''
+        actions=('edit', 'delete')
     )
 
     class Meta(NetBoxTable.Meta):
         model = OtnPathGroupSite
-        fields = ('pk', 'site', 'role', 'position', 'actions')
-        default_columns = ('site', 'role', 'position', 'actions')
+        fields = ('pk', 'id', 'site', 'role', 'position', 'actions')
+        default_columns = ('site', 'role', 'position', 'id', 'actions')
 
     def render_role(self, value, record):
         color = record.get_role_color()

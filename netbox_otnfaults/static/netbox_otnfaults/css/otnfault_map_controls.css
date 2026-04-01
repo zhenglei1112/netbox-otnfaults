@@ -789,6 +789,7 @@
 
 .spatial-select-control {
     position: relative;
+    overflow: visible !important;
 }
 
 .spatial-select-main-btn {
