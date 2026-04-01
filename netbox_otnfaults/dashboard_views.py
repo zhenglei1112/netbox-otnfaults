@@ -285,14 +285,41 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             })
 
         # ── 6. 最近故障事件（用于 Ticker）──
-        recent_faults = OtnFault.objects.order_by('-fault_occurrence_time')[:20]
+        recent_faults = OtnFault.objects.select_related(
+            'interruption_location_a'
+        ).prefetch_related(
+            'interruption_location'
+        ).order_by('-fault_occurrence_time')[:20]
         ticker_events = []
         for fault in recent_faults:
+            z_sites = [s.name for s in fault.interruption_location.all()]
+            # 计算故障历时（简短格式）
+            duration_text = ''
+            if fault.fault_occurrence_time:
+                end_time = fault.fault_recovery_time or now
+                delta = end_time - fault.fault_occurrence_time
+                total_seconds = int(delta.total_seconds())
+                if total_seconds >= 0:
+                    days = total_seconds // 86400
+                    hours = (total_seconds % 86400) // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    parts = []
+                    if days > 0:
+                        parts.append(f'{days}天')
+                    if hours > 0:
+                        parts.append(f'{hours}小时')
+                    if minutes > 0 or not parts:
+                        parts.append(f'{minutes}分')
+                    duration_text = ''.join(parts)
+                    if not fault.fault_recovery_time:
+                        duration_text += '(进行中)'
             ticker_events.append({
                 'fault_number': fault.fault_number,
                 'category': fault.get_fault_category_display() if fault.fault_category else '未知',
                 'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
+                'sites_z': z_sites,
                 'time': fault.fault_occurrence_time.strftime('%m-%d %H:%M') if fault.fault_occurrence_time else '',
+                'duration': duration_text,
                 'status': fault.get_fault_status_display() if fault.fault_status else '',
                 'severity': CATEGORY_SEVERITY.get(fault.fault_category, 'minor'),
             })

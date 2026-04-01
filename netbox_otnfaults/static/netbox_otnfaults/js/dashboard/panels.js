@@ -33,31 +33,67 @@ window.Panels = (function () {
         if (_lastTickerDataStr === currentDataStr) return;
         _lastTickerDataStr = currentDataStr;
 
-        // 生成结构摘要（仅包含故障编号），用于判断是否需要重置动画进度
-        // 如果结构没变，只是个别字词（如时间、状态）变了，则不重置动画
+        // 生成结构摘要（仅包含故障编号），用于判断是否需要重建DOM
         const currentSummaryStr = events.map(function (e) { return e.fault_number; }).join(',');
         const isStructureChanged = (currentSummaryStr !== _lastTickerSummaryStr);
         _lastTickerSummaryStr = currentSummaryStr;
 
-        container.innerHTML = events.map(function (e) {
-            const color = COLORS.alert_colors[e.severity] || '#FADB14';
-            return '<span class="ticker-item">' +
-                '<span class="ticker-severity-dot" style="background:' + color +
-                ';box-shadow:0 0 4px ' + color + '"></span>' +
-                '<span class="ticker-fault-number">' + e.fault_number + '</span>' +
-                e.category + ' | ' + e.site_a + ' | ' + e.time + ' | ' + e.status +
-                '</span>';
-        }).join('');
-
-        // 仅在结构发生变化（增减项目/顺序变化）时重启滚动动画
-        // 这样可以根据新的宽度计算正确的时长，并确保完整展示
         if (isStructureChanged) {
+            // 结构变化（故障增减/顺序改变）→ 重建DOM并重启动画
+            // 构建两组相同内容实现无缝循环
+            var itemsHTML = events.map(function (e) {
+                return _buildTickerItemHTML(e);
+            }).join('');
+            container.innerHTML =
+                '<span class="ticker-group">' + itemsHTML + '</span>' +
+                '<span class="ticker-group">' + itemsHTML + '</span>';
+
             container.style.animation = 'none';
             container.offsetHeight; // reflow
-            var totalWidth = container.scrollWidth;
-            var duration = Math.max(30, totalWidth / 50); // 基于宽度计算
+            // 只需滚动一组的宽度（即容器总宽的50%），动画循环时无缝衔接
+            var groupWidth = container.querySelector('.ticker-group').offsetWidth;
+            var duration = Math.max(30, groupWidth / 50);
             container.style.animation = 'ticker-scroll ' + duration + 's linear infinite';
+        } else {
+            // 结构未变（仅历时/状态等文本更新）→ 原地更新两组DOM文本，保持动画连续
+            var groups = container.querySelectorAll('.ticker-group');
+            groups.forEach(function (group) {
+                var items = group.querySelectorAll('.ticker-item');
+                events.forEach(function (e, i) {
+                    if (items[i]) {
+                        var textNode = items[i].querySelector('.ticker-text');
+                        if (textNode) {
+                            textNode.textContent = _buildTickerText(e);
+                        }
+                    }
+                });
+            });
         }
+    }
+
+    /**
+     * 构建单条 Ticker 项的完整 HTML
+     */
+    function _buildTickerItemHTML(e) {
+        const color = COLORS.alert_colors[e.severity] || '#FADB14';
+        return '<span class="ticker-item">' +
+            '<span class="ticker-severity-dot" style="background:' + color +
+            ';box-shadow:0 0 4px ' + color + '"></span>' +
+            '<span class="ticker-fault-number">' + e.fault_number + '</span>' +
+            '<span class="ticker-text">' + _buildTickerText(e) + '</span>' +
+            '</span>';
+    }
+
+    /**
+     * 构建 Ticker 项的可变文本部分
+     */
+    function _buildTickerText(e) {
+        var siteText = e.site_a || '';
+        if (e.sites_z && e.sites_z.length > 0) {
+            siteText += ' → ' + e.sites_z.join('、');
+        }
+        return e.category + ' | ' + siteText + ' | ' + e.time +
+            (e.duration ? ' | 历时' + e.duration : '') + ' | ' + e.status;
     }
 
     /**

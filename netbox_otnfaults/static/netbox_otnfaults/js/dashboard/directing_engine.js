@@ -4,9 +4,8 @@
  * 基于状态机的自动化播控系统，管理摄像机视角自动流转。
  * 
  * 状态流:
- *   GLOBAL_CRUISE → REGION_TOUR → (循环)
- *        ↓ (故障触发)
- *   FAULT_INTERRUPT → CAMERA_FLIGHT → FAULT_ANALYSIS → (返回巡航)
+ *   GLOBAL_CRUISE → FAULT_INTERRUPT → CAMERA_FLIGHT → FAULT_ANALYSIS → (返回巡航)
+ *   无故障时保持 GLOBAL_CRUISE 循环
  */
 window.DirectingEngine = (function () {
     'use strict';
@@ -14,7 +13,6 @@ window.DirectingEngine = (function () {
     /* ── 状态常量 ── */
     const STATE = {
         GLOBAL_CRUISE: 'GLOBAL_CRUISE',
-        REGION_TOUR: 'REGION_TOUR',
         FAULT_INTERRUPT: 'FAULT_INTERRUPT',
         CAMERA_FLIGHT: 'CAMERA_FLIGHT',
         FAULT_ANALYSIS: 'FAULT_ANALYSIS',
@@ -23,26 +21,15 @@ window.DirectingEngine = (function () {
     /* ── 状态中文名 ── */
     const STATE_NAMES = {
         GLOBAL_CRUISE: '全局巡航',
-        REGION_TOUR: '区域轮播',
         FAULT_INTERRUPT: '故障捕获',
         CAMERA_FLIGHT: '视角飞行',
         FAULT_ANALYSIS: '故障聚焦',
     };
 
-    /* ── 重点区域列表 ── */
-    const REGIONS = [
-        { name: '华北·京津冀', center: [116.4, 39.9], zoom: 7 },
-        { name: '华东·长三角', center: [121.0, 31.0], zoom: 7 },
-        { name: '华南·珠三角', center: [113.5, 23.0], zoom: 7 },
-        { name: '西南·成渝', center: [105.0, 30.0], zoom: 7 },
-        { name: '中部·武汉', center: [114.3, 30.6], zoom: 7.5 },
-        { name: '西北·西安', center: [108.9, 34.3], zoom: 7.5 },
-        { name: '东北·沈阳', center: [123.4, 41.8], zoom: 7 },
-    ];
+
 
     /* ── 内部状态 ── */
     let currentState = STATE.GLOBAL_CRUISE;
-    let regionIndex = 0;
     let cruiseBearing = 0;
     let faultQueue = [];         // 按优先级排序的故障队列
     let currentFault = null;     // 当前展示中的故障
@@ -58,11 +45,9 @@ window.DirectingEngine = (function () {
 
     /* ── 时间参数 (ms) ── */
     const CRUISE_ROTATE_DURATION = 40000;   // 巡航旋转周期
-    const REGION_DWELL_TIME = 15000;        // 区域停留时间
-    const REGION_TRANSITION = 3000;         // 区域间过渡
     const FAULT_DWELL_BASE = 20000;         // 故障基础停留时间
     const FAULT_DWELL_CRITICAL = 40000;     // 致命故障停留时间
-    const CRUISE_TO_REGION_INTERVAL = 20000; // 巡航到轮播间隔
+    const CRUISE_DWELL_TIME = 20000;        // 巡航停留时间（用于检查故障队列）
     const CONFIG = window.DASHBOARD_CONFIG;
 
     /**
@@ -136,7 +121,6 @@ window.DirectingEngine = (function () {
             to: newState,
             name: STATE_NAMES[newState],
             fault: currentFault,
-            region: currentState === STATE.REGION_TOUR ? REGIONS[regionIndex] : null
         });
     }
 
@@ -147,9 +131,6 @@ window.DirectingEngine = (function () {
         switch (currentState) {
             case STATE.GLOBAL_CRUISE:
                 _executeGlobalCruise();
-                break;
-            case STATE.REGION_TOUR:
-                _executeRegionTour();
                 break;
             case STATE.FAULT_INTERRUPT:
                 _executeFaultInterrupt();
@@ -187,34 +168,16 @@ window.DirectingEngine = (function () {
             // 执行极慢速旋转
             MapEngine.rotateTo(targetBearing, 25000);
 
-            // 等待后切换到区域轮播
+            // 等待后检查故障队列，有故障则切换到故障流程，否则继续巡航
             timer = setTimeout(function () {
-                _setState(STATE.REGION_TOUR);
-                _runStateMachine();
-            }, CRUISE_TO_REGION_INTERVAL);
-        });
-    }
-
-    /* ── 重点区域轮播 ── */
-    function _executeRegionTour() {
-        const region = REGIONS[regionIndex];
-
-        MapEngine.flyTo(region.center[0], region.center[1], region.zoom, {
-            duration: REGION_TRANSITION,
-            pitch: 50,
-        }).then(function () {
-            // 停留后继续
-            timer = setTimeout(function () {
-                regionIndex = (regionIndex + 1) % REGIONS.length;
-
-                // 每完成一轮区域巡游，回到全局
-                if (regionIndex === 0) {
-                    _setState(STATE.GLOBAL_CRUISE);
+                if (faultQueue.length > 0) {
+                    _setState(STATE.FAULT_INTERRUPT);
                 } else {
-                    // 继续下一个区域
+                    // 无故障，继续全国巡航
+                    _setState(STATE.GLOBAL_CRUISE);
                 }
                 _runStateMachine();
-            }, REGION_DWELL_TIME);
+            }, CRUISE_DWELL_TIME);
         });
     }
 
