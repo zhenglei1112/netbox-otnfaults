@@ -1315,7 +1315,7 @@ class OtnPath(NetBoxModel):
         blank=True,
         null=True,
         verbose_name='计算长度',
-        help_text='单位: 米'
+        help_text='单位: 公里 (km)'
     )
     description = models.TextField(
         blank=True,

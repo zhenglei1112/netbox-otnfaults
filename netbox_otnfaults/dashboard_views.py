@@ -268,7 +268,7 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             # 计算长度显示文本
             length_km = ''
             if path_obj.calculated_length:
-                km = float(path_obj.calculated_length) / 1000
+                km = float(path_obj.calculated_length)
                 length_km = f'{km:.1f}km'
 
             paths.append({
