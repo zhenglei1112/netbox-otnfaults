@@ -424,7 +424,6 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     )
     
     # 2) 紧急程度，为选择型字段，分为高、中、低，按照颜色显示，高为红色，中为橙色，低为黄色，默认值为低，必填
-    # 2) 紧急程度，为选择型字段，分为高、中、低，按照颜色显示，高为红色，中为橙色，低为黄色，默认值为低，必填
     urgency = models.CharField(
         max_length=10,
         choices=UrgencyChoices,
@@ -457,7 +456,6 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         null=True
     )
     
-    # 6) 维护方式，为选择型字段，分为代维、协调、自维
     # 6) 维护方式，为选择型字段，分为代维、协调、自维
     maintenance_mode = models.CharField(
         max_length=20,
@@ -532,7 +530,6 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     )
     
     # 15) 资源类型，为选择性字段，分为自建光缆、协调资源、租赁纤芯三类
-    # 15) 资源类型，为选择性字段，分为自建光缆、协调资源、租赁纤芯三类
     resource_type = models.CharField(
         max_length=20,
         choices=ResourceTypeChoices,
@@ -541,7 +538,6 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='光纤来源'
     )
     
-    # 16) 光缆路由属性，为选择性字段，分为高速公路、非高速两类，默认值为高速公路，可空
     # 16) 光缆路由属性，为选择性字段，分为高速公路、非高速两类，默认值为高速公路，可空
     cable_route = models.CharField(
         max_length=20,
@@ -562,7 +558,6 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     )
     
     # 18) 处理状态，为选择型字段，分为处理中、临时恢复、挂起、关闭
-    # 18) 处理状态，为选择型字段，分为处理中、临时恢复、挂起、关闭
     fault_status = models.CharField(
         max_length=20,
         choices=FaultStatusChoices,
@@ -572,7 +567,6 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='处理状态'
     )
     
-    # 19) 光缆中断部位，为选择型字段，分为尾纤、出局缆、长途光缆
     # 19) 光缆中断部位，为选择型字段，分为尾纤、出局缆、长途光缆
     cable_break_location = models.CharField(
         max_length=20,

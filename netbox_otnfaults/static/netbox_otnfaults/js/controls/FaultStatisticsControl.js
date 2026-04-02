@@ -793,7 +793,6 @@ class FaultStatisticsControl {
   // 2. 用站点ID在光缆路径模型中匹配（考虑AZ与ZA双向）
   // 3. fly to并高亮路径
   // 4. 弹窗中提供详情链接（使用bidirectional_pair筛选器）
-  // 4. 弹窗中提供详情链接（使用bidirectional_pair筛选器）
   async flyToPath(pathName) {
     // 确保路径元数据已加载
     if (
