@@ -130,6 +130,7 @@ class ImportOtnPaths(Script):
 
         unmatched_paths_count = 0
         total_processed_paths = 0
+        skipped_duplicates = []
 
         # 2. Process Line Layers
         line_configs = [
@@ -146,10 +147,14 @@ class ImportOtnPaths(Script):
 
             for feature in res['features']:
                 geometry = feature.get('geometry')
+                attributes = feature.get('attributes', {})
+                feat_name = attributes.get('O_Name') or attributes.get('O_NAME') or ''
+
                 if not geometry or 'paths' not in geometry:
                     continue
 
                 paths = geometry['paths']
+
                 # 过滤掉空的或过短的子路径
                 valid_paths = [p for p in paths if p and len(p) >= 2]
                 if not valid_paths:
@@ -170,12 +175,26 @@ class ImportOtnPaths(Script):
                 site_a_name, dist_a = self.find_nearest_site(start_point, all_point_features)
                 site_z_name, dist_z = self.find_nearest_site(end_point, all_point_features)
 
+                # 从 O_NAME 解析后备站点名（格式如 "枣阳-随州"）
+                fallback_a = None
+                fallback_z = None
+                if '-' in feat_name:
+                    parts = feat_name.split('-', 1)
+                    fallback_a = parts[0].strip()
+                    fallback_z = parts[1].strip()
+
                 nb_site_a = None
                 nb_site_z = None
 
-                # Resolve Site A
+                # Resolve Site A：空间匹配优先，失败则用 O_NAME 后备
                 if dist_a > threshold_m or not site_a_name:
-                    nb_site_a = unspecified_site
+                    if fallback_a:
+                        try:
+                            nb_site_a = Site.objects.get(name=fallback_a)
+                        except (Site.DoesNotExist, Site.MultipleObjectsReturned):
+                            nb_site_a = unspecified_site
+                    else:
+                        nb_site_a = unspecified_site
                 else:
                     try:
                         nb_site_a = Site.objects.get(name=site_a_name)
@@ -185,9 +204,15 @@ class ImportOtnPaths(Script):
                         self.log_warning(f"Multiple NetBox Sites found for name: {site_a_name}, defaulting to Unspecified")
                         nb_site_a = unspecified_site
 
-                # Resolve Site Z
+                # Resolve Site Z：空间匹配优先，失败则用 O_NAME 后备
                 if dist_z > threshold_m or not site_z_name:
-                    nb_site_z = unspecified_site
+                    if fallback_z:
+                        try:
+                            nb_site_z = Site.objects.get(name=fallback_z)
+                        except (Site.DoesNotExist, Site.MultipleObjectsReturned):
+                            nb_site_z = unspecified_site
+                    else:
+                        nb_site_z = unspecified_site
                 else:
                     try:
                         nb_site_z = Site.objects.get(name=site_z_name)
@@ -204,14 +229,17 @@ class ImportOtnPaths(Script):
                     unmatched_paths_count += 1
 
                 # Check for existing duplicate path (Bidirectional)
-                existing_path = OtnPath.objects.filter(
-                    Q(site_a=nb_site_a, site_z=nb_site_z) |
-                    Q(site_a=nb_site_z, site_z=nb_site_a)
-                ).first()
+                # 双端均为"未指定"时跳过去重，保持入库
+                if nb_site_a != unspecified_site or nb_site_z != unspecified_site:
+                    existing_path = OtnPath.objects.filter(
+                        Q(site_a=nb_site_a, site_z=nb_site_z) |
+                        Q(site_a=nb_site_z, site_z=nb_site_a)
+                    ).first()
 
-                if existing_path:
-                    self.log_warning(f"Path already exists between {nb_site_a.name} and {nb_site_z.name} (ID: {existing_path.pk}). Skipping.")
-                    continue
+                    if existing_path:
+                        skipped_duplicates.append(feat_name or path_name)
+                        self.log_warning(f"Path already exists between {nb_site_a.name} and {nb_site_z.name} (ID: {existing_path.pk}). Skipping. O_Name: {feat_name}")
+                        continue
 
                 # 使用合并后的坐标计算总长度
                 length_m = 0.0
@@ -230,7 +258,6 @@ class ImportOtnPaths(Script):
                     CableTypeChoices.LEASED
                 ])
 
-                attributes = feature.get('attributes', {})
                 o_name = attributes.get('O_Name') or attributes.get('O_NAME') or ''
                 o_com = attributes.get('O_Com') or attributes.get('O_COM') or ''
 
@@ -265,5 +292,11 @@ class ImportOtnPaths(Script):
         else:
             report_msg += "完美情况：所有光路的起始点与终点都 100% 精准匹配到了具体存在的实体站点（机房）。"
             self.log_success(report_msg)
-            
+
+        if skipped_duplicates:
+            dup_list = '、'.join(skipped_duplicates)
+            dup_msg = f"因查重未入库的路径共 {len(skipped_duplicates)} 条：{dup_list}"
+            self.log_warning(dup_msg)
+            report_msg += f"\n{dup_msg}"
+
         return report_msg
