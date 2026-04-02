@@ -92,6 +92,32 @@ const FaultModePlugin = {
     const map = this.map;
     const mapBase = this.mapBase;
 
+    // --- 降低底图干扰噪声（仅此模式） ---
+    const checkAndSetOpacity = () => {
+      let allSet = true;
+
+      if (map.getLayer("netbox-sites-layer")) {
+        map.setPaintProperty("netbox-sites-layer", "circle-opacity", 0.35);
+        map.setPaintProperty("netbox-sites-layer", "circle-stroke-opacity", 0.35);
+      } else allSet = false;
+
+      if (map.getLayer("otn-paths-layer")) {
+        map.setPaintProperty("otn-paths-layer", "line-opacity", 0.35);
+      } else allSet = false;
+
+      if (map.getLayer("user-geojson-fill") && map.getLayer("user-geojson-line")) {
+        map.setPaintProperty("user-geojson-fill", "fill-opacity", 0.05);
+        map.setPaintProperty("user-geojson-line", "line-opacity", 0.5);
+      } else allSet = false;
+
+      if (allSet) {
+        map.off('styledata', checkAndSetOpacity);
+      }
+    };
+    
+    checkAndSetOpacity();
+    map.on('styledata', checkAndSetOpacity);
+
     // --- 热力图源 ---
     mapBase.addGeoJsonSource("fault-heatmap", {
       type: "FeatureCollection",
