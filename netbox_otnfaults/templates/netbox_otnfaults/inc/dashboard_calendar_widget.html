@@ -4,12 +4,13 @@
   .otn-cal td { text-align: center; vertical-align: top; padding: 1px; height: 38px; position: relative; }
   .otn-cal-day {
     font-size: .72rem; color: var(--nbx-body-color, #495057); font-weight: 500;
-    line-height: 1; margin-bottom: 2px;
+    height: 20px; line-height: 20px; margin-bottom: 2px; text-align: center;
   }
-  .otn-cal-today .otn-cal-day {
-    display: inline-flex; align-items: center; justify-content: center;
+  .otn-cal-today-badge {
+    display: inline-block;
     width: 20px; height: 20px; border-radius: 50%;
     background: #0d6efd; color: #fff; font-weight: 700;
+    line-height: 20px; text-align: center;
   }
   .otn-cal-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; }
   .otn-cal-dot {
@@ -44,7 +45,7 @@
       {% for cell in week %}
         {% if cell %}
           <td class="{% if cell.is_today %}otn-cal-today{% endif %}">
-            <div class="otn-cal-day">{{ cell.day }}</div>
+            <div class="otn-cal-day">{% if cell.is_today %}<span class="otn-cal-today-badge">{{ cell.day }}</span>{% else %}{{ cell.day }}{% endif %}</div>
             {% if cell.dots %}
             <div class="otn-cal-dots">
               {% for dot_color in cell.dots %}
