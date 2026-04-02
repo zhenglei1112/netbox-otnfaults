@@ -78,6 +78,11 @@ class OtnFaultTable(NetBoxTable):
         verbose_name='故障历时',
         orderable=False
     )
+    progress = tables.Column(
+        verbose_name='处理进度',
+        orderable=False,
+        empty_values=()
+    )
     urgency = columns.ChoiceFieldColumn(
         verbose_name='紧急程度'
     )
@@ -131,7 +136,7 @@ class OtnFaultTable(NetBoxTable):
         model = OtnFault
         fields = (
             'pk', 'fault_number', 'fault_category', 'duty_officer', 'interruption_location_a', 'interruption_location',
-            'fault_occurrence_time', 'fault_recovery_time', 'fault_duration',
+            'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'progress',
             'interruption_reason', 'interruption_reason_detail', 'urgency', 'first_report_source',
             'province', 'line_manager', 'resource_type', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
@@ -143,7 +148,7 @@ class OtnFaultTable(NetBoxTable):
         )
         default_columns = (
             'fault_number', 'fault_category', 'duty_officer', 'interruption_location_a', 'interruption_location',
-            'fault_occurrence_time', 'fault_duration', 'fault_status',
+            'fault_occurrence_time', 'fault_duration', 'fault_status', 'progress',
             'manager_reviewed', 'noc_reviewed',
         )
 
@@ -210,6 +215,27 @@ class OtnFaultTable(NetBoxTable):
             info['display']
         )
 
+    def render_progress(self, record):
+        from django.utils.safestring import mark_safe
+        times = [
+            record.fault_occurrence_time,
+            record.dispatch_time,
+            record.departure_time,
+            record.arrival_time,
+            record.fault_recovery_time
+        ]
+        icons = ['mdi-flash', 'mdi-refresh', 'mdi-truck', 'mdi-map-marker', 'mdi-check']
+        titles = ['故障中断', '处理派发', '维修出发', '到达现场', '故障恢复']
+        html_parts = []
+        for i, t in enumerate(times):
+            if t is not None:
+                style = "display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background-color: #28a745; color: white; margin-right: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); vertical-align: middle;"
+                html_parts.append(f'<span style="{style}" title="{titles[i]} (已记录)"><i class="mdi {icons[i]}" style="font-size: 12px; line-height: 1;"></i></span>')
+            else:
+                style = "display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background-color: #fff; color: #adb5bd; border: 1px solid #dee2e6; margin-right: 4px; vertical-align: middle;"
+                html_parts.append(f'<span style="{style}" title="{titles[i]} (未记录)"><i class="mdi {icons[i]}" style="font-size: 12px; line-height: 1;"></i></span>')
+        return mark_safe(f'<div style="white-space: nowrap; display: inline-block; vertical-align: -3px;">{"".join(html_parts)}</div>')
+
 class ContractOtnFaultTable(NetBoxTable):
     """用于在合同详情页精简显示的故障表格"""
     fault_number = tables.Column(
@@ -237,16 +263,21 @@ class ContractOtnFaultTable(NetBoxTable):
         verbose_name='故障历时',
         orderable=False
     )
+    progress = tables.Column(
+        verbose_name='处理进度',
+        orderable=False,
+        empty_values=()
+    )
 
     class Meta(NetBoxTable.Meta):
         model = OtnFault
         fields = (
             'pk', 'fault_number', 'duty_officer', 'fault_occurrence_time',
-            'fault_category', 'urgency', 'fault_status', 'fault_duration',
+            'fault_category', 'urgency', 'fault_status', 'progress', 'fault_duration',
         )
         default_columns = (
             'fault_number', 'duty_officer', 'fault_occurrence_time',
-            'fault_category', 'urgency', 'fault_status', 'fault_duration',
+            'fault_category', 'urgency', 'fault_status', 'progress', 'fault_duration',
         )
 
     def render_fault_category(self, value, record):
@@ -291,6 +322,27 @@ class ContractOtnFaultTable(NetBoxTable):
             fill_bg,
             info['display']
         )
+
+    def render_progress(self, record):
+        from django.utils.safestring import mark_safe
+        times = [
+            record.fault_occurrence_time,
+            record.dispatch_time,
+            record.departure_time,
+            record.arrival_time,
+            record.fault_recovery_time
+        ]
+        icons = ['mdi-flash', 'mdi-refresh', 'mdi-truck', 'mdi-map-marker', 'mdi-check']
+        titles = ['故障中断', '处理派发', '维修出发', '到达现场', '故障恢复']
+        html_parts = []
+        for i, t in enumerate(times):
+            if t is not None:
+                style = "display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background-color: #28a745; color: white; margin-right: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); vertical-align: middle;"
+                html_parts.append(f'<span style="{style}" title="{titles[i]} (已记录)"><i class="mdi {icons[i]}" style="font-size: 12px; line-height: 1;"></i></span>')
+            else:
+                style = "display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background-color: #fff; color: #adb5bd; border: 1px solid #dee2e6; margin-right: 4px; vertical-align: middle;"
+                html_parts.append(f'<span style="{style}" title="{titles[i]} (未记录)"><i class="mdi {icons[i]}" style="font-size: 12px; line-height: 1;"></i></span>')
+        return mark_safe(f'<div style="white-space: nowrap; display: inline-block; vertical-align: -3px;">{"".join(html_parts)}</div>')
 
 class OtnFaultImpactTable(NetBoxTable):
     otn_fault = tables.Column(
