@@ -102,7 +102,6 @@ class WeeklyFaultReport(Script):
             'self_built': '自建光缆',
             'coordinated': '协调资源',
             'leased': '租赁纤芯',
-            'provincial_provided': '一二期配套',
             
             # 维护方式
             'outsourced': '代维',

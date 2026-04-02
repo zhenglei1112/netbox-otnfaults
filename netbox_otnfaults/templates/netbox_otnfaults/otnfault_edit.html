@@ -31,6 +31,7 @@
         {% render_field form.closure_time %}
         {% render_field form.handler %}
         {% render_field form.fault_details %}
+        {% render_field form.tags %}
     </div>
 </div>
 
@@ -41,6 +42,7 @@
     <div class="row">
         {% render_field form.line_manager %}
         {% render_field form.resource_type %}
+        {% render_field form.resource_owner %}
         {% render_field form.cable_route %}
         {% render_field form.cable_break_location %}
         {% render_field form.recovery_mode %}
@@ -83,7 +85,6 @@
     </div>
     <div class="row">
         {% render_field form.comments %}
-        {% render_field form.tags %}
     </div>
 </div>
 

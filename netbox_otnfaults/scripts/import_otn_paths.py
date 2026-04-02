@@ -150,108 +150,110 @@ class ImportOtnPaths(Script):
                     continue
 
                 paths = geometry['paths']
-                # Usually paths is [[[x1,y1], [x2,y2], ...]] specific for multiline, but often just one path
-                for path in paths:
-                    if not path or len(path) < 2:
-                        continue
-                    
-                    total_processed_paths += 1
-                    
-                    start_point = path[0]
-                    end_point = path[-1]
+                # 过滤掉空的或过短的子路径
+                valid_paths = [p for p in paths if p and len(p) >= 2]
+                if not valid_paths:
+                    continue
 
-                    # Find nearest sites
-                    site_a_name, dist_a = self.find_nearest_site(start_point, all_point_features)
-                    site_z_name, dist_z = self.find_nearest_site(end_point, all_point_features)
+                total_processed_paths += 1
 
-                    nb_site_a = None
-                    nb_site_z = None
+                # 将 Multipart 视为一个整体：取第一段起点和最后一段终点
+                start_point = valid_paths[0][0]
+                end_point = valid_paths[-1][-1]
 
-                    # Resolve Site A
-                    if dist_a > threshold_m or not site_a_name:
+                # 合并所有子路径的坐标用于长度计算和几何存储
+                merged_coords = []
+                for p in valid_paths:
+                    merged_coords.extend(p)
+
+                # Find nearest sites
+                site_a_name, dist_a = self.find_nearest_site(start_point, all_point_features)
+                site_z_name, dist_z = self.find_nearest_site(end_point, all_point_features)
+
+                nb_site_a = None
+                nb_site_z = None
+
+                # Resolve Site A
+                if dist_a > threshold_m or not site_a_name:
+                    nb_site_a = unspecified_site
+                else:
+                    try:
+                        nb_site_a = Site.objects.get(name=site_a_name)
+                    except Site.DoesNotExist:
                         nb_site_a = unspecified_site
-                    else:
-                        try:
-                            nb_site_a = Site.objects.get(name=site_a_name)
-                        except Site.DoesNotExist:
-                            nb_site_a = unspecified_site
-                        except Site.MultipleObjectsReturned:
-                            self.log_warning(f"Multiple NetBox Sites found for name: {site_a_name}, defaulting to Unspecified")
-                            nb_site_a = unspecified_site
+                    except Site.MultipleObjectsReturned:
+                        self.log_warning(f"Multiple NetBox Sites found for name: {site_a_name}, defaulting to Unspecified")
+                        nb_site_a = unspecified_site
 
-                    # Resolve Site Z
-                    if dist_z > threshold_m or not site_z_name:
+                # Resolve Site Z
+                if dist_z > threshold_m or not site_z_name:
+                    nb_site_z = unspecified_site
+                else:
+                    try:
+                        nb_site_z = Site.objects.get(name=site_z_name)
+                    except Site.DoesNotExist:
                         nb_site_z = unspecified_site
+                    except Site.MultipleObjectsReturned:
+                        self.log_warning(f"Multiple NetBox Sites found for name: {site_z_name}, defaulting to Unspecified")
+                        nb_site_z = unspecified_site
+
+                # Construct OtnPath Name
+                path_name = f"{nb_site_a.name}-{nb_site_z.name}"
+
+                if nb_site_a == unspecified_site or nb_site_z == unspecified_site:
+                    unmatched_paths_count += 1
+
+                # Check for existing duplicate path (Bidirectional)
+                existing_path = OtnPath.objects.filter(
+                    Q(site_a=nb_site_a, site_z=nb_site_z) |
+                    Q(site_a=nb_site_z, site_z=nb_site_a)
+                ).first()
+
+                if existing_path:
+                    self.log_warning(f"Path already exists between {nb_site_a.name} and {nb_site_z.name} (ID: {existing_path.pk}). Skipping.")
+                    continue
+
+                # 使用合并后的坐标计算总长度
+                length_m = 0.0
+                for i in range(len(merged_coords) - 1):
+                    p1 = merged_coords[i]
+                    p2 = merged_coords[i+1]
+                    is_geo = abs(p1[0]) <= 180 and abs(p1[1]) <= 90
+                    if is_geo:
+                        length_m += self.haversine(p1[1], p1[0], p2[1], p2[0])
                     else:
-                        try:
-                            nb_site_z = Site.objects.get(name=site_z_name)
-                        except Site.DoesNotExist:
-                            nb_site_z = unspecified_site
-                        except Site.MultipleObjectsReturned:
-                            self.log_warning(f"Multiple NetBox Sites found for name: {site_z_name}, defaulting to Unspecified")
-                            nb_site_z = unspecified_site
-                    
-                    # Construct OtnPath Name
-                    # Use site A and Z names, which might be '未指定'
-                    path_name = f"{nb_site_a.name}-{nb_site_z.name}"
-                    
-                    if nb_site_a == unspecified_site or nb_site_z == unspecified_site:
-                        unmatched_paths_count += 1
+                        length_m += math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
 
-                    # Check for existing duplicate path (Bidirectional)
-                    # A-Z or Z-A should be considered same path logic
-                    existing_path = OtnPath.objects.filter(
-                        Q(site_a=nb_site_a, site_z=nb_site_z) | 
-                        Q(site_a=nb_site_z, site_z=nb_site_a)
-                    ).first()
+                cable_type_choice = random.choice([
+                    CableTypeChoices.SELF_BUILT,
+                    CableTypeChoices.COORDINATED,
+                    CableTypeChoices.LEASED
+                ])
 
-                    if existing_path:
-                        self.log_warning(f"Path already exists between {nb_site_a.name} and {nb_site_z.name} (ID: {existing_path.pk}). Skipping.")
-                        continue
-                    
-                    # Calculate Length
-                    length_m = 0.0
-                    for i in range(len(path) - 1):
-                        p1 = path[i]
-                        p2 = path[i+1]
-                        # Check coordinate system again for path calc
-                        is_geo = abs(p1[0]) <= 180 and abs(p1[1]) <= 90
-                        if is_geo:
-                            length_m += self.haversine(p1[1], p1[0], p2[1], p2[0])
-                        else:
-                            length_m += math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+                attributes = feature.get('attributes', {})
+                o_name = attributes.get('O_Name') or attributes.get('O_NAME') or ''
+                o_com = attributes.get('O_Com') or attributes.get('O_COM') or ''
 
-                    cable_type_choice = random.choice([
-                        CableTypeChoices.SELF_BUILT,
-                        CableTypeChoices.COORDINATED,
-                        CableTypeChoices.LEASED
-                    ])
+                otn_path = OtnPath(
+                    name=path_name,
+                    site_a=nb_site_a,
+                    site_z=nb_site_z,
+                    cable_type=cable_type_choice,
+                    description=o_name[:200],
+                    comments=o_com,
+                    calculated_length=Decimal(str(length_m)).quantize(Decimal("0.00")),
+                    geometry=merged_coords
+                )
 
-                    attributes = feature.get('attributes', {})
-                    # 避免可能的大小写拼写问题，提供多种防御提取
-                    o_name = attributes.get('O_Name') or attributes.get('O_NAME') or ''
-                    o_com = attributes.get('O_Com') or attributes.get('O_COM') or ''
+                self.log_success(f"Prepared OtnPath: {path_name} (Length: {length_m:.2f}m)")
 
-                    otn_path = OtnPath(
-                        name=path_name,
-                        site_a=nb_site_a,
-                        site_z=nb_site_z,
-                        cable_type=cable_type_choice,
-                        description=o_name[:200],  # Description 最大长度限飞
-                        comments=o_com,
-                        calculated_length=Decimal(str(length_m)).quantize(Decimal("0.00")),
-                        geometry=path  # Save the single path array [coord, coord, ...]
-                    )
-                    
-                    self.log_success(f"Prepared OtnPath: {path_name} (Length: {length_m:.2f}m)")
-                    
-                    if commit:
-                        try:
-                            otn_path.full_clean()
-                            otn_path.save()
-                            self.log_success(f"Saved OtnPath: {path_name}")
-                        except Exception as e:
-                            self.log_failure(f"Failed to save {path_name}: {str(e)}")
+                if commit:
+                    try:
+                        otn_path.full_clean()
+                        otn_path.save()
+                        self.log_success(f"Saved OtnPath: {path_name}")
+                    except Exception as e:
+                        self.log_failure(f"Failed to save {path_name}: {str(e)}")
 
         # 最终审查报告输出
         report_msg = (

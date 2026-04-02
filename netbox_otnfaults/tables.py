@@ -5,7 +5,7 @@ from .models import (
     OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, 
     PathGroupSiteRoleChoices, BareFiberService, CircuitService,
     FaultCategoryChoices, FaultStatusChoices, UrgencyChoices, 
-    MaintenanceModeChoices, RecoveryModeChoices, ResourceTypeChoices, 
+    MaintenanceModeChoices, RecoveryModeChoices, ResourceTypeChoices, ResourceOwnerChoices,
     CableRouteChoices, CableBreakLocationChoices, ServiceTypeChoices,
     ServiceGroupChoices, BandwidthChoices, CableTypeChoices
 )
@@ -99,6 +99,9 @@ class OtnFaultTable(NetBoxTable):
     resource_type = columns.ChoiceFieldColumn(
         verbose_name='光纤来源'
     )
+    resource_owner = columns.ChoiceFieldColumn(
+        verbose_name='资源所有者'
+    )
     cable_route = columns.ChoiceFieldColumn(
         verbose_name='光缆路由属性'
     )
@@ -138,7 +141,7 @@ class OtnFaultTable(NetBoxTable):
             'pk', 'fault_number', 'fault_category', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'progress',
             'interruption_reason', 'interruption_reason_detail', 'urgency', 'first_report_source',
-            'province', 'line_manager', 'resource_type', 'cable_route',
+            'province', 'line_manager', 'resource_type', 'resource_owner', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'handler', 'cable_break_location', 'recovery_mode', 'handling_unit', 'contract',
             'fault_status',

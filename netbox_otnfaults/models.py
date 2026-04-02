@@ -107,13 +107,33 @@ class ResourceTypeChoices(ChoiceSet):
     SELF_BUILT = 'self_built'
     COORDINATED = 'coordinated'
     LEASED = 'leased'
-    PROVINCIAL = 'provincial_provided'
 
     CHOICES = [
         (SELF_BUILT, '自建光缆', 'green'),
         (COORDINATED, '协调资源', 'blue'),
         (LEASED, '租赁纤芯', 'purple'),
-        (PROVINCIAL, '一二期配套', 'cyan'),
+    ]
+
+
+class ResourceOwnerChoices(ChoiceSet):
+    key = 'OtnFault.resource_owner'
+
+    HEADQUARTERS = 'headquarters'
+    ZHEJIANG = 'zhejiang'
+    SHAANXI = 'shaanxi'
+    SICHUAN = 'sichuan'
+    INNER_MONGOLIA = 'inner_mongolia'
+    JIANGXI = 'jiangxi'
+    SHANDONG = 'shandong'
+
+    CHOICES = [
+        (HEADQUARTERS, '本部', 'blue'),
+        (ZHEJIANG, '浙江子公司', 'green'),
+        (SHAANXI, '陕西子公司', 'orange'),
+        (SICHUAN, '四川子公司', 'purple'),
+        (INNER_MONGOLIA, '内蒙古子公司', 'teal'),
+        (JIANGXI, '江西子公司', 'yellow'),
+        (SHANDONG, '山东子公司', 'cyan'),
     ]
 
 
@@ -538,6 +558,15 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='光纤来源'
     )
     
+    # 15.1) 资源所有者
+    resource_owner = models.CharField(
+        max_length=20,
+        choices=ResourceOwnerChoices,
+        blank=True,
+        null=True,
+        verbose_name='资源所有者'
+    )
+    
     # 16) 光缆路由属性，为选择性字段，分为高速公路、非高速两类，默认值为高速公路，可空
     cable_route = models.CharField(
         max_length=20,
@@ -882,6 +911,10 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     def get_resource_type_color(self):
         """获取资源类型的颜色"""
         return ResourceTypeChoices.colors.get(self.resource_type)
+
+    def get_resource_owner_color(self):
+        """获取资源所有者的颜色"""
+        return ResourceOwnerChoices.colors.get(self.resource_owner)
 
     def get_cable_route_color(self):
         """获取光缆路由属性的颜色"""

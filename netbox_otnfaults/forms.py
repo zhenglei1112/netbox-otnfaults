@@ -1,7 +1,7 @@
 from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm, NetBoxModelImportForm, NetBoxModelBulkEditForm
 from .models import (
     OtnFault, OtnFaultImpact, FaultCategoryChoices, UrgencyChoices, 
-    MaintenanceModeChoices, ResourceTypeChoices, CableRouteChoices,
+    MaintenanceModeChoices, ResourceTypeChoices, ResourceOwnerChoices, CableRouteChoices,
     FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices,
     PowerDataTypeChoices, PowerRecoveryModeChoices, PowerMaintenanceModeChoices,
     OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite, BareFiberService,
@@ -96,7 +96,7 @@ class OtnFaultForm(NetBoxModelForm):
             name='故障信息'
         ),
         FieldSet(
-            'line_manager', 'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
+            'line_manager', 'resource_type', 'resource_owner', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'repair_time', 'timeout',
             'timeout_reason',
             name='线路主管补充信息'
@@ -110,7 +110,8 @@ class OtnFaultForm(NetBoxModelForm):
             'noc_reviewed', 'noc_reviewer', 'noc_review_time',
             name='故障复核'
         ),
-        FieldSet('comments', 'tags', name='其他'),
+        FieldSet('tags', name='标签'),
+        FieldSet('comments', name='评论'),
     )
 
     class Meta:
@@ -123,7 +124,7 @@ class OtnFaultForm(NetBoxModelForm):
             'closure_time', 'first_report_source', 'duty_officer', 'handler', 'fault_details',
             'fault_status',
             # 线路主管补充信息组字段
-            'line_manager', 'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
+            'line_manager', 'resource_type', 'resource_owner', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
             'timeout_reason',
@@ -217,7 +218,7 @@ class OtnFaultImportForm(NetBoxModelImportForm):
             'fault_number', 'duty_officer', 'province', 'interruption_location_a', 'interruption_location', 
             'fault_category', 'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 
             'fault_recovery_time', 'urgency', 'first_report_source', 
-            'resource_type', 'cable_route', 'line_manager', 
+            'resource_type', 'resource_owner', 'cable_route', 'line_manager', 
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time', 
             'departure_time', 'arrival_time', 'repair_time', 
             'timeout', 'timeout_reason', 'handler', 'cable_break_location', 'recovery_mode', 
@@ -413,6 +414,11 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='光纤来源'
     )
+    resource_owner = forms.ChoiceField(
+        choices=add_blank_choice(ResourceOwnerChoices),
+        required=False,
+        label='资源所有者'
+    )
     cable_route = forms.ChoiceField(
         choices=add_blank_choice(CableRouteChoices),
         required=False,
@@ -453,7 +459,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     nullable_fields = (
         'province', 'line_manager', 'handling_unit', 'fault_category',
         'interruption_reason', 'interruption_reason_detail', 'maintenance_mode', 'resource_type',
-        'cable_break_location', 'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments',
+        'resource_owner', 'cable_break_location', 'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments',
         'interruption_location_a', 'first_report_source', 'cable_route'
     )
 
@@ -533,7 +539,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             name='故障信息'
         ),
         FieldSet(
-            'line_manager', 'resource_type', 'cable_route', 'cable_break_location', 'recovery_mode',
+            'line_manager', 'resource_type', 'resource_owner', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'timeout',
             'timeout_reason', 'comments',
             name='线路主管补充信息'
@@ -633,6 +639,11 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         choices=add_blank_choice(ResourceTypeChoices),
         required=False,
         label='光纤来源'
+    )
+    resource_owner = forms.ChoiceField(
+        choices=add_blank_choice(ResourceOwnerChoices),
+        required=False,
+        label='资源所有者'
     )
     cable_route = forms.ChoiceField(
         choices=add_blank_choice(CableRouteChoices),

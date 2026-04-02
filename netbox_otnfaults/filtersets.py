@@ -18,7 +18,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'interruption_latitude', 'province', 'urgency', 'first_report_source',
             'line_manager', 'maintenance_mode', 'handling_unit', 'contract',
             'dispatch_time', 'departure_time', 'arrival_time',
-            'timeout', 'timeout_reason', 'resource_type', 'cable_route',
+            'timeout', 'timeout_reason', 'resource_type', 'resource_owner', 'cable_route',
             'handler', 'cable_break_location', 'recovery_mode', 'comments',
             'fault_status', 'manager_reviewed',
         )

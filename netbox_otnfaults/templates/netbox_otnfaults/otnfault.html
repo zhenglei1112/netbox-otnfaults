@@ -292,6 +292,10 @@
           </td>
         </tr>
         <tr>
+          <th scope="row">资源所有者</th>
+          <td>{{ object.get_resource_owner_display|default:"—" }}</td>
+        </tr>
+        <tr>
           <th scope="row">维护方式</th>
           <td>
             {% if object.maintenance_mode %}
