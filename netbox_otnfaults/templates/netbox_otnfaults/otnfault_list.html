@@ -1,6 +1,13 @@
 {% extends 'generic/object_list.html' %}
 {% load helpers %}
 
+{% block content %}
+<style>
+  .table-responsive table.table td { vertical-align: middle !important; }
+</style>
+{{ block.super }}
+{% endblock %}
+
 {% block extra_controls %}
 <a href="{% url 'plugins:netbox_otnfaults:otnfault_map_globe' %}" class="btn btn-info">
     <i class="mdi mdi-earth" aria-hidden="true"></i> 查看故障分布图
