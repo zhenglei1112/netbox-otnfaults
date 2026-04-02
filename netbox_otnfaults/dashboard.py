@@ -98,3 +98,40 @@ class OtnFaultsCalendarWidget(DashboardWidget):
         except Exception as e:
             error_trace = traceback.format_exc()
             return f'<div class="alert alert-danger"><pre style="font-size:11px;white-space:pre-wrap">{error_trace}</pre></div>'
+
+
+@register_widget
+class OtnFaultsPendingReviewWidget(DashboardWidget):
+    """待复核故障小组件：显示当前用户作为线路主管的待复核故障数"""
+    default_title = "待复核故障"
+    description = "显示当前登录用户作为线路主管、尚未完成线路主管复核的故障数量。"
+    width = 2
+    height = 2
+
+    def render(self, request) -> str:
+        try:
+            from django.urls import reverse
+
+            # 查询：线路主管是当前用户 且 线路主管复核为 False
+            pending_count = OtnFault.objects.restrict(request.user, 'view').filter(
+                line_manager=request.user,
+                manager_reviewed=False,
+            ).count()
+
+            # 构造跳转 URL：故障列表 + 过滤参数
+            review_url = (
+                reverse('plugins:netbox_otnfaults:otnfault_list')
+                + f'?line_manager={request.user.pk}&manager_reviewed=False'
+            )
+
+            return render_to_string(
+                'netbox_otnfaults/inc/dashboard_pending_review_widget.html',
+                {
+                    'pending_count': pending_count,
+                    'review_url': review_url,
+                },
+                request=request,
+            )
+        except Exception as e:
+            error_trace = traceback.format_exc()
+            return f'<div class="alert alert-danger"><pre style="font-size:11px;white-space:pre-wrap">{error_trace}</pre></div>'

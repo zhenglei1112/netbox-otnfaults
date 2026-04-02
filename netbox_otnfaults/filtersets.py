@@ -20,7 +20,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'timeout_reason', 'resource_type', 'cable_route',
             'handler', 'cable_break_location', 'recovery_mode', 'comments',
-            'fault_status',
+            'fault_status', 'manager_reviewed',
         )
 
     def search(self, queryset, name, value):
