@@ -240,8 +240,8 @@ const FaultModePlugin = {
   _loadFaultIcons(callback) {
     const map = this.map;
 
-    // SVG转Canvas ImageData（彩色图标，非SDF）
-    const createColoredIcon = (svgContent, bgColor, size = 64) => {
+    // SVG转Canvas Image（彩色图标，非SDF），返回 staticCanvas 等数据供后续动画使用
+    const createColoredIcon = (svgContent, bgColor, innerSize = 64, fullSize = 96) => {
       return new Promise((resolve, reject) => {
         // 提取SVG内部内容
         const parser = new DOMParser();
@@ -256,7 +256,7 @@ const FaultModePlugin = {
 
         // 构建彩色SVG（圆形底色 + 白色图标内容）
         const fullSVG = `
-          <svg width="${size}" height="${size}" viewBox="0 0 32 32" 
+          <svg width="${innerSize}" height="${innerSize}" viewBox="0 0 32 32" 
                xmlns="http://www.w3.org/2000/svg">
             <!-- 圆形底色 - 状态颜色 -->
             <circle cx="16" cy="16" r="9" fill="${bgColor}"/>
@@ -276,14 +276,24 @@ const FaultModePlugin = {
         const url = URL.createObjectURL(blob);
 
         img.onload = () => {
+          // 1. 创建缓存静态图标画布
+          const staticCanvas = document.createElement('canvas');
+          staticCanvas.width = innerSize;
+          staticCanvas.height = innerSize;
+          const staticCtx = staticCanvas.getContext('2d');
+          staticCtx.drawImage(img, 0, 0, innerSize, innerSize);
+
+          // 2. 创建带边界的安全画布（供Map引擎首次使用）
           const canvas = document.createElement('canvas');
-          canvas.width = size;
-          canvas.height = size;
+          canvas.width = fullSize;
+          canvas.height = fullSize;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, size, size);
-          const imageData = ctx.getImageData(0, 0, size, size);
-          URL.revokeObjectURL(url);  // 立即清理
-          resolve(imageData);
+          const offset = (fullSize - innerSize) / 2;
+          ctx.drawImage(staticCanvas, 0, 0, innerSize, innerSize, offset, offset, innerSize, innerSize);
+
+          const imageData = ctx.getImageData(0, 0, fullSize, fullSize);
+          URL.revokeObjectURL(url);  // 立即清理 blob URI
+          resolve({ imageData, staticCanvas, bgColor, innerSize, fullSize, offset });
         };
 
         img.onerror = (err) => {
@@ -322,13 +332,23 @@ const FaultModePlugin = {
       };
       const promises = [];
 
+      this.animatedIcons = [];
+
       // 默认图标
       promises.push(
         createColoredIcon(FAULT_SVG_ICONS.other, statusColors['processing'])
-          .then(imageData => {
+          .then(result => {
             if (!map.hasImage('fault-marker')) {
-              map.addImage('fault-marker', imageData, { pixelRatio: 2 });
+              map.addImage('fault-marker', result.imageData, { pixelRatio: 2 });
             }
+            this.animatedIcons.push({
+               iconName: 'fault-marker',
+               staticCanvas: result.staticCanvas,
+               bgColor: result.bgColor,
+               innerSize: result.innerSize,
+               fullSize: result.fullSize,
+               offset: result.offset
+            });
           })
       );
 
@@ -339,10 +359,20 @@ const FaultModePlugin = {
 
           promises.push(
             createColoredIcon(FAULT_SVG_ICONS[category], color)
-              .then(imageData => {
+              .then(result => {
                 if (!map.hasImage(iconName)) {
-                  map.addImage(iconName, imageData, { pixelRatio: 2 });
+                  map.addImage(iconName, result.imageData, { pixelRatio: 2 });
                 }
+                
+                // 为所有状态的图标增加扩散圈动画支持
+                this.animatedIcons.push({
+                   iconName: iconName,
+                   staticCanvas: result.staticCanvas,
+                   bgColor: result.bgColor,
+                   innerSize: result.innerSize,
+                   fullSize: result.fullSize,
+                   offset: result.offset
+                });
               })
           );
         });
@@ -350,6 +380,8 @@ const FaultModePlugin = {
 
       await Promise.all(promises);
       console.log('[FaultMode] Loaded', promises.length, 'colored Canvas icons (SVG-based)');
+      // 一旦首批图标加载完毕即尝试启动动画循环
+      this._startIconAnimation();
     };
 
     const startTime = performance.now();
@@ -367,6 +399,80 @@ const FaultModePlugin = {
   },
 
 
+
+  _startIconAnimation() {
+    if (!this.animatedIcons || this.animatedIcons.length === 0) return;
+    if (this._iconAnimationId) cancelAnimationFrame(this._iconAnimationId);
+
+    const map = this.map;
+    let progress = 0;
+    let lastTime = 0;
+    const ANIMATION_DURATION = 1500; // 动画周期 1.5 秒
+
+    // 共享画布以提升每帧处理性能
+    const canvas = document.createElement('canvas');
+    if (this.animatedIcons.length > 0) {
+      canvas.width = this.animatedIcons[0].fullSize;
+      canvas.height = this.animatedIcons[0].fullSize;
+    }
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const animate = (timestamp) => {
+      if (!lastTime) lastTime = timestamp;
+      const deltaTime = timestamp - lastTime;
+      progress = (progress + deltaTime / ANIMATION_DURATION) % 1;
+      lastTime = timestamp;
+
+      // 防止底图销毁报错
+      if (!map || typeof map.getStyle !== 'function' || !map.getStyle()) {
+        this._iconAnimationId = null;
+        return;
+      }
+
+      for (const icon of this.animatedIcons) {
+        const { fullSize, innerSize, offset, staticCanvas, bgColor, iconName } = icon;
+        
+        ctx.clearRect(0, 0, fullSize, fullSize);
+
+        // --- 绘制外圈雷达波纹 ---
+        // 内部主要色块位于 svg: r=9 （32x32 viewbox）。实际画布半径 = innerSize * (9 / 32)
+        const baseRadius = innerSize * (9 / 32); 
+        const maxRadius = (fullSize / 2) - 3; 
+
+        // 半径线性扩散
+        const currentRadius = baseRadius + (maxRadius - baseRadius) * progress;
+        // 退场使用 pow(xxx, 1.5) 取得相对柔和的淡出特效
+        const opacity = 1 - Math.pow(progress, 1.5);
+
+        ctx.beginPath();
+        ctx.arc(fullSize / 2, fullSize / 2, currentRadius, 0, 2 * Math.PI, false);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = bgColor;
+        ctx.globalAlpha = opacity;
+        ctx.stroke();
+
+        // 微弱柔和的内填充圈
+        ctx.fillStyle = bgColor;
+        ctx.globalAlpha = opacity * 0.2;
+        ctx.fill();
+
+        // --- 绘制静态中心原图标 ---
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(staticCanvas, 0, 0, innerSize, innerSize, offset, offset, innerSize, innerSize);
+
+        // 重复将缓存更新进 WebGL
+        if (map.hasImage(iconName)) {
+           const imgData = ctx.getImageData(0, 0, fullSize, fullSize);
+           map.updateImage(iconName, imgData);
+        }
+      }
+
+      this._iconAnimationId = requestAnimationFrame(animate);
+    };
+
+    // 启动帧循环
+    this._iconAnimationId = requestAnimationFrame(animate);
+  },
 
   _initControls() {
     const map = this.map;
