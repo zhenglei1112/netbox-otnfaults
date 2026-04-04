@@ -50,6 +50,7 @@ window.MapEngine = (function () {
             if (_pendingData) {
                 if (_pendingData.sites) renderSites(_pendingData.sites);
                 if (_pendingData.paths) renderPaths(_pendingData.paths);
+                if (_pendingData.heatmap) renderHeatmap(_pendingData.heatmap);
                 if (_pendingData.faults) renderFaultMarkers(_pendingData.faults);
                 _pendingData = null;
             }
@@ -757,6 +758,108 @@ window.MapEngine = (function () {
     }
 
     /**
+     * 渲染已关闭故障热力图层
+     *
+     * 展示历史故障的空间密度分布：
+     *   - 颜色从冷（深蓝/透明）到热（红/橙）渐变
+     *   - 权重由故障严重度驱动
+     *   - 低缩放级别使用较大半径呈现宏观趋势
+     *   - 高缩放级别使用较小半径展示精细分布
+     *   - 置于活跃故障和路径图层之下，不遮挡运行态信息
+     */
+    function renderHeatmap(closedPoints) {
+        if (!map || !_mapReady) {
+            _pendingData = _pendingData || {};
+            _pendingData.heatmap = closedPoints;
+            return;
+        }
+
+        if (!closedPoints || closedPoints.length === 0) return;
+
+        var geojson = {
+            type: 'FeatureCollection',
+            features: closedPoints.map(function (pt) {
+                return {
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] },
+                    properties: {
+                        weight: pt.weight || 0.5,
+                        category: pt.category || 'unknown',
+                    }
+                };
+            })
+        };
+
+        // 更新或创建数据源
+        if (map.getSource('closed-heatmap')) {
+            map.getSource('closed-heatmap').setData(geojson);
+            // 如果 Layer 已存在，仅更新数据即可
+            if (map.getLayer('closed-heatmap-layer')) return;
+            // Source 在但 Layer 不在（初次创建失败）→ 继续补画 Layer
+        } else {
+            map.addSource('closed-heatmap', { type: 'geojson', data: geojson });
+        }
+
+        // 确定插入位置：在省份标签之后、站点/路径图层之前
+        var beforeLayerId = null;
+        var candidateLayers = ['sites-glow', 'paths-glow', 'paths-main'];
+        for (var i = 0; i < candidateLayers.length; i++) {
+            if (map.getLayer(candidateLayers[i])) {
+                beforeLayerId = candidateLayers[i];
+                break;
+            }
+        }
+
+        // 热力图层（针对稀疏数据优化：大半径 + 高强度 + 低密度区可见）
+        map.addLayer({
+            id: 'closed-heatmap-layer',
+            type: 'heatmap',
+            source: 'closed-heatmap',
+            paint: {
+                // 热力权重：使用 feature 的 weight 属性
+                'heatmap-weight': ['get', 'weight'],
+
+                // 热力强度：高起步值确保稀疏点也能产生可见热力
+                'heatmap-intensity': ['interpolate', ['linear'], ['zoom'],
+                    3, 3.0,
+                    6, 2.0,
+                    10, 2.5
+                ],
+
+                // 热力颜色渐变：低密度区使用较高不透明度确保可见
+                'heatmap-color': [
+                    'interpolate', ['linear'], ['heatmap-density'],
+                    0,    'rgba(0, 0, 0, 0)',           // 透明
+                    0.05, 'rgba(0, 180, 255, 0.3)',     // 淡青（极低密度即可见）
+                    0.15, 'rgba(20, 100, 180, 0.45)',   // 天蓝
+                    0.3,  'rgba(0, 210, 255, 0.55)',    // 青色
+                    0.45, 'rgba(16, 185, 129, 0.6)',    // 绿色
+                    0.6,  'rgba(250, 219, 20, 0.7)',    // 黄色
+                    0.8,  'rgba(255, 138, 0, 0.8)',     // 橙色
+                    1.0,  'rgba(255, 50, 30, 0.9)',     // 红色（高密度）
+                ],
+
+                // 热力半径：大半径使稀疏点的热力扩散可见
+                'heatmap-radius': ['interpolate', ['linear'], ['zoom'],
+                    3, 50,     // 全国概览：特大半径覆盖
+                    5, 35,
+                    7, 25,
+                    10, 15     // 局部查看：适中半径
+                ],
+
+                // 整体不透明度
+                'heatmap-opacity': ['interpolate', ['linear'], ['zoom'],
+                    3, 0.75,
+                    7, 0.65,
+                    10, 0.5
+                ],
+            }
+        }, beforeLayerId || undefined);
+
+        console.log('[MapEngine] 热力图层创建成功，数据点:', closedPoints.length);
+    }
+
+    /**
      * 高亮故障路径（将受影响路径变为告警色）
      */
     function highlightFaultPath(faultId, color) {
@@ -851,6 +954,7 @@ window.MapEngine = (function () {
         renderSites,
         renderPaths,
         renderFaultMarkers,
+        renderHeatmap,
         highlightFaultPath,
         flyTo,
         easeTo,

@@ -81,6 +81,7 @@
         // 更新地图图层
         MapEngine.renderSites(data.sites || []);
         MapEngine.renderPaths(data.paths || []);
+        MapEngine.renderHeatmap(data.closed_fault_points || []);
         MapEngine.renderFaultMarkers(data.active_faults || []);
 
         // 更新播控引擎的故障队列

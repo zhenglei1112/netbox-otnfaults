@@ -112,7 +112,8 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
     def get(self, request) -> JsonResponse:
         now = timezone.now()
         twenty_four_hours_ago = now - timedelta(hours=24)
-        twelve_months_ago = now - timedelta(days=365)
+        one_month_ago = now - timedelta(days=30)
+        year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
         # ── 1. 活跃故障（处理中）──
         active_faults_qs = OtnFault.objects.filter(
@@ -191,8 +192,8 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
         # 按优先级排序
         active_faults.sort(key=lambda x: x['priority_score'], reverse=True)
 
-        # ── 2. 故障统计 ──
-        all_faults = OtnFault.objects.filter(fault_occurrence_time__gte=twelve_months_ago)
+        # ── 2. 故障统计（当年）──
+        all_faults = OtnFault.objects.filter(fault_occurrence_time__gte=year_start)
         total_count = all_faults.count()
         active_count = active_faults_qs.count()
         closed_count = all_faults.filter(fault_status='closed').count()
@@ -284,7 +285,35 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
                 'has_fault': has_fault,
             })
 
-        # ── 6. 最近故障事件（用于 Ticker）──
+        # ── 6. 已关闭故障坐标（用于热力图）──
+        closed_faults_qs = OtnFault.objects.filter(
+            fault_status='closed',
+            fault_occurrence_time__gte=one_month_ago
+        ).select_related('interruption_location_a')
+
+        closed_fault_points = []
+        for fault in closed_faults_qs:
+            coords = self._get_fault_coords(fault)
+            if not coords or coords[0] is None:
+                continue
+            lat, lng = coords
+
+            # 智能对位纠偏（与活跃故障逻辑一致）
+            if lat > 70.0 and lng < 60.0:
+                lat, lng = lng, lat
+
+            # 根据故障分类确定权重（严重度越高权重越大）
+            severity = CATEGORY_SEVERITY.get(fault.fault_category, 'minor')
+            weight = {'critical': 1.0, 'major': 0.7, 'minor': 0.4}.get(severity, 0.3)
+
+            closed_fault_points.append({
+                'lat': lat,
+                'lng': lng,
+                'weight': weight,
+                'category': fault.fault_category or 'unknown',
+            })
+
+        # ── 7. 最近故障事件（用于 Ticker）──
         recent_faults = OtnFault.objects.select_related(
             'interruption_location_a'
         ).prefetch_related(
@@ -340,6 +369,7 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             'sites': sites,
             'paths': paths,
             'ticker_events': ticker_events,
+            'closed_fault_points': closed_fault_points,
         }, json_dumps_params={'ensure_ascii': False})
 
     def _get_fault_coords(self, fault) -> tuple:
