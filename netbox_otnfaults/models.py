@@ -1033,14 +1033,12 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         null=True,
         help_text='仅裸纤业务时使用'
     )
-    service_site_z = models.ForeignKey(
+    service_site_z = models.ManyToManyField(
         to='dcim.Site',
-        on_delete=models.SET_NULL,
         related_name='impact_service_site_z',
         verbose_name='业务站点Z',
         blank=True,
-        null=True,
-        help_text='仅裸纤业务时使用'
+        help_text='仅裸纤业务时使用，可选择多个Z端站点'
     )
     service_interruption_time = models.DateTimeField(
         verbose_name='业务故障时间'
@@ -1101,7 +1099,7 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         elif self.service_type == ServiceTypeChoices.CIRCUIT:
             self.bare_fiber_service = None
             self.service_site_a = None
-            self.service_site_z = None
+            # service_site_z 是 M2M 字段，需要在 save 之后清除
             
         # 防止重复添加相同的业务
         if hasattr(self, 'otn_fault_id') and self.otn_fault_id:
@@ -1117,6 +1115,12 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
                     qs = qs.exclude(pk=self.pk)
                 if qs.exists():
                     raise ValidationError({'circuit_service': '此故障下已经有该电路业务，不能重复添加。'})
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # 电路业务时清除 M2M 站点数据
+        if self.service_type == ServiceTypeChoices.CIRCUIT:
+            self.service_site_z.clear()
 
     def get_service_type_color(self):
         return ServiceTypeChoices.colors.get(self.service_type)

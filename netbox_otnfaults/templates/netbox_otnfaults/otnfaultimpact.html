@@ -65,11 +65,11 @@
                     <tr>
                         <th scope="row">业务站点Z</th>
                         <td>
-                            {% if object.service_site_z %}
-                                <a href="{{ object.service_site_z.get_absolute_url }}">{{ object.service_site_z }}</a>
-                            {% else %}
+                            {% for site in object.service_site_z.all %}
+                                <a href="{{ site.get_absolute_url }}">{{ site }}</a>{% if not forloop.last %}、{% endif %}
+                            {% empty %}
                                 —
-                            {% endif %}
+                            {% endfor %}
                         </td>
                     </tr>
                     {% endif %}

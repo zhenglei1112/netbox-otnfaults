@@ -284,7 +284,7 @@ class OtnFaultImpactForm(NetBoxModelForm):
         required=False,
         label='业务站点A'
     )
-    service_site_z = DynamicModelChoiceField(
+    service_site_z = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
         required=False,
         label='业务站点Z'
