@@ -1,3 +1,4 @@
+import math
 import requests
 import hashlib
 from django.utils.text import slugify
@@ -9,7 +10,18 @@ except ImportError:
     HAS_PYPINYIN = False
 from dcim.models import Site
 from dcim.choices import SiteStatusChoices
-from extras.scripts import Script, StringVar
+from extras.scripts import Script, StringVar, BooleanVar
+
+
+def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """计算两点间的球面距离（米），基于 Haversine 公式。"""
+    R = 6371000  # 地球平均半径（米）
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lon2 - lon1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
 
 class ImportArcGISSites(Script):
     class Meta:
@@ -22,7 +34,16 @@ class ImportArcGISSites(Script):
         default="http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN2026/FeatureServer/0"
     )
 
+    dry_run = BooleanVar(
+        description="模拟模式：仅预览导入结果，不写入数据库",
+        default=False
+    )
+
     def run(self, data, commit):
+        dry_run = data['dry_run']
+        if dry_run:
+            self.log_warning("⚡ 模拟模式已启用，本次运行不会写入任何数据。")
+
         base_url = data['arcgis_url'].rstrip('/')
         query_url = f"{base_url}/query"
         
@@ -59,7 +80,22 @@ class ImportArcGISSites(Script):
         
         created_count = 0
         updated_count = 0
-        skipped_count = 0
+        
+        # 查重明细记录
+        skip_no_field: list[str] = []       # 缺少 O_NAME 或坐标
+        skip_has_coords: list[str] = []     # 同名站点已有坐标
+        skip_nearby: list[str] = []         # 100m 近邻查重
+        skip_error: list[str] = []          # 数据库异常
+        detail_created: list[str] = []      # 新建明细
+        detail_updated: list[str] = []      # 补全明细
+        
+        # 预加载所有有坐标的站点，用于距离查重
+        site_coords = list(
+            Site.objects.filter(
+                latitude__isnull=False, longitude__isnull=False
+            ).values_list('name', 'latitude', 'longitude')
+        )
+        self.log_info(f"已加载 {len(site_coords)} 个有坐标的站点用于距离查重 (阈值: 100m)")
         
         # 3. 遍历提取数据并同步至 NetBox
         for feature in features:
@@ -68,16 +104,14 @@ class ImportArcGISSites(Script):
             
             o_name = attrs.get("O_NAME")
             if not o_name:
-                self.log_warning("跳过一条记录：缺少 O_NAME")
-                skipped_count += 1
+                skip_no_field.append("(无名记录) — 缺少 O_NAME")
                 continue
                 
             latitude = geom.get("y")
             longitude = geom.get("x")
             
             if latitude is None or longitude is None:
-                self.log_warning(f"跳过站点 {o_name}: 缺少有效经纬度信息 (y 或 x 为空)")
-                skipped_count += 1
+                skip_no_field.append(f"{o_name} — 缺少经纬度")
                 continue
             
             # 使用 django 内置方法生成 slug 唯一标识符
@@ -103,42 +137,125 @@ class ImportArcGISSites(Script):
             
             # 4. 执行创建或更新逻辑
             try:
-                # 尝试根据名称获取现有的站点，如果不存在则按 defaults 创建
-                site, created = Site.objects.get_or_create(
-                    name=o_name,
-                    defaults={
-                        'slug': slug,
-                        'status': SiteStatusChoices.STATUS_ACTIVE,
-                        'latitude': latitude,
-                        'longitude': longitude,
-                    }
-                )
-                
-                if created:
-                    created_count += 1
-                    self.log_success(f"[新建] 站点: {site.name} (坐标: {longitude}, {latitude})")
-                else:
-                    # 站点已存在，检查并更新经纬度
-                    coords_changed = False
-                    
-                    if site.latitude != latitude or site.longitude != longitude:
-                        site.latitude = latitude
-                        site.longitude = longitude
-                        site.save()
-                        coords_changed = True
-                        
-                    if coords_changed:
-                        updated_count += 1
-                        self.log_success(f"[更新] 站点坐标: {site.name} 更新为坐标({longitude}, {latitude})")
+                if dry_run:
+                    # 模拟模式：仅查询并预览，不写库
+                    existing = Site.objects.filter(name=o_name).first()
+                    if existing:
+                        if existing.latitude is not None and existing.longitude is not None:
+                            skip_has_coords.append(
+                                f"{existing.name} — 已有坐标 ({existing.longitude}, {existing.latitude})"
+                            )
+                        else:
+                            updated_count += 1
+                            detail_updated.append(f"{existing.name} — 将填入 ({longitude}, {latitude})")
                     else:
-                        self.log_debug(f"[保持] 站点 {site.name} 坐标无变化。")
+                        # 距离查重：检查 100m 内是否已有站点
+                        nearby = next(
+                            ((n, d) for n, lat, lon in site_coords
+                             if (d := _haversine(latitude, longitude, float(lat), float(lon))) < 100),
+                            None
+                        )
+                        if nearby:
+                            skip_nearby.append(
+                                f"{o_name} — 近邻 {nearby[0]}，距离 {nearby[1]:.1f}m"
+                            )
+                        else:
+                            created_count += 1
+                            detail_created.append(f"{o_name} (slug: {slug}, 坐标: {longitude}, {latitude})")
+                else:
+                    # 距离查重：检查 100m 内是否已有站点
+                    existing_by_name = Site.objects.filter(name=o_name).first()
+                    if not existing_by_name:
+                        nearby = next(
+                            ((n, d) for n, lat, lon in site_coords
+                             if (d := _haversine(latitude, longitude, float(lat), float(lon))) < 100),
+                            None
+                        )
+                        if nearby:
+                            skip_nearby.append(
+                                f"{o_name} — 近邻 {nearby[0]}，距离 {nearby[1]:.1f}m"
+                            )
+                            continue
+
+                    # 正式模式：执行数据库写入
+                    site, created = Site.objects.get_or_create(
+                        name=o_name,
+                        defaults={
+                            'slug': slug,
+                            'status': SiteStatusChoices.STATUS_ACTIVE,
+                            'latitude': latitude,
+                            'longitude': longitude,
+                        }
+                    )
+                    
+                    if created:
+                        created_count += 1
+                        detail_created.append(f"{site.name} (坐标: {longitude}, {latitude})")
+                        # 将新站点加入缓存，供后续记录查重
+                        site_coords.append((o_name, latitude, longitude))
+                    else:
+                        # 站点已存在：有坐标则跳过，无坐标则补全
+                        if site.latitude is not None and site.longitude is not None:
+                            skip_has_coords.append(
+                                f"{site.name} — 已有坐标 ({site.longitude}, {site.latitude})"
+                            )
+                        else:
+                            site.latitude = latitude
+                            site.longitude = longitude
+                            site.save()
+                            updated_count += 1
+                            detail_updated.append(f"{site.name} — 填入 ({longitude}, {latitude})")
                         
             except Exception as e:
-                self.log_failure(f"处理站点 {o_name} 时发生数据库错误: {e}")
-                skipped_count += 1
+                skip_error.append(f"{o_name} — {e}")
                 
-        # 输出统计汇总
+        # ── 输出汇总报告 ──
+        prefix = "预计" if dry_run else ""
+        mode_label = "模拟" if dry_run else "导入"
+        total_skipped = len(skip_no_field) + len(skip_has_coords) + len(skip_nearby) + len(skip_error)
+        
         self.log_info(
-            f"导入完成！汇总报告 — "
-            f"新建数: {created_count}, 更新数: {updated_count}, 跳过/失败数: {skipped_count} (总记录: {len(features)})"
+            f"{'═' * 40}\n"
+            f"  {mode_label}完成！汇总统计\n"
+            f"{'─' * 40}\n"
+            f"  {prefix}新建: {created_count}\n"
+            f"  {prefix}补全坐标: {updated_count}\n"
+            f"  跳过 - 缺少字段: {len(skip_no_field)}\n"
+            f"  跳过 - 已有坐标: {len(skip_has_coords)}\n"
+            f"  跳过 - 近邻查重: {len(skip_nearby)}\n"
+            f"  跳过 - 数据库异常: {len(skip_error)}\n"
+            f"  跳过合计: {total_skipped}\n"
+            f"  总记录: {len(features)}\n"
+            f"{'═' * 40}"
         )
+        
+        # ── 输出各类明细 ──
+        if detail_created:
+            self.log_success(f"▶ {prefix}新建站点明细 ({len(detail_created)} 条):")
+            for item in detail_created:
+                self.log_success(f"  · {item}")
+        
+        if detail_updated:
+            self.log_success(f"▶ {prefix}补全坐标明细 ({len(detail_updated)} 条):")
+            for item in detail_updated:
+                self.log_success(f"  · {item}")
+        
+        if skip_has_coords:
+            self.log_info(f"▶ 跳过 - 已有坐标明细 ({len(skip_has_coords)} 条):")
+            for item in skip_has_coords:
+                self.log_info(f"  · {item}")
+        
+        if skip_nearby:
+            self.log_warning(f"▶ 跳过 - 近邻查重明细 ({len(skip_nearby)} 条):")
+            for item in skip_nearby:
+                self.log_warning(f"  · {item}")
+        
+        if skip_no_field:
+            self.log_warning(f"▶ 跳过 - 缺少字段明细 ({len(skip_no_field)} 条):")
+            for item in skip_no_field:
+                self.log_warning(f"  · {item}")
+        
+        if skip_error:
+            self.log_failure(f"▶ 跳过 - 数据库异常明细 ({len(skip_error)} 条):")
+            for item in skip_error:
+                self.log_failure(f"  · {item}")
