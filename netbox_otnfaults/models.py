@@ -476,6 +476,14 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         null=True
     )
     
+    # 5.1) 运维主管，为可多选的用户字段
+    operations_manager = models.ManyToManyField(
+        to=settings.AUTH_USER_MODEL,
+        related_name='managed_otn_faults_operations',
+        verbose_name='运维主管',
+        blank=True
+    )
+    
     # 6) 维护方式，为选择型字段，分为代维、协调、自维
     maintenance_mode = models.CharField(
         max_length=20,

@@ -45,6 +45,10 @@ class OtnFaultTable(NetBoxTable):
         linkify=True,
         verbose_name='值守人员'
     )
+    operations_manager = columns.ManyToManyColumn(
+        linkify_item=True,
+        verbose_name='运维主管'
+    )
     contract = tables.Column(
         linkify=True,
         verbose_name='代维合同'
@@ -141,7 +145,7 @@ class OtnFaultTable(NetBoxTable):
             'pk', 'fault_number', 'fault_category', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'progress',
             'interruption_reason', 'interruption_reason_detail', 'urgency', 'first_report_source',
-            'province', 'line_manager', 'resource_type', 'resource_owner', 'cable_route',
+            'province', 'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'handler', 'cable_break_location', 'recovery_mode', 'handling_unit', 'contract',
             'fault_status',

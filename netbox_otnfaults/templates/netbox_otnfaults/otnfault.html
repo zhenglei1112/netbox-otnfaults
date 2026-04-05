@@ -112,7 +112,17 @@
             —
             {% endif %}
           </td>
-        </tr>
+        <tr>
+          <th scope="row">运维主管</th>
+          <td>
+            {% if object.operations_manager.all %}
+              {% for user in object.operations_manager.all %}
+                <a href="{{ user.get_absolute_url }}">{{ user }}</a>{% if not forloop.last %}, {% endif %}
+              {% endfor %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
         </tr>
         <tr>
           <th scope="row">故障处理人</th>

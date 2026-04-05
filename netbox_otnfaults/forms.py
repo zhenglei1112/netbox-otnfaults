@@ -46,6 +46,11 @@ class OtnFaultForm(NetBoxModelForm):
         required=False,
         label='线路主管'
     )
+    operations_manager = DynamicModelMultipleChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='运维主管'
+    )
     handling_unit = DynamicModelChoiceField(
         queryset=ServiceProvider.objects.all(),
         required=False,
@@ -111,6 +116,7 @@ class OtnFaultForm(NetBoxModelForm):
             name='故障复核'
         ),
         FieldSet('tags', name='标签'),
+        FieldSet('operations_manager', name='运维主管'),
         FieldSet('comments', name='评论'),
     )
 
@@ -134,7 +140,7 @@ class OtnFaultForm(NetBoxModelForm):
             'manager_reviewed', 'manager_reviewer', 'manager_review_time',
             'noc_reviewed', 'noc_reviewer', 'noc_review_time',
             # 其他字段
-            'comments', 'tags',
+            'comments', 'tags', 'operations_manager'
         )
         widgets = {
             'fault_occurrence_time': DateTimePicker(),
@@ -188,6 +194,12 @@ class OtnFaultImportForm(NetBoxModelImportForm):
         to_field_name='username',
         help_text='线路主管用户名'
     )
+    operations_manager = CSVModelMultipleChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        to_field_name='username',
+        help_text='运维主管用户名'
+    )
     handling_unit = CSVModelChoiceField(
         queryset=ServiceProvider.objects.all(),
         required=False,
@@ -223,7 +235,7 @@ class OtnFaultImportForm(NetBoxModelImportForm):
             'departure_time', 'arrival_time', 'repair_time', 
             'timeout', 'timeout_reason', 'handler', 'cable_break_location', 'recovery_mode', 
             'interruption_latitude', 'interruption_longitude', 
-            'fault_details', 'comments', 'tags'
+            'fault_details', 'comments', 'tags', 'operations_manager'
         )
 
 
@@ -357,6 +369,11 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='线路主管'
     )
+    operations_manager = DynamicModelMultipleChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='运维主管'
+    )
     handling_unit = DynamicModelChoiceField(
         queryset=ServiceProvider.objects.all(),
         required=False,
@@ -457,7 +474,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     )
     
     nullable_fields = (
-        'province', 'line_manager', 'handling_unit', 'fault_category',
+        'province', 'line_manager', 'operations_manager', 'handling_unit', 'fault_category',
         'interruption_reason', 'interruption_reason_detail', 'maintenance_mode', 'resource_type',
         'resource_owner', 'cable_break_location', 'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments',
         'interruption_location_a', 'first_report_source', 'cable_route'
@@ -585,6 +602,11 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         queryset=get_user_model().objects.all(),
         required=False,
         label='线路主管'
+    )
+    operations_manager = DynamicModelMultipleChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        label='运维主管'
     )
     handling_unit = DynamicModelChoiceField(
         queryset=ServiceProvider.objects.all(),

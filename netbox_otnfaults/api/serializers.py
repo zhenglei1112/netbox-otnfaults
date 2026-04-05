@@ -91,6 +91,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
     interruption_location = NestedSiteSerializer(many=True, required=False)
     province = NestedRegionSerializer(required=False)
     line_manager = NestedUserSerializer(required=False)
+    operations_manager = NestedUserSerializer(many=True, required=False)
     handling_unit = NestedServiceProviderSerializer(required=False)
     journal_entries = NestedJournalEntrySerializer(many=True, read_only=True)
     
@@ -102,7 +103,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'fault_category', 'interruption_reason', 'fault_details',
             'interruption_longitude', 'interruption_latitude',
             'province', 'urgency', 'first_report_source',
-            'line_manager', 'resource_type', 'resource_owner', 'cable_route',
+            'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time',
             'arrival_time', 'repair_time', 'repair_duration', 'timeout', 'timeout_reason',
             'handler', 'recovery_mode', 'handling_unit', 'fault_status',
