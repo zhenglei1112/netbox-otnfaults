@@ -103,6 +103,11 @@ menu = PluginMenu(
                 link_text='态势大屏',
                 permissions=['netbox_otnfaults.view_otnfault'],
             ),
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:weekly_report',
+                link_text='每周通报大屏',
+                permissions=['netbox_otnfaults.view_otnfault'],
+            ),
         )),
     ),
     icon_class='mdi mdi-tools',
