@@ -111,17 +111,19 @@ class OtnFaultsPendingReviewWidget(DashboardWidget):
     def render(self, request) -> str:
         try:
             from django.urls import reverse
+            from django.db.models import Q
 
-            # 查询：线路主管是当前用户 且 线路主管复核为 False
+            # 查询：线路主管或运维主管是当前用户 且 线路主管复核为 False
             pending_count = OtnFault.objects.restrict(request.user, 'view').filter(
-                line_manager=request.user,
+                Q(line_manager=request.user) | Q(operations_manager=request.user),
                 manager_reviewed=False,
-            ).count()
+            ).distinct().count()
 
-            # 构造跳转 URL：故障列表 + 过滤参数
+            # 构造跳转 URL：因为内置的过滤器通过字典查询是 AND 关系，
+            # 我们在 filtersets 中加了一个 my_pending_review_faults 自动支持 OR 组过滤
             review_url = (
                 reverse('plugins:netbox_otnfaults:otnfault_list')
-                + f'?line_manager={request.user.pk}&manager_reviewed=False'
+                + f'?my_pending_review_faults={request.user.pk}'
             )
 
             return render_to_string(

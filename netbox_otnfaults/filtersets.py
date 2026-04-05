@@ -7,6 +7,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
     bidirectional_pair = django_filters.CharFilter(method='filter_bidirectional_pair', label='双向站点对筛选 (id1,id2)')
     single_site_a_id = django_filters.NumberFilter(method='filter_single_site_a_id', label='单站点故障筛选 (A端站点ID)')
     site = django_filters.NumberFilter(method='filter_site', label='站点筛选 (A端或Z端)')
+    my_pending_review_faults = django_filters.NumberFilter(method='filter_my_pending_review_faults', label='我的待复核故障')
 
     class Meta:
         model = OtnFault
@@ -60,6 +61,14 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             ).distinct()
         except (ValueError, TypeError):
             return queryset.none()
+
+    def filter_my_pending_review_faults(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(
+            Q(line_manager_id=value) | Q(operations_manager__id=value),
+            manager_reviewed=False
+        ).distinct()
 
     def filter_single_site_a_id(self, queryset, name, value):
         if not value:
