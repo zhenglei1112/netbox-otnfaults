@@ -388,12 +388,12 @@ class OtnFaultImpactTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = OtnFaultImpact
         fields = (
-            'pk', 'service_type', 'service_name', 'service_interruption_time', 'service_recovery_time',
+            'pk', 'id', 'service_type', 'service_name', 'service_interruption_time', 'service_recovery_time',
             'service_duration', 'otn_fault', 'secondary_faults', 'service_group',
             'comments', 'tags', 'actions',
         )
         default_columns = (
-            'pk', 'service_type', 'service_name', 'service_interruption_time',
+            'id', 'service_type', 'service_name', 'service_interruption_time',
             'service_recovery_time', 'service_duration', 'otn_fault',
         )
 
@@ -539,12 +539,12 @@ class OtnFaultImpactSummaryTable(OtnFaultImpactTable):
     class Meta(OtnFaultImpactTable.Meta):
         empty_text = '— 找不到 故障影响业务 —'
         fields = (
-            'pk', 'secondary_faults', 'service_type', 'service_name', 'service_group',
+            'pk', 'id', 'secondary_faults', 'service_type', 'service_name', 'service_group',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
             'comments', 'tags', 'actions',
         )
         default_columns = (
-            'service_type', 'service_name', 'service_group',
+            'id', 'service_type', 'service_name', 'service_group',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
         )
 
