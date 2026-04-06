@@ -15,10 +15,11 @@
     width: 61.8%;
   }
 
-  /* 未激活时间轴图标 - 硬编码背景色遮挡连接线 */
+  /* 修复未激活时间轴图标背景，避免遮挡连线 */
   .card .timeline-icon-inactive {
     background: #fff !important;
   }
+
   [data-bs-theme="dark"] .card .timeline-icon-inactive {
     background: #212529 !important;
   }
@@ -28,8 +29,7 @@
 {% block content %}
 <div class="row mb-3">
   <div class="col col-md-6">
-    <!-- 故障信息组 -->
-    <div class="card">
+    <div class="card mb-3">
       <h5 class="card-header">故障信息</h5>
       <table class="table table-hover attr-table">
         <tr>
@@ -90,7 +90,6 @@
             {% endif %}
           </td>
         </tr>
-
         <tr>
           <th scope="row">故障原因</th>
           <td>
@@ -107,11 +106,12 @@
           <th scope="row">值守人员</th>
           <td>
             {% if object.duty_officer %}
-            <a href="{{ object.duty_officer.get_absolute_url }}">{{ object.duty_officer }}</a>
+              <a href="{{ object.duty_officer.get_absolute_url }}">{{ object.duty_officer }}</a>
             {% else %}
-            —
+              —
             {% endif %}
           </td>
+        </tr>
         <tr>
           <th scope="row">运维主管</th>
           <td>
@@ -135,10 +135,8 @@
       </table>
     </div>
 
-    <!-- 进度与时长分析 -->
     <div class="card mb-3">
       <div class="card-body p-3">
-        <!-- Duration Summary Line -->
         <div class="d-flex align-items-center justify-content-center mb-3 pb-2 border-bottom">
           <div class="me-4">
             <span class="fw-semibold text-muted small me-2">故障历时:</span>
@@ -151,19 +149,17 @@
         </div>
 
         {% with timeline=object.timeline_data %}
-        <!-- Timeline Chart -->
         <div class="timeline-container py-4" style="position: relative;">
           <div style="display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: flex-start; gap: 20px 0; position: relative; width: 100%;">
             {% for step in timeline.steps %}
             <div class="timeline-step" style="position: relative; z-index: 2; flex: 1 1 0; min-width: 80px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
-              <!-- Container for icon and connecting lines -->
               <div style="position: relative; width: 100%; display: flex; justify-content: center; height: 36px; margin-bottom: 12px;">
                 {% if not forloop.first %}
                 <div style="position: absolute; top: 16px; left: 0; right: 50%; height: 4px; z-index: 1;
                             {% if step.active %}background: linear-gradient(to right, {% if forloop.counter == 2 %}#e74c3c, #3498db{% elif forloop.counter == 3 %}#3498db, #1abc9c{% elif forloop.counter == 4 %}#1abc9c, #2ecc71{% elif forloop.counter == 5 %}#2ecc71, #27ae60{% else %}#27ae60, #059669{% endif %});{% else %}background-color: var(--bs-secondary-bg, rgba(108, 117, 125, 0.3));{% endif %}">
                 </div>
                 {% endif %}
- 
+
                 {% if not forloop.last %}
                 <div style="position: absolute; top: 16px; left: 50%; right: 0; height: 4px; z-index: 1;
                             {% if step.is_connected_to_next %}background-color: {% if forloop.counter == 1 %}#e74c3c{% elif forloop.counter == 2 %}#3498db{% elif forloop.counter == 3 %}#1abc9c{% elif forloop.counter == 4 %}#2ecc71{% else %}#27ae60{% endif %};{% else %}background-color: var(--bs-secondary-bg, rgba(108, 117, 125, 0.3));{% endif %}">
@@ -176,8 +172,8 @@
                   {% endif %}
                 </div>
                 {% endif %}
- 
-                <div class="timeline-icon d-flex align-items-center justify-content-center shadow-sm{% if not step.active %} timeline-icon-inactive{% endif %}" 
+
+                <div class="timeline-icon d-flex align-items-center justify-content-center shadow-sm{% if not step.active %} timeline-icon-inactive{% endif %}"
                      style="width: 36px; height: 36px; border-radius: 50%; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
                             {% if step.active %}background-color: {% if forloop.counter == 1 %}#e74c3c{% elif forloop.counter == 2 %}#3498db{% elif forloop.counter == 3 %}#1abc9c{% elif forloop.counter == 4 %}#2ecc71{% elif forloop.counter == 5 %}#27ae60{% else %}#059669{% endif %};{% endif %}
                             border: 2px solid {% if step.active %}var(--bs-card-bg, var(--bs-body-bg)){% else %}var(--bs-secondary-color, #6c757d){% endif %}; z-index: 3; flex-shrink: 0;">
@@ -197,18 +193,15 @@
     </div>
 
     <script>
-    /* 修复未激活图标透明背景 - 在DOM加载后立即执行 */
     (function() {
       function fixTimelineIconBg() {
         var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark'
                   || document.body.classList.contains('dark-mode')
                   || document.body.getAttribute('data-bs-theme') === 'dark';
         var bgColor = isDark ? '#1a1d20' : '#ffffff';
-        /* 尝试从卡片背景取色 */
         var card = document.querySelector('.card-body');
         if (card) {
           var computed = window.getComputedStyle(card).backgroundColor;
-          /* 只取非透明的颜色 */
           if (computed && computed !== 'rgba(0, 0, 0, 0)' && computed !== 'transparent') {
             bgColor = computed;
           }
@@ -224,50 +217,8 @@
       }
     })();
     </script>
-  </div>
-  <div class="col col-md-6">
 
-
-    <!-- 故障复核信息组 -->
-    <div class="card mb-3">
-      <h5 class="card-header">故障复核</h5>
-      <table class="table table-hover attr-table">
-        <tr>
-          <th scope="row">线路主管复核</th>
-          <td>
-            {% if object.manager_reviewed %}
-            <span class="text-success"><i class="mdi mdi-check-bold"></i></span> ({{ object.manager_reviewer|default:"—" }} 于 {{ object.manager_review_time|date:"Y-m-d H:i:s"|default:"—" }})
-            {% else %}
-            —
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
-          <th scope="row">网管人员复核</th>
-          <td>
-            {% if object.noc_reviewed %}
-            <span class="text-success"><i class="mdi mdi-check-bold"></i></span> ({{ object.noc_reviewer|default:"—" }} 于 {{ object.noc_review_time|date:"Y-m-d H:i:s"|default:"—" }})
-            {% else %}
-            —
-            {% endif %}
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- 图像附件 -->
-    {% include 'inc/panels/image_attachments.html' %}
-    <!-- 标签和评论 -->
-    {% include 'inc/panels/tags.html' %}
-    {% include 'inc/panels/comments.html' %}
-    {% plugin_right_page object %}
-  </div>
-</div>
-
-<div class="row mb-3">
-  {% if object.is_fiber_fault %}
-  <div class="col col-md-6">
-    <!-- 线路主管补充信息组 -->
+    {% if object.is_fiber_fault %}
     <div class="card">
       <h5 class="card-header">线路主管补充信息</h5>
       <table class="table table-hover attr-table">
@@ -302,7 +253,7 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">资源所有者</th>
+          <th scope="row">资源所属者</th>
           <td>{{ object.get_resource_owner_display|default:"—" }}</td>
         </tr>
         <tr>
@@ -335,7 +286,6 @@
             {% endif %}
           </td>
         </tr>
-
         <tr>
           <th scope="row">规定时间内完成修复</th>
           <td>
@@ -352,15 +302,9 @@
         </tr>
       </table>
     </div>
-  </div>
-  <div class="col col-md-6">
-    <!-- 自定义字段 -->
-    {% include 'inc/panels/custom_fields.html' %}
-  </div>
-  {% endif %}
-  {% if object.is_power_fault %}
-  <div class="col col-md-6">
-    <!-- 供电故障补充信息组 -->
+    {% endif %}
+
+    {% if object.is_power_fault %}
     <div class="card">
       <h5 class="card-header">供电故障补充信息</h5>
       <table class="table table-hover attr-table">
@@ -396,12 +340,44 @@
         </tr>
       </table>
     </div>
+    {% endif %}
   </div>
+
   <div class="col col-md-6">
-    <!-- 自定义字段 -->
+    <div class="card mb-3">
+      <h5 class="card-header">故障复核</h5>
+      <table class="table table-hover attr-table">
+        <tr>
+          <th scope="row">线路主管复核</th>
+          <td>
+            {% if object.manager_reviewed %}
+            <span class="text-success"><i class="mdi mdi-check-bold"></i></span> ({{ object.manager_reviewer|default:"—" }} 于 {{ object.manager_review_time|date:"Y-m-d H:i:s"|default:"—" }})
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">网管人员复核</th>
+          <td>
+            {% if object.noc_reviewed %}
+            <span class="text-success"><i class="mdi mdi-check-bold"></i></span> ({{ object.noc_reviewer|default:"—" }} 于 {{ object.noc_review_time|date:"Y-m-d H:i:s"|default:"—" }})
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    {% include 'inc/panels/image_attachments.html' %}
+    {% include 'inc/panels/tags.html' %}
+    {% include 'inc/panels/comments.html' %}
+    {% plugin_right_page object %}
+    {% if object.is_fiber_fault or object.is_power_fault %}
     {% include 'inc/panels/custom_fields.html' %}
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 
 <div class="row mb-3">

@@ -482,6 +482,11 @@ class OtnFaultImpactEditView(generic.ObjectEditView):
                     initial_data['service_interruption_time'] = fault.fault_occurrence_time
                 if fault.fault_recovery_time:
                     initial_data['service_recovery_time'] = fault.fault_recovery_time
+                if fault.interruption_location_a_id:
+                    initial_data['service_site_a'] = fault.interruption_location_a_id
+                z_site_ids = list(fault.interruption_location.values_list('pk', flat=True))
+                if z_site_ids:
+                    initial_data['service_site_z'] = z_site_ids
                     
             except (OtnFault.DoesNotExist, ValueError):
                 pass
