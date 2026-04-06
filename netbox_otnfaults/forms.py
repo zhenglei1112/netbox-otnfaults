@@ -888,7 +888,7 @@ class OtnPathBulkEditForm(NetBoxModelBulkEditForm):
         max_digits=10,
         decimal_places=2,
         required=False,
-        label='计算长度'
+        label='长度'
     )
     description = forms.CharField(
         required=False,

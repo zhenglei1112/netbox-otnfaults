@@ -266,7 +266,7 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
                 path_obj.site_z_id in active_fault_site_ids
             )
 
-            # 计算长度显示文本
+            # 长度显示文本
             length_km = ''
             if path_obj.calculated_length:
                 km = float(path_obj.calculated_length)

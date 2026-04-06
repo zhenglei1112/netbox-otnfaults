@@ -75,21 +75,21 @@ function renderChart(dataList) {
             type: 'category',
             data: xData,
             axisLabel: {
-                color: '#cbd5e1',
+                color: '#64748b',
                 interval: 0,
                 formatter: function (value) {
                     return value.length > 4 ? value.slice(0, 4) + '\n' + value.slice(4) : value;
                 }
             },
-            axisLine: { lineStyle: { color: 'rgba(0, 255, 255, 0.3)' } }
+            axisLine: { lineStyle: { color: '#e2e8f0' } }
         },
         yAxis: {
             type: 'value',
             minInterval: 1,
             splitLine: {
-                lineStyle: { color: 'rgba(255, 255, 255, 0.1)' }
+                lineStyle: { color: '#f1f5f9', type: 'dashed' }
             },
-            axisLabel: { color: '#cbd5e1' }
+            axisLabel: { color: '#64748b' }
         },
         series: [
             {
@@ -98,15 +98,16 @@ function renderChart(dataList) {
                 barWidth: '40%',
                 itemStyle: {
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: '#00D2FF' },
-                        { offset: 1, color: '#3A7BD5' }
+                        { offset: 0, color: '#8b5cf6' },
+                        { offset: 1, color: '#3b82f6' }
                     ]),
-                    borderRadius: [4, 4, 0, 0]
+                    borderRadius: [6, 6, 0, 0]
                 },
                 label: {
                     show: true,
                     position: 'top',
-                    color: '#fff',
+                    color: '#1e293b',
+                    fontWeight: 600,
                     formatter: '{c}次'
                 },
                 data: yData
@@ -137,7 +138,7 @@ function renderProvinces(provinces) {
                 <div class="prov-stats">
                     <div>次数: ${p.count}次</div>
                     <div>时长: 累计${p.duration}h</div>
-                    <div style="color: #cbd5e1; margin-top:2px;">主因: ${p.main_reason}</div>
+                    <div style="color: #64748b; margin-top:2px;">主因: ${p.main_reason}</div>
                     <div class="prov-path">${p.paths}</div>
                 </div>
             </div>
@@ -161,7 +162,7 @@ function renderMajorEvents(events, noConstDur) {
             const html = `
                 <div class="event-item">
                     <div><span class="event-num">${ev.loc}</span></div>
-                    <div style="color: #cbd5e1; margin-top:5px;">
+                    <div style="color: #64748b; margin-top:5px;">
                         ${ev.prov}，中断${ev.duration}小时，${ev.reason}导致，${ev.details}
                     </div>
                 </div>
@@ -208,8 +209,8 @@ function renderBareFiberTable(services) {
                 infoHtml = `
                     <td>光缆中断${s.break_cnt}次${jitterText}</td>
                     <td>造成业务阻断${s.block_cnt}次</td>
-                    <td style="color:#ff9900; font-weight:bold;">阻断${s.duration}h</td>
-                    <td style="color:#cbd5e1; font-size:12px;">重点：${s.segments}</td>
+                    <td style="color:#ef4444; font-weight:bold;">阻断${s.duration}h</td>
+                    <td style="color:#64748b; font-size:12px;">重点：${s.segments}</td>
                 `;
                 break;
         }
@@ -237,93 +238,3 @@ function renderBareFiberTable(services) {
         tbody.insertAdjacentHTML('beforeend', rowHTML);
     }
 }
-
-// ============================================
-// 网络节点连线背景特效 (Canvas Animation)
-// ============================================
-function initNetworkBackground() {
-    const canvas = document.getElementById('network-bg');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
-    
-    window.addEventListener('resize', () => {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
-    });
-
-    const particles = [];
-    const particleCount = 80; // 节点数量
-    const connectionDistance = 150; // 连线阈值
-
-    class Particle {
-        constructor() {
-            this.x = Math.random() * width;
-            this.y = Math.random() * height;
-            this.vx = (Math.random() - 0.5) * 0.5;
-            this.vy = (Math.random() - 0.5) * 0.5;
-            this.radius = Math.random() * 2 + 1;
-        }
-
-        update() {
-            this.x += this.vx;
-            this.y += this.vy;
-
-            if (this.x < 0 || this.x > width) this.vx = -this.vx;
-            if (this.y < 0 || this.y > height) this.vy = -this.vy;
-        }
-
-        draw() {
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0, 255, 255, 0.5)';
-            ctx.fill();
-            
-            // Core glow
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'rgba(0, 255, 255, 1)';
-        }
-    }
-
-    for (let i = 0; i < particleCount; i++) {
-        particles.push(new Particle());
-    }
-
-    function animate() {
-        ctx.clearRect(0, 0, width, height);
-        ctx.shadowBlur = 0; // reset for lines
-        
-        for (let i = 0; i < particles.length; i++) {
-            particles[i].update();
-            particles[i].draw();
-
-            for (let j = i + 1; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                if (distance < connectionDistance) {
-                    ctx.beginPath();
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    
-                    // 基于距离计算透明度
-                    const opacity = 1 - (distance / connectionDistance);
-                    ctx.strokeStyle = `rgba(0, 255, 255, ${opacity * 0.2})`;
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-                }
-            }
-        }
-        requestAnimationFrame(animate);
-    }
-    
-    animate();
-}
-
-// 启动背景动画
-document.addEventListener('DOMContentLoaded', () => {
-    initNetworkBackground();
-});

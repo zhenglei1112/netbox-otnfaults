@@ -573,7 +573,7 @@ class OtnPathTable(NetBoxTable):
         verbose_name='Z端站点'
     )
     calculated_length = tables.Column(
-        verbose_name='计算长度'
+        verbose_name='长度'
     )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:otnpath_list'
