@@ -10,6 +10,28 @@ from .models import (
     ServiceGroupChoices, BandwidthChoices, CableTypeChoices
 )
 
+
+def _display_or_empty(value: str | None) -> str:
+    return value or ''
+
+
+def _duration_export_value(info: dict[str, object] | None) -> str:
+    if not info:
+        return ''
+    return str(info.get('full_text') or info.get('display') or '')
+
+
+def _timeline_export_value(record: object) -> str:
+    timeline: list[tuple[str, object]] = [
+        ('故障中断', getattr(record, 'fault_occurrence_time', None)),
+        ('处理派发', getattr(record, 'dispatch_time', None)),
+        ('维修出发', getattr(record, 'departure_time', None)),
+        ('到达现场', getattr(record, 'arrival_time', None)),
+        ('故障恢复', getattr(record, 'fault_recovery_time', None)),
+    ]
+    completed_steps = [label for label, timestamp in timeline if timestamp is not None]
+    return ' / '.join(completed_steps)
+
 class OtnPathGroupSiteTable(NetBoxTable):
     """路径组站点关联表"""
     site = tables.Column(
@@ -35,6 +57,9 @@ class OtnPathGroupSiteTable(NetBoxTable):
     def render_role(self, value, record):
         color = record.get_role_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_role_display())
+
+    def value_role(self, value: str, record: OtnPathGroupSite) -> str:
+        return _display_or_empty(record.get_role_display())
 
 class OtnFaultTable(NetBoxTable):
     fault_number = tables.Column(
@@ -163,33 +188,57 @@ class OtnFaultTable(NetBoxTable):
         color = record.get_fault_category_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_fault_category_display())
 
+    def value_fault_category(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_fault_category_display())
+
     def render_urgency(self, value, record):
         color = record.get_urgency_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_urgency_display())
+
+    def value_urgency(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_urgency_display())
 
     def render_fault_status(self, value, record):
         color = record.get_fault_status_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_fault_status_display())
 
+    def value_fault_status(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_fault_status_display())
+
     def render_maintenance_mode(self, value, record):
         color = record.get_maintenance_mode_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_maintenance_mode_display())
+
+    def value_maintenance_mode(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_maintenance_mode_display())
 
     def render_recovery_mode(self, value, record):
         color = record.get_recovery_mode_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_recovery_mode_display())
 
+    def value_recovery_mode(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_recovery_mode_display())
+
     def render_resource_type(self, value, record):
         color = record.get_resource_type_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_resource_type_display())
+
+    def value_resource_type(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_resource_type_display())
 
     def render_cable_route(self, value, record):
         color = record.get_cable_route_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_cable_route_display())
 
+    def value_cable_route(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_cable_route_display())
+
     def render_cable_break_location(self, value, record):
         color = record.get_cable_break_location_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_cable_break_location_display())
+
+    def value_cable_break_location(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_cable_break_location_display())
 
     def render_fault_duration(self, record):
         """渲染故障历时为可视化进度条（使用内联样式）"""
@@ -222,6 +271,9 @@ class OtnFaultTable(NetBoxTable):
             info['display']
         )
 
+    def value_fault_duration(self, record: OtnFault) -> str:
+        return _duration_export_value(record.fault_duration_info)
+
     def render_progress(self, record):
         from django.utils.safestring import mark_safe
         times = [
@@ -242,6 +294,9 @@ class OtnFaultTable(NetBoxTable):
                 style = "display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background-color: #fff; color: #adb5bd; border: 1px solid #dee2e6; margin-right: 4px; vertical-align: middle;"
                 html_parts.append(f'<span style="{style}" title="{titles[i]} (未记录)"><i class="mdi {icons[i]}" style="font-size: 12px; line-height: 1;"></i></span>')
         return mark_safe(f'<div style="white-space: nowrap; display: inline-block; vertical-align: -3px;">{"".join(html_parts)}</div>')
+
+    def value_progress(self, record: OtnFault) -> str:
+        return _timeline_export_value(record)
 
 class ContractOtnFaultTable(NetBoxTable):
     """用于在合同详情页精简显示的故障表格"""
@@ -291,13 +346,22 @@ class ContractOtnFaultTable(NetBoxTable):
         color = record.get_fault_category_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_fault_category_display())
 
+    def value_fault_category(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_fault_category_display())
+
     def render_urgency(self, value, record):
         color = record.get_urgency_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_urgency_display())
 
+    def value_urgency(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_urgency_display())
+
     def render_fault_status(self, value, record):
         color = record.get_fault_status_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_fault_status_display())
+
+    def value_fault_status(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_fault_status_display())
 
     def render_fault_duration(self, record):
         """复用故障历时渲染逻辑"""
@@ -330,6 +394,9 @@ class ContractOtnFaultTable(NetBoxTable):
             info['display']
         )
 
+    def value_fault_duration(self, record: OtnFault) -> str:
+        return _duration_export_value(record.fault_duration_info)
+
     def render_progress(self, record):
         from django.utils.safestring import mark_safe
         times = [
@@ -350,6 +417,9 @@ class ContractOtnFaultTable(NetBoxTable):
                 style = "display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background-color: #fff; color: #adb5bd; border: 1px solid #dee2e6; margin-right: 4px; vertical-align: middle;"
                 html_parts.append(f'<span style="{style}" title="{titles[i]} (未记录)"><i class="mdi {icons[i]}" style="font-size: 12px; line-height: 1;"></i></span>')
         return mark_safe(f'<div style="white-space: nowrap; display: inline-block; vertical-align: -3px;">{"".join(html_parts)}</div>')
+
+    def value_progress(self, record: OtnFault) -> str:
+        return _timeline_export_value(record)
 
 class OtnFaultImpactTable(NetBoxTable):
     otn_fault = tables.Column(
@@ -413,6 +483,13 @@ class OtnFaultImpactTable(NetBoxTable):
             return format_html('<a href="{}">{}</a>', url, name)
         return '—'
 
+    def value_service_name(self, record: OtnFaultImpact) -> str:
+        if record.service_type == 'bare_fiber' and record.bare_fiber_service:
+            return record.bare_fiber_service.name
+        if record.service_type == 'circuit' and record.circuit_service:
+            return record.circuit_service.name
+        return ''
+
     def render_service_group(self, record):
         if record.service_type == 'circuit' and record.circuit_service:
             return record.circuit_service.get_service_group_display()
@@ -421,6 +498,9 @@ class OtnFaultImpactTable(NetBoxTable):
     def render_service_type(self, value, record):
         color = record.get_service_type_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_service_type_display())
+
+    def value_service_type(self, value: str | None, record: OtnFaultImpact) -> str:
+        return _display_or_empty(record.get_service_type_display())
 
     def render_service_duration(self, record):
         """渲染业务中断历时为可视化进度条（使用内联样式）"""
@@ -452,6 +532,9 @@ class OtnFaultImpactTable(NetBoxTable):
             fill_bg,
             info['display']
         )
+
+    def value_service_duration(self, record: OtnFaultImpact) -> str:
+        return _duration_export_value(record.service_duration_info)
 
 class OtnFaultImpactDetailTable(NetBoxTable):
     """用于业务详情页的故障详情化显示表格（镜像故障列表样式）"""
@@ -497,6 +580,9 @@ class OtnFaultImpactDetailTable(NetBoxTable):
             value.get_fault_category_display()
         )
 
+    def value_fault_category(self, value: OtnFault) -> str:
+        return _display_or_empty(value.get_fault_category_display())
+
     class Meta(NetBoxTable.Meta):
         model = OtnFaultImpact
         fields = (
@@ -537,6 +623,9 @@ class OtnFaultImpactDetailTable(NetBoxTable):
             fill_bg,
             info['display']
         )
+
+    def value_service_duration(self, record: OtnFaultImpact) -> str:
+        return _duration_export_value(record.service_duration_info)
 
 class OtnFaultImpactSummaryTable(OtnFaultImpactTable):
     """故障详情页关联业务的精简表格渲染"""
@@ -592,6 +681,9 @@ class OtnPathTable(NetBoxTable):
     def render_cable_type(self, value, record):
         color = record.get_cable_type_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_cable_type_display())
+
+    def value_cable_type(self, value: str | None, record: OtnPath) -> str:
+        return _display_or_empty(record.get_cable_type_display())
 
     def render_groups_count(self, record):
         count = record.groups.count()
@@ -714,7 +806,13 @@ class CircuitServiceTable(NetBoxTable):
         color = record.get_service_group_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_service_group_display())
 
+    def value_service_group(self, value: str | None, record: CircuitService) -> str:
+        return _display_or_empty(record.get_service_group_display())
+
     def render_bandwidth(self, value, record):
         color = record.get_bandwidth_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_bandwidth_display())
+
+    def value_bandwidth(self, value: str | None, record: CircuitService) -> str:
+        return _display_or_empty(record.get_bandwidth_display())
 
