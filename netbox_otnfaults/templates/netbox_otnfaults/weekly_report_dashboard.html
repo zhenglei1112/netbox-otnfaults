@@ -1,138 +1,119 @@
+{% extends "base/layout.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>上周光缆中断情况通报</title>
-    
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
-    
-    <!-- Dashboard Stylings -->
-    <link href="{% static 'netbox_otnfaults/css/weekly_report_dashboard.css' %}" rel="stylesheet">
-    
-    <!-- ECharts CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-</head>
-<body class="light-saas-theme">
 
-    <div class="main-container">
-        
-        <!-- 头部 -->
-        <header class="header-section">
-            <div class="header-center">
-                <div class="title-bg">
-                    <h1>上周光缆中断情况通报</h1>
-                </div>
-            </div>
-            <div class="header-right">
-                <span id="period-display">----.--.-- - ----.--.--</span>
-            </div>
-        </header>
+{% block title %}Weekly Report{% endblock %}
 
-        <!-- KPI顶部面板区 -->
-        <section class="kpi-section">
-            <div class="kpi-card wide-card">
-                <div class="kpi-title">本周光缆故障总数</div>
-                <div class="kpi-value-box">
-                    <span class="kpi-value highlight-number" id="kpi-total-cnt">--</span>
-                    <span class="kpi-unit">个</span>
-                    <span class="kpi-trend trend-up" id="kpi-total-diff">--次</span>
-                </div>
-            </div>
-            
-            <div class="kpi-card wide-card">
-                <div class="kpi-title">中断总时长</div>
-                <div class="kpi-value-box">
-                    <span class="kpi-value highlight-number" id="kpi-total-dur">--</span>
-                    <span class="kpi-unit">小时</span>
-                    <span class="kpi-trend trend-up" id="kpi-total-dur-diff">--小时</span>
-                </div>
-            </div>
-
-            <!-- 分割线或装饰效果 -->
-            <div class="h-divider-glow"></div>
-
-            <div class="kpi-card">
-                <div class="kpi-title"><i class="icon-self-built"></i> 自建光缆</div>
-                <div class="kpi-sub-value" id="kpi-self-built">--次 / --h</div>
-            </div>
-            
-            <div class="kpi-card">
-                <div class="kpi-title"><i class="icon-leased"></i> 协调/租赁</div>
-                <div class="kpi-sub-value" id="kpi-leased">--次 / --h</div>
-            </div>
-        </section>
-
-        <!-- 中部栏：左图、中省份、右事件 -->
-        <section class="middle-section">
-            <div class="panel-box chart-panel">
-                <div class="panel-header">
-                    <span class="panel-title-deco">|</span> 中断主要原因分析
-                    <span class="panel-subtitle">* 不含线路抖动</span>
-                </div>
-                <div class="panel-content">
-                    <div id="reasonsChart" style="width: 100%; height: 100%;"></div>
-                </div>
-            </div>
-            
-            <div class="panel-box map-panel">
-                <div class="panel-header">
-                    <span class="panel-title-deco">|</span> 重点影响省份
-                </div>
-                <div class="panel-content" id="provinces-container">
-                    <div class="loading-text">加载中...</div>
-                </div>
-            </div>
-
-            <div class="panel-box event-panel">
-                <div class="panel-header">
-                    <span class="panel-title-deco">|</span> 重大事件汇总
-                </div>
-                <div class="panel-content">
-                    <div class="event-summary-title">单次中断超过8小时（不含施工）</div>
-                    <div id="major-events-container" class="events-list">
-                        <!-- Events populated by JS -->
+{% block content %}
+<link href="{% static 'netbox_otnfaults/css/weekly_report_dashboard.css' %}" rel="stylesheet">
+<div class="page">
+    <div class="page-wrapper">
+        <div class="container-xl">
+            <header class="page-header report-header">
+                <div class="page-heading">
+                    <div class="page-pretitle">OTN / Weekly Report</div>
+                    <h1 class="page-title">Weekly Report Dashboard</h1>
+                    <p class="page-description">The existing weekly report API is preserved while the page is rebuilt as a Tabler-style dashboard for day-to-day viewing.</p>
+                    <div class="page-meta">
+                        <span class="meta-chip meta-chip--primary" id="period-display">--</span>
+                        <span class="meta-chip" id="generated-at-display">Auto summary</span>
                     </div>
                 </div>
-                <!-- 底部免责/施工时间说明 -->
-                <div class="panel-footer" id="no-const-dur-info">
-                    * 不含道路施工中断总时长：--小时
-                </div>
-            </div>
-        </section>
+            </header>
 
-        <!-- 底部表格区 -->
-        <section class="bottom-section">
-            <div class="panel-box table-panel">
-                <div class="panel-header table-header-center">
-                    <div class="h-line-left"></div>
-                    <div class="title-text">裸纤业务线路影响概览</div>
-                    <div class="h-line-right"></div>
-                </div>
-                <div class="panel-content">
-                    <div class="table-container">
-                        <table class="sci-fi-table">
-                            <tbody id="bare-fiber-tbody">
-                                <!-- Data populated by JS -->
-                            </tbody>
+            <section class="stats-grid" aria-label="Weekly summary metrics">
+                <article class="report-card report-card--hero">
+                    <div class="report-card__eyebrow">Weekly Fault Count</div>
+                    <div class="report-card__metric-row">
+                        <span class="report-card__metric" id="kpi-total-cnt">--</span>
+                        <span class="report-card__unit">items</span>
+                    </div>
+                    <div class="report-card__trend" id="kpi-total-diff">--</div>
+                </article>
+
+                <article class="report-card report-card--hero">
+                    <div class="report-card__eyebrow">Weekly Outage Duration</div>
+                    <div class="report-card__metric-row">
+                        <span class="report-card__metric" id="kpi-total-dur">--</span>
+                        <span class="report-card__unit">hours</span>
+                    </div>
+                    <div class="report-card__trend" id="kpi-total-dur-diff">--</div>
+                </article>
+
+                <article class="report-card">
+                    <div class="report-card__eyebrow">Self-built Fiber</div>
+                    <div class="report-card__submetric" id="kpi-self-built">-- / --</div>
+                    <div class="report-card__hint">Same calculation scope as the legacy weekly report.</div>
+                </article>
+
+                <article class="report-card">
+                    <div class="report-card__eyebrow">Coordinated / Leased</div>
+                    <div class="report-card__submetric" id="kpi-leased">-- / --</div>
+                    <div class="report-card__hint">Shows the external resource impact split.</div>
+                </article>
+            </section>
+
+            <section class="analysis-grid" aria-label="Analysis overview">
+                <article class="report-card chart-card">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">Main Cause Analysis</div>
+                            <div class="card-subtitle">Excludes jitter-only records</div>
+                        </div>
+                    </div>
+                    <div class="chart-shell">
+                        <div id="reasonsChart" class="chart-canvas" aria-label="Cause analysis chart"></div>
+                    </div>
+                </article>
+
+                <article class="report-card list-card">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">Top Provinces</div>
+                            <div class="card-subtitle">Ranked by count, duration, and main cause</div>
+                        </div>
+                    </div>
+                    <div class="province-list" id="provinces-container">
+                        <div class="loading-text">Loading weekly report data...</div>
+                    </div>
+                </article>
+
+                <article class="report-card event-card">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">Major Events</div>
+                            <div class="card-subtitle">Single outages longer than 8 hours, excluding construction</div>
+                        </div>
+                    </div>
+                    <div class="event-list-wrap">
+                        <div id="major-events-container" class="events-list"></div>
+                    </div>
+                    <div class="report-card__footnote" id="no-const-dur-info">* Non-construction outage duration: -- hours</div>
+                </article>
+            </section>
+
+            <section class="table-section" aria-label="Bare fiber impact">
+                <article class="report-card table-card">
+                    <div class="card-head card-head--table">
+                        <div>
+                            <div class="card-title">Bare Fiber Impact</div>
+                            <div class="card-subtitle">Each service is shown as its own row with a clear status label</div>
+                        </div>
+                    </div>
+                    <div class="table-responsive report-table-wrap">
+                        <table class="report-table">
+                            <tbody id="bare-fiber-tbody"></tbody>
                         </table>
                     </div>
-                </div>
-            </div>
-        </section>
-        
+                </article>
+            </section>
+        </div>
     </div>
+</div>
+{% endblock %}
 
-    <!-- 配置注入 -->
-    <script>
-        window.WEEKLY_REPORT_API = "{% url 'plugins:netbox_otnfaults:weekly_report_data' %}";
-    </script>
-    
-    <!-- 业务 JS -->
-    <script src="{% static 'netbox_otnfaults/js/weekly_report_dashboard.js' %}"></script>
-</body>
-</html>
+{% block javascript %}
+<script>
+    window.WEEKLY_REPORT_API = "{% url 'plugins:netbox_otnfaults:weekly_report_data' %}";
+</script>
+<script src="{% static 'netbox_otnfaults/js/weekly_report_dashboard.js' %}"></script>
+{% endblock %}

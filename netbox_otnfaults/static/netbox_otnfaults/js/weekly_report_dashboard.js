@@ -1,240 +1,266 @@
 /**
- * 每周通报大屏 - 业务逻辑
+ * Weekly report dashboard renderer.
  */
 
-document.addEventListener('DOMContentLoaded', () => {
-    // 自动触发数据加载
-    fetchReportData();
-});
-
-function fetchReportData() {
-    const api_url = window.WEEKLY_REPORT_API;
-    
-    fetch(api_url)
-        .then(res => res.json())
-        .then(data => {
-            renderKPIs(data);
-            renderChart(data.reasons_analysis);
-            renderProvinces(data.top_provinces);
-            renderMajorEvents(data.major_events, data.summary.no_const_duration);
-            renderBareFiberTable(data.bare_fiber);
-        })
-        .catch(err => {
-            console.error('API Fetch error:', err);
-        });
+function getElement(id) {
+    return document.getElementById(id);
 }
 
-function getTrendHTML(diff, suffix='') {
-    if (diff > 0) {
-        return `<span class="kpi-trend trend-up">↑ +${diff}${suffix}</span>`;
-    } else if (diff < 0) {
-        return `<span class="kpi-trend trend-down">↓ ${diff}${suffix}</span>`;
-    } else {
-        return `<span class="kpi-trend" style="color:#64748b">- 0${suffix}</span>`;
+function setText(id, value) {
+    const element = getElement(id);
+    if (element) {
+        element.textContent = String(value);
     }
+}
+
+function setHtml(id, value) {
+    const element = getElement(id);
+    if (element) {
+        element.innerHTML = value;
+    }
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+}
+
+function formatNumber(value) {
+    const numericValue = Number(value ?? 0);
+    if (!Number.isFinite(numericValue)) {
+        return "0";
+    }
+    return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 1 }).format(numericValue);
+}
+
+function formatDuration(value) {
+    const numericValue = Number(value ?? 0);
+    if (!Number.isFinite(numericValue)) {
+        return "0";
+    }
+    return Number.isInteger(numericValue) ? String(numericValue) : numericValue.toFixed(1);
+}
+
+function renderTrendBadge(diff, suffix = "") {
+    const numericDiff = Number(diff ?? 0);
+    const trendClass = numericDiff > 0 ? "trend-up" : numericDiff < 0 ? "trend-down" : "";
+    const signPrefix = numericDiff > 0 ? "+" : "";
+    return `<span class="kpi-trend ${trendClass}">vs last week ${signPrefix}${formatNumber(numericDiff)}${escapeHtml(suffix)}</span>`;
+}
+
+function renderEmptyState(container, message, isError = false) {
+    if (!container) {
+        return;
+    }
+
+    const errorModifier = isError ? " empty-state--error" : "";
+    container.innerHTML = `<div class="empty-state${errorModifier}">${escapeHtml(message)}</div>`;
+}
+
+function renderTableEmptyState(message, isError = false) {
+    const tbody = getElement("bare-fiber-tbody");
+    if (!tbody) {
+        return;
+    }
+
+    const errorModifier = isError ? " empty-state--error" : "";
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="6">
+                <div class="empty-state${errorModifier}">${escapeHtml(message)}</div>
+            </td>
+        </tr>
+    `;
+}
+
+function renderHeader(data) {
+    const period = data?.period ?? {};
+    setText("period-display", `${period.start ?? "--"} - ${period.end ?? "--"}`);
+    setText("generated-at-display", data?.generated_at || "Auto summary");
 }
 
 function renderKPIs(data) {
-    document.getElementById('period-display').innerText = `${data.period.start} - ${data.period.end}`;
-    
-    // KPI 1
-    document.getElementById('kpi-total-cnt').innerText = data.summary.total_count;
-    document.getElementById('kpi-total-diff').outerHTML = getTrendHTML(data.summary.diff_count, '次');
-    
-    // KPI 2
-    document.getElementById('kpi-total-dur').innerText = data.summary.total_duration;
-    document.getElementById('kpi-total-dur-diff').outerHTML = getTrendHTML(data.summary.diff_duration, '小时');
-    
-    // KPI 3 & 4
-    document.getElementById('kpi-self-built').innerText = `${data.summary.self_built.count}次 / ${data.summary.self_built.duration}h`;
-    document.getElementById('kpi-leased').innerText = `${data.summary.leased.count}次 / ${data.summary.leased.duration}h`;
+    const summary = data?.summary ?? {};
+    const selfBuilt = summary.self_built ?? {};
+    const leased = summary.leased ?? {};
+
+    setText("kpi-total-cnt", formatNumber(summary.total_count));
+    setHtml("kpi-total-diff", renderTrendBadge(summary.diff_count, " items"));
+    setText("kpi-total-dur", formatDuration(summary.total_duration));
+    setHtml("kpi-total-dur-diff", renderTrendBadge(summary.diff_duration, " h"));
+    setText("kpi-self-built", `${formatNumber(selfBuilt.count)} items / ${formatDuration(selfBuilt.duration)} h`);
+    setText("kpi-leased", `${formatNumber(leased.count)} items / ${formatDuration(leased.duration)} h`);
 }
 
 function renderChart(dataList) {
-    const chartDom = document.getElementById('reasonsChart');
-    if (!chartDom || !window.echarts) return;
-    
-    const myChart = echarts.init(chartDom);
-    
-    const xData = dataList.map(item => item.name);
-    const yData = dataList.map(item => item.value);
+    const chartDom = getElement("reasonsChart");
+    if (!chartDom) {
+        return;
+    }
 
-    const option = {
-        grid: {
-            top: '15%',
-            left: '3%',
-            right: '4%',
-            bottom: '5%',
-            containLabel: true
-        },
-        tooltip: {
-            trigger: 'axis',
-            axisPointer: { type: 'shadow' }
-        },
-        xAxis: {
-            type: 'category',
-            data: xData,
-            axisLabel: {
-                color: '#64748b',
-                interval: 0,
-                formatter: function (value) {
-                    return value.length > 4 ? value.slice(0, 4) + '\n' + value.slice(4) : value;
-                }
-            },
-            axisLine: { lineStyle: { color: '#e2e8f0' } }
-        },
-        yAxis: {
-            type: 'value',
-            minInterval: 1,
-            splitLine: {
-                lineStyle: { color: '#f1f5f9', type: 'dashed' }
-            },
-            axisLabel: { color: '#64748b' }
-        },
-        series: [
-            {
-                name: '中断次数',
-                type: 'bar',
-                barWidth: '40%',
-                itemStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: '#8b5cf6' },
-                        { offset: 1, color: '#3b82f6' }
-                    ]),
-                    borderRadius: [6, 6, 0, 0]
-                },
-                label: {
-                    show: true,
-                    position: 'top',
-                    color: '#1e293b',
-                    fontWeight: 600,
-                    formatter: '{c}次'
-                },
-                data: yData
-            }
-        ]
-    };
+    const safeData = Array.isArray(dataList) ? dataList : [];
+    if (safeData.length === 0) {
+        renderEmptyState(chartDom, "No cause-analysis data is available for this week.");
+        return;
+    }
 
-    myChart.setOption(option);
-    
-    window.addEventListener('resize', () => {
-        myChart.resize();
-    });
+    const maxValue = Math.max(...safeData.map((item) => Number(item.value ?? 0)), 1);
+    chartDom.innerHTML = safeData
+        .map((item) => {
+            const name = escapeHtml(item.name ?? "Unknown");
+            const value = Number(item.value ?? 0);
+            const width = Math.max((value / maxValue) * 100, 6);
+            return `
+                <div style="display:grid;grid-template-columns:minmax(0,160px) 1fr auto;gap:12px;align-items:center;margin-bottom:12px;">
+                    <div style="font-size:13px;color:#667382;word-break:break-word;">${name}</div>
+                    <div style="height:10px;background:#e9eef5;border-radius:999px;overflow:hidden;">
+                        <div style="width:${width}%;height:100%;background:linear-gradient(90deg,#206bc4,#4299e1);"></div>
+                    </div>
+                    <div style="font-size:13px;font-weight:700;color:#182433;">${formatNumber(value)}</div>
+                </div>
+            `;
+        })
+        .join("");
 }
 
 function renderProvinces(provinces) {
-    const container = document.getElementById('provinces-container');
-    container.innerHTML = '';
-    
-    if (!provinces || provinces.length === 0) {
-        container.innerHTML = '<div class="loading-text">本周暂无省份数据</div>';
+    const container = getElement("provinces-container");
+    if (!container) {
         return;
     }
-    
-    provinces.forEach(p => {
-        const html = `
-            <div class="province-card">
-                <div class="prov-name">${p.province}</div>
+
+    const safeProvinces = Array.isArray(provinces) ? provinces : [];
+    if (safeProvinces.length === 0) {
+        renderEmptyState(container, "No province data is available for this week.");
+        return;
+    }
+
+    container.innerHTML = safeProvinces
+        .map((province) => `
+            <article class="province-card">
+                <div class="prov-name">${escapeHtml(province.province || "Unknown")}</div>
                 <div class="prov-stats">
-                    <div>次数: ${p.count}次</div>
-                    <div>时长: 累计${p.duration}h</div>
-                    <div style="color: #64748b; margin-top:2px;">主因: ${p.main_reason}</div>
-                    <div class="prov-path">${p.paths}</div>
+                    <div>Count: ${formatNumber(province.count)}</div>
+                    <div>Duration: ${formatDuration(province.duration)} h</div>
+                    <div>Main cause: ${escapeHtml(province.main_reason || "Unknown")}</div>
+                    <div class="prov-path">${escapeHtml(province.paths || "No path info")}</div>
                 </div>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', html);
-    });
+            </article>
+        `)
+        .join("");
 }
 
 function renderMajorEvents(events, noConstDur) {
-    const container = document.getElementById('major-events-container');
-    container.innerHTML = '';
-    
-    if (events.length === 0) {
-        container.innerHTML = `
-            <div class="event-item" style="text-align:center; padding: 20px;">
-                <span class="event-num" style="font-size:24px;">0</span> 无
-            </div>
-        `;
-    } else {
-        events.forEach(ev => {
-            const html = `
-                <div class="event-item">
-                    <div><span class="event-num">${ev.loc}</span></div>
-                    <div style="color: #64748b; margin-top:5px;">
-                        ${ev.prov}，中断${ev.duration}小时，${ev.reason}导致，${ev.details}
-                    </div>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', html);
-        });
+    const container = getElement("major-events-container");
+    if (!container) {
+        return;
     }
-    
-    document.getElementById('no-const-dur-info').innerText = `* 不含道路施工中断总时长：${noConstDur}小时`;
+
+    const safeEvents = Array.isArray(events) ? events : [];
+    setText("no-const-dur-info", `* Non-construction outage duration: ${formatDuration(noConstDur)} hours`);
+
+    if (safeEvents.length === 0) {
+        renderEmptyState(container, "No outage above 8 hours was found for this week.");
+        return;
+    }
+
+    container.innerHTML = safeEvents
+        .map((event) => `
+            <article class="event-item">
+                <div><span class="event-num">${escapeHtml(event.loc || "Unknown")}</span></div>
+                <div class="prov-path">${escapeHtml(event.prov || "Unknown province")}, ${formatDuration(event.duration)} h, ${escapeHtml(event.reason || "Unknown reason")}, ${escapeHtml(event.details || "No summary")}</div>
+            </article>
+        `)
+        .join("");
+}
+
+function renderStatusLabel(service) {
+    if (service.status === "jitter") {
+        return '<span class="status-tag status-yellow">!</span>Jitter';
+    }
+
+    return '<span class="status-tag status-red">X</span>Outage';
+}
+
+function renderBareFiberRow(service) {
+    const serviceName = escapeHtml(service.name || "Unknown service");
+    const segmentText = escapeHtml(service.segments || "No location info");
+
+    if (service.status === "jitter") {
+        return `
+            <tr>
+                <td class="col-service">${serviceName}</td>
+                <td>${renderStatusLabel(service)}</td>
+                <td>-</td>
+                <td>Jitter ${formatNumber(service.jitter_cnt)} times</td>
+                <td>-</td>
+                <td>${segmentText}</td>
+            </tr>
+        `;
+    }
+
+    const jitterSuffix = Number(service.jitter_cnt ?? 0) > 0 ? ` / jitter ${formatNumber(service.jitter_cnt)} times` : "";
+    return `
+        <tr>
+            <td class="col-service">${serviceName}</td>
+            <td>${renderStatusLabel(service)}</td>
+            <td>Outage ${formatNumber(service.break_cnt)} times${jitterSuffix}</td>
+            <td>Blocked ${formatNumber(service.block_cnt)} times</td>
+            <td>${formatDuration(service.duration)} h</td>
+            <td>${segmentText}</td>
+        </tr>
+    `;
 }
 
 function renderBareFiberTable(services) {
-    const tbody = document.getElementById('bare-fiber-tbody');
-    tbody.innerHTML = '';
-    
-    const interruptedServices = [];
-    const noInterruptedServices = [];
-    
-    services.forEach(s => {
-        if (s.status === 'no_interruption') {
-            noInterruptedServices.push(s);
-        } else {
-            interruptedServices.push(s);
+    const tbody = getElement("bare-fiber-tbody");
+    if (!tbody) {
+        return;
+    }
+
+    const safeServices = Array.isArray(services) ? services : [];
+    if (safeServices.length === 0) {
+        renderTableEmptyState("No bare-fiber impact data is available for this week.");
+        return;
+    }
+
+    tbody.innerHTML = safeServices.map((service) => renderBareFiberRow(service)).join("");
+}
+
+function renderPageError(error) {
+    console.error("Weekly report fetch error:", error);
+    renderEmptyState(getElement("reasonsChart"), "The weekly report data could not be loaded.", true);
+    renderEmptyState(getElement("provinces-container"), "Province data could not be loaded.", true);
+    renderEmptyState(getElement("major-events-container"), "Major events could not be loaded.", true);
+    renderTableEmptyState("Bare-fiber impact data could not be loaded.", true);
+}
+
+async function fetchReportData() {
+    try {
+        const response = await fetch(window.WEEKLY_REPORT_API, {
+            headers: { Accept: "application/json" },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
-    });
-    
-    interruptedServices.forEach(s => {
-        let statusHtml = '';
-        let infoHtml = '';
-        
-        switch (s.status) {
-            case 'jitter':
-                statusHtml = '<span class="status-tag status-yellow">!</span>线路抖动';
-                infoHtml = `
-                    <td>-</td>
-                    <td>抖动${s.jitter_cnt}次</td>
-                    <td>-</td>
-                    <td style="color:#cbd5e1;">（抖动${s.jitter_cnt}次，${s.segments}）</td>
-                `;
-                break;
-            case 'interruption':
-                statusHtml = '<span class="status-tag status-red">X</span>光缆中断';
-                const jitterText = s.jitter_cnt > 0 ? ` / 抖动${s.jitter_cnt}次` : '';
-                infoHtml = `
-                    <td>光缆中断${s.break_cnt}次${jitterText}</td>
-                    <td>造成业务阻断${s.block_cnt}次</td>
-                    <td style="color:#ef4444; font-weight:bold;">阻断${s.duration}h</td>
-                    <td style="color:#64748b; font-size:12px;">重点：${s.segments}</td>
-                `;
-                break;
-        }
-        
-        const rowHTML = `
-            <tr>
-                <td class="col-service" width="20%">${s.name}</td>
-                <td width="15%">${statusHtml}</td>
-                ${infoHtml}
-            </tr>
-        `;
-        tbody.insertAdjacentHTML('beforeend', rowHTML);
-    });
-    
-    if (noInterruptedServices.length > 0) {
-        const names = noInterruptedServices.map(s => s.name).join('、');
-        const rowHTML = `
-            <tr>
-                <td colspan="6" style="color:#64748b; font-size: 13px; line-height: 1.6;">
-                    <span class="status-tag status-green" style="margin-right: 10px;">✓ 没有中断</span>
-                    <strong>正常业务：</strong> ${names}
-                </td>
-            </tr>
-        `;
-        tbody.insertAdjacentHTML('beforeend', rowHTML);
+
+        const data = await response.json();
+        renderHeader(data);
+        renderKPIs(data);
+        renderChart(data.reasons_analysis || []);
+        renderProvinces(data.top_provinces || []);
+        renderMajorEvents(data.major_events || [], data.summary?.no_const_duration ?? 0);
+        renderBareFiberTable(data.bare_fiber || []);
+    } catch (error) {
+        renderPageError(error);
     }
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+    void fetchReportData();
+});
