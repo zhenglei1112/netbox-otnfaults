@@ -433,8 +433,10 @@ const FaultModePlugin = {
     const map = this.map;
     let progress = 0;
     let lastTime = 0;
+    let lastRenderTime = 0;
     const ANIMATION_DURATION = 2000; // 动画周期 2 秒
     const RIPPLE_COUNT = 3;          // 同时显示 3 个波纹
+    const FRAME_INTERVAL = 1000 / 12; // 将纹理更新限制在 12 FPS，减轻拖动压力
 
     // 共享画布以提升每帧处理性能
     const canvas = document.createElement('canvas');
@@ -451,7 +453,6 @@ const FaultModePlugin = {
     const animate = (timestamp) => {
       if (!lastTime) lastTime = timestamp;
       const deltaTime = timestamp - lastTime;
-      progress = (progress + deltaTime / ANIMATION_DURATION) % 1;
       lastTime = timestamp;
 
       // 防止底图销毁报错
@@ -459,6 +460,28 @@ const FaultModePlugin = {
         this._iconAnimationId = null;
         return;
       }
+
+      const isMapInteracting =
+        (typeof map.isMoving === 'function' && map.isMoving()) ||
+        (typeof map.isZooming === 'function' && map.isZooming()) ||
+        (typeof map.isRotating === 'function' && map.isRotating());
+      const isDocumentHidden =
+        typeof document !== 'undefined' &&
+        typeof document.hidden === 'boolean' &&
+        document.hidden;
+
+      if (isMapInteracting || isDocumentHidden) {
+        this._iconAnimationId = requestAnimationFrame(animate);
+        return;
+      }
+
+      if (timestamp - lastRenderTime < FRAME_INTERVAL) {
+        this._iconAnimationId = requestAnimationFrame(animate);
+        return;
+      }
+
+      lastRenderTime = timestamp;
+      progress = (progress + deltaTime / ANIMATION_DURATION) % 1;
 
       for (const icon of this.animatedIcons) {
         const { fullSize, innerSize, offset, staticCanvas, bgColor, iconName } = icon;
