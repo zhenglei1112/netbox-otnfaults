@@ -66,8 +66,8 @@ class PowerDataTypeChoices(ChoiceSet):
     PROVINCIAL = 'provincial_battery'
 
     CHOICES = [
-        (SELF_BUILT, '自建电源电池', 'green'),
-        (PROVINCIAL, '各省提供电源电池', 'blue'),
+        (SELF_BUILT, '自建配套', 'green'),
+        (PROVINCIAL, '外部配套', 'blue'),
     ]
 
 
