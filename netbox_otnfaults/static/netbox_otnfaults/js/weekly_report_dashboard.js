@@ -49,7 +49,7 @@ function renderTrendBadge(diff, suffix = "") {
     const numericDiff = Number(diff ?? 0);
     const trendClass = numericDiff > 0 ? "trend-up" : numericDiff < 0 ? "trend-down" : "";
     const signPrefix = numericDiff > 0 ? "+" : "";
-    return `<span class="kpi-trend ${trendClass}">vs last week ${signPrefix}${formatNumber(numericDiff)}${escapeHtml(suffix)}</span>`;
+    return `<span class="kpi-trend ${trendClass}">较上周 ${signPrefix}${formatNumber(numericDiff)}${escapeHtml(suffix)}</span>`;
 }
 
 function renderEmptyState(container, message, isError = false) {
@@ -80,7 +80,7 @@ function renderTableEmptyState(message, isError = false) {
 function renderHeader(data) {
     const period = data?.period ?? {};
     setText("period-display", `${period.start ?? "--"} - ${period.end ?? "--"}`);
-    setText("generated-at-display", data?.generated_at || "Auto summary");
+    setText("generated-at-display", data?.generated_at || "自动汇总");
 }
 
 function renderKPIs(data) {
@@ -89,11 +89,11 @@ function renderKPIs(data) {
     const leased = summary.leased ?? {};
 
     setText("kpi-total-cnt", formatNumber(summary.total_count));
-    setHtml("kpi-total-diff", renderTrendBadge(summary.diff_count, " items"));
+    setHtml("kpi-total-diff", renderTrendBadge(summary.diff_count, " 条"));
     setText("kpi-total-dur", formatDuration(summary.total_duration));
-    setHtml("kpi-total-dur-diff", renderTrendBadge(summary.diff_duration, " h"));
-    setText("kpi-self-built", `${formatNumber(selfBuilt.count)} items / ${formatDuration(selfBuilt.duration)} h`);
-    setText("kpi-leased", `${formatNumber(leased.count)} items / ${formatDuration(leased.duration)} h`);
+    setHtml("kpi-total-dur-diff", renderTrendBadge(summary.diff_duration, " 小时"));
+    setText("kpi-self-built", `${formatNumber(selfBuilt.count)} 条 / ${formatDuration(selfBuilt.duration)} 小时`);
+    setText("kpi-leased", `${formatNumber(leased.count)} 条 / ${formatDuration(leased.duration)} 小时`);
 }
 
 function renderChart(dataList) {
@@ -104,14 +104,14 @@ function renderChart(dataList) {
 
     const safeData = Array.isArray(dataList) ? dataList : [];
     if (safeData.length === 0) {
-        renderEmptyState(chartDom, "No cause-analysis data is available for this week.");
+        renderEmptyState(chartDom, "本周暂无原因分析数据。");
         return;
     }
 
     const maxValue = Math.max(...safeData.map((item) => Number(item.value ?? 0)), 1);
     chartDom.innerHTML = safeData
         .map((item) => {
-            const name = escapeHtml(item.name ?? "Unknown");
+            const name = escapeHtml(item.name ?? "未知");
             const value = Number(item.value ?? 0);
             const width = Math.max((value / maxValue) * 100, 6);
             return `
@@ -135,19 +135,19 @@ function renderProvinces(provinces) {
 
     const safeProvinces = Array.isArray(provinces) ? provinces : [];
     if (safeProvinces.length === 0) {
-        renderEmptyState(container, "No province data is available for this week.");
+        renderEmptyState(container, "本周暂无省份数据。");
         return;
     }
 
     container.innerHTML = safeProvinces
         .map((province) => `
             <article class="province-card">
-                <div class="prov-name">${escapeHtml(province.province || "Unknown")}</div>
+                <div class="prov-name">${escapeHtml(province.province || "未知")}</div>
                 <div class="prov-stats">
-                    <div>Count: ${formatNumber(province.count)}</div>
-                    <div>Duration: ${formatDuration(province.duration)} h</div>
-                    <div>Main cause: ${escapeHtml(province.main_reason || "Unknown")}</div>
-                    <div class="prov-path">${escapeHtml(province.paths || "No path info")}</div>
+                    <div>故障次数：${formatNumber(province.count)}</div>
+                    <div>累计时长：${formatDuration(province.duration)} 小时</div>
+                    <div>主要原因：${escapeHtml(province.main_reason || "未知")}</div>
+                    <div class="prov-path">${escapeHtml(province.paths || "暂无路径信息")}</div>
                 </div>
             </article>
         `)
@@ -161,18 +161,18 @@ function renderMajorEvents(events, noConstDur) {
     }
 
     const safeEvents = Array.isArray(events) ? events : [];
-    setText("no-const-dur-info", `* Non-construction outage duration: ${formatDuration(noConstDur)} hours`);
+    setText("no-const-dur-info", `* 非施工中断总时长：${formatDuration(noConstDur)} 小时`);
 
     if (safeEvents.length === 0) {
-        renderEmptyState(container, "No outage above 8 hours was found for this week.");
+        renderEmptyState(container, "本周暂无超过 8 小时的重大事件。");
         return;
     }
 
     container.innerHTML = safeEvents
         .map((event) => `
             <article class="event-item">
-                <div><span class="event-num">${escapeHtml(event.loc || "Unknown")}</span></div>
-                <div class="prov-path">${escapeHtml(event.prov || "Unknown province")}, ${formatDuration(event.duration)} h, ${escapeHtml(event.reason || "Unknown reason")}, ${escapeHtml(event.details || "No summary")}</div>
+                <div><span class="event-num">${escapeHtml(event.loc || "未知")}</span></div>
+                <div class="prov-path">${escapeHtml(event.prov || "未知省份")}，${formatDuration(event.duration)} 小时，${escapeHtml(event.reason || "未知原因")}，${escapeHtml(event.details || "暂无摘要")}</div>
             </article>
         `)
         .join("");
@@ -180,15 +180,15 @@ function renderMajorEvents(events, noConstDur) {
 
 function renderStatusLabel(service) {
     if (service.status === "jitter") {
-        return '<span class="status-tag status-yellow">!</span>Jitter';
+        return '<span class="status-tag status-yellow">!</span>抖动';
     }
 
-    return '<span class="status-tag status-red">X</span>Outage';
+    return '<span class="status-tag status-red">X</span>中断';
 }
 
 function renderBareFiberRow(service) {
-    const serviceName = escapeHtml(service.name || "Unknown service");
-    const segmentText = escapeHtml(service.segments || "No location info");
+    const serviceName = escapeHtml(service.name || "未知业务");
+    const segmentText = escapeHtml(service.segments || "暂无定位信息");
 
     if (service.status === "jitter") {
         return `
@@ -196,21 +196,21 @@ function renderBareFiberRow(service) {
                 <td class="col-service">${serviceName}</td>
                 <td>${renderStatusLabel(service)}</td>
                 <td>-</td>
-                <td>Jitter ${formatNumber(service.jitter_cnt)} times</td>
+                <td>抖动 ${formatNumber(service.jitter_cnt)} 次</td>
                 <td>-</td>
                 <td>${segmentText}</td>
             </tr>
         `;
     }
 
-    const jitterSuffix = Number(service.jitter_cnt ?? 0) > 0 ? ` / jitter ${formatNumber(service.jitter_cnt)} times` : "";
+    const jitterSuffix = Number(service.jitter_cnt ?? 0) > 0 ? ` / 抖动 ${formatNumber(service.jitter_cnt)} 次` : "";
     return `
         <tr>
             <td class="col-service">${serviceName}</td>
             <td>${renderStatusLabel(service)}</td>
-            <td>Outage ${formatNumber(service.break_cnt)} times${jitterSuffix}</td>
-            <td>Blocked ${formatNumber(service.block_cnt)} times</td>
-            <td>${formatDuration(service.duration)} h</td>
+            <td>中断 ${formatNumber(service.break_cnt)} 次${jitterSuffix}</td>
+            <td>阻断 ${formatNumber(service.block_cnt)} 次</td>
+            <td>${formatDuration(service.duration)} 小时</td>
             <td>${segmentText}</td>
         </tr>
     `;
@@ -224,7 +224,7 @@ function renderBareFiberTable(services) {
 
     const safeServices = Array.isArray(services) ? services : [];
     if (safeServices.length === 0) {
-        renderTableEmptyState("No bare-fiber impact data is available for this week.");
+        renderTableEmptyState("本周暂无裸纤业务影响数据。");
         return;
     }
 
@@ -233,10 +233,10 @@ function renderBareFiberTable(services) {
 
 function renderPageError(error) {
     console.error("Weekly report fetch error:", error);
-    renderEmptyState(getElement("reasonsChart"), "The weekly report data could not be loaded.", true);
-    renderEmptyState(getElement("provinces-container"), "Province data could not be loaded.", true);
-    renderEmptyState(getElement("major-events-container"), "Major events could not be loaded.", true);
-    renderTableEmptyState("Bare-fiber impact data could not be loaded.", true);
+    renderEmptyState(getElement("reasonsChart"), "每周通报数据加载失败。", true);
+    renderEmptyState(getElement("provinces-container"), "省份数据加载失败。", true);
+    renderEmptyState(getElement("major-events-container"), "重大事件加载失败。", true);
+    renderTableEmptyState("裸纤业务影响数据加载失败。", true);
 }
 
 async function fetchReportData() {

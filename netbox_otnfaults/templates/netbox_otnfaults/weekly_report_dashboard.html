@@ -1,102 +1,97 @@
 {% extends "base/layout.html" %}
 {% load static %}
 
-{% block title %}Weekly Report{% endblock %}
+{% block title %}每周通报{% endblock %}
 
 {% block content %}
 <link href="{% static 'netbox_otnfaults/css/weekly_report_dashboard.css' %}" rel="stylesheet">
 <div class="page">
     <div class="page-wrapper">
         <div class="container-xl">
-            <header class="page-header report-header">
-                <div class="page-heading">
-                    <div class="page-pretitle">OTN / Weekly Report</div>
-                    <h1 class="page-title">Weekly Report Dashboard</h1>
-                    <p class="page-description">The existing weekly report API is preserved while the page is rebuilt as a Tabler-style dashboard for day-to-day viewing.</p>
-                    <div class="page-meta">
-                        <span class="meta-chip meta-chip--primary" id="period-display">--</span>
-                        <span class="meta-chip" id="generated-at-display">Auto summary</span>
+                <header class="page-header report-header">
+                    <div class="page-heading">
+                        <div class="page-pretitle">OTN / 每周通报</div>
+                        <div class="page-meta">
+                            <span class="meta-chip meta-chip--primary" id="period-display">--</span>
+                            <span class="meta-chip" id="generated-at-display">自动汇总</span>
                     </div>
                 </div>
             </header>
 
-            <section class="stats-grid" aria-label="Weekly summary metrics">
+            <section class="stats-grid" aria-label="每周汇总指标">
                 <article class="report-card report-card--hero">
-                    <div class="report-card__eyebrow">Weekly Fault Count</div>
+                    <div class="report-card__eyebrow">本周故障总数</div>
                     <div class="report-card__metric-row">
                         <span class="report-card__metric" id="kpi-total-cnt">--</span>
-                        <span class="report-card__unit">items</span>
+                        <span class="report-card__unit">条</span>
                     </div>
                     <div class="report-card__trend" id="kpi-total-diff">--</div>
                 </article>
 
                 <article class="report-card report-card--hero">
-                    <div class="report-card__eyebrow">Weekly Outage Duration</div>
+                    <div class="report-card__eyebrow">本周中断总时长</div>
                     <div class="report-card__metric-row">
                         <span class="report-card__metric" id="kpi-total-dur">--</span>
-                        <span class="report-card__unit">hours</span>
+                        <span class="report-card__unit">小时</span>
                     </div>
                     <div class="report-card__trend" id="kpi-total-dur-diff">--</div>
                 </article>
 
                 <article class="report-card">
-                    <div class="report-card__eyebrow">Self-built Fiber</div>
+                    <div class="report-card__eyebrow">自建光纤</div>
                     <div class="report-card__submetric" id="kpi-self-built">-- / --</div>
-                    <div class="report-card__hint">Same calculation scope as the legacy weekly report.</div>
                 </article>
 
                 <article class="report-card">
-                    <div class="report-card__eyebrow">Coordinated / Leased</div>
+                    <div class="report-card__eyebrow">协调 / 租赁</div>
                     <div class="report-card__submetric" id="kpi-leased">-- / --</div>
-                    <div class="report-card__hint">Shows the external resource impact split.</div>
                 </article>
             </section>
 
-            <section class="analysis-grid" aria-label="Analysis overview">
+            <section class="analysis-grid" aria-label="分析概览">
                 <article class="report-card chart-card">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">Main Cause Analysis</div>
-                            <div class="card-subtitle">Excludes jitter-only records</div>
+                            <div class="card-title">主要原因分析</div>
+                            <div class="card-subtitle">不包含仅抖动记录</div>
                         </div>
                     </div>
                     <div class="chart-shell">
-                        <div id="reasonsChart" class="chart-canvas" aria-label="Cause analysis chart"></div>
+                        <div id="reasonsChart" class="chart-canvas" aria-label="原因分析图表"></div>
                     </div>
                 </article>
 
                 <article class="report-card list-card">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">Top Provinces</div>
-                            <div class="card-subtitle">Ranked by count, duration, and main cause</div>
+                            <div class="card-title">重点影响省份</div>
+                            <div class="card-subtitle">按次数、时长和主因排序</div>
                         </div>
                     </div>
                     <div class="province-list" id="provinces-container">
-                        <div class="loading-text">Loading weekly report data...</div>
+                        <div class="loading-text">正在加载每周通报数据...</div>
                     </div>
                 </article>
 
                 <article class="report-card event-card">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">Major Events</div>
-                            <div class="card-subtitle">Single outages longer than 8 hours, excluding construction</div>
+                            <div class="card-title">重大事件</div>
+                            <div class="card-subtitle">单次中断超过 8 小时，不含施工</div>
                         </div>
                     </div>
                     <div class="event-list-wrap">
                         <div id="major-events-container" class="events-list"></div>
                     </div>
-                    <div class="report-card__footnote" id="no-const-dur-info">* Non-construction outage duration: -- hours</div>
+                    <div class="report-card__footnote" id="no-const-dur-info">* 非施工中断总时长：-- 小时</div>
                 </article>
             </section>
 
-            <section class="table-section" aria-label="Bare fiber impact">
+            <section class="table-section" aria-label="裸纤业务影响">
                 <article class="report-card table-card">
                     <div class="card-head card-head--table">
                         <div>
-                            <div class="card-title">Bare Fiber Impact</div>
-                            <div class="card-subtitle">Each service is shown as its own row with a clear status label</div>
+                            <div class="card-title">裸纤业务影响</div>
                         </div>
                     </div>
                     <div class="table-responsive report-table-wrap">

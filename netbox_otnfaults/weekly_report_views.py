@@ -48,7 +48,7 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
             return f"{a_site}-{z_site}"
         if a_site:
             return a_site
-        return fault.fault_number or "Unknown"
+        return fault.fault_number or "未知"
 
     def _get_fault_duration(self, fault: OtnFault) -> float:
         if not fault.fault_occurrence_time:
@@ -121,7 +121,7 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
             ):
                 continue
 
-            reason_text = "Unknown"
+            reason_text = "未知"
             if fault.interruption_reason:
                 reason_text = fault.get_interruption_reason_display()
             elif fault.fault_category:
@@ -135,7 +135,7 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
         province_counts: Counter[str] = Counter()
         province_durations: Counter[str] = Counter()
         for fault in faults:
-            province_name = fault.province.name if fault.province else "Unknown"
+            province_name = fault.province.name if fault.province else "未知"
             province_counts[province_name] += 1
             province_durations[province_name] += self._get_fault_duration(fault)
 
@@ -144,14 +144,14 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
             province_faults = [
                 fault
                 for fault in faults
-                if (fault.province.name if fault.province else "Unknown") == province_name
+                if (fault.province.name if fault.province else "未知") == province_name
             ]
             province_reasons = Counter(
                 fault.get_interruption_reason_display()
                 for fault in province_faults
                 if fault.interruption_reason
             )
-            top_reason = province_reasons.most_common(1)[0][0] if province_reasons else "Unknown"
+            top_reason = province_reasons.most_common(1)[0][0] if province_reasons else "未知"
 
             paths = []
             for fault in province_faults:
@@ -194,12 +194,12 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
 
             long_faults.append(
                 {
-                    "prov": fault.province.name if fault.province else "Unknown",
+                    "prov": fault.province.name if fault.province else "未知",
                     "loc": self._build_event_location(fault),
                     "duration": round(duration, 1),
                     "reason": fault.get_interruption_reason_display()
                     if fault.interruption_reason
-                    else "Unknown",
+                    else "未知",
                     "details": (fault.fault_details or "").replace("\n", " ")[:60],
                 }
             )
@@ -218,7 +218,7 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
 
         grouped_impacts: dict[str, list[OtnFaultImpact]] = defaultdict(list)
         for impact in impacts:
-            service_name = "Unknown service"
+            service_name = "未知业务"
             if impact.bare_fiber_service and impact.bare_fiber_service.name:
                 service_name = impact.bare_fiber_service.name
             grouped_impacts[service_name].append(impact)
@@ -244,14 +244,14 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
                         end_time - impact.service_interruption_time
                     ).total_seconds() / 3600.0
 
-                province = self._fallback_name(fault.province.name if fault.province else "", "Unknown")
+                province = self._fallback_name(fault.province.name if fault.province else "", "未知")
                 location = self._shorten_name(
                     fault.interruption_location_a.name if fault.interruption_location_a else ""
                 )
                 reason = (
                     fault.get_interruption_reason_display()
                     if fault.interruption_reason
-                    else (fault.get_fault_category_display() if fault.fault_category else "Unknown")
+                    else (fault.get_fault_category_display() if fault.fault_category else "未知")
                 )
                 segments.append(f"{province} {location} {reason}".strip())
 

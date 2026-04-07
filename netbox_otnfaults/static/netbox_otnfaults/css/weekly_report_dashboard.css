@@ -46,7 +46,7 @@ body.weekly-report-page {
 }
 
 .report-header {
-    margin-bottom: 24px;
+    margin-bottom: 32px;
     padding: 0;
     border: 0;
 }
@@ -86,6 +86,7 @@ body.weekly-report-page {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    margin-bottom: 8px;
 }
 
 .meta-chip {
