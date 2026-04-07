@@ -1,21 +1,26 @@
+from __future__ import annotations
 
-    def _get_hex_color(self, color_name):
-        """Map standard NetBox/Bootstrap color names to Hex values."""
-        COLOR_MAP = {
-            'dark': '#343a40',
-            'gray': '#6c757d',
-            'light-gray': '#aaacae',
-            'blue': '#0d6efd',
-            'indigo': '#6610f2',
-            'purple': '#6f42c1',
-            'pink': '#d63384',
-            'red': '#dc3545',
-            'orange': '#f5a623', # Using the project's preferred orange
-            'yellow': '#ffc107',
-            'green': '#198754',
-            'teal': '#20c997',
-            'cyan': '#0dcaf0',
-            'white': '#ffffff',
-            'secondary': '#6c757d',
-        }
-        return COLOR_MAP.get(color_name, '#6c757d') # Default to gray
+from typing import Any
+
+from django.http import HttpResponse
+
+
+class ExcelFriendlyCSVExportMixin:
+    """Prepend a UTF-8 BOM so Excel opens exported CSV files without mojibake."""
+
+    UTF8_BOM = b"\xef\xbb\xbf"
+
+    def export_table(self, table: Any, *args: Any, **kwargs: Any) -> HttpResponse:
+        response = super().export_table(table, *args, **kwargs)
+        content_type = response.get('Content-Type', '').lower()
+
+        if 'text/csv' not in content_type or getattr(response, 'streaming', False):
+            return response
+
+        content = response.content
+        if not content.startswith(self.UTF8_BOM):
+            response.content = self.UTF8_BOM + content
+            if response.has_header('Content-Length'):
+                response['Content-Length'] = str(len(response.content))
+
+        return response

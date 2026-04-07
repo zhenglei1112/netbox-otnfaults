@@ -27,13 +27,14 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.conf import settings
 from django.urls import reverse
 from .map_modes import get_mode_config
+from .view_mixins import ExcelFriendlyCSVExportMixin
 
 
 def get_plugin_settings():
     """获取插件配置"""
     return settings.PLUGINS_CONFIG.get('netbox_otnfaults', {})
 
-class OtnFaultListView(generic.ObjectListView):
+class OtnFaultListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
     """OTN故障列表视图"""
     queryset = OtnFault.objects.all()
     table = OtnFaultTable
@@ -416,7 +417,7 @@ class OtnFaultBulkEditView(generic.BulkEditView):
         from django.urls import reverse
         return reverse('plugins:netbox_otnfaults:otnfault_list')
 
-class OtnFaultImpactListView(generic.ObjectListView):
+class OtnFaultImpactListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
     """故障影响业务列表视图"""
     queryset = OtnFaultImpact.objects.all()
     table = OtnFaultImpactTable
@@ -549,7 +550,7 @@ class OtnFaultImpactDeleteView(generic.ObjectDeleteView):
     """故障影响业务删除视图"""
     queryset = OtnFaultImpact.objects.all()
 
-class OtnPathListView(generic.ObjectListView):
+class OtnPathListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
     """光缆路径列表视图"""
     queryset = OtnPath.objects.all()
     table = OtnPathTable
@@ -607,7 +608,7 @@ class OtnPathBulkEditView(generic.BulkEditView):
 
 # ========== 路径组视图 ==========
 
-class OtnPathGroupListView(generic.ObjectListView):
+class OtnPathGroupListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
     """路径组列表视图"""
     queryset = OtnPathGroup.objects.all()
     table = OtnPathGroupTable
@@ -1084,7 +1085,7 @@ class RouteEditorView(PermissionRequiredMixin, View):
 
 # ========== 裸纤业务视图 ==========
 
-class BareFiberServiceListView(generic.ObjectListView):
+class BareFiberServiceListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
     """裸纤业务列表视图"""
     queryset = BareFiberService.objects.all()
     table = BareFiberServiceTable
@@ -1227,7 +1228,7 @@ class BareFiberServiceBulkEditView(generic.BulkEditView):
 
 # ========== 电路业务视图 ==========
 
-class CircuitServiceListView(generic.ObjectListView):
+class CircuitServiceListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
     """电路业务列表视图"""
     queryset = CircuitService.objects.all()
     table = CircuitServiceTable
