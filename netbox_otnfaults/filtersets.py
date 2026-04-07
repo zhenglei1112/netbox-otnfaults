@@ -66,8 +66,8 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
         if not value:
             return queryset
         return queryset.filter(
-            Q(line_manager_id=value) | Q(operations_manager__id=value),
-            manager_reviewed=False
+            Q(line_manager_id=value, manager_reviewed=False) |
+            Q(operations_manager__id=value, noc_reviewed=False)
         ).distinct()
 
     def filter_single_site_a_id(self, queryset, name, value):

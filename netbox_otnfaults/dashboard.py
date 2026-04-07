@@ -113,10 +113,10 @@ class OtnFaultsPendingReviewWidget(DashboardWidget):
             from django.urls import reverse
             from django.db.models import Q
 
-            # 查询：线路主管或运维主管是当前用户 且 线路主管复核为 False
+            # 查询：线路主管未复核(manager_reviewed) 或 网管人员未复核(noc_reviewed)
             pending_count = OtnFault.objects.restrict(request.user, 'view').filter(
-                Q(line_manager=request.user) | Q(operations_manager=request.user),
-                manager_reviewed=False,
+                Q(line_manager=request.user, manager_reviewed=False) |
+                Q(operations_manager=request.user, noc_reviewed=False),
             ).distinct().count()
 
             # 构造跳转 URL：因为内置的过滤器通过字典查询是 AND 关系，

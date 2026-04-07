@@ -433,7 +433,8 @@ const FaultModePlugin = {
     const map = this.map;
     let progress = 0;
     let lastTime = 0;
-    const ANIMATION_DURATION = 1500; // 动画周期 1.5 秒
+    const ANIMATION_DURATION = 2000; // 动画周期 2 秒
+    const RIPPLE_COUNT = 3;          // 同时显示 3 个波纹
 
     // 共享画布以提升每帧处理性能
     const canvas = document.createElement('canvas');
@@ -442,6 +443,10 @@ const FaultModePlugin = {
       canvas.height = this.animatedIcons[0].fullSize;
     }
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) {
+      console.warn('[FaultMode] Failed to acquire canvas context for animated fault icons');
+      return;
+    }
 
     const animate = (timestamp) => {
       if (!lastTime) lastTime = timestamp;
@@ -460,37 +465,49 @@ const FaultModePlugin = {
         
         ctx.clearRect(0, 0, fullSize, fullSize);
 
-        // --- 绘制外圈雷达波纹 ---
-        // 内部主要色块位于 svg: r=9 （32x32 viewbox）。实际画布半径 = innerSize * (9 / 32)
+        // --- 绘制多层雷达波纹（持续可见） ---
         const baseRadius = innerSize * (9 / 32); 
-        const maxRadius = (fullSize / 2) - 3; 
+        const maxRadius = (fullSize / 2) - 2; 
+        const center = fullSize / 2;
 
-        // 半径线性扩散
-        const currentRadius = baseRadius + (maxRadius - baseRadius) * progress;
-        // 退场使用 pow(xxx, 1.5) 取得相对柔和的淡出特效
-        const opacity = 1 - Math.pow(progress, 1.5);
+        for (let i = 0; i < RIPPLE_COUNT; i++) {
+          // 每个波纹相位错开 1/RIPPLE_COUNT 周期
+          const rippleProgress = (progress + i / RIPPLE_COUNT) % 1;
 
-        ctx.beginPath();
-        ctx.arc(fullSize / 2, fullSize / 2, currentRadius, 0, 2 * Math.PI, false);
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = bgColor;
-        ctx.globalAlpha = opacity;
-        ctx.stroke();
+          // 半径线性扩散
+          const currentRadius = baseRadius + (maxRadius - baseRadius) * rippleProgress;
+          // 使用 cos 曲线实现平滑淡出，确保中间阶段仍有较高可见度
+          const opacity = 0.8 * (1 - Math.pow(rippleProgress, 1.2));
 
-        // 微弱柔和的内填充圈
-        ctx.fillStyle = bgColor;
-        ctx.globalAlpha = opacity * 0.2;
-        ctx.fill();
+          // 描边波纹圈
+          ctx.beginPath();
+          ctx.arc(center, center, currentRadius, 0, 2 * Math.PI, false);
+          ctx.lineWidth = 2.5 - rippleProgress * 1.5; // 线宽从粗到细
+          ctx.strokeStyle = bgColor;
+          ctx.globalAlpha = opacity;
+          ctx.stroke();
+
+          // 微弱柔和的内填充（仅对最内层波纹）
+          if (rippleProgress < 0.4) {
+            ctx.fillStyle = bgColor;
+            ctx.globalAlpha = opacity * 0.15;
+            ctx.fill();
+          }
+        }
 
         // --- 绘制静态中心原图标 ---
         ctx.globalAlpha = 1.0;
         ctx.drawImage(staticCanvas, 0, 0, innerSize, innerSize, offset, offset, innerSize, innerSize);
 
-        // 重复将缓存更新进 WebGL
+        // 将渲染结果更新到 WebGL 纹理
         if (map.hasImage(iconName)) {
            const imgData = ctx.getImageData(0, 0, fullSize, fullSize);
            map.updateImage(iconName, imgData);
         }
+      }
+
+      if (typeof map.triggerRepaint === 'function') {
+        map.triggerRepaint();
       }
 
       this._iconAnimationId = requestAnimationFrame(animate);
