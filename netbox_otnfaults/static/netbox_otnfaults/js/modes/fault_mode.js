@@ -208,6 +208,66 @@ const FaultModePlugin = {
       "-",
       ["coalesce", ["get", "statusKey"], "processing"]
     ];
+    const statusColorExpression = [
+      "match",
+      ["coalesce", ["get", "statusKey"], "processing"],
+      "processing",
+      "#dc3545",
+      "temporary_recovery",
+      "#0d6efd",
+      "suspended",
+      "#ffc107",
+      "closed",
+      "#198754",
+      "#dc3545",
+    ];
+
+    mapBase.addLayer({
+      id: "fault-points-localization-ring",
+      type: "circle",
+      source: "fault-points",
+      paint: {
+        "circle-radius": 24,
+        "circle-color": "transparent",
+        "circle-stroke-color": statusColorExpression,
+        "circle-stroke-width": 1,
+        "circle-stroke-opacity": 0.18,
+      },
+      layout: {
+        visibility: "none",
+      }
+    });
+
+    mapBase.addLayer({
+      id: "fault-points-pulse",
+      type: "circle",
+      source: "fault-points",
+      paint: {
+        "circle-radius": 14,
+        "circle-color": "transparent",
+        "circle-stroke-color": statusColorExpression,
+        "circle-stroke-width": 3,
+        "circle-stroke-opacity": 0.72,
+      },
+      layout: {
+        visibility: "none",
+      }
+    });
+
+    mapBase.addLayer({
+      id: "fault-points-glow",
+      type: "circle",
+      source: "fault-points",
+      paint: {
+        "circle-radius": 12,
+        "circle-color": statusColorExpression,
+        "circle-opacity": 0.2,
+        "circle-blur": 0.85,
+      },
+      layout: {
+        visibility: "none",
+      }
+    });
 
     mapBase.addLayer({
       id: "fault-points-layer",
@@ -427,28 +487,13 @@ const FaultModePlugin = {
 
 
   _startIconAnimation() {
-    if (!this.animatedIcons || this.animatedIcons.length === 0) return;
     if (this._iconAnimationId) cancelAnimationFrame(this._iconAnimationId);
 
     const map = this.map;
-    let progress = 0;
     let lastTime = 0;
     let lastRenderTime = 0;
-    const ANIMATION_DURATION = 2000; // 动画周期 2 秒
-    const RIPPLE_COUNT = 3;          // 同时显示 3 个波纹
-    const FRAME_INTERVAL = 1000 / 12; // 将纹理更新限制在 12 FPS，减轻拖动压力
-
-    // 共享画布以提升每帧处理性能
-    const canvas = document.createElement('canvas');
-    if (this.animatedIcons.length > 0) {
-      canvas.width = this.animatedIcons[0].fullSize;
-      canvas.height = this.animatedIcons[0].fullSize;
-    }
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) {
-      console.warn('[FaultMode] Failed to acquire canvas context for animated fault icons');
-      return;
-    }
+    let phase = 0;
+    const FRAME_INTERVAL = 1000 / 18; // 18 FPS，提升节奏感但仍控制性能
 
     const animate = (timestamp) => {
       if (!lastTime) lastTime = timestamp;
@@ -481,52 +526,28 @@ const FaultModePlugin = {
       }
 
       lastRenderTime = timestamp;
-      progress = (progress + deltaTime / ANIMATION_DURATION) % 1;
+      phase += (deltaTime / 1000) * 4.2;
 
-      for (const icon of this.animatedIcons) {
-        const { fullSize, innerSize, offset, staticCanvas, bgColor, iconName } = icon;
-        
-        ctx.clearRect(0, 0, fullSize, fullSize);
+      if (map.getLayer("fault-points-pulse")) {
+        const pulseRadius = 14 + Math.sin(phase * 2.2) * 7;
+        const pulseStrokeOpacity = 0.68 - Math.sin(phase * 2.2) * 0.34;
+        map.setPaintProperty("fault-points-pulse", "circle-radius", pulseRadius);
+        map.setPaintProperty(
+          "fault-points-pulse",
+          "circle-stroke-opacity",
+          Math.max(0.12, pulseStrokeOpacity)
+        );
+      }
 
-        // --- 绘制多层雷达波纹（持续可见） ---
-        const baseRadius = innerSize * (9 / 32); 
-        const maxRadius = (fullSize / 2) - 2; 
-        const center = fullSize / 2;
-
-        for (let i = 0; i < RIPPLE_COUNT; i++) {
-          // 每个波纹相位错开 1/RIPPLE_COUNT 周期
-          const rippleProgress = (progress + i / RIPPLE_COUNT) % 1;
-
-          // 半径线性扩散
-          const currentRadius = baseRadius + (maxRadius - baseRadius) * rippleProgress;
-          // 使用 cos 曲线实现平滑淡出，确保中间阶段仍有较高可见度
-          const opacity = 0.8 * (1 - Math.pow(rippleProgress, 1.2));
-
-          // 描边波纹圈
-          ctx.beginPath();
-          ctx.arc(center, center, currentRadius, 0, 2 * Math.PI, false);
-          ctx.lineWidth = 2.5 - rippleProgress * 1.5; // 线宽从粗到细
-          ctx.strokeStyle = bgColor;
-          ctx.globalAlpha = opacity;
-          ctx.stroke();
-
-          // 微弱柔和的内填充（仅对最内层波纹）
-          if (rippleProgress < 0.4) {
-            ctx.fillStyle = bgColor;
-            ctx.globalAlpha = opacity * 0.15;
-            ctx.fill();
-          }
-        }
-
-        // --- 绘制静态中心原图标 ---
-        ctx.globalAlpha = 1.0;
-        ctx.drawImage(staticCanvas, 0, 0, innerSize, innerSize, offset, offset, innerSize, innerSize);
-
-        // 将渲染结果更新到 WebGL 纹理
-        if (map.hasImage(iconName)) {
-           const imgData = ctx.getImageData(0, 0, fullSize, fullSize);
-           map.updateImage(iconName, imgData);
-        }
+      if (map.getLayer("fault-points-glow")) {
+        const glowRadius = 10 + Math.sin(phase * 1.7) * 2.5;
+        const glowOpacity = 0.18 + Math.sin(phase * 1.7) * 0.08;
+        map.setPaintProperty("fault-points-glow", "circle-radius", glowRadius);
+        map.setPaintProperty(
+          "fault-points-glow",
+          "circle-opacity",
+          Math.max(0.1, glowOpacity)
+        );
       }
 
       if (typeof map.triggerRepaint === 'function') {
@@ -1072,10 +1093,16 @@ const FaultModePlugin = {
     // 切换图层可见性
     if (mode === "points") {
       map.setLayoutProperty("fault-heatmap-layer", "visibility", "none");
+      map.setLayoutProperty("fault-points-localization-ring", "visibility", "visible");
+      map.setLayoutProperty("fault-points-pulse", "visibility", "visible");
+      map.setLayoutProperty("fault-points-glow", "visibility", "visible");
       map.setLayoutProperty("fault-points-layer", "visibility", "visible");
     } else {
       // heatmap
       map.setLayoutProperty("fault-heatmap-layer", "visibility", "visible");
+      map.setLayoutProperty("fault-points-localization-ring", "visibility", "none");
+      map.setLayoutProperty("fault-points-pulse", "visibility", "none");
+      map.setLayoutProperty("fault-points-glow", "visibility", "none");
       map.setLayoutProperty("fault-points-layer", "visibility", "none");
     }
 
