@@ -1083,20 +1083,24 @@ class CircuitServiceForm(NetBoxModelForm):
         required=False,
         label='业务主管'
     )
+    is_external_business = forms.BooleanField(
+        required=False,
+        label='\u5bf9\u5916\u4e1a\u52a1'
+    )
     comments = CommentField(
         label='评论',
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
     )
 
     fieldsets = (
-        FieldSet('name', 'slug', 'service_group', 'bandwidth', 'business_manager', name='电路业务'),
+        FieldSet('name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', name='电路业务'),
         FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
         FieldSet('tags', name='其他'),
     )
 
     class Meta:
         model = CircuitService
-        fields = ('name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
+        fields = ('name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
         widgets = {
             'billing_start_time': DatePicker(),
             'billing_end_time': DatePicker(),
@@ -1107,10 +1111,14 @@ class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
     """电路业务过滤表单"""
     model = CircuitService
     tag = TagFilterField(CircuitService)
+    is_external_business = forms.NullBooleanField(
+        required=False,
+        label='\u5bf9\u5916\u4e1a\u52a1'
+    )
 
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
-        FieldSet('service_group', 'bandwidth', 'business_manager', name='属性'),
+        FieldSet('service_group', 'bandwidth', 'business_manager', 'is_external_business', name='属性'),
     )
 
     service_group = forms.ChoiceField(
@@ -1141,12 +1149,16 @@ class CircuitServiceImportForm(NetBoxModelImportForm):
 
     class Meta:
         model = CircuitService
-        fields = ('name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
+        fields = ('name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
 
 
 class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
     """电路业务批量编辑表单"""
     model = CircuitService
+    is_external_business = forms.NullBooleanField(
+        required=False,
+        label='\u5bf9\u5916\u4e1a\u52a1'
+    )
     service_group = forms.ChoiceField(
         choices=[('', '---------')] + [(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES],
         required=False,
@@ -1174,7 +1186,7 @@ class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
     )
 
     fieldsets = (
-        FieldSet('service_group', 'bandwidth', 'business_manager', name='基本信息'),
+        FieldSet('service_group', 'bandwidth', 'business_manager', 'is_external_business', name='基本信息'),
         FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
     )
 

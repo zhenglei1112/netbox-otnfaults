@@ -1523,6 +1523,10 @@ class CircuitService(NetBoxModel):
         blank=True,
         null=True
     )
+    is_external_business = models.BooleanField(
+        default=False,
+        verbose_name='\u5bf9\u5916\u4e1a\u52a1'
+    )
     billing_start_time = models.DateField(
         blank=True,
         null=True,

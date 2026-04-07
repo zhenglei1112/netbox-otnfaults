@@ -133,9 +133,11 @@ class OtnPathFilterSet(NetBoxModelFilterSet):
 
 class CircuitServiceFilterSet(NetBoxModelFilterSet):
     """电路业务过滤器"""
+    is_external_business = django_filters.BooleanFilter(label='\u5bf9\u5916\u4e1a\u52a1')
+
     class Meta:
         model = CircuitService
-        fields = ('id', 'name', 'slug', 'service_group', 'bandwidth', 'business_manager')
+        fields = ('id', 'name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business')
 
     def search(self, queryset, name, value):
         if not value.strip():

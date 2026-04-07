@@ -215,6 +215,6 @@ class CircuitServiceSerializer(NetBoxModelSerializer):
         model = CircuitService
         fields = (
             'id', 'url', 'display', 'name', 'slug', 'service_group', 'bandwidth',
-            'business_manager', 'billing_start_time', 'billing_end_time',
+            'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time',
             'comments', 'tags', 'custom_fields', 'created', 'last_updated',
         )

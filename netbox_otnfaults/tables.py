@@ -781,6 +781,9 @@ class CircuitServiceTable(NetBoxTable):
         linkify=True,
         verbose_name='业务主管'
     )
+    is_external_business = tables.Column(
+        verbose_name='\u5bf9\u5916\u4e1a\u52a1'
+    )
     billing_start_time = tables.DateColumn(
         format='Y年n月j日',
         verbose_name='计费起始时间'
@@ -796,10 +799,10 @@ class CircuitServiceTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CircuitService
         fields = (
-            'pk', 'name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
+            'pk', 'name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
         )
         default_columns = (
-            'name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time', 'tags',
+            'name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'tags',
         )
 
     def render_service_group(self, value, record):
@@ -809,10 +812,26 @@ class CircuitServiceTable(NetBoxTable):
     def value_service_group(self, value: str | None, record: CircuitService) -> str:
         return _display_or_empty(record.get_service_group_display())
 
+    def render_is_external_business(self, value, record):
+        if record.is_external_business:
+            return format_html('<span class=\"badge bg-success text-white\">\u662f</span>')
+        return format_html('<span class=\"badge bg-secondary text-white\">\u5426</span>')
+
+    def value_is_external_business(self, value: bool | None, record: CircuitService) -> str:
+        return '\u662f' if record.is_external_business else '\u5426'
+
     def render_bandwidth(self, value, record):
         color = record.get_bandwidth_color()
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_bandwidth_display())
 
     def value_bandwidth(self, value: str | None, record: CircuitService) -> str:
         return _display_or_empty(record.get_bandwidth_display())
+
+    def render_is_external_business(self, value, record):
+        if record.is_external_business:
+            return format_html('<span class="badge bg-success text-white">?</span>')
+        return format_html('<span class="badge bg-secondary text-white">?</span>')
+
+    def value_is_external_business(self, value: bool | None, record: CircuitService) -> str:
+        return '是' if record.is_external_business else '否'
 
