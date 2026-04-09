@@ -10,12 +10,14 @@ from django.utils import timezone
 from django.views import View
 
 from .models import (
+    BareFiberService,
     FaultCategoryChoices,
     OtnFault,
     OtnFaultImpact,
     ResourceTypeChoices,
     ServiceTypeChoices,
 )
+from .weekly_report_summary import build_bare_fiber_summary
 
 
 class WeeklyReportPageView(PermissionRequiredMixin, View):
@@ -269,6 +271,11 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
                 }
             )
 
+        bare_fiber_summary = build_bare_fiber_summary(
+            total_services=BareFiberService.objects.count(),
+            impacted_services=services_data,
+        )
+
         return JsonResponse(
             {
                 "timestamp": current_date.isoformat(),
@@ -295,6 +302,7 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
                 "reasons_analysis": reason_chart_data,
                 "top_provinces": top_provinces,
                 "major_events": long_faults,
+                "bare_fiber_summary": bare_fiber_summary,
                 "bare_fiber": services_data,
             },
             json_dumps_params={"ensure_ascii": False},

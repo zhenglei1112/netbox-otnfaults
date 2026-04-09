@@ -118,7 +118,7 @@ function renderChart(dataList) {
                 <div style="display:grid;grid-template-columns:minmax(0,160px) 1fr auto;gap:12px;align-items:center;margin-bottom:12px;">
                     <div style="font-size:13px;color:#667382;word-break:break-word;">${name}</div>
                     <div style="height:10px;background:#e9eef5;border-radius:999px;overflow:hidden;">
-                        <div style="width:${width}%;height:100%;background:linear-gradient(90deg,#206bc4,#4299e1);"></div>
+                        <div style="width:${width}%;height:100%;background:linear-gradient(90deg,#0097a7,#007986);"></div>
                     </div>
                     <div style="font-size:13px;font-weight:700;color:#182433;">${formatNumber(value)}</div>
                 </div>
@@ -231,6 +231,42 @@ function renderBareFiberTable(services) {
     tbody.innerHTML = safeServices.map((service) => renderBareFiberRow(service)).join("");
 }
 
+function renderBareFiberSummary(summary) {
+    const container = getElement("bare-fiber-summary");
+    if (!container) {
+        return;
+    }
+
+    const safeSummary = summary ?? {};
+    const items = [
+        {
+            label: "中断",
+            count: safeSummary.interruption ?? 0,
+            className: "bare-fiber-summary__item--danger",
+        },
+        {
+            label: "抖动",
+            count: safeSummary.jitter ?? 0,
+            className: "bare-fiber-summary__item--warning",
+        },
+        {
+            label: "未发生故障",
+            count: safeSummary.normal ?? 0,
+            className: "bare-fiber-summary__item--success",
+        },
+    ];
+
+    container.innerHTML = items
+        .map(
+            (item) => `
+                <span class="bare-fiber-summary__item ${item.className}">
+                    ${escapeHtml(item.label)} ${formatNumber(item.count)} 业务
+                </span>
+            `
+        )
+        .join("");
+}
+
 function renderPageError(error) {
     console.error("Weekly report fetch error:", error);
     renderEmptyState(getElement("reasonsChart"), "每周通报数据加载失败。", true);
@@ -255,6 +291,7 @@ async function fetchReportData() {
         renderChart(data.reasons_analysis || []);
         renderProvinces(data.top_provinces || []);
         renderMajorEvents(data.major_events || [], data.summary?.no_const_duration ?? 0);
+        renderBareFiberSummary(data.bare_fiber_summary || {});
         renderBareFiberTable(data.bare_fiber || []);
     } catch (error) {
         renderPageError(error);

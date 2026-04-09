@@ -8,12 +8,12 @@
 <div class="page">
     <div class="page-wrapper">
         <div class="container-xl">
-                <header class="page-header report-header">
-                    <div class="page-heading">
-                        <div class="page-pretitle">OTN / 每周通报</div>
-                        <div class="page-meta">
-                            <span class="meta-chip meta-chip--primary" id="period-display">--</span>
-                            <span class="meta-chip" id="generated-at-display">自动汇总</span>
+            <header class="page-header report-header">
+                <div class="page-heading">
+                    <div class="page-pretitle">OTN / 每周通报</div>
+                    <div class="page-meta">
+                        <span class="meta-chip meta-chip--primary" id="period-display">--</span>
+                        <span class="meta-chip" id="generated-at-display">自动汇总</span>
                     </div>
                 </div>
             </header>
@@ -24,8 +24,8 @@
                     <div class="report-card__metric-row">
                         <span class="report-card__metric" id="kpi-total-cnt">--</span>
                         <span class="report-card__unit">条</span>
+                        <div class="report-card__trend report-card__trend--inline" id="kpi-total-diff">--</div>
                     </div>
-                    <div class="report-card__trend" id="kpi-total-diff">--</div>
                 </article>
 
                 <article class="report-card report-card--hero">
@@ -33,16 +33,16 @@
                     <div class="report-card__metric-row">
                         <span class="report-card__metric" id="kpi-total-dur">--</span>
                         <span class="report-card__unit">小时</span>
+                        <div class="report-card__trend report-card__trend--inline" id="kpi-total-dur-diff">--</div>
                     </div>
-                    <div class="report-card__trend" id="kpi-total-dur-diff">--</div>
                 </article>
 
-                <article class="report-card">
+                <article class="report-card report-card--compact">
                     <div class="report-card__eyebrow">自建光纤</div>
                     <div class="report-card__submetric" id="kpi-self-built">-- / --</div>
                 </article>
 
-                <article class="report-card">
+                <article class="report-card report-card--compact">
                     <div class="report-card__eyebrow">协调 / 租赁</div>
                     <div class="report-card__submetric" id="kpi-leased">-- / --</div>
                 </article>
@@ -50,49 +50,52 @@
 
             <section class="analysis-grid" aria-label="分析概览">
                 <article class="report-card chart-card">
-                    <div class="card-head">
+                    <div class="card-head card-head--compact">
                         <div>
                             <div class="card-title">主要原因分析</div>
                             <div class="card-subtitle">不包含仅抖动记录</div>
                         </div>
                     </div>
-                    <div class="chart-shell">
-                        <div id="reasonsChart" class="chart-canvas" aria-label="原因分析图表"></div>
+                    <div class="chart-shell chart-shell--compact">
+                        <div id="reasonsChart" class="chart-canvas chart-canvas--compact" aria-label="原因分析图表"></div>
                     </div>
                 </article>
 
-                <article class="report-card list-card">
-                    <div class="card-head">
-                        <div>
-                            <div class="card-title">重点影响省份</div>
-                            <div class="card-subtitle">按次数、时长和主因排序</div>
-                        </div>
-                    </div>
-                    <div class="province-list" id="provinces-container">
-                        <div class="loading-text">正在加载每周通报数据...</div>
-                    </div>
-                </article>
-
-                <article class="report-card event-card">
-                    <div class="card-head">
+                <article class="report-card event-card event-card--compact">
+                    <div class="card-head card-head--compact">
                         <div>
                             <div class="card-title">重大事件</div>
                             <div class="card-subtitle">单次中断超过 8 小时，不含施工</div>
                         </div>
                     </div>
-                    <div class="event-list-wrap">
+                    <div class="event-list-wrap event-list-wrap--compact">
                         <div id="major-events-container" class="events-list"></div>
                     </div>
-                    <div class="report-card__footnote" id="no-const-dur-info">* 非施工中断总时长：-- 小时</div>
+                    <div class="report-card__footnote report-card__footnote--compact" id="no-const-dur-info">* 非施工中断总时长：-- 小时</div>
+                </article>
+            </section>
+
+            <section class="province-section" aria-label="重点影响省份">
+                <article class="report-card province-card-wide province-card-wide--compact">
+                    <div class="card-head card-head--compact">
+                        <div>
+                            <div class="card-title">重点影响省份</div>
+                            <div class="card-subtitle">按次数、时长和主因排序</div>
+                        </div>
+                    </div>
+                    <div class="province-list province-list--wide" id="provinces-container">
+                        <div class="loading-text">正在加载每周通报数据...</div>
+                    </div>
                 </article>
             </section>
 
             <section class="table-section" aria-label="裸纤业务影响">
                 <article class="report-card table-card">
-                    <div class="card-head card-head--table">
+                    <div class="card-head card-head--table card-head--compact">
                         <div>
                             <div class="card-title">裸纤业务影响</div>
                         </div>
+                        <div class="bare-fiber-summary" id="bare-fiber-summary"></div>
                     </div>
                     <div class="table-responsive report-table-wrap">
                         <table class="report-table">
