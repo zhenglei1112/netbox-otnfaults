@@ -1,4 +1,4 @@
-﻿from rest_framework import serializers
+from rest_framework import serializers
 from netbox.api.serializers import NetBoxModelSerializer, WritableNestedSerializer
 from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
 from django.contrib.auth import get_user_model
@@ -110,7 +110,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'province', 'urgency', 'first_report_source',
             'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time',
-            'arrival_time', 'repair_time', 'repair_duration', 'timeout', 'timeout_reason',
+            'arrival_time', 'repair_time', 'timeout', 'timeout_reason',
             'handler', 'recovery_mode', 'cable_break_location', 'handling_unit', 'fault_status', 'status_color',
             'closure_time', 'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
             'manager_reviewed', 'manager_reviewer', 'manager_review_time',
@@ -124,7 +124,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'fault_status',
         )
         read_only_fields = (
-            'fault_number', 'fault_duration', 'processing_duration', 'repair_duration',
+            'fault_number', 'fault_duration', 'processing_duration',
             'timeline_data', 'status_color', 'journal_entries',
         )
 

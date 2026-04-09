@@ -802,15 +802,6 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         return None
 
     @property
-    def repair_duration(self):
-        """修复用时，自动计算字段，使用故障修复时间-处理派发时间，格式为9.65小时"""
-        if self.dispatch_time and self.repair_time:
-            duration = self.repair_time - self.dispatch_time
-            total_hours = duration.total_seconds() / 3600
-            return f"{total_hours:.2f}小时"
-        return None
-
-    @property
     def timeline_data(self):
         """
         返回时间轴需要的数据
