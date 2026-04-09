@@ -1,4 +1,4 @@
-from rest_framework import serializers
+﻿from rest_framework import serializers
 from netbox.api.serializers import NetBoxModelSerializer, WritableNestedSerializer
 from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
 from django.contrib.auth import get_user_model
@@ -49,7 +49,7 @@ class NestedRegionSerializer(WritableNestedSerializer):
         brief_fields = ('id', 'url', 'display', 'name')
 
 class NestedServiceProviderSerializer(WritableNestedSerializer):
-    # 简化处理，避免URL解析问题
+    # 简化处理，避免 URL 解析问题
     class Meta:
         model = ServiceProvider
         fields = ('id', 'display', 'name')
@@ -90,23 +90,31 @@ class OtnFaultSerializer(NetBoxModelSerializer):
     interruption_location_a = NestedSiteSerializer()
     interruption_location = NestedSiteSerializer(many=True, required=False)
     province = NestedRegionSerializer(required=False)
-    line_manager = NestedUserSerializer(required=False)
+    line_manager = NestedUserSerializer(required=False, allow_null=True)
     operations_manager = NestedUserSerializer(many=True, required=False)
-    handling_unit = NestedServiceProviderSerializer(required=False)
+    manager_reviewer = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    noc_reviewer = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    handling_unit = NestedServiceProviderSerializer(required=False, allow_null=True)
     journal_entries = NestedJournalEntrySerializer(many=True, read_only=True)
+    processing_duration = serializers.SerializerMethodField()
+    timeline_data = serializers.SerializerMethodField()
+    status_color = serializers.SerializerMethodField()
     
     class Meta:
         model = OtnFault
         fields = (
             'id', 'url', 'display', 'fault_number', 'duty_officer', 'interruption_location_a', 'interruption_location',
-            'fault_occurrence_time', 'fault_recovery_time', 'fault_duration',
-            'fault_category', 'interruption_reason', 'fault_details',
+            'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'processing_duration', 'timeline_data',
+            'fault_category', 'interruption_reason', 'interruption_reason_detail', 'fault_details',
             'interruption_longitude', 'interruption_latitude',
             'province', 'urgency', 'first_report_source',
             'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time',
             'arrival_time', 'repair_time', 'repair_duration', 'timeout', 'timeout_reason',
-            'handler', 'recovery_mode', 'handling_unit', 'fault_status',
+            'handler', 'recovery_mode', 'cable_break_location', 'handling_unit', 'fault_status', 'status_color',
+            'closure_time', 'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
+            'manager_reviewed', 'manager_reviewer', 'manager_review_time',
+            'noc_reviewed', 'noc_reviewer', 'noc_review_time',
             'tags', 'comments', 'custom_fields', 'created', 'last_updated',
             'journal_entries',
         )
@@ -115,7 +123,19 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
             'fault_status',
         )
-        read_only_fields = ('fault_number', 'fault_duration', 'repair_duration', 'journal_entries')
+        read_only_fields = (
+            'fault_number', 'fault_duration', 'processing_duration', 'repair_duration',
+            'timeline_data', 'status_color', 'journal_entries',
+        )
+
+    def get_processing_duration(self, obj):
+        return obj.processing_duration
+
+    def get_timeline_data(self, obj):
+        return obj.timeline_data
+
+    def get_status_color(self, obj):
+        return obj.get_fault_status_color()
 
 class OtnFaultImpactSerializer(NetBoxModelSerializer):
     otn_fault = serializers.PrimaryKeyRelatedField(queryset=OtnFault.objects.all())
@@ -218,3 +238,4 @@ class CircuitServiceSerializer(NetBoxModelSerializer):
             'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time',
             'comments', 'tags', 'custom_fields', 'created', 'last_updated',
         )
+

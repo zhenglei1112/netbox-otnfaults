@@ -1,13 +1,34 @@
-from netbox.filtersets import NetBoxModelFilterSet
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, BareFiberService, CircuitService
-from django.db.models import Q
+﻿from django.db.models import Q
 import django_filters
+from netbox.filtersets import NetBoxModelFilterSet
+
+from .models import (
+    BareFiberService,
+    CircuitService,
+    OtnFault,
+    OtnFaultImpact,
+    OtnPath,
+    OtnPathGroup,
+)
+
 
 class OtnFaultFilterSet(NetBoxModelFilterSet):
-    bidirectional_pair = django_filters.CharFilter(method='filter_bidirectional_pair', label='双向站点对筛选 (id1,id2)')
-    single_site_a_id = django_filters.NumberFilter(method='filter_single_site_a_id', label='单站点故障筛选 (A端站点ID)')
-    site = django_filters.NumberFilter(method='filter_site', label='站点筛选 (A端或Z端)')
-    my_pending_review_faults = django_filters.NumberFilter(method='filter_my_pending_review_faults', label='我的待复核故障')
+    bidirectional_pair = django_filters.CharFilter(
+        method='filter_bidirectional_pair',
+        label='双向站点对筛选 (id1,id2)',
+    )
+    single_site_a_id = django_filters.NumberFilter(
+        method='filter_single_site_a_id',
+        label='单站点故障筛选 (A站点ID)',
+    )
+    site = django_filters.NumberFilter(
+        method='filter_site',
+        label='站点筛选 (A站或Z站)',
+    )
+    my_pending_review_faults = django_filters.NumberFilter(
+        method='filter_my_pending_review_faults',
+        label='我的待复核故障',
+    )
 
     class Meta:
         model = OtnFault
@@ -28,13 +49,13 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
         if not value.strip():
             return queryset
         return queryset.filter(
-            Q(fault_number__icontains=value) |
-            Q(fault_details__icontains=value) |
-            Q(handler__icontains=value) |
-            Q(timeout_reason__icontains=value) |
-            Q(comments__icontains=value) |
-            Q(interruption_location_a__name__icontains=value) |
-            Q(interruption_location__name__icontains=value)
+            Q(fault_number__icontains=value)
+            | Q(fault_details__icontains=value)
+            | Q(handler__icontains=value)
+            | Q(timeout_reason__icontains=value)
+            | Q(comments__icontains=value)
+            | Q(interruption_location_a__name__icontains=value)
+            | Q(interruption_location__name__icontains=value)
         ).distinct()
 
     def filter_bidirectional_pair(self, queryset, name, value):
@@ -43,21 +64,19 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             if len(ids) != 2:
                 return queryset.none()
             id1, id2 = ids
-            
-            # 定义所有光缆相关分类
+
             fiber_categories = [
-                'fiber', # 兼容旧数据或前端标识
-                'fiber_break', 
-                'fiber_degradation', 
-                'fiber_jitter'
+                'fiber',
+                'fiber_break',
+                'fiber_degradation',
+                'fiber_jitter',
             ]
-            
-            # 筛选双向匹配且属于光缆分类的故障
+
             return queryset.filter(
-                fault_category__in=fiber_categories
+                fault_category__in=fiber_categories,
             ).filter(
-                Q(interruption_location_a_id=id1, interruption_location=id2) |
-                Q(interruption_location_a_id=id2, interruption_location=id1)
+                Q(interruption_location_a_id=id1, interruption_location=id2)
+                | Q(interruption_location_a_id=id2, interruption_location=id1)
             ).distinct()
         except (ValueError, TypeError):
             return queryset.none()
@@ -66,39 +85,51 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
         if not value:
             return queryset
         return queryset.filter(
-            Q(line_manager_id=value, manager_reviewed=False) |
-            Q(operations_manager__id=value, noc_reviewed=False)
+            Q(line_manager_id=value, manager_reviewed=False)
+            | Q(operations_manager__id=value, noc_reviewed=False)
         ).distinct()
 
     def filter_single_site_a_id(self, queryset, name, value):
         if not value:
             return queryset
-        return queryset.filter(interruption_location_a_id=value, interruption_location__isnull=True)
+        return queryset.filter(
+            interruption_location_a_id=value,
+            interruption_location__isnull=True,
+        )
 
     def filter_site(self, queryset, name, value):
-        """
-        筛选涉及到指定站点的故障（作为A端或包含在Z端列表中）。
-        """
         if not value:
             return queryset
         return queryset.filter(
-            Q(interruption_location_a_id=value) |
-            Q(interruption_location__id=value)
+            Q(interruption_location_a_id=value)
+            | Q(interruption_location__id=value)
         ).distinct()
+
 
 class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
     class Meta:
         model = OtnFaultImpact
         fields = (
-            'id', 'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service', 'service_interruption_time',
-            'service_recovery_time', 'comments',
+            'id',
+            'otn_fault',
+            'secondary_faults',
+            'service_type',
+            'bare_fiber_service',
+            'circuit_service',
+            'service_interruption_time',
+            'service_recovery_time',
+            'comments',
         )
 
+
 class OtnPathFilterSet(NetBoxModelFilterSet):
-    site = django_filters.NumberFilter(method='filter_site', label='站点筛选 (A端或Z端)')
+    site = django_filters.NumberFilter(
+        method='filter_site',
+        label='站点筛选 (A站或Z站)',
+    )
     groups = django_filters.ModelMultipleChoiceFilter(
         queryset=OtnPathGroup.objects.all(),
-        label='所属路径组'
+        label='所属路径组',
     )
 
     class Meta:
@@ -110,45 +141,50 @@ class OtnPathFilterSet(NetBoxModelFilterSet):
         )
 
     def filter_site(self, queryset, name, value):
-        """
-        筛选 A 端或 Z 端为指定站点的光缆路径。
-        使用 Q 对象实现 OR 逻辑：(site_a_id == value) OR (site_z_id == value)
-        """
         if not value:
             return queryset
-        return queryset.filter(
-            Q(site_a_id=value) |
-            Q(site_z_id=value)
-        )
+        return queryset.filter(Q(site_a_id=value) | Q(site_z_id=value))
 
     def search(self, queryset, name, value):
         if not value.strip():
             return queryset
         return queryset.filter(
-            Q(name__icontains=value) |
-            Q(description__icontains=value) |
-            Q(comments__icontains=value)
+            Q(name__icontains=value)
+            | Q(description__icontains=value)
+            | Q(comments__icontains=value)
         )
 
 
 class CircuitServiceFilterSet(NetBoxModelFilterSet):
     """电路业务过滤器"""
-    is_external_business = django_filters.BooleanFilter(label='\u5bf9\u5916\u4e1a\u52a1')
+
+    is_external_business = django_filters.BooleanFilter(label='对外业务')
 
     class Meta:
         model = CircuitService
-        fields = ('id', 'name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business')
+        fields = (
+            'id',
+            'name',
+            'slug',
+            'service_group',
+            'bandwidth',
+            'business_manager',
+            'is_external_business',
+        )
 
     def search(self, queryset, name, value):
         if not value.strip():
             return queryset
         return queryset.filter(
-            Q(name__icontains=value) |
-            Q(slug__icontains=value) |
-            Q(comments__icontains=value)
+            Q(name__icontains=value)
+            | Q(slug__icontains=value)
+            | Q(comments__icontains=value)
         )
+
+
 class BareFiberServiceFilterSet(NetBoxModelFilterSet):
     """裸纤业务过滤器"""
+
     class Meta:
         model = BareFiberService
         fields = ('id', 'name', 'slug', 'tenant_group', 'business_manager')
@@ -157,10 +193,12 @@ class BareFiberServiceFilterSet(NetBoxModelFilterSet):
         if not value.strip():
             return queryset
         return queryset.filter(
-            Q(name__icontains=value) |
-            Q(slug__icontains=value) |
-            Q(comments__icontains=value)
+            Q(name__icontains=value)
+            | Q(slug__icontains=value)
+            | Q(comments__icontains=value)
         )
+
+
 class OtnPathGroupFilterSet(NetBoxModelFilterSet):
     """路径组过滤器"""
 
@@ -174,9 +212,8 @@ class OtnPathGroupFilterSet(NetBoxModelFilterSet):
         if not value.strip():
             return queryset
         return queryset.filter(
-            Q(name__icontains=value) |
-            Q(slug__icontains=value) |
-            Q(description__icontains=value) |
-            Q(comments__icontains=value)
+            Q(name__icontains=value)
+            | Q(slug__icontains=value)
+            | Q(description__icontains=value)
+            | Q(comments__icontains=value)
         )
-

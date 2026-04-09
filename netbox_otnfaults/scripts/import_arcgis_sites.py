@@ -23,6 +23,74 @@ def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
+def _find_nearby_duplicate_pairs(
+    site_coords: list[tuple[str, object, object]],
+    threshold_m: float = 100.0,
+) -> list[tuple[str, str, float]]:
+    geo_sites = [
+        (name, float(latitude), float(longitude))
+        for name, latitude, longitude in site_coords
+        if latitude is not None and longitude is not None
+    ]
+    geo_sites.sort(key=lambda item: item[1])
+
+    nearby_pairs: list[tuple[str, str, float]] = []
+    latitude_window = max(threshold_m / 111000.0, 0.001)
+
+    for index, (name_a, lat_a, lon_a) in enumerate(geo_sites):
+        for name_b, lat_b, lon_b in geo_sites[index + 1 :]:
+            if (lat_b - lat_a) > latitude_window:
+                break
+
+            distance = _haversine(lat_a, lon_a, lat_b, lon_b)
+            if distance < threshold_m:
+                nearby_pairs.append((name_a, name_b, distance))
+
+    return nearby_pairs
+
+
+def _log_existing_nearby_duplicates(
+    script: Script,
+    site_coords: list[tuple[str, object, object]],
+    threshold_m: float = 100.0,
+) -> None:
+    nearby_pairs = _find_nearby_duplicate_pairs(site_coords, threshold_m=threshold_m)
+    threshold_label = f"{threshold_m:.0f}m"
+
+    if not nearby_pairs:
+        script.log_info(f"导入前检查完成：未发现 NetBox 站点存在 {threshold_label} 近邻重复。")
+        return
+
+    script.log_warning(
+        f"导入前检查发现 {len(nearby_pairs)} 组 NetBox 站点存在 {threshold_label} 近邻重复，请先人工确认。"
+    )
+    for name_a, name_b, distance in nearby_pairs:
+        script.log_warning(f"  · {name_a} <-> {name_b}，距离 {distance:.1f}m")
+
+
+def _classify_nearby_duplicate(
+    name: str,
+    latitude: float,
+    longitude: float,
+    existing_site_coords: list[tuple[str, object, object]],
+    batch_site_coords: list[tuple[str, object, object]],
+    threshold_m: float = 100.0,
+) -> tuple[str, str, float] | None:
+    for nearby_name, nearby_latitude, nearby_longitude in existing_site_coords:
+        distance = _haversine(latitude, longitude, float(nearby_latitude), float(nearby_longitude))
+        if distance < threshold_m:
+            return ("existing", nearby_name, distance)
+
+    for nearby_name, nearby_latitude, nearby_longitude in batch_site_coords:
+        if nearby_name == name:
+            continue
+        distance = _haversine(latitude, longitude, float(nearby_latitude), float(nearby_longitude))
+        if distance < threshold_m:
+            return ("batch", nearby_name, distance)
+
+    return None
+
+
 class ImportArcGISSites(Script):
     class Meta:
         name = "导入 ArcGIS 站点数据"
@@ -84,18 +152,21 @@ class ImportArcGISSites(Script):
         # 查重明细记录
         skip_no_field: list[str] = []       # 缺少 O_NAME 或坐标
         skip_has_coords: list[str] = []     # 同名站点已有坐标
-        skip_nearby: list[str] = []         # 100m 近邻查重
+        skip_nearby_existing: list[str] = []  # 100m 内命中 NetBox 原有站点
+        skip_nearby_batch: list[str] = []     # 100m 内命中本次导入记录
         skip_error: list[str] = []          # 数据库异常
         detail_created: list[str] = []      # 新建明细
         detail_updated: list[str] = []      # 补全明细
         
         # 预加载所有有坐标的站点，用于距离查重
-        site_coords = list(
+        existing_site_coords = list(
             Site.objects.filter(
                 latitude__isnull=False, longitude__isnull=False
             ).values_list('name', 'latitude', 'longitude')
         )
-        self.log_info(f"已加载 {len(site_coords)} 个有坐标的站点用于距离查重 (阈值: 100m)")
+        batch_site_coords: list[tuple[str, object, object]] = []
+        self.log_info(f"已加载 {len(existing_site_coords)} 个有坐标的站点用于距离查重 (阈值: 100m)")
+        _log_existing_nearby_duplicates(self, existing_site_coords, threshold_m=100.0)
         
         # 3. 遍历提取数据并同步至 NetBox
         for feature in features:
@@ -149,32 +220,49 @@ class ImportArcGISSites(Script):
                             updated_count += 1
                             detail_updated.append(f"{existing.name} — 将填入 ({longitude}, {latitude})")
                     else:
-                        # 距离查重：检查 100m 内是否已有站点
-                        nearby = next(
-                            ((n, d) for n, lat, lon in site_coords
-                             if (d := _haversine(latitude, longitude, float(lat), float(lon))) < 100),
-                            None
+                        nearby = _classify_nearby_duplicate(
+                            name=o_name,
+                            latitude=float(latitude),
+                            longitude=float(longitude),
+                            existing_site_coords=existing_site_coords,
+                            batch_site_coords=batch_site_coords,
+                            threshold_m=100.0,
                         )
                         if nearby:
-                            skip_nearby.append(
-                                f"{o_name} — 近邻 {nearby[0]}，距离 {nearby[1]:.1f}m"
-                            )
+                            duplicate_type, nearby_name, distance = nearby
+                            if duplicate_type == "existing":
+                                skip_nearby_existing.append(
+                                    f"{o_name} — 与 NetBox 原有站点 {nearby_name} 相距 {distance:.1f}m"
+                                )
+                            else:
+                                skip_nearby_batch.append(
+                                    f"{o_name} — 与本次导入记录 {nearby_name} 相距 {distance:.1f}m"
+                                )
                         else:
                             created_count += 1
                             detail_created.append(f"{o_name} (slug: {slug}, 坐标: {longitude}, {latitude})")
+                            batch_site_coords.append((o_name, latitude, longitude))
                 else:
-                    # 距离查重：检查 100m 内是否已有站点
                     existing_by_name = Site.objects.filter(name=o_name).first()
                     if not existing_by_name:
-                        nearby = next(
-                            ((n, d) for n, lat, lon in site_coords
-                             if (d := _haversine(latitude, longitude, float(lat), float(lon))) < 100),
-                            None
+                        nearby = _classify_nearby_duplicate(
+                            name=o_name,
+                            latitude=float(latitude),
+                            longitude=float(longitude),
+                            existing_site_coords=existing_site_coords,
+                            batch_site_coords=batch_site_coords,
+                            threshold_m=100.0,
                         )
                         if nearby:
-                            skip_nearby.append(
-                                f"{o_name} — 近邻 {nearby[0]}，距离 {nearby[1]:.1f}m"
-                            )
+                            duplicate_type, nearby_name, distance = nearby
+                            if duplicate_type == "existing":
+                                skip_nearby_existing.append(
+                                    f"{o_name} — 与 NetBox 原有站点 {nearby_name} 相距 {distance:.1f}m"
+                                )
+                            else:
+                                skip_nearby_batch.append(
+                                    f"{o_name} — 与本次导入记录 {nearby_name} 相距 {distance:.1f}m"
+                                )
                             continue
 
                     # 正式模式：执行数据库写入
@@ -191,8 +279,7 @@ class ImportArcGISSites(Script):
                     if created:
                         created_count += 1
                         detail_created.append(f"{site.name} (坐标: {longitude}, {latitude})")
-                        # 将新站点加入缓存，供后续记录查重
-                        site_coords.append((o_name, latitude, longitude))
+                        batch_site_coords.append((o_name, latitude, longitude))
                     else:
                         # 站点已存在：有坐标则跳过，无坐标则补全
                         if site.latitude is not None and site.longitude is not None:
@@ -212,7 +299,13 @@ class ImportArcGISSites(Script):
         # ── 输出汇总报告 ──
         prefix = "预计" if dry_run else ""
         mode_label = "模拟" if dry_run else "导入"
-        total_skipped = len(skip_no_field) + len(skip_has_coords) + len(skip_nearby) + len(skip_error)
+        total_skipped = (
+            len(skip_no_field)
+            + len(skip_has_coords)
+            + len(skip_nearby_existing)
+            + len(skip_nearby_batch)
+            + len(skip_error)
+        )
         
         self.log_info(
             f"{'═' * 40}\n"
@@ -222,7 +315,8 @@ class ImportArcGISSites(Script):
             f"  {prefix}补全坐标: {updated_count}\n"
             f"  跳过 - 缺少字段: {len(skip_no_field)}\n"
             f"  跳过 - 已有坐标: {len(skip_has_coords)}\n"
-            f"  跳过 - 近邻查重: {len(skip_nearby)}\n"
+            f"  跳过 - 近邻查重(NetBox 原有站点): {len(skip_nearby_existing)}\n"
+            f"  跳过 - 近邻查重(本次导入记录): {len(skip_nearby_batch)}\n"
             f"  跳过 - 数据库异常: {len(skip_error)}\n"
             f"  跳过合计: {total_skipped}\n"
             f"  总记录: {len(features)}\n"
@@ -245,9 +339,14 @@ class ImportArcGISSites(Script):
             for item in skip_has_coords:
                 self.log_info(f"  · {item}")
         
-        if skip_nearby:
-            self.log_warning(f"▶ 跳过 - 近邻查重明细 ({len(skip_nearby)} 条):")
-            for item in skip_nearby:
+        if skip_nearby_existing:
+            self.log_warning(f"▶ 跳过 - 近邻查重(NetBox 原有站点)明细 ({len(skip_nearby_existing)} 条):")
+            for item in skip_nearby_existing:
+                self.log_warning(f"  · {item}")
+
+        if skip_nearby_batch:
+            self.log_warning(f"▶ 跳过 - 近邻查重(本次导入记录)明细 ({len(skip_nearby_batch)} 条):")
+            for item in skip_nearby_batch:
                 self.log_warning(f"  · {item}")
         
         if skip_no_field:
