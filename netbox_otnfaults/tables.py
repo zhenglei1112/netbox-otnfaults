@@ -32,6 +32,13 @@ def _timeline_export_value(record: object) -> str:
     completed_steps = [label for label, timestamp in timeline if timestamp is not None]
     return ' / '.join(completed_steps)
 
+
+def _empty_table_message(message: str) -> str:
+    return format_html(
+        '<div class="text-secondary text-center py-1 fw-medium">— {} —</div>',
+        message,
+    )
+
 class OtnPathGroupSiteTable(NetBoxTable):
     """路径组站点关联表"""
     site = tables.Column(
@@ -630,7 +637,7 @@ class OtnFaultImpactDetailTable(NetBoxTable):
 class OtnFaultImpactSummaryTable(OtnFaultImpactTable):
     """故障详情页关联业务的精简表格渲染"""
     class Meta(OtnFaultImpactTable.Meta):
-        empty_text = '— 找不到 故障影响业务 —'
+        empty_text = _empty_table_message('该故障暂无影响业务')
         fields = (
             'pk', 'id', 'secondary_faults', 'service_type', 'service_name', 'service_group',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
@@ -848,7 +855,7 @@ class SiteHistoryFaultTable(ContractOtnFaultTable):
     )
 
     class Meta(ContractOtnFaultTable.Meta):
-        empty_text = '— 该站点暂无历史故障记录 —'
+        empty_text = _empty_table_message('该站点暂无历史故障记录')
         fields = (
             'pk', 'fault_number', 'fault_category', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_duration', 'fault_status', 'progress',
