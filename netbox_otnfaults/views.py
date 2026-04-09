@@ -340,8 +340,8 @@ class OtnFaultView(generic.ObjectView):
 
     def get_extra_context(self, request, instance):
         impacts = (instance.impacts.all() | instance.secondary_impacts.all()).distinct()
-        table = OtnFaultImpactSummaryTable(impacts)
-        table.configure(request)
+        table = OtnFaultImpactSummaryTable(impacts, prefix='impact-')
+        RequestConfig(request, paginate={'per_page': 25}).configure(table)
 
         # -- 站点历史故障 --
         from django.db.models import Q
@@ -393,22 +393,11 @@ class OtnFaultView(generic.ObjectView):
             total_seconds / recovered_count / 3600, 2
         ) if recovered_count > 0 else 0
 
-        site_faults_table = SiteHistoryFaultTable(site_faults_qs)
+        site_faults_table = SiteHistoryFaultTable(site_faults_qs, prefix='site-')
         for col in ('pk', 'id', 'actions', 'duty_officer', 'progress'):
             if col in site_faults_table.columns:
                 site_faults_table.columns.hide(col)
-
-        site_per_page = request.GET.get('site_per_page', 25)
-        try:
-            site_per_page = int(site_per_page)
-        except ValueError:
-            site_per_page = 25
-        site_page = request.GET.get('site_page', 1)
-        try:
-            site_page = int(site_page)
-        except ValueError:
-            site_page = 1
-        site_faults_table.paginate(page=site_page, per_page=site_per_page)
+        RequestConfig(request, paginate={'per_page': 25}).configure(site_faults_table)
 
         return {
             'impacts_table': table,
@@ -417,7 +406,6 @@ class OtnFaultView(generic.ObjectView):
             'site_fault_count': site_fault_count,
             'site_total_hours': site_total_hours,
             'site_avg_hours': site_avg_hours,
-            'site_per_page': site_per_page,
         }
 
 class OtnFaultEditView(generic.ObjectEditView):
