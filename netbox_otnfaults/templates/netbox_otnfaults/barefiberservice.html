@@ -53,7 +53,7 @@
     </div>
 </div>
 
-<div class="row mb-3">
+<div class="row mb-3" id="fault-impacts">
   <div class="col col-md-12">
     <div class="card">
       <h5 class="card-header d-flex align-items-center">
@@ -65,12 +65,12 @@
         </div>
         
         <div class="btn-group btn-group-sm" role="group">
-          <a href="?time_filter=all" class="btn btn-outline-primary {% if time_filter == 'all' or not time_filter %}active{% endif %}">全部</a>
-          <a href="?time_filter=this_week" class="btn btn-outline-primary {% if time_filter == 'this_week' %}active{% endif %}">本周</a>
-          <a href="?time_filter=this_month" class="btn btn-outline-primary {% if time_filter == 'this_month' %}active{% endif %}">本月</a>
-          <a href="?time_filter=this_year" class="btn btn-outline-primary {% if time_filter == 'this_year' %}active{% endif %}">本年</a>
-          <a href="?time_filter=last_7_days" class="btn btn-outline-primary {% if time_filter == 'last_7_days' %}active{% endif %}">过去七天</a>
-          <a href="?time_filter=last_30_days" class="btn btn-outline-primary {% if time_filter == 'last_30_days' %}active{% endif %}">过去一个月</a>
+          <a href="?time_filter=all#fault-impacts" class="btn btn-outline-primary {% if time_filter == 'all' or not time_filter %}active{% endif %}">全部</a>
+          <a href="?time_filter=this_week#fault-impacts" class="btn btn-outline-primary {% if time_filter == 'this_week' %}active{% endif %}">本周</a>
+          <a href="?time_filter=this_month#fault-impacts" class="btn btn-outline-primary {% if time_filter == 'this_month' %}active{% endif %}">本月</a>
+          <a href="?time_filter=this_year#fault-impacts" class="btn btn-outline-primary {% if time_filter == 'this_year' %}active{% endif %}">本年</a>
+          <a href="?time_filter=last_7_days#fault-impacts" class="btn btn-outline-primary {% if time_filter == 'last_7_days' %}active{% endif %}">过去七天</a>
+          <a href="?time_filter=last_30_days#fault-impacts" class="btn btn-outline-primary {% if time_filter == 'last_30_days' %}active{% endif %}">过去一个月</a>
         </div>
       </h5>
       
@@ -82,7 +82,7 @@
           <ul class="pagination pagination-sm mb-0">
             {% if fault_impacts_table.page.has_previous %}
             <li class="page-item">
-              <a class="page-link" href="?time_filter={{ time_filter }}&page={{ fault_impacts_table.page.previous_page_number }}&per_page={{ per_page }}">&lsaquo;</a>
+              <a class="page-link" href="?time_filter={{ time_filter }}&page={{ fault_impacts_table.page.previous_page_number }}&per_page={{ per_page }}#fault-impacts">&lsaquo;</a>
             </li>
             {% endif %}
             
@@ -93,7 +93,7 @@
               </li>
               {% elif num == 1 or num == fault_impacts_table.paginator.num_pages or num >= fault_impacts_table.page.number|add:"-2" and num <= fault_impacts_table.page.number|add:"2" %}
               <li class="page-item">
-                <a class="page-link" href="?time_filter={{ time_filter }}&page={{ num }}&per_page={{ per_page }}">{{ num }}</a>
+                <a class="page-link" href="?time_filter={{ time_filter }}&page={{ num }}&per_page={{ per_page }}#fault-impacts">{{ num }}</a>
               </li>
               {% elif num == fault_impacts_table.page.number|add:"-3" or num == fault_impacts_table.page.number|add:"3" %}
               <li class="page-item disabled">
@@ -104,7 +104,7 @@
             
             {% if fault_impacts_table.page.has_next %}
             <li class="page-item">
-              <a class="page-link" href="?time_filter={{ time_filter }}&page={{ fault_impacts_table.page.next_page_number }}&per_page={{ per_page }}">&rsaquo;</a>
+              <a class="page-link" href="?time_filter={{ time_filter }}&page={{ fault_impacts_table.page.next_page_number }}&per_page={{ per_page }}#fault-impacts">&rsaquo;</a>
             </li>
             {% endif %}
           </ul>
@@ -117,11 +117,11 @@
             每页
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item {% if per_page == 25 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=25">25</a></li>
-            <li><a class="dropdown-item {% if per_page == 50 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=50">50</a></li>
-            <li><a class="dropdown-item {% if per_page == 100 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=100">100</a></li>
-            <li><a class="dropdown-item {% if per_page == 250 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=250">250</a></li>
-            <li><a class="dropdown-item {% if per_page == 500 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=500">500</a></li>
+            <li><a class="dropdown-item {% if per_page == 25 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=25#fault-impacts">25</a></li>
+            <li><a class="dropdown-item {% if per_page == 50 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=50#fault-impacts">50</a></li>
+            <li><a class="dropdown-item {% if per_page == 100 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=100#fault-impacts">100</a></li>
+            <li><a class="dropdown-item {% if per_page == 250 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=250#fault-impacts">250</a></li>
+            <li><a class="dropdown-item {% if per_page == 500 %}active{% endif %}" href="?time_filter={{ time_filter }}&per_page=500#fault-impacts">500</a></li>
           </ul>
         </div>
       </div>

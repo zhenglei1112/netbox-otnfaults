@@ -835,3 +835,26 @@ class CircuitServiceTable(NetBoxTable):
     def value_is_external_business(self, value: bool | None, record: CircuitService) -> str:
         return '是' if record.is_external_business else '否'
 
+
+class SiteHistoryFaultTable(ContractOtnFaultTable):
+    """站点历史故障表格 - 用于故障详情页展示同站点发生的历史故障"""
+    interruption_location_a = tables.Column(
+        linkify=True,
+        verbose_name='故障位置A端'
+    )
+    interruption_location = columns.ManyToManyColumn(
+        linkify_item=True,
+        verbose_name='故障位置Z端'
+    )
+
+    class Meta(ContractOtnFaultTable.Meta):
+        empty_text = '— 该站点暂无历史故障记录 —'
+        fields = (
+            'pk', 'fault_number', 'fault_category', 'interruption_location_a', 'interruption_location',
+            'fault_occurrence_time', 'fault_duration', 'fault_status', 'progress',
+        )
+        default_columns = (
+            'fault_number', 'fault_category', 'interruption_location_a', 'interruption_location',
+            'fault_occurrence_time', 'fault_duration', 'fault_status', 'progress',
+        )
+

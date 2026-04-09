@@ -27,6 +27,7 @@
 {% endblock %}
 
 {% block content %}
+
 <div class="row mb-3">
   <div class="col col-md-6">
     <div class="card mb-3">
@@ -399,6 +400,85 @@
       <div class="impacts-table-container">
         {% render_table impacts_table %}
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mb-3" id="site-history">
+  <div class="col col-md-12">
+    <div class="card">
+      <style>.site-faults-table-container ul.pagination { display: none !important; }</style>
+      <h5 class="card-header d-flex align-items-center">
+        <span class="text-nowrap">站点历史故障</span>
+        <div class="flex-grow-1 text-center">
+          <span class="form-text text-primary m-0" style="font-weight: bold; font-size: 12px;">
+            <i class="mdi mdi-clock-outline"></i> 故障数量 {{ site_fault_count|default:"0" }} 次 ，总故障时长 {{ site_total_hours|default:"0" }} 小时 ，平均故障时长 {{ site_avg_hours|default:"0" }} 小时
+          </span>
+        </div>
+
+        <div class="btn-group btn-group-sm" role="group">
+          <a href="?site_time_filter=all#site-history" class="btn btn-outline-primary {% if site_time_filter == 'all' or not site_time_filter %}active{% endif %}">全部</a>
+          <a href="?site_time_filter=this_week#site-history" class="btn btn-outline-primary {% if site_time_filter == 'this_week' %}active{% endif %}">本周</a>
+          <a href="?site_time_filter=this_month#site-history" class="btn btn-outline-primary {% if site_time_filter == 'this_month' %}active{% endif %}">本月</a>
+          <a href="?site_time_filter=this_year#site-history" class="btn btn-outline-primary {% if site_time_filter == 'this_year' %}active{% endif %}">本年</a>
+          <a href="?site_time_filter=last_7_days#site-history" class="btn btn-outline-primary {% if site_time_filter == 'last_7_days' %}active{% endif %}">过去七天</a>
+          <a href="?site_time_filter=last_30_days#site-history" class="btn btn-outline-primary {% if site_time_filter == 'last_30_days' %}active{% endif %}">过去一个月</a>
+        </div>
+      </h5>
+
+      <div class="site-faults-table-container">{% render_table site_faults_table %}</div>
+
+      {% if site_faults_table.page %}
+      <div class="card-footer d-flex justify-content-between align-items-center noprint">
+        <nav aria-label="分页">
+          <ul class="pagination pagination-sm mb-0">
+            {% if site_faults_table.page.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?site_time_filter={{ site_time_filter }}&site_page={{ site_faults_table.page.previous_page_number }}&site_per_page={{ site_per_page }}#site-history">&lsaquo;</a>
+            </li>
+            {% endif %}
+
+            {% for num in site_faults_table.paginator.page_range %}
+              {% if num == site_faults_table.page.number %}
+              <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+              </li>
+              {% elif num == 1 or num == site_faults_table.paginator.num_pages or num >= site_faults_table.page.number|add:"-2" and num <= site_faults_table.page.number|add:"2" %}
+              <li class="page-item">
+                <a class="page-link" href="?site_time_filter={{ site_time_filter }}&site_page={{ num }}&site_per_page={{ site_per_page }}#site-history">{{ num }}</a>
+              </li>
+              {% elif num == site_faults_table.page.number|add:"-3" or num == site_faults_table.page.number|add:"3" %}
+              <li class="page-item disabled">
+                <span class="page-link">...</span>
+              </li>
+              {% endif %}
+            {% endfor %}
+
+            {% if site_faults_table.page.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?site_time_filter={{ site_time_filter }}&site_page={{ site_faults_table.page.next_page_number }}&site_per_page={{ site_per_page }}#site-history">&rsaquo;</a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+
+        <span class="text-muted small">显示 {{ site_faults_table.page.start_index }}-{{ site_faults_table.page.end_index }} 共 {{ site_faults_table.paginator.count }}</span>
+
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            每页
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item {% if site_per_page == 25 %}active{% endif %}" href="?site_time_filter={{ site_time_filter }}&site_per_page=25#site-history">25</a></li>
+            <li><a class="dropdown-item {% if site_per_page == 50 %}active{% endif %}" href="?site_time_filter={{ site_time_filter }}&site_per_page=50#site-history">50</a></li>
+            <li><a class="dropdown-item {% if site_per_page == 100 %}active{% endif %}" href="?site_time_filter={{ site_time_filter }}&site_per_page=100#site-history">100</a></li>
+            <li><a class="dropdown-item {% if site_per_page == 250 %}active{% endif %}" href="?site_time_filter={{ site_time_filter }}&site_per_page=250#site-history">250</a></li>
+            <li><a class="dropdown-item {% if site_per_page == 500 %}active{% endif %}" href="?site_time_filter={{ site_time_filter }}&site_per_page=500#site-history">500</a></li>
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+
     </div>
   </div>
 </div>

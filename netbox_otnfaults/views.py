@@ -16,7 +16,7 @@ from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilte
 from .tables import (
     OtnFaultTable, OtnFaultImpactTable, OtnPathTable, OtnPathGroupTable,
     OtnPathGroupSiteTable, BareFiberServiceTable, CircuitServiceTable,
-    OtnFaultImpactSummaryTable, OtnFaultImpactDetailTable
+    OtnFaultImpactSummaryTable, OtnFaultImpactDetailTable, SiteHistoryFaultTable
 )
 from django.utils import timezone
 from datetime import timedelta
@@ -340,11 +340,84 @@ class OtnFaultView(generic.ObjectView):
 
     def get_extra_context(self, request, instance):
         impacts = (instance.impacts.all() | instance.secondary_impacts.all()).distinct()
-        # 使用精简版表格，移除多余的“直接故障”列
         table = OtnFaultImpactSummaryTable(impacts)
         table.configure(request)
+
+        # -- 站点历史故障 --
+        from django.db.models import Q
+
+        site_ids = set()
+        if instance.interruption_location_a_id:
+            site_ids.add(instance.interruption_location_a_id)
+        site_ids.update(
+            instance.interruption_location.values_list('pk', flat=True)
+        )
+
+        if site_ids:
+            site_faults_qs = OtnFault.objects.filter(
+                Q(interruption_location_a__in=site_ids) |
+                Q(interruption_location__in=site_ids)
+            ).exclude(pk=instance.pk).distinct()
+        else:
+            site_faults_qs = OtnFault.objects.none()
+
+        site_time_filter = request.GET.get('site_time_filter', 'all')
+        now = timezone.now()
+        if site_time_filter == 'this_week':
+            start = (now - timedelta(days=now.weekday())).replace(
+                hour=0, minute=0, second=0, microsecond=0)
+            site_faults_qs = site_faults_qs.filter(fault_occurrence_time__gte=start)
+        elif site_time_filter == 'this_month':
+            start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            site_faults_qs = site_faults_qs.filter(fault_occurrence_time__gte=start)
+        elif site_time_filter == 'this_year':
+            start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            site_faults_qs = site_faults_qs.filter(fault_occurrence_time__gte=start)
+        elif site_time_filter == 'last_7_days':
+            site_faults_qs = site_faults_qs.filter(
+                fault_occurrence_time__gte=now - timedelta(days=7))
+        elif site_time_filter == 'last_30_days':
+            site_faults_qs = site_faults_qs.filter(
+                fault_occurrence_time__gte=now - timedelta(days=30))
+
+        site_fault_count = site_faults_qs.count()
+        total_seconds = 0
+        recovered_count = 0
+        for fault in site_faults_qs:
+            if fault.fault_occurrence_time and fault.fault_recovery_time:
+                duration = fault.fault_recovery_time - fault.fault_occurrence_time
+                total_seconds += duration.total_seconds()
+                recovered_count += 1
+        site_total_hours = round(total_seconds / 3600, 2)
+        site_avg_hours = round(
+            total_seconds / recovered_count / 3600, 2
+        ) if recovered_count > 0 else 0
+
+        site_faults_table = SiteHistoryFaultTable(site_faults_qs)
+        for col in ('pk', 'id', 'actions', 'duty_officer', 'progress'):
+            if col in site_faults_table.columns:
+                site_faults_table.columns.hide(col)
+
+        site_per_page = request.GET.get('site_per_page', 25)
+        try:
+            site_per_page = int(site_per_page)
+        except ValueError:
+            site_per_page = 25
+        site_page = request.GET.get('site_page', 1)
+        try:
+            site_page = int(site_page)
+        except ValueError:
+            site_page = 1
+        site_faults_table.paginate(page=site_page, per_page=site_per_page)
+
         return {
             'impacts_table': table,
+            'site_faults_table': site_faults_table,
+            'site_time_filter': site_time_filter,
+            'site_fault_count': site_fault_count,
+            'site_total_hours': site_total_hours,
+            'site_avg_hours': site_avg_hours,
+            'site_per_page': site_per_page,
         }
 
 class OtnFaultEditView(generic.ObjectEditView):
