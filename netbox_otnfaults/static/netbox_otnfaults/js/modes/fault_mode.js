@@ -535,7 +535,7 @@ const FaultModePlugin = {
         map.setPaintProperty(
           "fault-points-pulse",
           "circle-stroke-opacity",
-          Math.max(0.12, pulseStrokeOpacity)
+          Math.min(1, Math.max(0.12, pulseStrokeOpacity))
         );
       }
 
