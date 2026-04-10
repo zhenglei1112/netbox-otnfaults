@@ -810,21 +810,19 @@ class CircuitServiceTable(NetBoxTable):
             'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
         )
         default_columns = (
-            'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'tags',
+            'business_category', 'service_group', 'special_line_name', 'name', 'bandwidth', 'business_manager', 'is_external_business',
         )
 
     def render_service_group(self, value, record):
-        color = record.get_service_group_color()
-        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_service_group_display())
+        return record.get_service_group_display()
 
     def value_service_group(self, value: str | None, record: CircuitService) -> str:
         return _display_or_empty(record.get_service_group_display())
 
     def render_business_category(self, value, record):
-        color = record.get_business_category_color()
         if not value:
             return ''
-        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_business_category_display())
+        return record.get_business_category_display()
 
     def value_business_category(self, value: str | None, record: CircuitService) -> str:
         return _display_or_empty(record.get_business_category_display())
