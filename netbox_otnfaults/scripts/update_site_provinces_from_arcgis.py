@@ -28,6 +28,12 @@ from dcim.models import Site, Region
 from extras.scripts import Script, BooleanVar, IntegerVar, ChoiceVar
 
 
+# 常见省份后缀（注意：长后缀必须排在前面，例如'壮族自治区'在'自治区'前面）
+PROVINCE_SUFFIXES = (
+    '壮族自治区', '回族自治区', '维吾尔自治区', '自治区',
+    '特别行政区', '省', '市'
+)
+
 class UpdateSiteProvincesFromArcGIS(Script):
     """
     根据站点经纬度更新省份地区信息的自定义脚本
@@ -80,6 +86,22 @@ class UpdateSiteProvincesFromArcGIS(Script):
         
         # 使用本地缓存降低网络请求，对小数点后3位（约111米）以内的坐标进行结果重用
         self._province_cache = {}
+    
+    @staticmethod
+    def normalize_province_name(name: str) -> str:
+        """
+        标准化省份名称，去掉常见后缀
+        
+        示例:
+            北京市 → 北京
+            河北省 → 河北
+            广西壮族自治区 → 广西
+        """
+        name = name.strip()
+        for suffix in PROVINCE_SUFFIXES:
+            if name.endswith(suffix) and len(name) > len(suffix):
+                return name[:-len(suffix)]
+        return name
     
     def build_spatial_query_url(self, longitude, latitude):
         """
@@ -164,7 +186,8 @@ class UpdateSiteProvincesFromArcGIS(Script):
             if not province_name:
                 return False, "省份名称字段为空"
             
-            result_name = province_name.strip()
+            # 标准化省份名称（去掉"省"、"市"等后缀）
+            result_name = self.normalize_province_name(province_name)
             # 将成功查询的结果写入缓存
             self._province_cache[cache_key] = result_name
             return True, result_name
@@ -179,29 +202,34 @@ class UpdateSiteProvincesFromArcGIS(Script):
     def get_or_create_region(self, province_name, create_if_missing=True):
         """
         根据省份名称获取或创建Region对象
+        同时检查标准化名称和所有常见变体（如"北京"、"北京市"、"北京省"等）
         
         参数:
-            province_name: 省份名称
+            province_name: 标准化后的省份名称
             create_if_missing: 是否创建不存在的地区
             
         返回:
             (Region对象, 是否为新创建, 消息)
         """
         try:
-            # 查找地区
-            region = Region.objects.filter(name=province_name).first()
+            # 构建所有可能的名称变体进行查找
+            variants = {province_name}
+            for suffix in PROVINCE_SUFFIXES:
+                variants.add(province_name + suffix)
+            
+            region = Region.objects.filter(name__in=variants).first()
             
             if region:
-                return region, False, f"找到地区: {province_name}"
+                if region.name != province_name:
+                    self.log_debug(f"通过变体名 '{region.name}' 匹配到地区 (标准化名: {province_name})")
+                return region, False, f"找到地区: {region.name}"
             
             # 地区不存在，根据策略处理
             if not create_if_missing:
                 return None, False, f"地区不存在且设置为不创建: {province_name}"
             
-            # 创建新地区
-            # 生成slug（使用省份名称的拼音首字母或简化名称）
-            # 这里简单处理，使用名称的前6个字符（去除空格）
-            slug_base = province_name.replace(" ", "").replace("省", "").replace("市", "")
+            # 创建新地区（使用标准化名称）
+            slug_base = province_name.replace(" ", "")
             slug = slug_base[:6].lower() if slug_base else "region"
             
             # 确保slug唯一
