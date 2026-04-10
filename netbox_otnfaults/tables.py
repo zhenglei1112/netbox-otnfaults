@@ -792,6 +792,12 @@ class CircuitServiceTable(NetBoxTable):
     is_external_business = tables.Column(
         verbose_name='对部服务'
     )
+    ring_protection = tables.Column(
+        verbose_name='环网保护'
+    )
+    operation_status = columns.ChoiceFieldColumn(
+        verbose_name='运行状态'
+    )
     billing_start_time = tables.DateColumn(
         format='Y年n月j日',
         verbose_name='计费起始时间'
@@ -807,10 +813,10 @@ class CircuitServiceTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CircuitService
         fields = (
-            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
+            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
         )
         default_columns = (
-            'business_category', 'service_group', 'special_line_name', 'name', 'bandwidth', 'business_manager', 'is_external_business',
+            'business_category', 'service_group', 'special_line_name', 'name', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status',
         )
 
     def render_service_group(self, value, record):
@@ -842,6 +848,21 @@ class CircuitServiceTable(NetBoxTable):
 
     def value_is_external_business(self, value: bool | None, record: CircuitService) -> str:
         return '是' if record.is_external_business else '否'
+
+    def render_ring_protection(self, value, record):
+        if record.ring_protection:
+            return format_html('<span class="badge bg-success text-white">是</span>')
+        return format_html('<span class="badge bg-secondary text-white">否</span>')
+
+    def value_ring_protection(self, value: bool | None, record: CircuitService) -> str:
+        return '是' if record.ring_protection else '否'
+
+    def render_operation_status(self, value, record):
+        color = record.get_operation_status_color()
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_operation_status_display())
+
+    def value_operation_status(self, value: str | None, record: CircuitService) -> str:
+        return _display_or_empty(record.get_operation_status_display())
 
 
 class SiteHistoryFaultTable(ContractOtnFaultTable):

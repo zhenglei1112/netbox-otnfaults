@@ -1,4 +1,4 @@
-﻿from django.db.models import Q
+from django.db.models import Q
 import django_filters
 from netbox.filtersets import NetBoxModelFilterSet
 
@@ -159,6 +159,7 @@ class CircuitServiceFilterSet(NetBoxModelFilterSet):
     """电路业务过滤器"""
 
     is_external_business = django_filters.BooleanFilter(label='对外业务')
+    ring_protection = django_filters.BooleanFilter(label='环网保护')
 
     class Meta:
         model = CircuitService
@@ -172,6 +173,8 @@ class CircuitServiceFilterSet(NetBoxModelFilterSet):
             'bandwidth',
             'business_manager',
             'is_external_business',
+            'ring_protection',
+            'operation_status',
         )
 
     def search(self, queryset, name, value):

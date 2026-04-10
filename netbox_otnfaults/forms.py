@@ -5,7 +5,8 @@ from .models import (
     FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices,
     PowerDataTypeChoices, PowerRecoveryModeChoices, PowerMaintenanceModeChoices,
     OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite, BareFiberService,
-    CircuitService, ServiceGroupChoices, BusinessCategoryChoices, ServiceTypeChoices
+    CircuitService, ServiceGroupChoices, BusinessCategoryChoices, ServiceTypeChoices,
+    CircuitOperationStatusChoices
 )
 import json
 
@@ -1145,20 +1146,24 @@ class CircuitServiceForm(NetBoxModelForm):
         required=False,
         label='对部服务'
     )
+    ring_protection = forms.BooleanField(
+        required=False,
+        label='环网保护'
+    )
     comments = CommentField(
         label='评论',
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
     )
 
     fieldsets = (
-        FieldSet('special_line_name', 'name', 'slug', 'business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', name='电路业务'),
+        FieldSet('special_line_name', 'name', 'slug', 'business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', name='电路业务'),
         FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
         FieldSet('tags', name='其他'),
     )
 
     class Meta:
         model = CircuitService
-        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
+        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
         widgets = {
             'billing_start_time': DatePicker(),
             'billing_end_time': DatePicker(),
@@ -1180,11 +1185,15 @@ class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='对部服务'
     )
+    ring_protection = forms.NullBooleanField(
+        required=False,
+        label='环网保护'
+    )
 
 
     fieldsets = (
         FieldSet('q', 'special_line_name', 'filter_id', 'tag'),
-        FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', name='属性'),
+        FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', name='属性'),
     )
 
     special_line_name = forms.CharField(
@@ -1210,6 +1219,11 @@ class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='业务主管'
     )
+    operation_status = forms.ChoiceField(
+        choices=[('', '---------')] + [(v, l) for v, l, *_ in CircuitOperationStatusChoices.CHOICES],
+        required=False,
+        label='运行状态'
+    )
 
 
 class CircuitServiceImportForm(NetBoxModelImportForm):
@@ -1223,7 +1237,7 @@ class CircuitServiceImportForm(NetBoxModelImportForm):
 
     class Meta:
         model = CircuitService
-        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
+        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
 
 
 class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
@@ -1237,6 +1251,15 @@ class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
     is_external_business = forms.NullBooleanField(
         required=False,
         label='对部服务'
+    )
+    ring_protection = forms.NullBooleanField(
+        required=False,
+        label='环网保护'
+    )
+    operation_status = forms.ChoiceField(
+        choices=[('', '---------')] + [(v, l) for v, l, *_ in CircuitOperationStatusChoices.CHOICES],
+        required=False,
+        label='运行状态'
     )
     service_group = forms.ChoiceField(
         choices=[('', '---------')] + [(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES],
@@ -1265,7 +1288,7 @@ class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
 
 
     fieldsets = (
-        FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', name='基本信息'),
+        FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', name='基本信息'),
         FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
     )
 

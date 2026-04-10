@@ -1548,6 +1548,24 @@ class BusinessCategoryChoices(ChoiceSet):
     ]
 
 
+class CircuitOperationStatusChoices(ChoiceSet):
+    key = 'CircuitService.operation_status'
+
+    PENDING = 'pending'
+    CONFIGURED = 'configured'
+    OPERATING = 'operating'
+    TESTING = 'testing'
+    CLOSED = 'closed'
+
+    CHOICES = [
+        (PENDING, '待开通', 'orange'),
+        (CONFIGURED, '已配置', 'cyan'),
+        (OPERATING, '运营中', 'green'),
+        (TESTING, '测试中', 'purple'),
+        (CLOSED, '已关闭', 'red'),
+    ]
+
+
 class CircuitService(NetBoxModel):
     """?????????"""
     SERVICE_GROUP_CATEGORY_MAP = {
@@ -1620,6 +1638,17 @@ class CircuitService(NetBoxModel):
         default=False,
         verbose_name='对部服务'
     )
+    ring_protection = models.BooleanField(
+        default=False,
+        verbose_name='环网保护'
+    )
+    operation_status = models.CharField(
+        max_length=20,
+        choices=CircuitOperationStatusChoices,
+        default=CircuitOperationStatusChoices.OPERATING,
+        verbose_name='运行状态',
+        blank=True
+    )
     billing_start_time = models.DateField(
         blank=True,
         null=True,
@@ -1671,3 +1700,6 @@ class CircuitService(NetBoxModel):
 
     def get_business_category_color(self):
         return BusinessCategoryChoices.colors.get(self.business_category)
+
+    def get_operation_status_color(self):
+        return CircuitOperationStatusChoices.colors.get(self.operation_status)

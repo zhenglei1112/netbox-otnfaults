@@ -59,6 +59,26 @@
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row">环网保护</th>
+                        <td>
+                            {% if object.ring_protection %}
+                                <span class="badge bg-success text-white">是</span>
+                            {% else %}
+                                <span class="badge bg-secondary text-white">否</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">运行状态</th>
+                        <td>
+                            {% if object.operation_status %}
+                                <span class="badge bg-{{ object.get_operation_status_color }} text-white">{{ object.get_operation_status_display }}</span>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row">带宽(Mbps)</th>
                         <td>
                             {% if object.bandwidth %}
