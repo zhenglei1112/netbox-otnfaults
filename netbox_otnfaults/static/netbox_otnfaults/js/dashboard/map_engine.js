@@ -196,7 +196,7 @@ window.MapEngine = (function () {
                     paint: {
                         'fill-extrusion-color': '#0f2040',
                         'fill-extrusion-height': 0,        // 顶面设为地平线 0
-                        'fill-extrusion-base': -200000,    // 底座向地心深挖，形成向下厚度
+                        'fill-extrusion-base': 0,          // 修复：底座不能为负数
                         'fill-extrusion-opacity': 0.9      // 增加不透明度，强化侧边厚度感
                     }
                 });

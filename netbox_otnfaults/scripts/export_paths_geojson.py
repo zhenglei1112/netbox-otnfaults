@@ -6,7 +6,10 @@ from extras.scripts import Script, StringVar
 from netbox_otnfaults.models import OtnPath
 import json
 import os
+import platform
 
+# 适配本地 Windows 开发环境与 Linux 生产环境
+DEFAULT_PATH = os.path.join(os.environ.get('USERPROFILE', 'C:\\'), 'otn_paths.geojson') if platform.system() == "Windows" else "/opt/maps/data/otn_paths.geojson"
 
 class ExportPathsGeoJSON(Script):
     class Meta:
@@ -15,11 +18,11 @@ class ExportPathsGeoJSON(Script):
 
     output_path = StringVar(
         description="GeoJSON 输出路径",
-        default="/opt/maps/data/otn_paths.geojson"
+        default=DEFAULT_PATH
     )
 
     def run(self, data, commit):
-        output_file = data.get('output_path', '/opt/maps/data/otn_paths.geojson')
+        output_file = data.get('output_path') or DEFAULT_PATH
         
         # 确保输出目录存在
         output_dir = os.path.dirname(output_file)
