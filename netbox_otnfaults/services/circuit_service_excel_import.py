@@ -23,6 +23,10 @@ class CircuitServiceExcelRow:
     circuit_number: str
     bandwidth: str | None = None
     business_manager: str | None = None
+    sla_level: str | None = None
+    operation_status: str | None = None
+    ring_protection: str | None = None
+    is_external_business: str | None = None
 
 
 def normalize_business_category_label(value: str) -> str:
@@ -56,11 +60,24 @@ def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终�
 
         bandwidth_column = None
         business_manager_column = None
+        sla_level_column = None
+        operation_status_column = None
+        ring_protection_column = None
         for col, header in header_map.items():
             if header and "带宽" in header:
                 bandwidth_column = col
             if header and header.strip() == "业务主管":
                 business_manager_column = col
+            if header and "SLA" in header.upper():
+                sla_level_column = col
+            if header and "运行状态" in header:
+                operation_status_column = col
+            if header and "环网保护" in header:
+                ring_protection_column = col
+            if header and "对部服务" in header:
+                is_external_business_column = col
+        
+        is_external_business_column = is_external_business_column if 'is_external_business_column' in locals() else None
 
         records: list[CircuitServiceExcelRow] = []
         for row in rows[2:]:
@@ -71,6 +88,10 @@ def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终�
             circuit_number = _clean_cell(values.get(required_columns["电路编号"]))
             bandwidth = _clean_cell(values.get(bandwidth_column)) if bandwidth_column else None
             business_manager = _clean_cell(values.get(business_manager_column)) if business_manager_column else None
+            sla_level = _clean_cell(values.get(sla_level_column)) if sla_level_column else None
+            operation_status = _clean_cell(values.get(operation_status_column)) if operation_status_column else None
+            ring_protection = _clean_cell(values.get(ring_protection_column)) if ring_protection_column else None
+            is_external_business = _clean_cell(values.get(is_external_business_column)) if is_external_business_column else None
             if not any((business_category, service_group, special_line_name, circuit_number)):
                 continue
             records.append(
@@ -82,6 +103,10 @@ def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终�
                     circuit_number=circuit_number,
                     bandwidth=bandwidth,
                     business_manager=business_manager,
+                    sla_level=sla_level,
+                    operation_status=operation_status,
+                    ring_protection=ring_protection,
+                    is_external_business=is_external_business,
                 )
             )
 

@@ -6,7 +6,10 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from ...models import BusinessCategoryChoices, CircuitService, ServiceGroupChoices
+from ...models import (
+    BusinessCategoryChoices, CircuitOperationStatusChoices, CircuitService,
+    SLALevelChoices, ServiceGroupChoices,
+)
 from ...services.circuit_service_excel_import import (
     normalize_business_category_label,
     read_circuit_service_excel_rows,
@@ -154,6 +157,32 @@ class Command(BaseCommand):
                         self.stdout.write(self.style.WARNING(
                             f"第 {row.row_number} 行提示: 业务主管无法识别: {row.business_manager}"
                         ))
+
+                if row.sla_level:
+                    sla_cleaned = row.sla_level.strip()
+                    sla_valid_values = {v for v, *_ in SLALevelChoices.CHOICES}
+                    if sla_cleaned in sla_valid_values:
+                        instance.sla_level = sla_cleaned
+                    else:
+                        self.stdout.write(self.style.WARNING(
+                            f"第 {row.row_number} 行提示: SLA等级无法识别: {row.sla_level}"
+                        ))
+
+                if row.operation_status:
+                    op_label_map = {label: value for value, label, *_ in CircuitOperationStatusChoices.CHOICES}
+                    op_value = op_label_map.get(row.operation_status.strip())
+                    if op_value:
+                        instance.operation_status = op_value
+                    else:
+                        self.stdout.write(self.style.WARNING(
+                            f"第 {row.row_number} 行提示: 运行状态无法识别: {row.operation_status}"
+                        ))
+
+                # 环网保护: 仅 '是' 为 True, 其余均设为 False
+                instance.ring_protection = (row.ring_protection.strip() == "是") if row.ring_protection else False
+
+                # 对部服务: 仅 '是' 为 True, 其余均设为 False
+                instance.is_external_business = (row.is_external_business.strip() == "是") if row.is_external_business else False
 
                 instance.full_clean()
 
