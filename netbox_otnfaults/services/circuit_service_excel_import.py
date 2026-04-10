@@ -21,11 +21,16 @@ class CircuitServiceExcelRow:
     service_group: str
     special_line_name: str
     circuit_number: str
+    bandwidth: str | None = None
+    business_manager: str | None = None
 
 
 def normalize_business_category_label(value: str) -> str:
     cleaned = (value or "").strip()
-    return re.sub(r"^\d+\s*[.、，,．]?\s*", "", cleaned)
+    label = re.sub(r"^\d+\s*[.、，,．]?\s*", "", cleaned)
+    if label == "航信":
+        label = "中航信"
+    return label
 
 
 def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终数据") -> list[CircuitServiceExcelRow]:
@@ -49,6 +54,14 @@ def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终�
         if missing_headers:
             raise ValueError(f"Excel 缺少必要列: {', '.join(missing_headers)}")
 
+        bandwidth_column = None
+        business_manager_column = None
+        for col, header in header_map.items():
+            if header and "带宽" in header:
+                bandwidth_column = col
+            if header and header.strip() == "业务主管":
+                business_manager_column = col
+
         records: list[CircuitServiceExcelRow] = []
         for row in rows[2:]:
             values = _row_to_column_values(row, shared_strings)
@@ -56,6 +69,8 @@ def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终�
             service_group = _clean_cell(values.get(required_columns["业务组"]))
             special_line_name = _clean_cell(values.get(required_columns["专线名称"]))
             circuit_number = _clean_cell(values.get(required_columns["电路编号"]))
+            bandwidth = _clean_cell(values.get(bandwidth_column)) if bandwidth_column else None
+            business_manager = _clean_cell(values.get(business_manager_column)) if business_manager_column else None
             if not any((business_category, service_group, special_line_name, circuit_number)):
                 continue
             records.append(
@@ -65,6 +80,8 @@ def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终�
                     service_group=service_group,
                     special_line_name=special_line_name,
                     circuit_number=circuit_number,
+                    bandwidth=bandwidth,
+                    business_manager=business_manager,
                 )
             )
 

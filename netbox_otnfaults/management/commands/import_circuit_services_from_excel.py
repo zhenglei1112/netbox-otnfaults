@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -43,11 +44,23 @@ class Command(BaseCommand):
         }
         slug_max_length = CircuitService._meta.get_field("slug").max_length
 
+        existing_services = {
+            (svc.special_line_name, svc.name): svc
+            for svc in CircuitService.objects.all()
+        }
+
+        User = get_user_model()
+        user_map = {
+            u.get_full_name(): u for u in User.objects.all() if u.get_full_name()
+        }
+        user_map.update({u.username: u for u in User.objects.all()})
+
         create_count = 0
+        update_count = 0
         skip_count = 0
         errors: list[str] = []
-        logger_lines: list[str] = []
         created_numbers: list[str] = []
+        updated_numbers: list[str] = []
         skipped_numbers: list[str] = []
 
         with transaction.atomic():
@@ -59,28 +72,24 @@ class Command(BaseCommand):
                 if not category_value:
                     message = f"第 {row.row_number} 行跳过: 业务门类无法识别: {row.business_category}"
                     errors.append(message)
-                    logger_lines.append(message)
                     skip_count += 1
                     skipped_numbers.append(row.circuit_number or f"row-{row.row_number}")
                     continue
                 if not service_group_value:
                     message = f"第 {row.row_number} 行跳过: 业务组无法识别: {row.service_group}"
                     errors.append(message)
-                    logger_lines.append(message)
                     skip_count += 1
                     skipped_numbers.append(row.circuit_number or f"row-{row.row_number}")
                     continue
                 if not row.special_line_name:
                     message = f"第 {row.row_number} 行跳过: 缺少专线名称"
                     errors.append(message)
-                    logger_lines.append(message)
                     skip_count += 1
                     skipped_numbers.append(row.circuit_number or f"row-{row.row_number}")
                     continue
                 if not row.circuit_number:
                     message = f"第 {row.row_number} 行跳过: 缺少电路编号"
                     errors.append(message)
-                    logger_lines.append(message)
                     skip_count += 1
                     skipped_numbers.append(f"row-{row.row_number}")
                     continue
@@ -89,7 +98,6 @@ class Command(BaseCommand):
                         f"第 {row.row_number} 行跳过: 电路编号超过缩写长度限制 {slug_max_length}: {row.circuit_number}"
                     )
                     errors.append(message)
-                    logger_lines.append(message)
                     skip_count += 1
                     skipped_numbers.append(row.circuit_number)
                     continue
@@ -100,31 +108,65 @@ class Command(BaseCommand):
                         f"第 {row.row_number} 行跳过: 业务门类与业务组不匹配: {category_label} / {row.service_group}"
                     )
                     errors.append(message)
-                    logger_lines.append(message)
                     skip_count += 1
                     skipped_numbers.append(row.circuit_number)
                     continue
 
-                instance = CircuitService()
-                instance.special_line_name = row.special_line_name
-                instance.name = row.circuit_number
-                instance.slug = row.circuit_number
+                key = (row.special_line_name, row.circuit_number)
+                instance = existing_services.get(key)
+                is_new = instance is None
+
+                if is_new:
+                    instance = CircuitService()
+                    instance.special_line_name = row.special_line_name
+                    instance.name = row.circuit_number
+                    instance.slug = row.circuit_number
+                else:
+                    message = f"第 {row.row_number} 行更新: 发现重复记录执行更新 (专线名称: {row.special_line_name}, 电路编号: {row.circuit_number})"
+                    self.stdout.write(self.style.WARNING(message))
+
                 instance.business_category = category_value
                 instance.service_group = service_group_value
+
+                if row.bandwidth:
+                    bw_str = row.bandwidth.strip().upper()
+                    is_g = False
+                    if bw_str.endswith("G"):
+                        is_g = True
+                        bw_str = bw_str[:-1]
+                    elif bw_str.endswith("GBPS"):
+                        is_g = True
+                        bw_str = bw_str[:-4]
+                    elif bw_str.endswith("M") or bw_str.endswith("MBPS"):
+                        bw_str = bw_str.replace("MBPS", "").replace("M", "")
+
+                    try:
+                        val = float(bw_str)
+                        instance.bandwidth = int(val * 1000) if is_g else int(val)
+                    except ValueError:
+                        pass
+
+                if row.business_manager:
+                    user = user_map.get(row.business_manager.strip())
+                    if user:
+                        instance.business_manager = user
+                    else:
+                        self.stdout.write(self.style.WARNING(
+                            f"第 {row.row_number} 行提示: 业务主管无法识别: {row.business_manager}"
+                        ))
+
                 instance.full_clean()
 
-                create_count += 1
-                created_numbers.append(row.circuit_number)
-                logger_lines.append(
-                    f"第 {row.row_number} 行新增: 电路编号={row.circuit_number}, 业务门类={category_label}, "
-                    f"业务组={row.service_group}, 专线名称={row.special_line_name}"
-                )
+                if is_new:
+                    create_count += 1
+                    created_numbers.append(row.circuit_number)
+                    existing_services[key] = instance
+                else:
+                    update_count += 1
+                    updated_numbers.append(row.circuit_number)
 
                 if not dry_run:
                     instance.save()
-
-            for line in logger_lines:
-                self.stdout.write(line)
 
             if errors:
                 raise CommandError("\n".join(errors))
@@ -135,8 +177,7 @@ class Command(BaseCommand):
         summary = (
             f"已解析 {len(rows)} 条记录，"
             f"{'计划' if dry_run else '实际'}新增 {create_count} 条，"
+            f"{'计划' if dry_run else '实际'}更新 {update_count} 条，"
             f"{'计划' if dry_run else '实际'}跳过 {skip_count} 条。"
         )
         self.stdout.write(self.style.SUCCESS(summary))
-        self.stdout.write(f"新增名单: {', '.join(created_numbers) if created_numbers else '无'}")
-        self.stdout.write(f"跳过名单: {', '.join(skipped_numbers) if skipped_numbers else '无'}")
