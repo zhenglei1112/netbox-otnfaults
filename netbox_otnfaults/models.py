@@ -1535,16 +1535,17 @@ class BandwidthChoices(ChoiceSet):
 class BusinessCategoryChoices(ChoiceSet):
     key = 'CircuitService.business_category'
 
-    MINISTRY_PROVINCE_TRANSPORT = 'ministry_province_transport'
-    COMMERCIAL_OTHER = 'commercial_other'
-    MARITIME_SERVICE = 'maritime_service'
-    ROAD_NETWORK_SERVICE = 'road_network_service'
-    LEGACY_RUIJIE_SERVICE = 'legacy_ruijie_service'
-    TRAVELSKY = 'travelsky'
-    JINHANG = 'jinhang'
-    LANXUN = 'lanxun'
-    COMMERCIAL_100G = 'commercial_100g'
-    CHANGHANG = 'changhang'
+    MINISTRY_PROVINCE_TRANSPORT = '01_ministry_province_transport'
+    COMMERCIAL_OTHER = '02_commercial_other'
+    MARITIME_SERVICE = '03_maritime_service'
+    ROAD_NETWORK_SERVICE = '04_road_network_service'
+    LEGACY_RUIJIE_SERVICE = '05_legacy_ruijie_service'
+    TRAVELSKY = '06_travelsky'
+    JINHANG = '07_jinhang'
+    LANXUN = '08_lanxun'
+    COMMERCIAL_100G = '09_commercial_100g'
+    CHANGHANG = '10_changhang'
+    MINISTRY_ORGAN = '11_ministry_organ'
 
     CHOICES = [
         (MINISTRY_PROVINCE_TRANSPORT, '部省传输', 'blue'),
@@ -1552,11 +1553,12 @@ class BusinessCategoryChoices(ChoiceSet):
         (MARITIME_SERVICE, '海事业务', 'teal'),
         (ROAD_NETWORK_SERVICE, '路网业务', 'indigo'),
         (LEGACY_RUIJIE_SERVICE, '老锐捷业务', 'purple'),
-        (TRAVELSKY, '航信', 'cyan'),
+        (TRAVELSKY, '中航信', 'cyan'),
         (JINHANG, '金航', 'green'),
         (LANXUN, '缆讯', 'orange'),
         (COMMERCIAL_100G, '商业百G', 'red'),
         (CHANGHANG, '长航', 'yellow'),
+        (MINISTRY_ORGAN, '部机关', 'dark'),
     ]
 
 
@@ -1665,7 +1667,7 @@ class CircuitService(NetBoxModel):
                 })
 
     class Meta:
-        ordering = ('special_line_name', 'name')
+        ordering = ('business_category', 'service_group', 'special_line_name')
         verbose_name = '电路业务'
         verbose_name_plural = '电路业务'
 

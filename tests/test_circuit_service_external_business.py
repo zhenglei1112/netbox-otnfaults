@@ -115,11 +115,12 @@ class CircuitServiceBusinessCategorySourceTestCase(unittest.TestCase):
                 "海事业务",
                 "路网业务",
                 "老锐捷业务",
-                "航信",
+                "中航信",
                 "金航",
                 "缆讯",
                 "商业百G",
                 "长航",
+                "部机关",
             ],
         )
 
