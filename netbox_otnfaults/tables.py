@@ -632,14 +632,16 @@ class OtnFaultImpactSummaryTable(OtnFaultImpactTable):
     """故障详情页关联业务的精简表格渲染"""
     class Meta(OtnFaultImpactTable.Meta):
         fields = (
-            'pk', 'id', 'secondary_faults', 'service_type', 'service_name', 'service_group',
+            'id', 'service_type', 'service_name',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
-            'comments', 'tags', 'actions',
+            'secondary_faults', 'actions',
         )
         default_columns = (
-            'id', 'service_type', 'service_name', 'service_group',
+            'id', 'service_type', 'service_name',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'secondary_faults',
         )
+        exclude = ('otn_fault', 'service_group', 'comments', 'tags', 'pk')
 
 class OtnPathTable(NetBoxTable):
     name = tables.Column(
