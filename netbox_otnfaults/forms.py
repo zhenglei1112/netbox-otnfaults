@@ -5,7 +5,7 @@ from .models import (
     FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices,
     PowerDataTypeChoices, PowerRecoveryModeChoices, PowerMaintenanceModeChoices,
     OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite, BareFiberService,
-    CircuitService, ServiceGroupChoices, BandwidthChoices, BusinessCategoryChoices, ServiceTypeChoices
+    CircuitService, ServiceGroupChoices, BusinessCategoryChoices, ServiceTypeChoices
 )
 import json
 
@@ -1201,10 +1201,9 @@ class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='业务组'
     )
-    bandwidth = forms.ChoiceField(
-        choices=[('', '---------')] + [(v, l) for v, l, *_ in BandwidthChoices.CHOICES],
+    bandwidth = forms.IntegerField(
         required=False,
-        label='带宽'
+        label='带宽(Mbps)'
     )
     business_manager = DynamicModelChoiceField(
         queryset=get_user_model().objects.all(),
@@ -1244,10 +1243,9 @@ class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='业务组'
     )
-    bandwidth = forms.ChoiceField(
-        choices=[('', '---------')] + [(v, l) for v, l, *_ in BandwidthChoices.CHOICES],
+    bandwidth = forms.IntegerField(
         required=False,
-        label='带宽'
+        label='带宽(Mbps)'
     )
     business_manager = DynamicModelChoiceField(
         queryset=get_user_model().objects.all(),

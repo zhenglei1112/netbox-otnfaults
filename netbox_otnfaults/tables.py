@@ -7,7 +7,7 @@ from .models import (
     FaultCategoryChoices, FaultStatusChoices, UrgencyChoices, 
     MaintenanceModeChoices, RecoveryModeChoices, ResourceTypeChoices, ResourceOwnerChoices,
     CableRouteChoices, CableBreakLocationChoices, ServiceTypeChoices,
-    ServiceGroupChoices, BandwidthChoices, BusinessCategoryChoices, CableTypeChoices
+    ServiceGroupChoices, BusinessCategoryChoices, CableTypeChoices
 )
 
 
@@ -782,8 +782,8 @@ class CircuitServiceTable(NetBoxTable):
     business_category = columns.ChoiceFieldColumn(
         verbose_name='业务门类'
     )
-    bandwidth = columns.ChoiceFieldColumn(
-        verbose_name='带宽'
+    bandwidth = tables.Column(
+        verbose_name='带宽(Mbps)'
     )
     business_manager = tables.Column(
         linkify=True,
@@ -834,13 +834,6 @@ class CircuitServiceTable(NetBoxTable):
 
     def value_is_external_business(self, value: bool | None, record: CircuitService) -> str:
         return '\u662f' if record.is_external_business else '\u5426'
-
-    def render_bandwidth(self, value, record):
-        color = record.get_bandwidth_color()
-        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_bandwidth_display())
-
-    def value_bandwidth(self, value: str | None, record: CircuitService) -> str:
-        return _display_or_empty(record.get_bandwidth_display())
 
     def render_is_external_business(self, value, record):
         if record.is_external_business:

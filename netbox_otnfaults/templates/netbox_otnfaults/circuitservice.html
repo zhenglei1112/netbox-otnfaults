@@ -59,12 +59,10 @@
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row">带宽</th>
+                        <th scope="row">带宽(Mbps)</th>
                         <td>
                             {% if object.bandwidth %}
-                                {% with color=object.get_bandwidth_color %}
-                                <span class="badge" style="background-color: {{ color }}; color: #fff;">{{ object.get_bandwidth_display }}</span>
-                                {% endwith %}
+                                {{ object.bandwidth }}
                             {% else %}
                                 —
                             {% endif %}

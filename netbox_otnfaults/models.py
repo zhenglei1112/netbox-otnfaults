@@ -1518,20 +1518,6 @@ class ServiceGroupChoices(ChoiceSet):
     ]
 
 
-class BandwidthChoices(ChoiceSet):
-    key = 'CircuitService.bandwidth'
-
-    BW_10G = '10g'
-    BW_100G = '100g'
-    BW_GE = 'ge'
-
-    CHOICES = [
-        (BW_10G, '10G', 'blue'),
-        (BW_100G, '100G', 'green'),
-        (BW_GE, 'GE', 'orange'),
-    ]
-
-
 class BusinessCategoryChoices(ChoiceSet):
     key = 'CircuitService.business_category'
 
@@ -1611,11 +1597,10 @@ class CircuitService(NetBoxModel):
         verbose_name='业务组',
         blank=True
     )
-    bandwidth = models.CharField(
-        max_length=20,
-        choices=BandwidthChoices,
-        verbose_name='带宽',
-        blank=True
+    bandwidth = models.PositiveIntegerField(
+        verbose_name='带宽(Mbps)',
+        blank=True,
+        null=True
     )
     business_category = models.CharField(
         max_length=40,
@@ -1683,8 +1668,6 @@ class CircuitService(NetBoxModel):
     def get_service_group_color(self):
         return ServiceGroupChoices.colors.get(self.service_group)
 
-    def get_bandwidth_color(self):
-        return BandwidthChoices.colors.get(self.bandwidth)
 
     def get_business_category_color(self):
         return BusinessCategoryChoices.colors.get(self.business_category)
