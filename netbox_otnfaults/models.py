@@ -1460,13 +1460,61 @@ class ServiceGroupChoices(ChoiceSet):
     key = 'CircuitService.service_group'
 
     MARKET = 'market'
-    JINHANG = 'jinhang'
-    LANXUN = 'lanxun'
+    MINISTRY_BACKBONE = 'ministry_backbone'
+    BEIJING_METRO = 'beijing_metro'
+    INDUSTRY_NETWORK = 'industry_network'
+    INDUSTRY_SERVICE = 'industry_service'
+    TRANSPORT_INDUSTRY = 'transport_industry'
+    FINANCE_LINE = 'finance_line'
+    MARITIME_CORE = 'maritime_core'
+    MARITIME_INTEGRATED_OM = 'maritime_int_om'
+    MARITIME_OTHER = 'maritime_other'
+    ETC_MINISTRY_PROVINCE = 'etc_ministry'
+    ETC_STATION = 'etc_station'
+    ETC_DUAL_ACTIVE = 'etc_dual_active'
+    INDUSTRY_NETWORK_RUIJIE = 'industry_ruijie'
+    TRAVELSKY_PRODUCTION = 'travelsky_prod'
+    TRAVELSKY_OFFICE = 'travelsky_office'
+    TRAVELSKY_JIAXING_SHANGHAI = 'travelsky_jxsh'
+    JINHANG_CORE = 'jinhang_core'
+    JINHANG_AGGREGATION = 'jinhang_agg'
+    JINHANG_BACKUP = 'jinhang_backup'
+    JINHANG_OTHER = 'jinhang_other'
+    LANXUN_100G = 'lanxun_100g'
+    LANXUN_NETWORK_10G = 'lanxun_net_10g'
+    LANXUN_NETWORK_100G = 'lanxun_net_100g'
+    JINSHAN = 'jinshan'
+    CHANGHANG_SERVICE = 'changhang_srv'
+    CHANGHANG_BACKUP = 'changhang_backup'
 
     CHOICES = [
-        (MARKET, '市场', 'blue'),
-        (JINHANG, '金航', 'green'),
-        (LANXUN, '缆讯', 'purple'),
+        (MINISTRY_BACKBONE, '部省主线', 'blue'),
+        (BEIJING_METRO, '北京城域网', 'blue'),
+        (INDUSTRY_NETWORK, '行业专网', 'blue'),
+        (INDUSTRY_SERVICE, '行业服务', 'blue'),
+        (TRANSPORT_INDUSTRY, '交通行业', 'blue'),
+        (MARKET, '市场', 'green'),
+        (FINANCE_LINE, '金融专线', 'green'),
+        (MARITIME_CORE, '海事核心网', 'yellow'),
+        (MARITIME_INTEGRATED_OM, '海事一体化运维', 'yellow'),
+        (MARITIME_OTHER, '海事其他', 'yellow'),
+        (ETC_MINISTRY_PROVINCE, 'ETC部省', 'orange'),
+        (ETC_STATION, 'ETC部站', 'orange'),
+        (ETC_DUAL_ACTIVE, 'ETC双活', 'orange'),
+        (INDUSTRY_NETWORK_RUIJIE, '行业专网锐捷', 'red'),
+        (TRAVELSKY_PRODUCTION, '航信生产', 'purple'),
+        (TRAVELSKY_OFFICE, '航信办公', 'purple'),
+        (TRAVELSKY_JIAXING_SHANGHAI, '航信嘉兴上海', 'purple'),
+        (JINHANG_CORE, '金航核心', 'brown'),
+        (JINHANG_AGGREGATION, '金航汇聚', 'brown'),
+        (JINHANG_BACKUP, '金航备线', 'brown'),
+        (JINHANG_OTHER, '金航其他', 'brown'),
+        (LANXUN_100G, '缆讯100G', 'black'),
+        (LANXUN_NETWORK_10G, '缆讯组网-10G', 'black'),
+        (LANXUN_NETWORK_100G, '缆讯组网-百G', 'black'),
+        (JINSHAN, '金山', 'white'),
+        (CHANGHANG_SERVICE, '长航业务', 'green'),
+        (CHANGHANG_BACKUP, '长航备线', 'green'),
     ]
 
 
@@ -1484,11 +1532,72 @@ class BandwidthChoices(ChoiceSet):
     ]
 
 
+class BusinessCategoryChoices(ChoiceSet):
+    key = 'CircuitService.business_category'
+
+    MINISTRY_PROVINCE_TRANSPORT = 'ministry_province_transport'
+    COMMERCIAL_OTHER = 'commercial_other'
+    MARITIME_SERVICE = 'maritime_service'
+    ROAD_NETWORK_SERVICE = 'road_network_service'
+    LEGACY_RUIJIE_SERVICE = 'legacy_ruijie_service'
+    TRAVELSKY = 'travelsky'
+    JINHANG = 'jinhang'
+    LANXUN = 'lanxun'
+    COMMERCIAL_100G = 'commercial_100g'
+    CHANGHANG = 'changhang'
+
+    CHOICES = [
+        (MINISTRY_PROVINCE_TRANSPORT, '部省传输', 'blue'),
+        (COMMERCIAL_OTHER, '商业其他', 'gray'),
+        (MARITIME_SERVICE, '海事业务', 'teal'),
+        (ROAD_NETWORK_SERVICE, '路网业务', 'indigo'),
+        (LEGACY_RUIJIE_SERVICE, '老锐捷业务', 'purple'),
+        (TRAVELSKY, '航信', 'cyan'),
+        (JINHANG, '金航', 'green'),
+        (LANXUN, '缆讯', 'orange'),
+        (COMMERCIAL_100G, '商业百G', 'red'),
+        (CHANGHANG, '长航', 'yellow'),
+    ]
+
+
 class CircuitService(NetBoxModel):
-    """电路业务模型"""
+    """?????????"""
+    SERVICE_GROUP_CATEGORY_MAP = {
+        ServiceGroupChoices.MINISTRY_BACKBONE: BusinessCategoryChoices.MINISTRY_PROVINCE_TRANSPORT,
+        ServiceGroupChoices.BEIJING_METRO: BusinessCategoryChoices.MINISTRY_PROVINCE_TRANSPORT,
+        ServiceGroupChoices.INDUSTRY_NETWORK: BusinessCategoryChoices.MINISTRY_PROVINCE_TRANSPORT,
+        ServiceGroupChoices.INDUSTRY_SERVICE: BusinessCategoryChoices.MINISTRY_PROVINCE_TRANSPORT,
+        ServiceGroupChoices.TRANSPORT_INDUSTRY: BusinessCategoryChoices.MINISTRY_PROVINCE_TRANSPORT,
+        ServiceGroupChoices.MARKET: BusinessCategoryChoices.COMMERCIAL_OTHER,
+        ServiceGroupChoices.FINANCE_LINE: BusinessCategoryChoices.COMMERCIAL_OTHER,
+        ServiceGroupChoices.MARITIME_CORE: BusinessCategoryChoices.MARITIME_SERVICE,
+        ServiceGroupChoices.MARITIME_INTEGRATED_OM: BusinessCategoryChoices.MARITIME_SERVICE,
+        ServiceGroupChoices.MARITIME_OTHER: BusinessCategoryChoices.MARITIME_SERVICE,
+        ServiceGroupChoices.ETC_MINISTRY_PROVINCE: BusinessCategoryChoices.ROAD_NETWORK_SERVICE,
+        ServiceGroupChoices.ETC_STATION: BusinessCategoryChoices.ROAD_NETWORK_SERVICE,
+        ServiceGroupChoices.ETC_DUAL_ACTIVE: BusinessCategoryChoices.ROAD_NETWORK_SERVICE,
+        ServiceGroupChoices.INDUSTRY_NETWORK_RUIJIE: BusinessCategoryChoices.LEGACY_RUIJIE_SERVICE,
+        ServiceGroupChoices.TRAVELSKY_PRODUCTION: BusinessCategoryChoices.TRAVELSKY,
+        ServiceGroupChoices.TRAVELSKY_OFFICE: BusinessCategoryChoices.TRAVELSKY,
+        ServiceGroupChoices.TRAVELSKY_JIAXING_SHANGHAI: BusinessCategoryChoices.TRAVELSKY,
+        ServiceGroupChoices.JINHANG_CORE: BusinessCategoryChoices.JINHANG,
+        ServiceGroupChoices.JINHANG_AGGREGATION: BusinessCategoryChoices.JINHANG,
+        ServiceGroupChoices.JINHANG_BACKUP: BusinessCategoryChoices.JINHANG,
+        ServiceGroupChoices.JINHANG_OTHER: BusinessCategoryChoices.JINHANG,
+        ServiceGroupChoices.LANXUN_100G: BusinessCategoryChoices.LANXUN,
+        ServiceGroupChoices.LANXUN_NETWORK_10G: BusinessCategoryChoices.LANXUN,
+        ServiceGroupChoices.LANXUN_NETWORK_100G: BusinessCategoryChoices.LANXUN,
+        ServiceGroupChoices.JINSHAN: BusinessCategoryChoices.COMMERCIAL_100G,
+        ServiceGroupChoices.CHANGHANG_SERVICE: BusinessCategoryChoices.CHANGHANG,
+        ServiceGroupChoices.CHANGHANG_BACKUP: BusinessCategoryChoices.CHANGHANG,
+    }
+    special_line_name = models.CharField(
+        max_length=100,
+        verbose_name='专线名称'
+    )
     name = models.CharField(
         max_length=200,
-        verbose_name='编号'
+        verbose_name='电路编号'
     )
     slug = models.CharField(
         max_length=50,
@@ -1506,6 +1615,12 @@ class CircuitService(NetBoxModel):
         verbose_name='带宽',
         blank=True
     )
+    business_category = models.CharField(
+        max_length=40,
+        choices=BusinessCategoryChoices,
+        verbose_name='业务门类',
+        blank=True
+    )
     business_manager = models.ForeignKey(
         to=settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -1516,7 +1631,7 @@ class CircuitService(NetBoxModel):
     )
     is_external_business = models.BooleanField(
         default=False,
-        verbose_name='\u5bf9\u5916\u4e1a\u52a1'
+        verbose_name='对部服务'
     )
     billing_start_time = models.DateField(
         blank=True,
@@ -1540,16 +1655,25 @@ class CircuitService(NetBoxModel):
         if self.billing_start_time and self.billing_end_time:
             if self.billing_end_time < self.billing_start_time:
                 raise ValidationError({
-                    'billing_end_time': '计费结束时间需晚于计费起始时间'
+                    'billing_end_time': '???????????????????????'
+                })
+        if self.service_group and self.business_category:
+            expected_category = self.SERVICE_GROUP_CATEGORY_MAP.get(self.service_group)
+            if expected_category and expected_category != self.business_category:
+                raise ValidationError({
+                    'service_group': '??????????????'
                 })
 
     class Meta:
-        ordering = ('name',)
+        ordering = ('special_line_name', 'name')
         verbose_name = '电路业务'
         verbose_name_plural = '电路业务'
 
     def __str__(self):
-        return self.name
+        service_group = self.get_service_group_display() if self.service_group else ''
+        if service_group:
+            return f"{service_group} / {self.special_line_name}"
+        return self.special_line_name
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_otnfaults:circuitservice', args=[self.pk])
@@ -1559,3 +1683,6 @@ class CircuitService(NetBoxModel):
 
     def get_bandwidth_color(self):
         return BandwidthChoices.colors.get(self.bandwidth)
+
+    def get_business_category_color(self):
+        return BusinessCategoryChoices.colors.get(self.business_category)

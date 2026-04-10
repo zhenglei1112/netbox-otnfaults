@@ -503,20 +503,13 @@ class OtnFaultImpactEditView(generic.ObjectEditView):
     form = OtnFaultImpactForm
     template_name = 'netbox_otnfaults/otnfaultimpact_edit.html'
 
+    def get_extra_context(self, request, obj):
+        return super().get_extra_context(request, obj) or {}
+
     def get_return_url(self, request, obj=None):
-        # 首先尝试从对象获取故障信息
-        if obj and hasattr(obj, 'otn_fault') and obj.otn_fault:
-            return obj.otn_fault.get_absolute_url()
-            
-        # 如果是创建新对象，检查查询参数
-        otn_fault_id = request.GET.get('otn_fault')
-        if otn_fault_id:
-            try:
-                return OtnFault.objects.get(pk=otn_fault_id).get_absolute_url()
-            except OtnFault.DoesNotExist:
-                pass
-                
-        return super().get_return_url(request, obj)
+        if obj and getattr(obj, 'pk', None):
+            return obj.get_absolute_url()
+        return reverse('plugins:netbox_otnfaults:otnfaultimpact_list')
 
     def get(self, request, *args, **kwargs):
         """
@@ -563,7 +556,7 @@ class OtnFaultImpactEditView(generic.ObjectEditView):
                 'object': obj,
                 'form': form,
                 'return_url': self.get_return_url(request, obj),
-                **self.get_extra_context(request, obj),
+                **(self.get_extra_context(request, obj) or {}),
             },
         )
 
@@ -578,9 +571,8 @@ class OtnFaultImpactEditView(generic.ObjectEditView):
                     delimiter = '&' if '?' in location else '?'
                     response['Location'] = f"{location}{delimiter}otn_fault={otn_fault_id}"
             else:
-                # 如果不是添加另一个，重定向到父故障对象（如果存在）
-                if hasattr(self, 'object') and hasattr(self.object, 'otn_fault') and self.object.otn_fault:
-                    response['Location'] = self.object.otn_fault.get_absolute_url()
+                if hasattr(self, 'object') and getattr(self.object, 'pk', None):
+                    response['Location'] = self.object.get_absolute_url()
                 
         return response
 

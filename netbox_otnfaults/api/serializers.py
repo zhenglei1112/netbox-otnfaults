@@ -234,7 +234,7 @@ class CircuitServiceSerializer(NetBoxModelSerializer):
     class Meta:
         model = CircuitService
         fields = (
-            'id', 'url', 'display', 'name', 'slug', 'service_group', 'bandwidth',
+            'id', 'url', 'display', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth',
             'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time',
             'comments', 'tags', 'custom_fields', 'created', 'last_updated',
         )

@@ -7,7 +7,7 @@ from .models import (
     FaultCategoryChoices, FaultStatusChoices, UrgencyChoices, 
     MaintenanceModeChoices, RecoveryModeChoices, ResourceTypeChoices, ResourceOwnerChoices,
     CableRouteChoices, CableBreakLocationChoices, ServiceTypeChoices,
-    ServiceGroupChoices, BandwidthChoices, CableTypeChoices
+    ServiceGroupChoices, BandwidthChoices, BusinessCategoryChoices, CableTypeChoices
 )
 
 
@@ -480,7 +480,7 @@ class OtnFaultImpactTable(NetBoxTable):
             return format_html('<a href="{}">{}</a>', url, name)
         elif record.service_type == 'circuit' and record.circuit_service:
             url = record.circuit_service.get_absolute_url()
-            name = record.circuit_service.name
+            name = str(record.circuit_service)
             return format_html('<a href="{}">{}</a>', url, name)
         return '—'
 
@@ -488,7 +488,7 @@ class OtnFaultImpactTable(NetBoxTable):
         if record.service_type == 'bare_fiber' and record.bare_fiber_service:
             return record.bare_fiber_service.name
         if record.service_type == 'circuit' and record.circuit_service:
-            return record.circuit_service.name
+            return str(record.circuit_service)
         return ''
 
     def render_service_group(self, record):
@@ -764,15 +764,21 @@ class BareFiberServiceTable(NetBoxTable):
 
 class CircuitServiceTable(NetBoxTable):
     """电路业务列表表格"""
-    name = tables.Column(
+    special_line_name = tables.Column(
         linkify=True,
-        verbose_name='编号'
+        verbose_name='专线名称'
+    )
+    name = tables.Column(
+        verbose_name='电路编号'
     )
     slug = tables.Column(
         verbose_name='缩写'
     )
     service_group = columns.ChoiceFieldColumn(
         verbose_name='业务组'
+    )
+    business_category = columns.ChoiceFieldColumn(
+        verbose_name='业务门类'
     )
     bandwidth = columns.ChoiceFieldColumn(
         verbose_name='带宽'
@@ -782,7 +788,7 @@ class CircuitServiceTable(NetBoxTable):
         verbose_name='业务主管'
     )
     is_external_business = tables.Column(
-        verbose_name='\u5bf9\u5916\u4e1a\u52a1'
+        verbose_name='对部服务'
     )
     billing_start_time = tables.DateColumn(
         format='Y年n月j日',
@@ -799,10 +805,10 @@ class CircuitServiceTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CircuitService
         fields = (
-            'pk', 'name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
+            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
         )
         default_columns = (
-            'name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'tags',
+            'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'tags',
         )
 
     def render_service_group(self, value, record):
@@ -811,6 +817,15 @@ class CircuitServiceTable(NetBoxTable):
 
     def value_service_group(self, value: str | None, record: CircuitService) -> str:
         return _display_or_empty(record.get_service_group_display())
+
+    def render_business_category(self, value, record):
+        color = record.get_business_category_color()
+        if not value:
+            return ''
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_business_category_display())
+
+    def value_business_category(self, value: str | None, record: CircuitService) -> str:
+        return _display_or_empty(record.get_business_category_display())
 
     def render_is_external_business(self, value, record):
         if record.is_external_business:

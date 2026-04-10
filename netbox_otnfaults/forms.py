@@ -5,9 +5,12 @@ from .models import (
     FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices,
     PowerDataTypeChoices, PowerRecoveryModeChoices, PowerMaintenanceModeChoices,
     OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite, BareFiberService,
-    CircuitService, ServiceGroupChoices, BandwidthChoices, ServiceTypeChoices
+    CircuitService, ServiceGroupChoices, BandwidthChoices, BusinessCategoryChoices, ServiceTypeChoices
 )
+import json
+
 from django import forms
+from django.core.exceptions import ValidationError
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField, TagFilterField
 from utilities.forms.rendering import FieldSet
 from utilities.forms.widgets import DateTimePicker, DatePicker
@@ -119,6 +122,8 @@ class OtnFaultForm(NetBoxModelForm):
         FieldSet('operations_manager', name='运维主管'),
         FieldSet('comments', name='评论'),
     )
+
+
 
     class Meta:
         model = OtnFault
@@ -273,23 +278,30 @@ class OtnFaultImpactForm(NetBoxModelForm):
         queryset=OtnFault.objects.all(),
         label='直接故障'
     )
+    circuit_business_category = forms.ChoiceField(
+        choices=[('', '---------')] + [(v, l) for v, l, *_ in BusinessCategoryChoices.CHOICES],
+        required=False,
+        label='业务门类'
+    )
     circuit_service_group = forms.ChoiceField(
         choices=[('', '---------')] + [(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES],
         required=False,
-        label='电路业务组'
+        label='业务组'
+    )
+    circuit_special_line_name = forms.ChoiceField(
+        choices=[('', '---------')],
+        required=False,
+        label='专线名称'
     )
     bare_fiber_service = DynamicModelChoiceField(
         queryset=BareFiberService.objects.all(),
         required=False,
         label='业务名称'
     )
-    circuit_service = DynamicModelChoiceField(
+    circuit_service = forms.ModelChoiceField(
         queryset=CircuitService.objects.all(),
         required=False,
-        label='业务名称',
-        query_params={
-            'service_group': '$circuit_service_group'
-        }
+        label='电路业务'
     )
     service_site_a = DynamicModelChoiceField(
         queryset=Site.objects.all(),
@@ -315,7 +327,8 @@ class OtnFaultImpactForm(NetBoxModelForm):
     class Meta:
         model = OtnFaultImpact
         fields = (
-            'otn_fault', 'secondary_faults', 'service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z', 'circuit_service_group', 'circuit_service',
+            'otn_fault', 'secondary_faults', 'service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z',
+            'circuit_business_category', 'circuit_service_group', 'circuit_special_line_name', 'circuit_service',
             'service_interruption_time', 'service_recovery_time',
             'comments', 'tags',
         )
@@ -325,15 +338,40 @@ class OtnFaultImpactForm(NetBoxModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        initial_data = kwargs.get('initial') or {}
         super().__init__(*args, **kwargs)
-        
+
+        circuit_services = list(
+            CircuitService.objects.order_by('business_category', 'service_group', 'special_line_name', 'name').values(
+                'pk', 'business_category', 'service_group', 'special_line_name', 'name'
+            )
+        )
+        business_category_label_map = {value: label for value, label, *_ in BusinessCategoryChoices.CHOICES}
+        service_group_label_map = {value: label for value, label, *_ in ServiceGroupChoices.CHOICES}
+        for service in circuit_services:
+            service['business_category_label'] = business_category_label_map.get(service['business_category'], service['business_category'])
+            service['service_group_label'] = service_group_label_map.get(service['service_group'], service['service_group'])
+        service_catalog = json.dumps(circuit_services, ensure_ascii=False)
+        special_line_choices = [('', '---------')]
+        for service in circuit_services:
+            label = service['special_line_name']
+            if service['name']:
+                label = f"{label} ({service['name']})"
+            special_line_choices.append((str(service['pk']), label))
+        self.fields['circuit_special_line_name'].choices = special_line_choices
+        self.fields['circuit_special_line_name'].widget.attrs['data-circuit-services'] = service_catalog
+        self.fields['circuit_service'].widget.attrs['data-circuit-services'] = service_catalog
+
         if self.instance.pk and self.instance.circuit_service:
+            self.fields['circuit_business_category'].initial = self.instance.circuit_service.business_category
             self.fields['circuit_service_group'].initial = self.instance.circuit_service.service_group
+            self.fields['circuit_special_line_name'].initial = str(self.instance.circuit_service.pk)
+            self.fields['circuit_service'].initial = self.instance.circuit_service.pk
         
         # 如果从URL参数传递了故障ID，设置默认值
-        if 'initial' in kwargs and 'otn_fault' in kwargs['initial']:
+        if initial_data.get('otn_fault'):
             try:
-                fault_id = kwargs['initial']['otn_fault']
+                fault_id = initial_data['otn_fault']
                 fault = OtnFault.objects.get(pk=fault_id)
                 
                 # 设置默认时间值
@@ -344,6 +382,26 @@ class OtnFaultImpactForm(NetBoxModelForm):
                     
             except (OtnFault.DoesNotExist, ValueError):
                 pass
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data is None:
+            cleaned_data = getattr(self, 'cleaned_data', None) or {}
+            
+        if cleaned_data.get('service_type') != ServiceTypeChoices.CIRCUIT:
+            return cleaned_data
+
+        selected_service = cleaned_data.get('circuit_service')
+        selected_special_line = cleaned_data.get('circuit_special_line_name')
+        if selected_service or not selected_special_line:
+            return cleaned_data
+
+        try:
+            cleaned_data['circuit_service'] = CircuitService.objects.get(pk=selected_special_line)
+        except CircuitService.DoesNotExist as exc:
+            raise ValidationError({'circuit_special_line_name': '所选专线名称对应的电路业务不存在。'}) from exc
+
+        return cleaned_data
 
 from utilities.forms.utils import add_blank_choice
 from utilities.forms.fields import TagFilterField, CommentField
@@ -1085,7 +1143,7 @@ class CircuitServiceForm(NetBoxModelForm):
     )
     is_external_business = forms.BooleanField(
         required=False,
-        label='\u5bf9\u5916\u4e1a\u52a1'
+        label='对部服务'
     )
     comments = CommentField(
         label='评论',
@@ -1093,18 +1151,25 @@ class CircuitServiceForm(NetBoxModelForm):
     )
 
     fieldsets = (
-        FieldSet('name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', name='电路业务'),
+        FieldSet('special_line_name', 'name', 'slug', 'business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', name='电路业务'),
         FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
         FieldSet('tags', name='其他'),
     )
 
     class Meta:
         model = CircuitService
-        fields = ('name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
+        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
         widgets = {
             'billing_start_time': DatePicker(),
             'billing_end_time': DatePicker(),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        category_map = json.dumps(CircuitService.SERVICE_GROUP_CATEGORY_MAP, ensure_ascii=False)
+        service_group_field = self.fields['service_group']
+        service_group_field.widget.attrs['data-service-group-category-map'] = category_map
+        service_group_field.widget.attrs['data-placeholder'] = '请先选择业务门类'
 
 
 class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
@@ -1113,14 +1178,24 @@ class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
     tag = TagFilterField(CircuitService)
     is_external_business = forms.NullBooleanField(
         required=False,
-        label='\u5bf9\u5916\u4e1a\u52a1'
+        label='对部服务'
     )
+
 
     fieldsets = (
-        FieldSet('q', 'filter_id', 'tag'),
-        FieldSet('service_group', 'bandwidth', 'business_manager', 'is_external_business', name='属性'),
+        FieldSet('q', 'special_line_name', 'filter_id', 'tag'),
+        FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', name='属性'),
     )
 
+    special_line_name = forms.CharField(
+        required=False,
+        label='专线名称'
+    )
+    business_category = forms.ChoiceField(
+        choices=[('', '---------')] + [(v, l) for v, l, *_ in BusinessCategoryChoices.CHOICES],
+        required=False,
+        label='业务门类'
+    )
     service_group = forms.ChoiceField(
         choices=[('', '---------')] + [(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES],
         required=False,
@@ -1149,15 +1224,20 @@ class CircuitServiceImportForm(NetBoxModelImportForm):
 
     class Meta:
         model = CircuitService
-        fields = ('name', 'slug', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
+        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
 
 
 class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
     """电路业务批量编辑表单"""
     model = CircuitService
+    business_category = forms.ChoiceField(
+        choices=[('', '---------')] + [(v, l) for v, l, *_ in BusinessCategoryChoices.CHOICES],
+        required=False,
+        label='业务门类'
+    )
     is_external_business = forms.NullBooleanField(
         required=False,
-        label='\u5bf9\u5916\u4e1a\u52a1'
+        label='对部服务'
     )
     service_group = forms.ChoiceField(
         choices=[('', '---------')] + [(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES],
@@ -1185,9 +1265,10 @@ class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
         widget=DatePicker()
     )
 
+
     fieldsets = (
-        FieldSet('service_group', 'bandwidth', 'business_manager', 'is_external_business', name='基本信息'),
+        FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', name='基本信息'),
         FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
     )
 
-    nullable_fields = ('service_group', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time')
+    nullable_fields = ('service_group', 'business_category', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time')

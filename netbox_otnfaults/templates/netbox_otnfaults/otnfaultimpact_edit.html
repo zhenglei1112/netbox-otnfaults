@@ -9,48 +9,221 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const typeSelect = document.getElementById('id_service_type');
+    const categoryField = document.getElementById('id_circuit_business_category');
+    const groupField = document.getElementById('id_circuit_service_group');
+    const specialLineField = document.getElementById('id_circuit_special_line_name');
+    const circuitServiceField = document.getElementById('id_circuit_service');
+    const circuitServices = JSON.parse(
+        (specialLineField && specialLineField.getAttribute('data-circuit-services'))
+        || (circuitServiceField && circuitServiceField.getAttribute('data-circuit-services'))
+        || '[]'
+    );
+
+    const getRow = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.closest('.row.mb-3') || el.closest('.field-group') || el.parentElement.parentElement : null;
+    };
+
+    const bfParent = getRow('id_bare_fiber_service');
+    const categoryParent = getRow('id_circuit_business_category');
+    const groupParent = getRow('id_circuit_service_group');
+    const specialLineParent = getRow('id_circuit_special_line_name');
+    const circuitServiceParent = getRow('id_circuit_service');
+    const saParent = getRow('id_service_site_a');
+    const szParent = getRow('id_service_site_z');
+
+    function getTomSelectInstance(select) {
+        if (!select) return null;
+        return select.tomselect || null;
+    }
+
+    function syncTomSelectOptions(select, options, currentValue) {
+        const tomselect = getTomSelectInstance(select);
+        if (!tomselect) return;
+
+        tomselect.clearOptions();
+        tomselect.addOption({ value: '', text: '---------' });
+        options.forEach(({ value, label }) => {
+            tomselect.addOption({ value, text: label });
+        });
+
+        if (currentValue && options.some((option) => option.value === currentValue)) {
+            tomselect.setValue(currentValue, true);
+        } else {
+            tomselect.clear(true);
+        }
+        tomselect.refreshOptions(false);
+    }
+
+    function setSelectOptions(select, options, selectedValue) {
+        if (!select) return;
+        const currentValue = selectedValue ?? select.value;
+        select.innerHTML = '';
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = '---------';
+        select.appendChild(placeholderOption);
+
+        options.forEach(({ value, label }) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            select.appendChild(option);
+        });
+
+        if (currentValue && options.some(option => option.value === currentValue)) {
+            select.value = currentValue;
+        } else {
+            select.value = '';
+        }
+
+        syncTomSelectOptions(select, options, select.value);
+    }
+
+    function filterServiceGroupOptions(selectedCategory) {
+        if (!groupField) return;
+        const groupOptions = [];
+        const seen = new Set();
+        circuitServices.forEach((service) => {
+            if (!selectedCategory || service.business_category !== selectedCategory) {
+                return;
+            }
+            if (seen.has(service.service_group)) {
+                return;
+            }
+            seen.add(service.service_group);
+            groupOptions.push({
+                value: service.service_group,
+                label: service.service_group_label || service.service_group,
+            });
+        });
+        setSelectOptions(groupField, groupOptions);
+    }
+
+    function filterSpecialLineOptions(selectedCategory, selectedGroup, selectedServiceId) {
+        if (!specialLineField) return;
+        const lineOptions = circuitServices
+            .filter((service) => {
+                if (!selectedCategory || service.business_category !== selectedCategory) {
+                    return false;
+                }
+                if (!selectedGroup || service.service_group !== selectedGroup) {
+                    return false;
+                }
+                return true;
+            })
+            .map((service) => ({
+                value: String(service.pk),
+                label: service.name ? `${service.special_line_name} (${service.name})` : service.special_line_name,
+            }));
+        setSelectOptions(specialLineField, lineOptions, selectedServiceId);
+    }
+
+    function syncCircuitServiceValue() {
+        if (!circuitServiceField || !specialLineField) return;
+        circuitServiceField.value = specialLineField.value || '';
+    }
 
     function toggleFields() {
         if (!typeSelect) return;
         const val = typeSelect.value;
-        
-        // NetBox 默认表单行元素一般是 .row 或者包含 mb-3 的 div，为了保险起见，往上找带有 label 的容器或者最大的包裹层
-        const getRow = (id) => {
-            const el = document.getElementById(id);
-            return el ? el.closest('.row.mb-3') || el.closest('.field-group') || el.parentElement.parentElement : null;
-        };
-
-        const bfParent = getRow('id_bare_fiber_service');
-        const cgParent = getRow('id_circuit_service_group');
-        const cParent = getRow('id_circuit_service');
-        const saParent = getRow('id_service_site_a');
-        const szParent = getRow('id_service_site_z');
 
         if (val === 'bare_fiber') {
             if (bfParent) bfParent.style.display = '';
             if (saParent) saParent.style.display = '';
             if (szParent) szParent.style.display = '';
-            if (cgParent) cgParent.style.display = 'none';
-            if (cParent) cParent.style.display = 'none';
+            if (categoryParent) categoryParent.style.display = 'none';
+            if (groupParent) groupParent.style.display = 'none';
+            if (specialLineParent) specialLineParent.style.display = 'none';
+            if (circuitServiceParent) circuitServiceParent.style.display = 'none';
+            if (categoryField) categoryField.value = '';
+            if (groupField) groupField.value = '';
+            if (specialLineField) specialLineField.value = '';
+            syncCircuitServiceValue();
         } else if (val === 'circuit') {
             if (bfParent) bfParent.style.display = 'none';
             if (saParent) saParent.style.display = 'none';
             if (szParent) szParent.style.display = 'none';
-            if (cgParent) cgParent.style.display = '';
-            if (cParent) cParent.style.display = '';
+            if (categoryParent) categoryParent.style.display = '';
+            if (groupParent) groupParent.style.display = '';
+            if (specialLineParent) specialLineParent.style.display = '';
+            if (circuitServiceParent) circuitServiceParent.style.display = 'none';
         } else {
             if (bfParent) bfParent.style.display = 'none';
             if (saParent) saParent.style.display = 'none';
             if (szParent) szParent.style.display = 'none';
-            if (cgParent) cgParent.style.display = 'none';
-            if (cParent) cParent.style.display = 'none';
+            if (categoryParent) categoryParent.style.display = 'none';
+            if (groupParent) groupParent.style.display = 'none';
+            if (specialLineParent) specialLineParent.style.display = 'none';
+            if (circuitServiceParent) circuitServiceParent.style.display = 'none';
+            if (categoryField) categoryField.value = '';
+            if (groupField) groupField.value = '';
+            if (specialLineField) specialLineField.value = '';
+            syncCircuitServiceValue();
         }
+    }
+
+    function initializeCircuitCascade() {
+        if (!categoryField || !groupField || !specialLineField) return;
+        const categoryTomSelect = getTomSelectInstance(categoryField);
+        const groupTomSelect = getTomSelectInstance(groupField);
+        const specialLineTomSelect = getTomSelectInstance(specialLineField);
+        const selectedCategory = categoryTomSelect ? categoryTomSelect.getValue() : categoryField.value;
+        const selectedGroup = groupTomSelect ? groupTomSelect.getValue() : groupField.value;
+        const selectedServiceId = (
+            (specialLineTomSelect ? specialLineTomSelect.getValue() : specialLineField.value)
+            || (circuitServiceField && circuitServiceField.value || '')
+        ).toString();
+
+        filterServiceGroupOptions(selectedCategory);
+        if (selectedGroup) {
+            if (groupTomSelect) {
+                groupTomSelect.setValue(selectedGroup, true);
+            } else {
+                groupField.value = selectedGroup;
+            }
+        }
+        filterSpecialLineOptions(selectedCategory, selectedGroup, selectedServiceId);
+        syncCircuitServiceValue();
+    }
+
+    if (categoryField) {
+        categoryField.addEventListener('change', function() {
+            const selectedCategory = getTomSelectInstance(categoryField)
+                ? getTomSelectInstance(categoryField).getValue()
+                : categoryField.value;
+            const selectedGroup = getTomSelectInstance(groupField)
+                ? getTomSelectInstance(groupField).getValue()
+                : (groupField ? groupField.value : '');
+            filterServiceGroupOptions(selectedCategory);
+            filterSpecialLineOptions(selectedCategory, selectedGroup, '');
+            syncCircuitServiceValue();
+        });
+    }
+
+    if (groupField) {
+        groupField.addEventListener('change', function() {
+            const selectedCategory = getTomSelectInstance(categoryField)
+                ? getTomSelectInstance(categoryField).getValue()
+                : (categoryField ? categoryField.value : '');
+            const selectedGroup = getTomSelectInstance(groupField)
+                ? getTomSelectInstance(groupField).getValue()
+                : groupField.value;
+            filterSpecialLineOptions(selectedCategory, selectedGroup, '');
+            syncCircuitServiceValue();
+        });
+    }
+
+    if (specialLineField) {
+        specialLineField.addEventListener('change', syncCircuitServiceValue);
     }
 
     if (typeSelect) {
         typeSelect.addEventListener('change', toggleFields);
-        // 初始化可能需要一点延迟，确保 DOM 已经完全生成
-        setTimeout(toggleFields, 100);
+        window.requestAnimationFrame(function() {
+            initializeCircuitCascade();
+            toggleFields();
+        });
     }
 });
 </script>

@@ -17,12 +17,28 @@
             <h5 class="card-header">电路业务详情</h5>
                 <table class="table table-hover attr-table">
                     <tr>
-                        <th scope="row">编号</th>
+                        <th scope="row">专线名称</th>
+                        <td>{{ object.special_line_name|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">电路编号</th>
                         <td>{{ object.name|default:"—" }}</td>
                     </tr>
                     <tr>
                         <th scope="row">缩写</th>
                         <td>{{ object.slug|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">业务门类</th>
+                        <td>
+                            {% if object.business_category %}
+                                {% with color=object.get_business_category_color %}
+                                <span class="badge" style="background-color: {{ color }}; color: #fff;">{{ object.get_business_category_display }}</span>
+                                {% endwith %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
                     </tr>
                     <tr>
                         <th scope="row">业务组</th>
@@ -33,6 +49,16 @@
                                 {% endwith %}
                             {% else %}
                                 —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">对部服务</th>
+                        <td>
+                            {% if object.is_external_business %}
+                                <span class="badge bg-success text-white">是</span>
+                            {% else %}
+                                <span class="badge bg-secondary text-white">否</span>
                             {% endif %}
                         </td>
                     </tr>

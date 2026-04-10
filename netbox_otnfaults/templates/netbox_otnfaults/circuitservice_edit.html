@@ -3,4 +3,103 @@
 {% block form %}
 {{ block.super }}
 {% include 'netbox_otnfaults/inc/flatpickr_zh.html' %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const businessCategoryField = document.getElementById('id_business_category');
+  const serviceGroupField = document.getElementById('id_service_group');
+
+  if (!businessCategoryField || !serviceGroupField) {
+    return;
+  }
+
+  const categoryMap = JSON.parse(
+    serviceGroupField.getAttribute('data-service-group-category-map') || '{}'
+  );
+  const placeholder = serviceGroupField.getAttribute('data-placeholder') || '请先选择业务门类';
+  const originalOptions = Array.from(serviceGroupField.options).map((option) => ({
+    value: option.value,
+    label: option.text,
+    selected: option.selected,
+  }));
+
+  const buildVisibleOptions = () => {
+    const selectedCategory = businessCategoryField.value;
+    return originalOptions.filter((option) => {
+      if (!option.value) {
+        return true;
+      }
+      if (!selectedCategory) {
+        return false;
+      }
+      return categoryMap[option.value] === selectedCategory;
+    });
+  };
+
+  const syncNativeSelect = (visibleOptions, currentValue) => {
+    const selectedCategory = businessCategoryField.value;
+    serviceGroupField.innerHTML = '';
+
+    const blankOption = document.createElement('option');
+    blankOption.value = '';
+    blankOption.textContent = selectedCategory ? '---------' : placeholder;
+    serviceGroupField.appendChild(blankOption);
+
+    visibleOptions
+      .filter((option) => option.value)
+      .forEach((option) => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option.value;
+        optionElement.textContent = option.label;
+        optionElement.selected = option.value === currentValue;
+        serviceGroupField.appendChild(optionElement);
+      });
+
+    if (!Array.from(serviceGroupField.options).some((option) => option.value === currentValue)) {
+      serviceGroupField.value = '';
+    }
+  };
+
+  const syncTomSelect = (visibleOptions, currentValue) => {
+    const tomselect = serviceGroupField.tomselect;
+    if (!tomselect) {
+      return;
+    }
+
+    tomselect.clearOptions();
+    tomselect.addOption({
+      value: '',
+      text: businessCategoryField.value ? '---------' : placeholder,
+    });
+
+    visibleOptions
+      .filter((option) => option.value)
+      .forEach((option) => {
+        tomselect.addOption({
+          value: option.value,
+          text: option.label,
+        });
+      });
+
+    if (visibleOptions.some((option) => option.value === currentValue)) {
+      tomselect.setValue(currentValue, true);
+    } else {
+      tomselect.clear(true);
+    }
+    tomselect.refreshOptions(false);
+  };
+
+  const renderServiceGroups = () => {
+    const currentValue = serviceGroupField.tomselect
+      ? serviceGroupField.tomselect.getValue()
+      : serviceGroupField.value;
+    const visibleOptions = buildVisibleOptions();
+
+    syncNativeSelect(visibleOptions, currentValue);
+    syncTomSelect(visibleOptions, currentValue);
+  };
+
+  businessCategoryField.addEventListener('change', renderServiceGroups);
+  window.requestAnimationFrame(renderServiceGroups);
+});
+</script>
 {% endblock %}

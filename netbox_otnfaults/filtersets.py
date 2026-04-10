@@ -164,9 +164,11 @@ class CircuitServiceFilterSet(NetBoxModelFilterSet):
         model = CircuitService
         fields = (
             'id',
+            'special_line_name',
             'name',
             'slug',
             'service_group',
+            'business_category',
             'bandwidth',
             'business_manager',
             'is_external_business',
