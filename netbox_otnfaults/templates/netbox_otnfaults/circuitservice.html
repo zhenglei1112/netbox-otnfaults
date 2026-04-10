@@ -102,7 +102,9 @@
                         <th scope="row">业务主管</th>
                         <td>
                             {% if object.business_manager %}
-                                {{ object.business_manager.last_name }}{{ object.business_manager.first_name }} ({{ object.business_manager.username }})
+                                <a href="{% url 'users:user' pk=object.business_manager.pk %}">
+                                    {{ object.business_manager.last_name }}{{ object.business_manager.first_name }} {{ object.business_manager.username }}
+                                </a>
                             {% else %}
                                 <span class="text-muted">—</span>
                             {% endif %}

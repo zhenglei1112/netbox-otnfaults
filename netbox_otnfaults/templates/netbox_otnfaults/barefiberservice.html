@@ -36,7 +36,15 @@
                     </tr>
                     <tr>
                         <th scope="row">业务主管</th>
-                        <td>{{ object.business_manager|default:"—" }}</td>
+                        <td>
+                            {% if object.business_manager %}
+                                <a href="{% url 'users:user' pk=object.business_manager.pk %}">
+                                    {{ object.business_manager.last_name }}{{ object.business_manager.first_name }} {{ object.business_manager.username }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     <tr>
                         <th scope="row">计费起始时间</th>
