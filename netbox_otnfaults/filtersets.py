@@ -175,6 +175,7 @@ class CircuitServiceFilterSet(NetBoxModelFilterSet):
             'is_external_business',
             'ring_protection',
             'operation_status',
+            'sla_level',
         )
 
     def search(self, queryset, name, value):

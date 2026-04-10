@@ -79,6 +79,16 @@
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row">SLA等级</th>
+                        <td>
+                            {% if object.sla_level %}
+                                <span class="badge bg-{{ object.get_sla_level_color }} text-white">{{ object.get_sla_level_display }}</span>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row">带宽(Mbps)</th>
                         <td>
                             {% if object.bandwidth %}

@@ -798,6 +798,9 @@ class CircuitServiceTable(NetBoxTable):
     operation_status = columns.ChoiceFieldColumn(
         verbose_name='运行状态'
     )
+    sla_level = columns.ChoiceFieldColumn(
+        verbose_name='SLA等级'
+    )
     billing_start_time = tables.DateColumn(
         format='Y年n月j日',
         verbose_name='计费起始时间'
@@ -813,10 +816,10 @@ class CircuitServiceTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CircuitService
         fields = (
-            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
+            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
         )
         default_columns = (
-            'business_category', 'service_group', 'special_line_name', 'name', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status',
+            'business_category', 'service_group', 'special_line_name', 'name', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level',
         )
 
     def render_service_group(self, value, record):
@@ -863,6 +866,13 @@ class CircuitServiceTable(NetBoxTable):
 
     def value_operation_status(self, value: str | None, record: CircuitService) -> str:
         return _display_or_empty(record.get_operation_status_display())
+
+    def render_sla_level(self, value, record):
+        color = record.get_sla_level_color()
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_sla_level_display())
+
+    def value_sla_level(self, value: str | None, record: CircuitService) -> str:
+        return _display_or_empty(record.get_sla_level_display())
 
 
 class SiteHistoryFaultTable(ContractOtnFaultTable):

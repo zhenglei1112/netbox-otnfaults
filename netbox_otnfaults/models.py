@@ -1566,6 +1566,22 @@ class CircuitOperationStatusChoices(ChoiceSet):
     ]
 
 
+class SLALevelChoices(ChoiceSet):
+    key = 'CircuitService.sla_level'
+
+    SLA_728 = '728'
+    SLA_729 = '729'
+    SLA_730 = '730'
+    SLA_731 = '731'
+
+    CHOICES = [
+        (SLA_728, '728', 'blue'),
+        (SLA_729, '729', 'blue'),
+        (SLA_730, '730', 'blue'),
+        (SLA_731, '731', 'blue'),
+    ]
+
+
 class CircuitService(NetBoxModel):
     """?????????"""
     SERVICE_GROUP_CATEGORY_MAP = {
@@ -1649,6 +1665,13 @@ class CircuitService(NetBoxModel):
         verbose_name='运行状态',
         blank=True
     )
+    sla_level = models.CharField(
+        max_length=10,
+        choices=SLALevelChoices,
+        verbose_name='SLA等级',
+        blank=True,
+        null=True
+    )
     billing_start_time = models.DateField(
         blank=True,
         null=True,
@@ -1703,3 +1726,6 @@ class CircuitService(NetBoxModel):
 
     def get_operation_status_color(self):
         return CircuitOperationStatusChoices.colors.get(self.operation_status)
+
+    def get_sla_level_color(self):
+        return SLALevelChoices.colors.get(self.sla_level)
