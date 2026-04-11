@@ -22,7 +22,7 @@ class OTNMapCore {
 
     // 1. 初始化地图实例 (立即渲染容器)
     try {
-      this.map = this.mapBase.init("map", this.config.apiKey);
+      this.map = await this.mapBase.init("map", this.config.apiKey);
 
       // 初始隐藏地图画布，防止显示平面模式的短暂跳变
       if (this.config.projection === 'globe') {

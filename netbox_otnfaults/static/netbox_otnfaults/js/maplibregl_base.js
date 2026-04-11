@@ -30,7 +30,7 @@ class NetBoxMapBase {
    * @param {Array} center - 中心点 [经度, 纬度]，默认使用全局配置
    * @param {number} zoom - 缩放级别，默认使用全局配置
    */
-  init(containerId, apiKey, center, zoom) {
+  async init(containerId, apiKey, center, zoom) {
     // 使用传入的配置或全局配置
     const config = window.OTNFaultMapConfig || {};
     center = center || config.mapCenter || [112.53, 33.0];
@@ -67,14 +67,7 @@ class NetBoxMapBase {
       mapOptions.style = this._getLocalBasemapStyle(config, this.currentTheme);
     } else {
       // 使用网络底图
-      if (this.currentTheme === 'dark') {
-        mapOptions.style = '/map-assets/alidade_smooth_dark_local.json';
-      } else {
-        mapOptions.style = '/map-assets/alidade_smooth_local.json';
-        // mapOptions.style =
-        //   "https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=" +
-        //   apiKey;
-      }
+      mapOptions.style = await this._loadRemoteBasemapStyle(this.currentTheme);
     }
 
     this.map = new maplibregl.Map(mapOptions);
@@ -95,7 +88,9 @@ class NetBoxMapBase {
           const newTheme = document.documentElement.getAttribute('data-bs-theme') || 'light';
           if (newTheme !== this.currentTheme) {
             this.currentTheme = newTheme;
-            this.applyTheme(newTheme, config, apiKey);
+            this.applyTheme(newTheme, config, apiKey).catch((error) => {
+              console.error("Failed to apply map theme", error);
+            });
           }
         }
       });
@@ -110,7 +105,7 @@ class NetBoxMapBase {
   /**
    * 动态应用地图主题
    */
-  applyTheme(theme, config, apiKey) {
+  async applyTheme(theme, config, apiKey) {
     if (!this.map) return;
     
     // 触发全局自定义事件，通知业务图层更新
@@ -140,12 +135,9 @@ class NetBoxMapBase {
       this.setLayoutProperty("place_label", "text-halo-color", isDark ? "#0f172a" : "#ffffff");
 
     } else {
-      // 在线底图：直接更换 Style URL
-      const styleUrl = theme === 'dark' 
-          ? '/map-assets/alidade_smooth_dark_local.json'
-          : '/map-assets/alidade_smooth_local.json';
-          
-      this.map.setStyle(styleUrl);
+      // 在线底图：先抓取样式并将内部资源 URL 绝对化，避免 MapLibre 拒绝相对 sprite/glyph 路径
+      const styleConfig = await this._loadRemoteBasemapStyle(theme);
+      this.map.setStyle(styleConfig);
       
       // 注意：setStyle 会抹去所有后续手动 addLayer 加的业务图层
       // 需要通知核心类在 style.load 之后重新挂载业务图层。
@@ -154,6 +146,77 @@ class NetBoxMapBase {
          window.dispatchEvent(new CustomEvent('otn-map-style-reloaded'));
       });
     }
+  }
+
+  _toAbsoluteStyleUrl(url) {
+    if (!url || typeof url !== "string") return url;
+    if (/^(?:https?:)?\/\//i.test(url) || url.startsWith("data:")) return url;
+    if (url.startsWith("/")) {
+      return `${window.location.origin}${url}`;
+    }
+
+    return `${window.location.origin}/${url.replace(/^\.?\//, "")}`;
+  }
+
+  async _loadRemoteBasemapStyle(theme) {
+    const styleUrl =
+      theme === "dark"
+        ? "/map-assets/alidade_smooth_dark_local.json"
+        : "/map-assets/alidade_smooth_local.json";
+    const response = await fetch(styleUrl, { credentials: "same-origin" });
+
+    if (!response.ok) {
+      throw new Error(`Failed to load basemap style: ${response.status}`);
+    }
+
+    const styleConfig = await response.json();
+    styleConfig.sprite = this._toAbsoluteStyleUrl(styleConfig.sprite);
+    styleConfig.glyphs = this._toAbsoluteStyleUrl(styleConfig.glyphs);
+
+    if (styleConfig.sources) {
+      const sourceEntries = Object.entries(styleConfig.sources);
+      for (const [, sourceConfig] of sourceEntries) {
+        if (!sourceConfig || typeof sourceConfig !== "object") continue;
+
+        if (typeof sourceConfig.url === "string") {
+          const sourceUrl = this._toAbsoluteStyleUrl(sourceConfig.url);
+
+          if (sourceUrl.toLowerCase().endsWith(".json") || sourceUrl.includes(".json?")) {
+            const resolvedSource = await this._loadTileJsonSource(sourceUrl, sourceConfig.type);
+            Object.assign(sourceConfig, resolvedSource);
+            delete sourceConfig.url;
+          } else {
+            sourceConfig.url = sourceUrl;
+          }
+        }
+      }
+    }
+
+    return styleConfig;
+  }
+
+  async _loadTileJsonSource(tileJsonUrl, fallbackType) {
+    const response = await fetch(tileJsonUrl, { credentials: "same-origin" });
+
+    if (!response.ok) {
+      throw new Error(`Failed to load TileJSON source: ${response.status}`);
+    }
+
+    const tileJson = await response.json();
+    const resolvedSource = {
+      ...tileJson,
+      type: tileJson.type || fallbackType || "vector",
+    };
+
+    if (Array.isArray(tileJson.tiles)) {
+      resolvedSource.tiles = tileJson.tiles.map((tileUrl) => this._toAbsoluteStyleUrl(tileUrl));
+    }
+
+    if (Array.isArray(tileJson.urls)) {
+      resolvedSource.urls = tileJson.urls.map((itemUrl) => this._toAbsoluteStyleUrl(itemUrl));
+    }
+
+    return resolvedSource;
   }
 
   /**
