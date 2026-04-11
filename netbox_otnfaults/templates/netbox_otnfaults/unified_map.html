@@ -168,7 +168,7 @@
       if (url && url.startsWith('/')) {
         // 获取当前协议和主机名，并强制拼接 :8080 端口
         // 例如: http://192.168.30.177:8000 -> http://192.168.30.177:8080
-        return `${window.location.protocol}//${window.location.hostname}:8080${url}`;
+        return `${window.location.origin}${url}`;
       }
       return url;
     };
