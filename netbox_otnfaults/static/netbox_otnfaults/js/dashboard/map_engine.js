@@ -19,6 +19,7 @@ window.MapEngine = (function () {
      * 初始化地图
      */
     function init() {
+        _registerPmtilesProtocol();
         const style = _buildMapStyle();
 
         map = new maplibregl.Map({
@@ -44,12 +45,13 @@ window.MapEngine = (function () {
         map.on('load', function () {
             _mapReady = true;
             _loadProvinceLayer();
+            _loadTopologyLayer();
             _startFlowAnimation();
 
             // 如果有待渲染的数据，立即渲染
             if (_pendingData) {
                 if (_pendingData.sites) renderSites(_pendingData.sites);
-                if (_pendingData.paths) renderPaths(_pendingData.paths);
+                if (_pendingData.faultPaths) renderFaultPaths(_pendingData.faultPaths);
                 if (_pendingData.heatmap) renderHeatmap(_pendingData.heatmap);
                 if (_pendingData.faults) renderFaultMarkers(_pendingData.faults);
                 _pendingData = null;
@@ -73,7 +75,7 @@ window.MapEngine = (function () {
                 sources: {
                     'local-tiles': {
                         type: 'vector',
-                        url: 'pmtiles://' + CONFIG.localTilesUrl
+                        url: 'pmtiles://' + _resolveUrl(CONFIG.localTilesUrl)
                     }
                 },
                 layers: [{
@@ -95,6 +97,104 @@ window.MapEngine = (function () {
                 paint: { 'background-color': '#060a14' }
             }]
         };
+    }
+
+    function _resolveUrl(url) {
+        if (!url) return '';
+        if (/^(?:[a-z]+:)?\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
+            return url;
+        }
+        return new URL(url, window.location.origin).toString();
+    }
+
+    function _registerPmtilesProtocol() {
+        if (window.__dashboardPmtilesProtocolRegistered || typeof pmtiles === 'undefined') {
+            return;
+        }
+        var protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol('pmtiles', protocol.tile);
+        window.__dashboardPmtilesProtocolRegistered = true;
+    }
+
+    function _loadTopologyLayer() {
+        if (!CONFIG.otnPathsPmtilesUrl) return;
+
+        var resolvedPmtilesUrl = _resolveUrl(CONFIG.otnPathsPmtilesUrl);
+        if (!resolvedPmtilesUrl) return;
+
+        if (!map.getSource('otn_paths_pmtiles')) {
+            map.addSource('otn_paths_pmtiles', {
+                type: 'vector',
+                url: 'pmtiles://' + resolvedPmtilesUrl
+            });
+        }
+
+        if (!map.getLayer('otn-paths-base-glow')) {
+            map.addLayer({
+                id: 'otn-paths-base-glow',
+                type: 'line',
+                source: 'otn_paths_pmtiles',
+                'source-layer': 'otn_paths',
+                paint: {
+                    'line-color': 'rgba(0, 210, 255, 0.12)',
+                    'line-width': ['interpolate', ['linear'], ['zoom'], 3, 3, 7, 6, 10, 10],
+                    'line-blur': 3
+                }
+            });
+        }
+
+        if (!map.getLayer('otn-paths-base-main')) {
+            map.addLayer({
+                id: 'otn-paths-base-main',
+                type: 'line',
+                source: 'otn_paths_pmtiles',
+                'source-layer': 'otn_paths',
+                layout: {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                },
+                paint: {
+                    'line-color': 'rgba(0, 210, 255, 0.35)',
+                    'line-width': ['interpolate', ['linear'], ['zoom'], 3, 0.8, 7, 1.5, 10, 2.2],
+                    'line-opacity': 0.9
+                }
+            });
+        }
+
+        _restackTopologyLayer();
+    }
+
+    function _restackTopologyLayer() {
+        if (!map) return;
+
+        var topologyLayerIds = ['otn-paths-base-glow', 'otn-paths-base-main'];
+        var beforeLayerCandidates = [
+            'closed-heatmap-layer',
+            'sites-glow',
+            'sites-core',
+            'sites-label',
+            'paths-fault-glow',
+            'paths-fault-main',
+            'paths-label',
+            'paths-detail',
+            'faults-localization-ring',
+            'faults-pulse',
+            'faults-glow',
+            'faults-core',
+        ];
+        var beforeLayerId = null;
+
+        for (var i = 0; i < beforeLayerCandidates.length; i++) {
+            if (map.getLayer(beforeLayerCandidates[i])) {
+                beforeLayerId = beforeLayerCandidates[i];
+                break;
+            }
+        }
+
+        topologyLayerIds.forEach(function (layerId) {
+            if (!map.getLayer(layerId)) return;
+            map.moveLayer(layerId, beforeLayerId || undefined);
+        });
     }
 
     /* ═══ GCJ-02 → WGS-84 坐标转换 ═══
@@ -262,6 +362,8 @@ window.MapEngine = (function () {
                         'text-halo-width': 1.5,
                     }
                 });
+
+                _restackTopologyLayer();
             })
             .catch(err => console.warn('省界数据加载失败:', err));
     }
@@ -335,6 +437,8 @@ window.MapEngine = (function () {
                 }
             });
         }
+
+        _restackTopologyLayer();
     }
 
     /**
@@ -365,26 +469,17 @@ window.MapEngine = (function () {
     const FAULT_PATH_COLOR = '#FF1E1E';  // 故障路径红色
 
     /**
-     * 渲染光缆路径图层（增强版）
+     * 渲染故障关联路径覆盖层
      *
-     * 多层结构：
-     *   1. paths-glow       底层光晕（按光缆类型着色）
-     *   2. paths-main       路径主体（按光缆类型着色）
-     *   3. paths-flow       光流动画（正常路径）
-     *   4. paths-fault-glow 故障路径光晕（红色脉冲）
-     *   5. paths-fault      故障路径主体（红色高亮）
-     *   6. paths-label      路径名称标注
-     *   7. paths-length     路径长度标注
+     * 基础网络拓扑由 PMTiles 常驻渲染，这里只更新与活跃故障相关的高亮覆盖。
      */
-    function renderPaths(paths) {
+    function renderFaultPaths(paths) {
         if (!map || !_mapReady) {
             _pendingData = _pendingData || {};
-            _pendingData.paths = paths;
+            _pendingData.faultPaths = paths;
             return;
         }
 
-        // 分离正常路径和故障关联路径
-        var normalFeatures = [];
         var faultFeatures = [];
         var labelFeatures = [];
 
@@ -395,13 +490,11 @@ window.MapEngine = (function () {
             if (typeof raw === 'string') {
                 try { raw = JSON.parse(raw); } catch (e) { return; }
             }
-            // 规范化为 GeoJSON geometry 对象
+
             var geom;
             if (raw.type && raw.coordinates) {
-                // 已经是完整的 GeoJSON geometry
                 geom = raw;
             } else if (Array.isArray(raw) && raw.length >= 2) {
-                // 是纯坐标数组 [[lng, lat], ...]
                 geom = { type: 'LineString', coordinates: raw };
             } else {
                 console.warn('[MapEngine] 跳过无效路径几何:', p.name, raw);
@@ -411,7 +504,6 @@ window.MapEngine = (function () {
             var cableType = p.cable_type || 'default';
             var colorSet = PATH_COLORS[cableType] || PATH_COLORS['default'];
 
-            // 构建标注文本
             var labelParts = [p.name];
             if (p.cable_type_display) labelParts.push(p.cable_type_display);
             if (p.length_km) labelParts.push(p.length_km);
@@ -432,17 +524,12 @@ window.MapEngine = (function () {
                     site_z: p.site_z_name || '',
                     groups: (p.groups || []).join(', '),
                     length_km: p.length_km || '',
-                    has_fault: p.has_fault ? 1 : 0,
+                    has_fault: 1,
                 }
             };
 
-            if (p.has_fault) {
-                faultFeatures.push(feature);
-            }
-            // 所有路径都加入正常集合（故障路径在上层覆盖高亮）
-            normalFeatures.push(feature);
+            faultFeatures.push(feature);
 
-            // 路径中点用于标注
             if (geom.type === 'LineString' && geom.coordinates && geom.coordinates.length >= 2) {
                 var midIdx = Math.floor(geom.coordinates.length / 2);
                 labelFeatures.push({
@@ -458,16 +545,8 @@ window.MapEngine = (function () {
             }
         });
 
-        var normalGeoJson = { type: 'FeatureCollection', features: normalFeatures };
         var faultGeoJson = { type: 'FeatureCollection', features: faultFeatures };
         var labelGeoJson = { type: 'FeatureCollection', features: labelFeatures };
-
-        // ── 更新或创建 Source ──
-        if (map.getSource('paths')) {
-            map.getSource('paths').setData(normalGeoJson);
-        } else {
-            map.addSource('paths', { type: 'geojson', data: normalGeoJson });
-        }
 
         if (map.getSource('paths-fault')) {
             map.getSource('paths-fault').setData(faultGeoJson);
@@ -481,57 +560,7 @@ window.MapEngine = (function () {
             map.addSource('paths-labels', { type: 'geojson', data: labelGeoJson });
         }
 
-        // ── 创建图层（仅首次）──
-        if (!map.getLayer('paths-glow')) {
-            // 1. 底层光晕
-            map.addLayer({
-                id: 'paths-glow',
-                type: 'line',
-                source: 'paths',
-                paint: {
-                    'line-color': ['get', 'glow_color'],
-                    'line-width': ['interpolate', ['linear'], ['zoom'],
-                        3, 4,
-                        7, 8,
-                        10, 12
-                    ],
-                    'line-blur': 4
-                }
-            });
-
-            // 2. 路径主体（按光缆类型着色）
-            map.addLayer({
-                id: 'paths-main',
-                type: 'line',
-                source: 'paths',
-                paint: {
-                    'line-color': ['get', 'main_color'],
-                    'line-width': ['interpolate', ['linear'], ['zoom'],
-                        3, 1.2,
-                        7, 2,
-                        10, 3
-                    ]
-                }
-            });
-
-            // 3. 光流动画层
-            map.addLayer({
-                id: 'paths-flow',
-                type: 'line',
-                source: 'paths',
-                filter: ['!=', ['get', 'has_fault'], 1],
-                paint: {
-                    'line-color': ['get', 'flow_color'],
-                    'line-width': ['interpolate', ['linear'], ['zoom'],
-                        3, 1.5,
-                        7, 2.5
-                    ],
-                    'line-dasharray': [0, 4, 3],
-                    'line-opacity': 0.7
-                }
-            });
-
-            // 4. 故障路径光晕（红色呼吸）
+        if (!map.getLayer('paths-fault-glow')) {
             map.addLayer({
                 id: 'paths-fault-glow',
                 type: 'line',
@@ -547,7 +576,6 @@ window.MapEngine = (function () {
                 }
             });
 
-            // 5. 故障路径主体（红色高亮）
             map.addLayer({
                 id: 'paths-fault-main',
                 type: 'line',
@@ -563,7 +591,6 @@ window.MapEngine = (function () {
                 }
             });
 
-            // 6. 路径名称标注（中等缩放时显示）
             map.addLayer({
                 id: 'paths-label',
                 type: 'symbol',
@@ -592,7 +619,6 @@ window.MapEngine = (function () {
                 }
             });
 
-            // 7. 路径详情标注（高缩放时显示）
             map.addLayer({
                 id: 'paths-detail',
                 type: 'symbol',
@@ -614,6 +640,8 @@ window.MapEngine = (function () {
                 }
             });
         }
+
+        _restackTopologyLayer();
     }
 
     /**
@@ -952,7 +980,7 @@ window.MapEngine = (function () {
     return {
         init,
         renderSites,
-        renderPaths,
+        renderFaultPaths,
         renderFaultMarkers,
         renderHeatmap,
         highlightFaultPath,

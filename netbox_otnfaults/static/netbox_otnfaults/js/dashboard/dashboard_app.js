@@ -80,7 +80,7 @@
 
         // 更新地图图层
         MapEngine.renderSites(data.sites || []);
-        MapEngine.renderPaths(data.paths || []);
+        MapEngine.renderFaultPaths(data.fault_paths || []);
         MapEngine.renderHeatmap(data.closed_fault_points || []);
         MapEngine.renderFaultMarkers(data.active_faults || []);
 

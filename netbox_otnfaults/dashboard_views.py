@@ -19,6 +19,7 @@ from .models import (
     OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup,
     FaultCategoryChoices, FaultStatusChoices, UrgencyChoices,
 )
+from .dashboard_topology import build_fault_path_overlays
 
 
 def get_plugin_settings() -> dict:
@@ -244,9 +245,8 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
                 'lng': float(site.longitude),
             })
 
-        # ── 5. 光缆路径（增强数据）──
-        paths = []
-        # 预查询活跃故障涉及的站点ID，用于判定路径是否关联故障
+        # ── 5. 故障关联路径覆盖层数据 ──
+        # 预查询活跃故障涉及的站点ID，用于筛选动态覆盖路径
         active_fault_site_ids = set()
         for f in active_faults_qs:
             if f.interruption_location_a_id:
@@ -254,36 +254,10 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             for s in f.interruption_location.all():
                 active_fault_site_ids.add(s.pk)
 
-        for path_obj in OtnPath.objects.select_related('site_a', 'site_z').prefetch_related('groups'):
-            if not path_obj.geometry:
-                continue
-
-            group_names = [g.name for g in path_obj.groups.all()]
-
-            # 判定路径是否关联活跃故障（A端或Z端站点在故障站点中）
-            has_fault = (
-                path_obj.site_a_id in active_fault_site_ids or
-                path_obj.site_z_id in active_fault_site_ids
-            )
-
-            # 长度显示文本
-            length_km = ''
-            if path_obj.calculated_length:
-                km = float(path_obj.calculated_length)
-                length_km = f'{km:.1f}km'
-
-            paths.append({
-                'id': path_obj.pk,
-                'name': path_obj.name,
-                'geometry': path_obj.geometry,
-                'cable_type': path_obj.cable_type,
-                'cable_type_display': path_obj.get_cable_type_display() if path_obj.cable_type else '',
-                'site_a_name': path_obj.site_a.name if path_obj.site_a else '',
-                'site_z_name': path_obj.site_z.name if path_obj.site_z else '',
-                'groups': group_names,
-                'length_km': length_km,
-                'has_fault': has_fault,
-            })
+        fault_paths = build_fault_path_overlays(
+            OtnPath.objects.select_related('site_a', 'site_z').prefetch_related('groups'),
+            active_fault_site_ids=active_fault_site_ids,
+        )
 
         # ── 6. 已关闭故障坐标（用于热力图）──
         closed_faults_qs = OtnFault.objects.filter(
@@ -367,7 +341,7 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             'province_stats': province_stats,
             'trend_24h': trend_data,
             'sites': sites,
-            'paths': paths,
+            'fault_paths': fault_paths,
             'ticker_events': ticker_events,
             'closed_fault_points': closed_fault_points,
         }, json_dumps_params={'ensure_ascii': False})

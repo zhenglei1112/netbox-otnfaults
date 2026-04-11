@@ -396,10 +396,39 @@ def _resolve_users(
     return resolved
 
 
-def _assign_scalar_fields(instance: Any, payload: dict[str, Any], field_names: list[str]) -> None:
+def _has_fk_changed(instance: Any, field_name: str, new_value: Any) -> bool:
+    """检查外键字段是否发生变化。"""
+    old_value = getattr(instance, field_name, None)
+    if old_value is None and new_value is None:
+        return False
+    if old_value is None or new_value is None:
+        return True
+    return getattr(old_value, "pk", None) != getattr(new_value, "pk", None)
+
+
+def _has_m2m_changed(instance: Any, field_name: str, new_objects: list[Any]) -> bool:
+    """检查多对多字段是否发生变化。"""
+    if getattr(instance, "pk", None) is None:
+        return bool(new_objects)
+    old_pks = set(getattr(instance, field_name).values_list("pk", flat=True))
+    new_pks = {obj.pk for obj in new_objects}
+    return old_pks != new_pks
+
+
+def _assign_scalar_fields(instance: Any, payload: dict[str, Any], field_names: list[str]) -> bool:
+    """设置标量字段并返回是否有任何字段值发生变化。"""
+    changed = False
     for field_name in field_names:
         if field_name in payload:
-            setattr(instance, field_name, _normalize_scalar(field_name, payload.get(field_name)))
+            new_value = _normalize_scalar(field_name, payload.get(field_name))
+            old_value = getattr(instance, field_name, None)
+            # 将 None 和空字符串视为等价，避免误判
+            if old_value in (None, "") and new_value in (None, ""):
+                continue
+            if old_value != new_value:
+                setattr(instance, field_name, new_value)
+                changed = True
+    return changed
 
 
 def sync_fault_payload(script: Script, payload: dict[str, Any], *, dry_run: bool) -> SyncResult:
@@ -439,9 +468,17 @@ def sync_fault_payload(script: Script, payload: dict[str, Any], *, dry_run: bool
         script.log_warning(f"故障 {fault_number}: 本地未找到处理单位 {label}，该字段将留空。")
 
     fault = _first_match(OtnFault, fault_number=fault_number)
-    status = "updated" if fault is not None else "created"
-    if fault is None:
+    is_new = fault is None
+    if is_new:
         fault = OtnFault()
+
+    # 检测外键字段变化
+    changed = is_new
+    changed |= _has_fk_changed(fault, "duty_officer", duty_officer)
+    changed |= _has_fk_changed(fault, "interruption_location_a", site_a)
+    changed |= _has_fk_changed(fault, "province", province)
+    changed |= _has_fk_changed(fault, "line_manager", line_manager)
+    changed |= _has_fk_changed(fault, "handling_unit", handling_unit)
 
     fault.fault_number = fault_number
     fault.duty_officer = duty_officer
@@ -450,7 +487,8 @@ def sync_fault_payload(script: Script, payload: dict[str, Any], *, dry_run: bool
     fault.line_manager = line_manager
     fault.handling_unit = handling_unit
 
-    _assign_scalar_fields(
+    # 检测标量字段变化
+    changed |= _assign_scalar_fields(
         fault,
         payload,
         [
@@ -490,6 +528,15 @@ def sync_fault_payload(script: Script, payload: dict[str, Any], *, dry_run: bool
             "comments",
         ],
     )
+
+    # 检测多对多字段变化
+    changed |= _has_m2m_changed(fault, "interruption_location", z_sites)
+    changed |= _has_m2m_changed(fault, "operations_manager", operations_managers)
+
+    if not changed:
+        return SyncResult(status="unchanged", instance=fault)
+
+    status = "created" if is_new else "updated"
 
     if not dry_run:
         with transaction.atomic():
@@ -535,21 +582,38 @@ def sync_impact_payload(
         if circuit_service is not None:
             impact = _first_match(OtnFaultImpact, otn_fault=fault, circuit_service=circuit_service)
 
-    status = "updated" if impact is not None else "created"
-    if impact is None:
+    is_new = impact is None
+    if is_new:
         impact = OtnFaultImpact()
+
+    service_site_a = _resolve_site(payload.get("service_site_a"))
+    if payload.get("service_site_a") and service_site_a is None:
+        label = (payload.get("service_site_a") or {}).get("slug") or (payload.get("service_site_a") or {}).get("name") or "unknown-site"
+        script.log_warning(f"故障 {getattr(fault, 'fault_number', 'unknown')}: 本地未找到业务 A 端站点 {label}，该字段将留空。")
+
+    service_site_z = _resolve_sites(
+        payload.get("service_site_z"),
+        script=script,
+        context=f"故障 {getattr(fault, 'fault_number', 'unknown')} 的影响业务",
+    )
+
+    # 检测外键字段变化
+    changed = is_new
+    changed |= _has_fk_changed(impact, "otn_fault", fault)
+    changed |= _has_fk_changed(impact, "bare_fiber_service", bare_fiber_service)
+    changed |= _has_fk_changed(impact, "circuit_service", circuit_service)
+    changed |= _has_fk_changed(impact, "service_site_a", service_site_a)
+    if getattr(impact, "service_type", None) != service_type:
+        changed = True
 
     impact.otn_fault = fault
     impact.service_type = service_type
     impact.bare_fiber_service = bare_fiber_service
     impact.circuit_service = circuit_service
-    impact.service_site_a = _resolve_site(payload.get("service_site_a"))
+    impact.service_site_a = service_site_a
 
-    if payload.get("service_site_a") and impact.service_site_a is None:
-        label = (payload.get("service_site_a") or {}).get("slug") or (payload.get("service_site_a") or {}).get("name") or "unknown-site"
-        script.log_warning(f"故障 {getattr(fault, 'fault_number', 'unknown')}: 本地未找到业务 A 端站点 {label}，该字段将留空。")
-
-    _assign_scalar_fields(
+    # 检测标量字段变化
+    changed |= _assign_scalar_fields(
         impact,
         payload,
         [
@@ -559,11 +623,13 @@ def sync_impact_payload(
         ],
     )
 
-    service_site_z = _resolve_sites(
-        payload.get("service_site_z"),
-        script=script,
-        context=f"故障 {getattr(fault, 'fault_number', 'unknown')} 的影响业务",
-    )
+    # 检测多对多字段变化
+    changed |= _has_m2m_changed(impact, "service_site_z", service_site_z)
+
+    if not changed:
+        return SyncResult(status="unchanged", instance=impact)
+
+    status = "created" if is_new else "updated"
 
     if not dry_run:
         with transaction.atomic():
@@ -580,6 +646,7 @@ def _compose_report(summary: dict[str, int], *, dry_run: bool, sync_impacts: boo
         f"- 模式: {'模拟执行' if dry_run else '正式写入'}",
         f"- 故障新增: {summary['faults_created']}",
         f"- 故障更新: {summary['faults_updated']}",
+        f"- 故障无变化: {summary['faults_unchanged']}",
         f"- 故障跳过: {summary['faults_skipped']}",
     ]
     if sync_impacts:
@@ -587,6 +654,7 @@ def _compose_report(summary: dict[str, int], *, dry_run: bool, sync_impacts: boo
             [
                 f"- 影响业务新增: {summary['impacts_created']}",
                 f"- 影响业务更新: {summary['impacts_updated']}",
+                f"- 影响业务无变化: {summary['impacts_unchanged']}",
                 f"- 影响业务跳过: {summary['impacts_skipped']}",
             ]
         )
@@ -635,9 +703,11 @@ class SyncRemoteFaults(Script):
         summary = {
             "faults_created": 0,
             "faults_updated": 0,
+            "faults_unchanged": 0,
             "faults_skipped": 0,
             "impacts_created": 0,
             "impacts_updated": 0,
+            "impacts_unchanged": 0,
             "impacts_skipped": 0,
         }
 
@@ -673,6 +743,8 @@ class SyncRemoteFaults(Script):
                 summary["faults_created"] += 1
             elif result.status == "updated":
                 summary["faults_updated"] += 1
+            elif result.status == "unchanged":
+                summary["faults_unchanged"] += 1
             else:
                 summary["faults_skipped"] += 1
 
@@ -714,6 +786,8 @@ class SyncRemoteFaults(Script):
                     summary["impacts_created"] += 1
                 elif result.status == "updated":
                     summary["impacts_updated"] += 1
+                elif result.status == "unchanged":
+                    summary["impacts_unchanged"] += 1
                 else:
                     summary["impacts_skipped"] += 1
 
