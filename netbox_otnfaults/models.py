@@ -241,9 +241,8 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     fault_category = models.CharField(
         max_length=20,
         choices=FaultCategoryChoices,
+        default=FaultCategoryChoices.FIBER_BREAK,
         verbose_name='故障分类',
-        blank=True,
-        null=True
     )
     
     # 一级原因选项

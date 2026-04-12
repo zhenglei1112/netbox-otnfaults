@@ -164,6 +164,9 @@ class OtnFaultForm(NetBoxModelForm):
         super().__init__(*args, **kwargs)
         # 初始设置 API 数据源（前端会动态挂载 connected_to_a 参数）
         self.fields['interruption_location'].widget.attrs['data-url'] = '/api/plugins/otnfaults/connected-sites/'
+        if not self.instance.fault_category:
+            self.initial['fault_category'] = FaultCategoryChoices.FIBER_BREAK
+            self.fields['fault_category'].initial = FaultCategoryChoices.FIBER_BREAK
         # 对于现有故障，添加只读的故障编号显示字段
         if self.instance.pk:
             # 添加一个只读字段来显示故障编号

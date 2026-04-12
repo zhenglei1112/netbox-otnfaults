@@ -2,6 +2,15 @@
 
 ## 192.168.30.34 地图反代缓存
 
+## OtnFault 故障类型必填与默认值
+
+- [x] 为 `OtnFault.fault_category` 增加源码级失败测试，覆盖默认值为 `fiber_break` 且字段不允许 `blank/null`
+- [x] 先运行新增测试，确认当前模型仍允许空值且没有默认故障类型
+- [x] 将 `OtnFault.fault_category` 改为必填，并设置默认值为“光缆中断”
+- [x] 新增迁移文件，收敛数据库层字段定义
+- [x] 运行定向测试与语法校验，确认模型变更可用
+
+
 - [ ] 梳理旧地图服务器 stadia_proxy.conf 当前代理与缓存位置，确认只缓存 /map-assets/stadia/
 - [ ] 将 JSON 元数据与实际瓦片资源拆分为两段代理规则，避免对 .pbf/.png 走 sub_filter
 - [ ] 保留本地 /map-assets/ 样式文件直出，避免样式修改被旧缓存干扰
