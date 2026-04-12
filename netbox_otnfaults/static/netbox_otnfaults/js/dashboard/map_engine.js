@@ -706,15 +706,15 @@ window.MapEngine = (function () {
         var geojson = {
             type: 'FeatureCollection',
             features: faults.map(function (fault) {
-                var severity = fault.severity || 'minor';
-                var color = (colors.alert_colors && colors.alert_colors[severity]) || '#FADB14';
+                var status = fault.status || 'processing';
+                var color = (colors.status_colors && colors.status_colors[status]) || '#FADB14';
 
                 return {
                     type: 'Feature',
                     geometry: { type: 'Point', coordinates: [fault.lng, fault.lat] },
                     properties: {
                         id: fault.id,
-                        severity: severity,
+                        status: status,
                         color: color,
                     }
                 };

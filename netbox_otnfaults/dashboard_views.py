@@ -200,6 +200,8 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
         all_faults = OtnFault.objects.filter(fault_occurrence_time__gte=year_start)
         total_count = all_faults.count()
         active_count = processing_faults_qs.count()
+        temporary_recovery_count = all_faults.filter(fault_status='temporary_recovery').count()
+        suspended_count = all_faults.filter(fault_status='suspended').count()
         closed_count = all_faults.filter(fault_status='closed').count()
 
         # 按分类统计
@@ -334,6 +336,8 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             'summary': {
                 'total_faults': total_count,
                 'active_faults': active_count,
+                'temporary_recovery_faults': temporary_recovery_count,
+                'suspended_faults': suspended_count,
                 'closed_faults': closed_count,
                 'health_score': max(0, 100 - active_count * 5),  # 简单健康度公式
             },

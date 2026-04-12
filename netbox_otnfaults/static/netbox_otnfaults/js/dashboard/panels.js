@@ -188,6 +188,12 @@ window.Panels = (function () {
         var active = document.getElementById('stat-active');
         if (active) active.textContent = summary.active_faults || 0;
 
+        var tempRecovery = document.getElementById('stat-temp-recovery');
+        if (tempRecovery) tempRecovery.textContent = summary.temporary_recovery_faults || 0;
+
+        var suspended = document.getElementById('stat-suspended');
+        if (suspended) suspended.textContent = summary.suspended_faults || 0;
+
         var closed = document.getElementById('stat-closed');
         if (closed) closed.textContent = summary.closed_faults || 0;
 
