@@ -8,6 +8,10 @@ window.Panels = (function () {
 
     const COLORS = window.DASHBOARD_CONFIG.colors;
 
+    function _getStatusColor(status) {
+        return COLORS.status_colors[status] || '#FADB14';
+    }
+
     /**
      * 更新左翼面板 - 宏观态势
      */
@@ -132,13 +136,13 @@ window.Panels = (function () {
         }
 
         container.innerHTML = faults.slice(0, 10).map(function (f) {
-            var color = COLORS.alert_colors[f.severity] || '#FADB14';
+            var color = _getStatusColor(f.status);
             var activeClass = (f.id === activeFaultId) ? ' active' : '';
             return '<div class="queue-item' + activeClass + '" data-fault-id="' + f.id + '">' +
                 '<span class="queue-severity" style="background:' + color + ';box-shadow:0 0 4px ' + color + '"></span>' +
                 '<div class="queue-info">' +
                 '<div class="queue-number">' + f.fault_number + '</div>' +
-                '<div class="queue-detail">' + (f.category_display || '') + ' · ' + (f.site_a || '') + '</div>' +
+                '<div class="queue-detail">' + (f.status_display || '') + ' · ' + (f.category_display || '') + ' · ' + (f.site_a || '') + '</div>' +
                 '</div>' +
                 '<span class="queue-score">' + f.priority_score + '</span>' +
                 '</div>';
@@ -312,12 +316,12 @@ window.Panels = (function () {
         var el = document.getElementById('focus-content');
         if (!el) return;
 
-        var severityColor = COLORS.alert_colors[fault.severity] || '#FADB14';
+        var statusColor = _getStatusColor(fault.status);
         var occurTime = fault.occurrence_time ? new Date(fault.occurrence_time).toLocaleString('zh-CN') : '未知';
 
         el.innerHTML = '<div class="focus-info">' +
             '<div class="focus-header">' +
-            '<span class="focus-severity-badge" style="background:' + severityColor + '">' + (fault.urgency_display || '') + '</span>' +
+            '<span class="focus-severity-badge" style="background:' + statusColor + '">' + (fault.status_display || '未知状态') + '</span>' +
             '<span class="focus-fault-number">' + fault.fault_number + '</span>' +
             '</div>' +
             '<div class="focus-row"><span class="focus-label">分类</span><span class="focus-value">' + (fault.category_display || '') + '</span></div>' +

@@ -113,12 +113,15 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
     def get(self, request) -> JsonResponse:
         now = timezone.now()
         twenty_four_hours_ago = now - timedelta(hours=24)
-        one_month_ago = now - timedelta(days=30)
         year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
         # ── 1. 活跃故障（处理中）──
-        active_faults_qs = OtnFault.objects.filter(
+        processing_faults_qs = OtnFault.objects.filter(
             fault_status='processing'
+        )
+
+        active_faults_qs = OtnFault.objects.filter(
+            Q(fault_status='processing') | Q(fault_occurrence_time__gte=twenty_four_hours_ago)
         ).select_related(
             'province', 'interruption_location_a', 'handling_unit'
         ).prefetch_related(
@@ -196,7 +199,7 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
         # ── 2. 故障统计（当年）──
         all_faults = OtnFault.objects.filter(fault_occurrence_time__gte=year_start)
         total_count = all_faults.count()
-        active_count = active_faults_qs.count()
+        active_count = processing_faults_qs.count()
         closed_count = all_faults.filter(fault_status='closed').count()
 
         # 按分类统计
@@ -213,9 +216,9 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             .order_by('-count')
         )
 
-        # 按省份统计（活跃故障）
+        # 按省份统计（年度故障）
         province_stats = list(
-            active_faults_qs.values('province__name')
+            all_faults.values('province__name')
             .annotate(count=Count('id'))
             .order_by('-count')
         )
@@ -246,23 +249,22 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             })
 
         # ── 5. 故障关联路径覆盖层数据 ──
-        # 预查询活跃故障涉及的站点ID，用于筛选动态覆盖路径
-        active_fault_site_ids = set()
+        # 仅按故障 A/Z 站点对定位关联路径，避免单端命中带来相邻路径误判
+        fault_site_pairs: set[tuple[int, int]] = set()
         for f in active_faults_qs:
-            if f.interruption_location_a_id:
-                active_fault_site_ids.add(f.interruption_location_a_id)
             for s in f.interruption_location.all():
-                active_fault_site_ids.add(s.pk)
+                if f.interruption_location_a_id and s.pk:
+                    fault_site_pairs.add((f.interruption_location_a_id, s.pk))
 
         fault_paths = build_fault_path_overlays(
             OtnPath.objects.select_related('site_a', 'site_z').prefetch_related('groups'),
-            active_fault_site_ids=active_fault_site_ids,
+            fault_site_pairs=fault_site_pairs,
         )
 
         # ── 6. 已关闭故障坐标（用于热力图）──
         closed_faults_qs = OtnFault.objects.filter(
             fault_status='closed',
-            fault_occurrence_time__gte=one_month_ago
+            fault_occurrence_time__gte=year_start
         ).select_related('interruption_location_a')
 
         closed_fault_points = []

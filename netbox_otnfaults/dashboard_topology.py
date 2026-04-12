@@ -6,18 +6,28 @@ from typing import Any
 
 def build_fault_path_overlays(
     path_objects: Iterable[Any],
-    active_fault_site_ids: set[int],
+    fault_site_pairs: set[tuple[int, int]] | None = None,
+    active_fault_site_ids: set[int] | None = None,
 ) -> list[dict[str, Any]]:
     overlays: list[dict[str, Any]] = []
+    pair_set = fault_site_pairs or set()
+    site_id_set = active_fault_site_ids or set()
 
     for path_obj in path_objects:
         geometry = getattr(path_obj, "geometry", None)
         if not geometry:
             continue
 
+        site_a_id = getattr(path_obj, "site_a_id", None)
+        site_z_id = getattr(path_obj, "site_z_id", None)
+        if site_a_id is None or site_z_id is None:
+            continue
+
         has_fault = (
-            getattr(path_obj, "site_a_id", None) in active_fault_site_ids
-            or getattr(path_obj, "site_z_id", None) in active_fault_site_ids
+            (site_a_id, site_z_id) in pair_set
+            or (site_z_id, site_a_id) in pair_set
+            or site_a_id in site_id_set
+            or site_z_id in site_id_set
         )
         if not has_fault:
             continue
