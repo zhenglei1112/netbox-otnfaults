@@ -23,7 +23,7 @@ def _duration_export_value(info: dict[str, object] | None) -> str:
 
 def _timeline_export_value(record: object) -> str:
     timeline: list[tuple[str, object]] = [
-        ('故障中断', getattr(record, 'fault_occurrence_time', None)),
+        ('故障起始', getattr(record, 'fault_occurrence_time', None)),
         ('处理派发', getattr(record, 'dispatch_time', None)),
         ('维修出发', getattr(record, 'departure_time', None)),
         ('到达现场', getattr(record, 'arrival_time', None)),
@@ -89,7 +89,7 @@ class OtnFaultTable(NetBoxTable):
     )
     fault_occurrence_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
-        verbose_name='故障中断时间'
+        verbose_name='故障起始时间'
     )
     fault_recovery_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
@@ -285,7 +285,7 @@ class OtnFaultTable(NetBoxTable):
             record.fault_recovery_time
         ]
         icons = ['mdi-flash', 'mdi-refresh', 'mdi-truck', 'mdi-map-marker', 'mdi-check']
-        titles = ['故障中断', '处理派发', '维修出发', '到达现场', '故障恢复']
+        titles = ['故障起始', '处理派发', '维修出发', '到达现场', '故障恢复']
         html_parts = []
         for i, t in enumerate(times):
             if t is not None:
@@ -311,7 +311,7 @@ class ContractOtnFaultTable(NetBoxTable):
     )
     fault_occurrence_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
-        verbose_name='故障中断时间'
+        verbose_name='故障起始时间'
     )
     fault_category = columns.ChoiceFieldColumn(
         verbose_name='故障分类'
@@ -408,7 +408,7 @@ class ContractOtnFaultTable(NetBoxTable):
             record.fault_recovery_time
         ]
         icons = ['mdi-flash', 'mdi-refresh', 'mdi-truck', 'mdi-map-marker', 'mdi-check']
-        titles = ['故障中断', '处理派发', '维修出发', '到达现场', '故障恢复']
+        titles = ['故障起始', '处理派发', '维修出发', '到达现场', '故障恢复']
         html_parts = []
         for i, t in enumerate(times):
             if t is not None:
@@ -895,4 +895,3 @@ class SiteHistoryFaultTable(ContractOtnFaultTable):
             'fault_number', 'fault_category', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_duration', 'fault_status', 'progress',
         )
-

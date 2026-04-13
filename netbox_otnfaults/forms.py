@@ -756,7 +756,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     )
     fault_occurrence_time = forms.DateTimeField(
         required=False,
-        label='故障中断时间',
+        label='故障起始时间',
         widget=DateTimePicker()
     )
     fault_recovery_time = forms.DateTimeField(

@@ -230,7 +230,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         blank=True
     )
     fault_occurrence_time = models.DateTimeField(
-        verbose_name='故障中断时间'
+        verbose_name='故障起始时间'
     )
     fault_recovery_time = models.DateTimeField(
         null=True,
@@ -839,7 +839,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             self.arrival_time,
             self.fault_recovery_time
         ]
-        labels = ['故障中断', '处理派发', '维修出发', '到达现场', '故障恢复']
+        labels = ['故障起始', '处理派发', '维修出发', '到达现场', '故障恢复']
 
         # 仅当故障类型为光纤类时，才在末尾显示封包完成时间（不参与历时计算）
         if self.is_fiber_fault:
@@ -942,7 +942,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         
         # 时间字段顺序验证
         time_fields = [
-            ('fault_occurrence_time', '故障中断时间'),
+            ('fault_occurrence_time', '故障起始时间'),
             ('dispatch_time', '处理派发时间'),
             ('departure_time', '维修出发时间'),
             ('arrival_time', '到达现场时间'),

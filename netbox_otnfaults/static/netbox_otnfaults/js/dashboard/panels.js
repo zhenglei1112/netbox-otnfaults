@@ -335,7 +335,7 @@ window.Panels = (function () {
             '<div class="focus-row"><span class="focus-label">Z端</span><span class="focus-value">' + (fault.sites_z || []).join('、') + '</span></div>' +
             '<div class="focus-row"><span class="focus-label">省份</span><span class="focus-value">' + (fault.province || '') + '</span></div>' +
             '<div class="focus-row"><span class="focus-label">原因</span><span class="focus-value">' + (fault.reason || '') + '</span></div>' +
-            '<div class="focus-row"><span class="focus-label">发生</span><span class="focus-value">' + occurTime + '</span></div>' +
+            '<div class="focus-row"><span class="focus-label">起始</span><span class="focus-value">' + occurTime + '</span></div>' +
             '<div class="focus-row"><span class="focus-label">历时</span><span class="focus-value">' + (fault.duration || '处理中') + '</span></div>' +
             '<div class="focus-row"><span class="focus-label">处理人</span><span class="focus-value">' + (fault.handler || '') + '</span></div>' +
             '<div class="focus-row"><span class="focus-label">代维方/租赁方</span><span class="focus-value">' + (fault.handling_unit || '') + '</span></div>' +
@@ -364,7 +364,7 @@ window.Panels = (function () {
         if (!el) return;
 
         var steps = [
-            { label: '故障发现', time: fault.occurrence_time, required: true },
+            { label: '故障起始', time: fault.occurrence_time, required: true },
             { label: '处理派发', time: fault.dispatch_time },
             { label: '维修出发', time: fault.departure_time },
             { label: '到达现场', time: fault.arrival_time },

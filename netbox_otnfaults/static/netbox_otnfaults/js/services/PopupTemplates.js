@@ -90,7 +90,7 @@ class PopupTemplates {
                     <span class="popup-badge" style="background-color: ${categoryBgColor};">${props.categoryName}</span>
                     <span class="popup-badge" style="background-color: ${statusBgColor};">${props.status}</span>
                 </div>
-                <div class="popup-row"><span class="popup-label">中断</span><span>${props.date}</span></div>
+                <div class="popup-row"><span class="popup-label">起始</span><span>${props.date}</span></div>
                 <div class="popup-row"><span class="popup-label">恢复</span><span>${props.recoveryTime}</span></div>
                 ${durationHtml}
                 <div class="popup-row"><span class="popup-label">原因</span><span>${props.reason}</span></div>
