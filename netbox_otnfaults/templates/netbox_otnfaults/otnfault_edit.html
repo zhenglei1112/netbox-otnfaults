@@ -619,10 +619,19 @@
             return;
         }
 
-        categoryTS.on('change', function(value) {
+        function applyOperationsManagerDefaults(value, { preserveExisting = false } = {}) {
             console.log('[OpsManagerLogic] 故障分类变更为:', value);
+            const existingValues = opsManagerTS.getValue();
+            const normalizedExistingValues = Array.isArray(existingValues)
+                ? existingValues.filter(Boolean)
+                : (existingValues ? [existingValues] : []);
+
+            if (preserveExisting && normalizedExistingValues.length > 0) {
+                return;
+            }
+
             let targetNames = [];
-            
+
             if (value === 'power_fault') {
                 targetNames = ['赵应'];
             } else if (value === 'device_fault') {
@@ -631,53 +640,69 @@
                 targetNames = ['刘家良', '何志宏', '李旭'];
             }
 
-            if (targetNames.length > 0) {
-                opsManagerTS.clear();
-                
-                const fetchUser = (name) => {
-                    return fetch(`/api/users/users/?q=${encodeURIComponent(name)}`, {
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin'
-                    })
-                    .then(res => res.ok ? res.json() : null)
-                    .then(data => {
-                        if (data && data.results && data.results.length > 0) {
-                            return data.results.find(u => 
-                                (u.display && u.display.includes(name)) || 
-                                (u.username && u.username.includes(name))
-                            ) || data.results[0];
-                        }
-                        return null;
-                    })
-                    .catch(e => {
-                        console.error('[OpsManagerLogic] 请求对应用户失败', name, e);
-                        return null;
-                    });
-                };
-
-                Promise.all(targetNames.map(name => fetchUser(name))).then(users => {
-                    const validUsers = users.filter(u => u !== null);
-                    validUsers.forEach(u => {
-                        const userIdStr = u.id.toString();
-                        const userName = u.display || u.username;
-                        opsManagerTS.addOption({
-                            value: userIdStr,
-                            id: userIdStr,
-                            text: userName,
-                            label: userName,
-                            name: userName,
-                            display: userName
-                        });
-                        opsManagerTS.addItem(userIdStr);
-                    });
-                });
-            } else {
-                opsManagerTS.clear();
+            if (targetNames.length === 0) {
+                if (!preserveExisting) {
+                    opsManagerTS.clear();
+                }
+                return;
             }
+
+            const fetchUser = (name) => {
+                return fetch(`/api/users/users/?q=${encodeURIComponent(name)}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(res => res.ok ? res.json() : null)
+                .then(data => {
+                    if (data && data.results && data.results.length > 0) {
+                        return data.results.find(u =>
+                            (u.display && u.display.includes(name)) ||
+                            (u.username && u.username.includes(name))
+                        ) || data.results[0];
+                    }
+                    return null;
+                })
+                .catch(e => {
+                    console.error('[OpsManagerLogic] 请求对应用户失败', name, e);
+                    return null;
+                });
+            };
+
+            Promise.all(targetNames.map(name => fetchUser(name))).then(users => {
+                const validUsers = users.filter(u => u !== null);
+                if (validUsers.length === 0) {
+                    if (normalizedExistingValues.length > 0) {
+                        opsManagerTS.setValue(existingValues);
+                    }
+                    return;
+                }
+
+                opsManagerTS.clear(true);
+                validUsers.forEach(u => {
+                    const userIdStr = u.id.toString();
+                    const userName = u.display || u.username;
+                    opsManagerTS.addOption({
+                        value: userIdStr,
+                        id: userIdStr,
+                        text: userName,
+                        label: userName,
+                        name: userName,
+                        display: userName
+                    });
+                    opsManagerTS.addItem(userIdStr);
+                });
+            });
+        }
+
+        categoryTS.on('change', function(value) {
+            applyOperationsManagerDefaults(value);
         });
+
+        const initialCategoryValue = categoryTS.getValue();
+        applyOperationsManagerDefaults(initialCategoryValue, { preserveExisting: true });
     }
 
     // 故障复核逻辑：自动填入操作人与当前时间
