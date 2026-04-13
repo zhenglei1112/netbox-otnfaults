@@ -315,6 +315,9 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         ('burning_straw', '烧荒'),
         ('well_fire', '管井起火'),
         ('cigarette', '烟头'),
+        # 线路整改二级原因
+        ('planned_reporting', '计划报备'),
+        ('unplanned_reporting', '非报备'),
     )
     
     # 故障分类 -> 一级原因映射
@@ -351,7 +354,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         'fire': ['burning_straw', 'well_fire', 'cigarette'],
         # 以下一级原因没有二级原因
         'unknown': [],
-        'cable_rectification': [],
+        'cable_rectification': ['planned_reporting', 'unplanned_reporting'],
         'ac_refrigerant': [],
         'ac_mainunit': [],
         'ac_overload': [],
