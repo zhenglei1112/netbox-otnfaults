@@ -164,6 +164,7 @@ class OtnFaultForm(NetBoxModelForm):
         super().__init__(*args, **kwargs)
         # 初始设置 API 数据源（前端会动态挂载 connected_to_a 参数）
         self.fields['interruption_location'].widget.attrs['data-url'] = '/api/plugins/otnfaults/connected-sites/'
+        self.fields['tags'].help_text = '若故障涉及88系统，需勾选对应标签。'
         if not self.instance.fault_category:
             self.initial['fault_category'] = FaultCategoryChoices.FIBER_BREAK
             self.fields['fault_category'].initial = FaultCategoryChoices.FIBER_BREAK
