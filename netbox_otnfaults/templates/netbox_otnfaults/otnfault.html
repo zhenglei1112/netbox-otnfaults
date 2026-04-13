@@ -253,21 +253,41 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">光缆属性与恢复</th>
+          <th scope="row">光纤来源</th>
           <td>
             {% if object.resource_type %}
               {% badge object.get_resource_type_display bg_color=object.get_resource_type_color %}
+            {% else %}
+              —
             {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">光缆路由属性</th>
+          <td>
             {% if object.cable_route %}
               {% badge object.get_cable_route_display bg_color=object.get_cable_route_color %}
+            {% else %}
+              —
             {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">光缆中断部位</th>
+          <td>
             {% if object.cable_break_location %}
               {% badge object.get_cable_break_location_display bg_color=object.get_cable_break_location_color %}
+            {% else %}
+              —
             {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">恢复方式</th>
+          <td>
             {% if object.recovery_mode %}
               {% badge object.get_recovery_mode_display bg_color=object.get_recovery_mode_color %}
-            {% endif %}
-            {% if not object.resource_type and not object.cable_route and not object.cable_break_location and not object.recovery_mode %}
+            {% else %}
               —
             {% endif %}
           </td>
