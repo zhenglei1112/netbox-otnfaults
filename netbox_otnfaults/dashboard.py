@@ -1,4 +1,4 @@
-import json
+﻿import json
 import traceback
 import calendar
 from datetime import date
@@ -10,12 +10,12 @@ from .models import OtnFault, FaultCategoryChoices
 
 # --- 故障分类 → CSS 颜色映射 ---
 CATEGORY_CSS_COLORS: dict[str, str] = {
-    'fiber_break': '#dc3545',       # 红
-    'ac_fault': '#0d6efd',          # 蓝
+    'fiber_break': '#6f42c1',       # 紫
+    'ac_fault': '#20c997',          # 青绿
     'fiber_degradation': '#fd7e14', # 橙
-    'fiber_jitter': '#ffc107',      # 黄
+    'fiber_jitter': '#0dcaf0',      # 青蓝
     'device_fault': '#d63384',      # 粉
-    'power_fault': '#6f42c1',       # 紫
+    'power_fault': '#6610f2',       # 靛紫
 }
 
 

@@ -1,4 +1,4 @@
-from django.db import models
+﻿from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
@@ -22,12 +22,12 @@ class FaultCategoryChoices(ChoiceSet):
     POWER_FAULT = 'power_fault'
 
     CHOICES = [
-        (FIBER_BREAK, '光缆中断', 'red'),
-        (AC_FAULT, '空调故障', 'blue'),
+        (FIBER_BREAK, '光缆中断', 'purple'),
+        (AC_FAULT, '空调故障', 'teal'),
         (FIBER_DEGRADATION, '光缆劣化', 'orange'),
-        (FIBER_JITTER, '光缆抖动', 'yellow'),
+        (FIBER_JITTER, '光缆抖动', 'cyan'),
         (DEVICE_FAULT, '设备故障', 'pink'),
-        (POWER_FAULT, '供电故障', 'purple'),
+        (POWER_FAULT, '供电故障', 'indigo'),
     ]
 
 

@@ -1,4 +1,4 @@
-"""
+﻿"""
 OTN 全国网络故障自动化大屏 - 后端视图
 
 提供大屏页面渲染和聚合数据 API。
@@ -47,12 +47,12 @@ CATEGORY_SEVERITY = {
 
 # 故障分类颜色（HEX）
 CATEGORY_COLORS = {
-    'fiber_break': '#FF1E1E',
-    'power_fault': '#A855F7',
+    'fiber_break': '#6F42C1',
+    'power_fault': '#6610F2',
     'device_fault': '#FF8A00',
     'fiber_degradation': '#FF8A00',
-    'fiber_jitter': '#FADB14',
-    'ac_fault': '#3B82F6',
+    'fiber_jitter': '#0DCAF0',
+    'ac_fault': '#20C997',
 }
 
 CATEGORY_NAMES = {
