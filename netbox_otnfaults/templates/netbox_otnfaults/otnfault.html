@@ -197,7 +197,7 @@
                      style="width: 36px; height: 36px; border-radius: 50%; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
                             {% if step.active %}background-color: {% if forloop.counter == 1 %}#e74c3c{% elif forloop.counter == 2 %}#3498db{% elif forloop.counter == 3 %}#1abc9c{% elif forloop.counter == 4 %}#2ecc71{% elif forloop.counter == 5 %}#27ae60{% else %}#059669{% endif %};{% endif %}
                             border: 2px solid {% if step.active %}var(--bs-card-bg, var(--bs-body-bg)){% else %}var(--bs-secondary-color, #6c757d){% endif %}; z-index: 3; flex-shrink: 0;">
-                  <i class="mdi {% if forloop.counter == 1 %}mdi-flash{% elif forloop.counter == 2 %}mdi-refresh{% elif forloop.counter == 3 %}mdi-truck{% elif forloop.counter == 4 %}mdi-map-marker{% elif forloop.counter == 5 %}mdi-restore-alert{% else %}mdi-archive{% endif %} fs-5" style="color: {% if step.active %}#fff{% else %}var(--bs-secondary-color, #6c757d){% endif %};"></i>
+                  <i class="mdi {% if forloop.counter == 1 %}mdi-flash{% elif forloop.counter == 2 %}mdi-account{% elif forloop.counter == 3 %}mdi-truck{% elif forloop.counter == 4 %}mdi-map-marker{% elif forloop.counter == 5 %}mdi-restore-alert{% else %}mdi-archive{% endif %} fs-5" style="color: {% if step.active %}#fff{% else %}var(--bs-secondary-color, #6c757d){% endif %};"></i>
                 </div>
               </div>
               <div class="timeline-label fw-semibold text-body mb-0" style="font-size: 0.75rem; line-height: 1.1; margin-top: 0; word-wrap: break-word; overflow-wrap: break-word; hyphens: auto; text-align: center;">{{ step.label }}</div>

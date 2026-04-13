@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>处理派发图标预览</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --border: #dbe3ef;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 28px;
+    }
+
+    p {
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px 18px;
+      box-shadow: 0 14px 30px rgba(37, 99, 235, 0.08);
+      text-align: center;
+    }
+
+    .icon-badge {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 14px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: #fff;
+    }
+
+    .icon-badge i {
+      font-size: 38px;
+      line-height: 1;
+    }
+
+    .name {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .code {
+      margin: 0 0 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      display: inline-block;
+      background: #eff6ff;
+      color: var(--accent);
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+    }
+
+    .desc {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .recommend {
+      border-color: #93c5fd;
+      box-shadow: 0 18px 36px rgba(37, 99, 235, 0.14);
+    }
+
+    .recommend .name::after {
+      content: " 推荐";
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>“处理派发”人员图标预览</h1>
+    <p>建议优先看图标语义是否贴近“派工/人员到位/处理责任人”。如果你选定一个，我就把故障列表和详情页一起改成它。</p>
+
+    <div class="grid">
+      <section class="card">
+        <div class="icon-badge">
+          <i class="mdi mdi-account"></i>
+        </div>
+        <h2 class="name">通用人员</h2>
+        <div class="code">mdi-account</div>
+        <p class="desc">最直观的人物图标，语义最稳，但“派工”属性不强。</p>
+      </section>
+
+      <section class="card recommend">
+        <div class="icon-badge">
+          <i class="mdi mdi-account-hard-hat"></i>
+        </div>
+        <h2 class="name">运维人员</h2>
+        <div class="code">mdi-account-hard-hat</div>
+        <p class="desc">更像现场处理和派工人员，和故障处理场景最贴近。</p>
+      </section>
+
+      <section class="card">
+        <div class="icon-badge">
+          <i class="mdi mdi-account-tie"></i>
+        </div>
+        <h2 class="name">管理人员</h2>
+        <div class="code">mdi-account-tie</div>
+        <p class="desc">更偏管理、协调，不太像现场处理动作。</p>
+      </section>
+
+      <section class="card">
+        <div class="icon-badge">
+          <i class="mdi mdi-account-wrench"></i>
+        </div>
+        <h2 class="name">维修人员</h2>
+        <div class="code">mdi-account-wrench</div>
+        <p class="desc">强调维修动作，适合想突出“人员处理”而不是“通知派发”。</p>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

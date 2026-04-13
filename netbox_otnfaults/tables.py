@@ -284,7 +284,7 @@ class OtnFaultTable(NetBoxTable):
             record.arrival_time,
             record.fault_recovery_time
         ]
-        icons = ['mdi-flash', 'mdi-refresh', 'mdi-truck', 'mdi-map-marker', 'mdi-restore-alert']
+        icons = ['mdi-flash', 'mdi-account', 'mdi-truck', 'mdi-map-marker', 'mdi-restore-alert']
         titles = ['故障起始', '处理派发', '维修出发', '到达现场', '故障恢复']
         html_parts = []
         for i, t in enumerate(times):
@@ -407,7 +407,7 @@ class ContractOtnFaultTable(NetBoxTable):
             record.arrival_time,
             record.fault_recovery_time
         ]
-        icons = ['mdi-flash', 'mdi-refresh', 'mdi-truck', 'mdi-map-marker', 'mdi-restore-alert']
+        icons = ['mdi-flash', 'mdi-account', 'mdi-truck', 'mdi-map-marker', 'mdi-restore-alert']
         titles = ['故障起始', '处理派发', '维修出发', '到达现场', '故障恢复']
         html_parts = []
         for i, t in enumerate(times):
