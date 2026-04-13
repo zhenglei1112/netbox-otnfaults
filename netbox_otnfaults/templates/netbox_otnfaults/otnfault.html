@@ -34,17 +34,36 @@
       <h5 class="card-header">故障信息</h5>
       <table class="table table-hover attr-table">
         <tr>
-          <th scope="row">故障基本信息</th>
+          <th scope="row">故障编号</th>
+          <td><span class="fw-bold">{{ object.fault_number|default:"—" }}</span></td>
+        </tr>
+        <tr>
+          <th scope="row">故障类型</th>
           <td>
-            <span class="fw-bold me-3">{{ object.fault_number|default:"—" }}</span>
             {% if object.fault_category %}
               {% badge object.get_fault_category_display bg_color=object.get_fault_category_color %}
+            {% else %}
+              —
             {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">处理状态</th>
+          <td>
             {% if object.fault_status %}
               {% badge object.get_fault_status_display bg_color=object.get_fault_status_color %}
+            {% else %}
+              —
             {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">紧急程度</th>
+          <td>
             {% if object.urgency %}
               {% badge object.get_urgency_display bg_color=object.get_urgency_color %}
+            {% else %}
+              —
             {% endif %}
           </td>
         </tr>
