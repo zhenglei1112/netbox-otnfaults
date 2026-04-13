@@ -6,6 +6,8 @@ class FaultStatisticsControl {
     this.container = null;
     this.minimized = true; // 初始状态为收起
     this.currentPopup = null;
+    this.detailsHydrated = false;
+    this.pendingHydrationFrame = null;
   }
 
   onAdd(map) {
@@ -51,15 +53,42 @@ class FaultStatisticsControl {
   }
 
   onRemove() {
+    if (this.pendingHydrationFrame) {
+      cancelAnimationFrame(this.pendingHydrationFrame);
+      this.pendingHydrationFrame = null;
+    }
     this.container.parentNode.removeChild(this.container);
     this.map = undefined;
   }
 
   update() {
     if (this.container) {
+      if (this.minimized) {
+        this.detailsHydrated = false;
+      }
       this.renderContent();
       this.renderVisibility(); // 保持折叠状态
     }
+  }
+
+  ensureExpandedContentHydrated() {
+    if (this.minimized || this.detailsHydrated || !this.container) {
+      return;
+    }
+
+    if (this.pendingHydrationFrame) {
+      cancelAnimationFrame(this.pendingHydrationFrame);
+    }
+
+    this.pendingHydrationFrame = requestAnimationFrame(() => {
+      this.pendingHydrationFrame = null;
+      if (this.minimized || !this.container) {
+        return;
+      }
+      this.detailsHydrated = true;
+      this.renderContent();
+      this.renderVisibility();
+    });
   }
 
   /**
@@ -69,6 +98,9 @@ class FaultStatisticsControl {
   setData(faultDataList) {
     this.faultDataList = faultDataList;
     this._cachedStats = null; // 清除缓存，强制重新计算
+    if (this.minimized) {
+      this.detailsHydrated = false;
+    }
     this.update();
   }
 
@@ -204,7 +236,6 @@ class FaultStatisticsControl {
     const layerToggle = window.layerToggleControl;
     const categoryFilter = window.categoryFilterControl;
 
-    // 获取当前筛选状态文本
     let timeRangeText = "最近1周";
     if (layerToggle) {
       const texts = {
@@ -234,13 +265,30 @@ class FaultStatisticsControl {
       }
     }
 
-    // 初始图标根据 minimized 状态设置
     const mainToggleIconClass = this.minimized
       ? "mdi mdi-chevron-up toggle-icon"
       : "mdi mdi-chevron-down toggle-icon";
     const contentDisplay = this.minimized ? "none" : "block";
-
-
+    const detailsHtml = this.detailsHydrated
+      ? `
+                    <div class="stats-section px-2 pb-2">
+                             ${this.createSection(
+          "Top 5 故障站点",
+          stats.topSites,
+          "site"
+        )}
+                             ${this.createSection(
+          "Top 5 故障路径",
+          stats.topPaths,
+          "path"
+        )}
+                    </div>
+      `
+      : `
+                    <div class="px-2 py-2 text-body-secondary" style="font-size: 12px;">
+                        加载统计详情...
+                    </div>
+      `;
 
     this.container.innerHTML = `
             <div class="card shadow-sm" style="width: 240px; opacity: 0.95;">
@@ -252,43 +300,37 @@ class FaultStatisticsControl {
                 <div class="card-header py-1 bg-body text-body-secondary" style="font-size: 11px; border-top: 1px solid var(--bs-border-color);">
                      <span>筛选: ${timeRangeText} · ${categoryText}</span>
                 </div>
-                <!-- 统计概览 -->
                 <div class="stats-summary px-2 py-2 bg-body" style="font-size: 12px; border-top: 1px solid var(--bs-border-color);">
-                    <span>故障数: </span><span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${stats.total
-      }</span>
+                    <span>故障数: </span><span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${stats.total}</span>
                     <span class="mx-2 text-body-secondary">|</span>
-                    <span>平均: </span><span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${stats.avgDuration
-      }小时</span>
+                    <span>平均: </span><span class="fw-bold" style="color: var(--bs-link-color, #0097a7) !important;">${stats.avgDuration}小时</span>
                 </div>
-                
                 <div class="card-body p-0 stats-content" style="display: ${contentDisplay}; border-top: 1px solid var(--bs-border-color);">
-                    <!-- Top 5 故障统计 -->
-                    <div class="stats-section px-2 pb-2">
-                             ${this.createSection(
-        "Top 5 故障站点",
-        stats.topSites,
-        "site"
-      )}
-                             ${this.createSection(
-        "Top 5 故障路径",
-        stats.topPaths,
-        "path"
-      )}
-                    </div>
+                    ${detailsHtml}
                 </div>
             </div>
         `;
 
-    // 绑定实例以便 onclick 访问
     this.container._control = this;
 
-    // 绑定业务项悬停事件
-    this._bindBusinessHighlightEvents();
+    if (this.detailsHydrated) {
+      this._bindBusinessHighlightEvents();
+    }
   }
 
   toggleMinimize(e) {
     e.stopPropagation();
     this.minimized = !this.minimized;
+    if (this.minimized) {
+      this.detailsHydrated = false;
+      if (this.pendingHydrationFrame) {
+        cancelAnimationFrame(this.pendingHydrationFrame);
+        this.pendingHydrationFrame = null;
+      }
+    } else {
+      this.ensureExpandedContentHydrated();
+    }
+    window.setFaultMapAnimationSuspended?.(!this.minimized);
     this.renderVisibility();
   }
 
@@ -1376,3 +1418,4 @@ class FaultStatisticsControl {
     this._startHighlightAnimation(relatedFaults);
   }
 }
+

@@ -31,6 +31,7 @@ const FaultModePlugin = {
   statsControl: null,
   legendControl: null,
   searchControl: null,
+  animationSuspended: false,
 
   init(core) {
     this.core = core;
@@ -58,6 +59,7 @@ const FaultModePlugin = {
 
     // 7. 暴露全局方法供控件调用
     window.updateMapState = this.updateMapState.bind(this);
+    window.setFaultMapAnimationSuspended = this.setAnimationSuspended.bind(this);
     window.highlightPath = this.highlightPath.bind(this); // 统一高亮入口
 
     if (this.layerToggleControl) {
@@ -486,8 +488,33 @@ const FaultModePlugin = {
 
 
 
+  setAnimationSuspended(suspended) {
+    if (this.animationSuspended === suspended) {
+      return;
+    }
+
+    this.animationSuspended = suspended;
+
+    if (suspended) {
+      this._stopIconAnimation();
+      return;
+    }
+
+    this._startIconAnimation();
+  },
+
+  _stopIconAnimation() {
+    if (this._iconAnimationId) {
+      cancelAnimationFrame(this._iconAnimationId);
+      this._iconAnimationId = null;
+    }
+  },
+
   _startIconAnimation() {
-    if (this._iconAnimationId) cancelAnimationFrame(this._iconAnimationId);
+    if (this.animationSuspended) {
+      return;
+    }
+    this._stopIconAnimation();
 
     const map = this.map;
     let lastTime = 0;
@@ -496,6 +523,10 @@ const FaultModePlugin = {
     const FRAME_INTERVAL = 1000 / 18; // 18 FPS，提升节奏感但仍控制性能
 
     const animate = (timestamp) => {
+      if (this.animationSuspended) {
+        this._iconAnimationId = null;
+        return;
+      }
       if (!lastTime) lastTime = timestamp;
       const deltaTime = timestamp - lastTime;
       lastTime = timestamp;
