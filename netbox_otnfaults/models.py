@@ -723,6 +723,16 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     def get_absolute_url(self):
         return reverse('plugins:netbox_otnfaults:otnfault', args=[self.pk])
 
+    @property
+    def formatted_fault_number(self) -> str:
+        fault_number = self.fault_number or ""
+        if len(fault_number) >= 9 and fault_number.startswith("F") and fault_number[1:9].isdigit():
+            year = fault_number[1:5]
+            month = str(int(fault_number[5:7]))
+            day = str(int(fault_number[7:9]))
+            return f"{fault_number}（{year}年{month}月{day}日）"
+        return fault_number
+
     def get_fault_category_color(self):
         return FaultCategoryChoices.colors.get(self.fault_category)
 
