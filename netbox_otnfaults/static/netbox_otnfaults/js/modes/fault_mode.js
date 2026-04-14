@@ -241,37 +241,6 @@ const FaultModePlugin = {
     });
 
     mapBase.addLayer({
-      id: "fault-points-pulse",
-      type: "circle",
-      source: "fault-points",
-      paint: {
-        "circle-radius": 14,
-        "circle-color": "transparent",
-        "circle-stroke-color": statusColorExpression,
-        "circle-stroke-width": 3,
-        "circle-stroke-opacity": 0.72,
-      },
-      layout: {
-        visibility: "none",
-      }
-    });
-
-    mapBase.addLayer({
-      id: "fault-points-glow",
-      type: "circle",
-      source: "fault-points",
-      paint: {
-        "circle-radius": 12,
-        "circle-color": statusColorExpression,
-        "circle-opacity": 0.2,
-        "circle-blur": 0.85,
-      },
-      layout: {
-        visibility: "none",
-      }
-    });
-
-    mapBase.addLayer({
       id: "fault-points-layer",
       type: "symbol",
       source: "fault-points",
@@ -328,7 +297,7 @@ const FaultModePlugin = {
   _loadFaultIcons(callback) {
     const map = this.map;
 
-    // SVG转Canvas Image（彩色图标，非SDF），返回 staticCanvas 等数据供后续动画使用
+    // SVG转Canvas Image（彩色图标，非SDF）
     const createColoredIcon = (svgContent, bgColor, innerSize = 64, fullSize = 96) => {
       return new Promise((resolve, reject) => {
         // 提取SVG内部内容
@@ -420,8 +389,6 @@ const FaultModePlugin = {
       };
       const promises = [];
 
-      this.animatedIcons = [];
-
       // 默认图标
       promises.push(
         createColoredIcon(FAULT_SVG_ICONS.other, statusColors['processing'])
@@ -429,14 +396,6 @@ const FaultModePlugin = {
             if (!map.hasImage('fault-marker')) {
               map.addImage('fault-marker', result.imageData, { pixelRatio: 2 });
             }
-            this.animatedIcons.push({
-               iconName: 'fault-marker',
-               staticCanvas: result.staticCanvas,
-               bgColor: result.bgColor,
-               innerSize: result.innerSize,
-               fullSize: result.fullSize,
-               offset: result.offset
-            });
           })
       );
 
@@ -451,16 +410,6 @@ const FaultModePlugin = {
                 if (!map.hasImage(iconName)) {
                   map.addImage(iconName, result.imageData, { pixelRatio: 2 });
                 }
-                
-                // 为所有状态的图标增加扩散圈动画支持
-                this.animatedIcons.push({
-                   iconName: iconName,
-                   staticCanvas: result.staticCanvas,
-                   bgColor: result.bgColor,
-                   innerSize: result.innerSize,
-                   fullSize: result.fullSize,
-                   offset: result.offset
-                });
               })
           );
         });
@@ -468,8 +417,6 @@ const FaultModePlugin = {
 
       await Promise.all(promises);
       console.log('[FaultMode] Loaded', promises.length, 'colored Canvas icons (SVG-based)');
-      // 一旦首批图标加载完毕即尝试启动动画循环
-      this._startIconAnimation();
     };
 
     const startTime = performance.now();
@@ -497,10 +444,7 @@ const FaultModePlugin = {
 
     if (suspended) {
       this._stopIconAnimation();
-      return;
     }
-
-    this._startIconAnimation();
   },
 
   _stopIconAnimation() {
@@ -511,85 +455,7 @@ const FaultModePlugin = {
   },
 
   _startIconAnimation() {
-    if (this.animationSuspended) {
-      return;
-    }
     this._stopIconAnimation();
-
-    const map = this.map;
-    let lastTime = 0;
-    let lastRenderTime = 0;
-    let phase = 0;
-    const FRAME_INTERVAL = 1000 / 18; // 18 FPS，提升节奏感但仍控制性能
-
-    const animate = (timestamp) => {
-      if (this.animationSuspended) {
-        this._iconAnimationId = null;
-        return;
-      }
-      if (!lastTime) lastTime = timestamp;
-      const deltaTime = timestamp - lastTime;
-      lastTime = timestamp;
-
-      // 防止底图销毁报错
-      if (!map || typeof map.getStyle !== 'function' || !map.getStyle()) {
-        this._iconAnimationId = null;
-        return;
-      }
-
-      const isMapInteracting =
-        (typeof map.isMoving === 'function' && map.isMoving()) ||
-        (typeof map.isZooming === 'function' && map.isZooming()) ||
-        (typeof map.isRotating === 'function' && map.isRotating());
-      const isDocumentHidden =
-        typeof document !== 'undefined' &&
-        typeof document.hidden === 'boolean' &&
-        document.hidden;
-
-      if (isMapInteracting || isDocumentHidden) {
-        this._iconAnimationId = requestAnimationFrame(animate);
-        return;
-      }
-
-      if (timestamp - lastRenderTime < FRAME_INTERVAL) {
-        this._iconAnimationId = requestAnimationFrame(animate);
-        return;
-      }
-
-      lastRenderTime = timestamp;
-      phase += (deltaTime / 1000) * 4.2;
-
-      if (map.getLayer("fault-points-pulse")) {
-        const pulseRadius = 14 + Math.sin(phase * 2.2) * 7;
-        const pulseStrokeOpacity = 0.68 - Math.sin(phase * 2.2) * 0.34;
-        map.setPaintProperty("fault-points-pulse", "circle-radius", pulseRadius);
-        map.setPaintProperty(
-          "fault-points-pulse",
-          "circle-stroke-opacity",
-          Math.min(1, Math.max(0.12, pulseStrokeOpacity))
-        );
-      }
-
-      if (map.getLayer("fault-points-glow")) {
-        const glowRadius = 10 + Math.sin(phase * 1.7) * 2.5;
-        const glowOpacity = 0.18 + Math.sin(phase * 1.7) * 0.08;
-        map.setPaintProperty("fault-points-glow", "circle-radius", glowRadius);
-        map.setPaintProperty(
-          "fault-points-glow",
-          "circle-opacity",
-          Math.max(0.1, glowOpacity)
-        );
-      }
-
-      if (typeof map.triggerRepaint === 'function') {
-        map.triggerRepaint();
-      }
-
-      this._iconAnimationId = requestAnimationFrame(animate);
-    };
-
-    // 启动帧循环
-    this._iconAnimationId = requestAnimationFrame(animate);
   },
 
   _initControls() {
@@ -1125,15 +991,11 @@ const FaultModePlugin = {
     if (mode === "points") {
       map.setLayoutProperty("fault-heatmap-layer", "visibility", "none");
       map.setLayoutProperty("fault-points-localization-ring", "visibility", "visible");
-      map.setLayoutProperty("fault-points-pulse", "visibility", "visible");
-      map.setLayoutProperty("fault-points-glow", "visibility", "visible");
       map.setLayoutProperty("fault-points-layer", "visibility", "visible");
     } else {
       // heatmap
       map.setLayoutProperty("fault-heatmap-layer", "visibility", "visible");
       map.setLayoutProperty("fault-points-localization-ring", "visibility", "none");
-      map.setLayoutProperty("fault-points-pulse", "visibility", "none");
-      map.setLayoutProperty("fault-points-glow", "visibility", "none");
       map.setLayoutProperty("fault-points-layer", "visibility", "none");
     }
 

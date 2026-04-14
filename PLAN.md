@@ -1,5 +1,12 @@
 ﻿# PLAN
 
+## OtnFault 故障分布图取消动态图标
+
+- [x] 为 `fault_mode.js` 增加源码级失败测试，覆盖故障分布图不再启动故障图标动画循环，且点位模式不再显示 `fault-points-pulse` / `fault-points-glow`
+- [x] 先运行新增测试，确认当前实现仍会启动 `_startIconAnimation()` 且显示动态脉冲/发光图层
+- [x] 调整 `fault_mode.js`，移除故障图标动画启动与动态脉冲/发光图层显示，保留静态图标、定位环、悬停与弹窗交互
+- [x] 运行定向测试，确认故障分布图已改为静态图标展示
+
 ## OtnFault 详情页基本信息拆行展示
 
 ## OtnFault 故障详情左侧标签防折行

@@ -40,6 +40,13 @@ class FaultStatisticsControlPerformanceTestCase(unittest.TestCase):
         self.assertIn("if (this.animationSuspended === suspended) {", source)
         self.assertIn("this._stopIconAnimation();", source)
 
+    def test_fault_mode_disables_dynamic_fault_marker_effects(self) -> None:
+        source = FAULT_MODE_PATH.read_text(encoding="utf-8")
+
+        self.assertNotIn("this._startIconAnimation();", source)
+        self.assertNotIn('map.setLayoutProperty("fault-points-pulse", "visibility", "visible");', source)
+        self.assertNotIn('map.setLayoutProperty("fault-points-glow", "visibility", "visible");', source)
+
 
 if __name__ == "__main__":
     unittest.main()
