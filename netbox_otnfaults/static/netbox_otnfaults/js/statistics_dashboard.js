@@ -157,7 +157,15 @@ document.addEventListener("DOMContentLoaded", function() {
         // 1. 光缆属性 (Pie)
         const resourceColorMap = { '自建': '#10B981', '协调': '#3B82F6', '租赁': '#8B5CF6', '未指定': '#9CA3AF' };
         chartResource.setOption({
-            tooltip: { trigger: 'item', formatter: '{b}: {c}次 ({d}%)<br/>总历时: {c|duration}时' },
+            tooltip: { 
+                trigger: 'item', 
+                formatter: params => {
+                    let avg = params.value > 0 ? (params.data._duration / params.value).toFixed(2) : "0.00";
+                    return `${params.marker}${params.name}: ${params.value}次 (${params.percent}%)<br/>` +
+                           `<span style="margin-left:14px;">总历时: ${params.data._duration} 小时</span><br/>` +
+                           `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
+                }
+            },
             legend: { top: 'bottom' },
             series: [{
                 type: 'pie',
@@ -173,7 +181,17 @@ document.addEventListener("DOMContentLoaded", function() {
         // 2. 省份 (Bar Top 10)
         let provData = chartsData.province.slice(0, 10);
         chartProvince.setOption({
-            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            tooltip: { 
+                trigger: 'axis', 
+                axisPointer: { type: 'shadow' },
+                formatter: params => {
+                    let p = params[0];
+                    let avg = p.value > 0 ? (p.data._duration / p.value).toFixed(2) : "0.00";
+                    return `${p.marker || ''}${p.name}: ${p.value}次<br/>` +
+                           `<span style="margin-left:14px;">总历时: ${p.data._duration} 小时</span><br/>` +
+                           `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
+                }
+            },
             grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
             xAxis: { type: 'value' },
             yAxis: { type: 'category', data: provData.map(item => item.name).reverse() },
@@ -181,19 +199,27 @@ document.addEventListener("DOMContentLoaded", function() {
                 type: 'bar',
                 label: { show: true, position: 'right' },
                 itemStyle: { color: '#3B82F6', borderRadius: [0, 4, 4, 0] },
-                data: provData.map(item => item.value).reverse()
+                data: provData.map(item => ({value: item.value, _duration: item.duration})).reverse()
             }]
         });
 
         // 3. 一级原因 (Pie)
         chartReason.setOption({
-            tooltip: { trigger: 'item', formatter: '{b}: {c}次 ({d}%)' },
+            tooltip: { 
+                trigger: 'item', 
+                formatter: params => {
+                    let avg = params.value > 0 ? (params.data._duration / params.value).toFixed(2) : "0.00";
+                    return `${params.marker}${params.name}: ${params.value}次 (${params.percent}%)<br/>` +
+                           `<span style="margin-left:14px;">总历时: ${params.data._duration} 小时</span><br/>` +
+                           `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
+                }
+            },
             legend: { top: '5%', type: 'scroll' },
             series: [{
                 type: 'pie',
                 radius: '50%',
                 center: ['50%', '55%'],
-                data: chartsData.reason.map(item => ({name: item.name, value: item.value})),
+                data: chartsData.reason.map(item => ({name: item.name, value: item.value, _duration: item.duration})),
                 emphasis: {
                     itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
                 }
@@ -285,7 +311,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <td>${item.resource_type}</td>
                 <td>${item.province}</td>
                 <td>${item.reason}</td>
-                <td><small>${item.site_a} &rarr; ${item.site_z}</small></td>
+                <td><small>${item.site_a}${item.site_z ? ' &rarr; ' + item.site_z : ''}</small></td>
                 <td>${badges}</td>
             </tr>`;
         }).join('');
