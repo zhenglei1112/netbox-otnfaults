@@ -869,7 +869,10 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             if dt_local and self.fault_occurrence_time:
                 occur_local = timezone.localtime(self.fault_occurrence_time)
                 if i == 0 or dt_local.date() != occur_local.date():
-                    time_str += f"\n({dt_local.strftime('%m-%d')})"
+                    date_str = f"{dt_local.month}月{dt_local.day}日"
+                    time_str = f"{date_str}\n{time_str}"
+                elif i in (0, 4):
+                    time_str = f"　\n{time_str}"
             
             # 历时计算仅限前 4 个间隔（即截止到“故障恢复”前）
             duration_to_next = ""
