@@ -11,10 +11,10 @@ class OtnFaultDetailBasicInfoRowsSourceTestCase(unittest.TestCase):
         template_text = TEMPLATE_PATH.read_text(encoding="utf-8-sig")
 
         self.assertNotIn('<th scope="row">故障基本信息</th>', template_text)
-        self.assertIn('<th scope="row">故障编号</th>', template_text)
-        self.assertIn('<th scope="row">故障类型</th>', template_text)
-        self.assertIn('<th scope="row">处理状态</th>', template_text)
-        self.assertIn('<th scope="row">紧急程度</th>', template_text)
+        self.assertIn('<th scope="row"><span style="white-space: nowrap; word-break: keep-all;">故障编号</span></th>', template_text)
+        self.assertIn('<th scope="row"><span style="white-space: nowrap; word-break: keep-all;">故障类型</span></th>', template_text)
+        self.assertIn('<th scope="row"><span style="white-space: nowrap; word-break: keep-all;">处理状态</span></th>', template_text)
+        self.assertIn('<th scope="row"><span style="white-space: nowrap; word-break: keep-all;">紧急程度</span></th>', template_text)
 
         fault_number_index = template_text.index('{{ object.formatted_fault_number|default:')
         fault_category_index = template_text.index('{% badge object.get_fault_category_display bg_color=object.get_fault_category_color %}')

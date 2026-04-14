@@ -7,12 +7,23 @@
 
 {% block extra_styles %}
 <style>
+  .attr-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
   .attr-table th {
-    width: 38.2%;
+    width: 10rem;
+    white-space: nowrap;
+    word-break: keep-all;
+    vertical-align: top;
   }
 
   .attr-table td {
-    width: 61.8%;
+    width: auto;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    vertical-align: top;
   }
 
   /* 修复未激活时间轴图标背景，避免遮挡连线 */
@@ -32,14 +43,18 @@
   <div class="col col-md-6">
     <div class="card mb-3">
       <h5 class="card-header">故障信息</h5>
-      <table class="table table-hover attr-table">
+      <table class="table table-hover attr-table" style="table-layout: fixed; width: 100%;">
+        <colgroup>
+          <col style="width: 10rem;">
+          <col>
+        </colgroup>
         <tr>
-          <th scope="row">故障编号</th>
-          <td><span class="fw-bold">{{ object.formatted_fault_number|default:"—" }}</span></td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">故障编号</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;"><span class="fw-bold">{{ object.formatted_fault_number|default:"—" }}</span></td>
         </tr>
         <tr>
-          <th scope="row">故障类型</th>
-          <td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">故障类型</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">
             {% if object.fault_category %}
               {% badge object.get_fault_category_display bg_color=object.get_fault_category_color %}
             {% else %}
@@ -48,8 +63,8 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">处理状态</th>
-          <td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">处理状态</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">
             {% if object.fault_status %}
               {% badge object.get_fault_status_display bg_color=object.get_fault_status_color %}
             {% else %}
@@ -58,8 +73,8 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">紧急程度</th>
-          <td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">紧急程度</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">
             {% if object.urgency %}
               {% badge object.get_urgency_display bg_color=object.get_urgency_color %}
             {% else %}
@@ -68,12 +83,12 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">第一报障来源</th>
-          <td>{{ object.get_first_report_source_display|default:"—" }}</td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">第一报障来源</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.get_first_report_source_display|default:"—" }}</td>
         </tr>
         <tr>
-          <th scope="row">故障位置</th>
-          <td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">故障位置</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">
             <span class="text-muted small">A端:</span>
             {% if object.interruption_location_a %}
               <a href="{{ object.interruption_location_a.get_absolute_url }}">{{ object.interruption_location_a }}</a>
@@ -92,8 +107,8 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">省份与坐标</th>
-          <td class="position-relative">
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">省份与坐标</span></th>
+          <td class="position-relative" style="overflow-wrap: break-word; word-break: break-word;">
             {% if object.province %}
               <a href="{{ object.province.get_absolute_url }}">{{ object.province }}</a>
             {% else %}
@@ -115,16 +130,16 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">故障原因</th>
-          <td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">故障原因</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">
             {{ object.get_interruption_reason_display|default:"—" }}
             <span class="mx-2 text-muted">/</span>
             {{ object.get_interruption_reason_detail_display|default:"—" }}
           </td>
         </tr>
         <tr>
-          <th scope="row">值守人员</th>
-          <td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">值守人员</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">
             {% if object.duty_officer %}
               <a href="{{ object.duty_officer.get_absolute_url }}">{{ object.duty_officer }}</a>
             {% else %}
@@ -133,8 +148,8 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">运维主管</th>
-          <td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">运维主管</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">
             {% if object.operations_manager.all %}
               {% for user in object.operations_manager.all %}
                 <a href="{{ user.get_absolute_url }}">{{ user }}</a>{% if not forloop.last %}, {% endif %}
@@ -145,12 +160,12 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">故障处理人</th>
-          <td>{{ object.handler|default:"—" }}</td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">故障处理人</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.handler|default:"—" }}</td>
         </tr>
         <tr>
-          <th scope="row">故障详情和处理过程</th>
-          <td>{{ object.fault_details|default:"—" }}</td>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">故障详情和处理过程</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.fault_details|default:"—" }}</td>
         </tr>
       </table>
     </div>
