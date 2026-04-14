@@ -864,15 +864,14 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             # Django 时区处理
             dt_local = timezone.localtime(t) if t else None
             time_str = dt_local.strftime('%H:%M:%S') if dt_local else ''
-            
-            # 如果是第一个节点（故障中断）或者日期与故障发生日期不同，则附加日期（用于跨天显示）
-            if dt_local and self.fault_occurrence_time:
+            highlight_date = ''
+            highlight_time = time_str
+
+            # 首尾高亮节点单独拆分日期行与时间行，避免依赖空白占位在宽屏下失效
+            if dt_local and self.fault_occurrence_time and i in (0, 4):
                 occur_local = timezone.localtime(self.fault_occurrence_time)
                 if i == 0 or dt_local.date() != occur_local.date():
-                    date_str = f"{dt_local.month}月{dt_local.day}日"
-                    time_str = f"{date_str}\n{time_str}"
-                elif i in (0, 4):
-                    time_str = f"　\n{time_str}"
+                    highlight_date = f"{dt_local.month}月{dt_local.day}日"
             
             # 历时计算仅限前 4 个间隔（即截止到“故障恢复”前）
             duration_to_next = ""
@@ -882,6 +881,8 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             steps.append({
                 'label': labels[i],
                 'time': time_str,
+                'highlight_date': highlight_date,
+                'highlight_time': highlight_time,
                 'active': active,
                 'duration_to_next': duration_to_next,
                 'is_connected_to_next': i < len(times) - 1 and times[i+1] is not None

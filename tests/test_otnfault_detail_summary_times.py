@@ -17,8 +17,10 @@ class OtnFaultDetailSummaryTimesSourceTestCase(unittest.TestCase):
 
         self.assertIn('class="timeline-time-highlight fw-bold"', template_text)
         self.assertIn('{% if forloop.first or forloop.counter == 5 %}', template_text)
-        self.assertIn('{{ step.time|default:"—" }}', template_text)
-        self.assertIn("white-space: pre-line;", template_text)
+        self.assertIn('{% if step.highlight_date %}{{ step.highlight_date }}{% else %}&nbsp;{% endif %}', template_text)
+        self.assertIn('{{ step.highlight_time|default:"—" }}', template_text)
+        self.assertIn("flex-direction: column;", template_text)
+        self.assertIn("min-height: 1.15em;", template_text)
         self.assertIn("height: 2.3em;", template_text)
         self.assertNotIn("min-height: 2.3em;", template_text)
         self.assertIn("width: 100%;", template_text)

@@ -7,14 +7,18 @@ MODELS_PATH = REPO_ROOT / "netbox_otnfaults" / "models.py"
 
 
 class OtnFaultTimelineHighlightFieldsSourceTestCase(unittest.TestCase):
-    def test_highlight_time_uses_placeholder_first_line_for_same_day_nodes(self) -> None:
+    def test_highlight_time_uses_separate_date_and_time_fields(self) -> None:
         models_source = MODELS_PATH.read_text(encoding="utf-8-sig")
 
-        self.assertIn('date_str = f"{dt_local.month}月{dt_local.day}日"', models_source)
-        self.assertIn('time_str = f"{date_str}\\n{time_str}"', models_source)
-        self.assertIn("elif i in (0, 4):", models_source)
-        self.assertIn('time_str = f"　\\n{time_str}"', models_source)
-        self.assertNotIn('time_str = f"\\n{time_str}"', models_source)
+        self.assertIn("highlight_date = ''", models_source)
+        self.assertIn("highlight_time = time_str", models_source)
+        self.assertIn("if dt_local and self.fault_occurrence_time and i in (0, 4):", models_source)
+        self.assertIn('highlight_date = f"{dt_local.month}', models_source)
+        self.assertIn("highlight_date = f", models_source)
+        self.assertIn("'highlight_date': highlight_date", models_source)
+        self.assertIn("'highlight_time': highlight_time", models_source)
+        self.assertNotIn('time_str = f"{date_str}\\n{time_str}"', models_source)
+        self.assertNotIn('time_str = f"　\\n{time_str}"', models_source)
 
 
 if __name__ == "__main__":
