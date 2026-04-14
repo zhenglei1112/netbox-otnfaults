@@ -1,0 +1,26 @@
+/* 故障统计看板专属样式 */
+
+.page-statistics {
+    background-color: #f4f6fa;
+    min-height: 100vh;
+}
+
+.filter-controls {
+    background-color: #fff;
+    padding: 10px 15px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.card:hover {
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.08) !important;
+}
+
+/* 覆盖表格在深色主题下的表现 (如果有深色主题) */
+.table-vcenter td, .table-vcenter th {
+    vertical-align: middle;
+}

@@ -4,6 +4,7 @@ from netbox.views.generic import ObjectChangeLogView
 from . import models, views
 from . import dashboard_views
 from . import weekly_report_views
+from . import statistics_views
 urlpatterns = [
     # OTN故障 (OtnFault)
     path('faults/', views.OtnFaultListView.as_view(), name='otnfault_list'),
@@ -88,5 +89,9 @@ urlpatterns = [
     # 每周通报大屏
     path('weekly-report/', weekly_report_views.WeeklyReportPageView.as_view(), name='weekly_report'),
     path('weekly-report/data/', weekly_report_views.WeeklyReportDataAPI.as_view(), name='weekly_report_data'),
+
+    # 故障统计看板
+    path('statistics/', statistics_views.FaultStatisticsPageView.as_view(), name='statistics'),
+    path('statistics/data/', statistics_views.FaultStatisticsDataAPI.as_view(), name='statistics_data'),
 ]
 

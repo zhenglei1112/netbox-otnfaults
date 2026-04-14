@@ -1,0 +1,175 @@
+{% extends "base/layout.html" %}
+{% load static %}
+
+{% block title %}故障统计看板{% endblock %}
+
+{% block content %}
+<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}" rel="stylesheet">
+
+<div class="page page-statistics">
+    <div class="page-wrapper container-xl" style="padding-top: 20px;">
+        <!-- 头部与过滤区 -->
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="page-title mb-1">OTN 光网故障多维统计与下钻分析</h2>
+                <div class="text-muted">
+                    <span class="badge bg-light text-dark border ms-2 ms-md-0" id="period-display" style="font-weight: normal; margin-left: 0 !important;">加载中...</span>
+                </div>
+            </div>
+            
+            <div class="d-flex gx-2 align-items-center filter-controls">
+                <select id="filterType" class="form-select mx-2" style="width: auto;">
+                    <option value="year" {% if default_filter_type == 'year' %}selected{% endif %}>按年</option>
+                    <option value="month" {% if default_filter_type == 'month' %}selected{% endif %}>按月</option>
+                    <option value="week" {% if default_filter_type == 'week' %}selected{% endif %}>按周</option>
+                </select>
+                
+                <select id="filterYear" class="form-select mx-2" style="width: auto;">
+                    {% for y in years %}
+                    <option value="{{ y }}" {% if y == default_year %}selected{% endif %}>{{ y }}年</option>
+                    {% endfor %}
+                </select>
+                
+                <select id="filterMonth" class="form-select mx-2" style="width: auto; display: none;">
+                    {% for m in "123456789"|make_list %}
+                    <option value="{{ m }}" {% if m == default_month|stringformat:"i" %}selected{% endif %}>{{ m }}月</option>
+                    {% endfor %}
+                    <option value="10" {% if default_month == 10 %}selected{% endif %}>10月</option>
+                    <option value="11" {% if default_month == 11 %}selected{% endif %}>11月</option>
+                    <option value="12" {% if default_month == 12 %}selected{% endif %}>12月</option>
+                </select>
+                
+                <div id="filterWeekContainer" class="mx-2" style="display: none;">
+                    <input type="number" id="filterWeek" class="form-control" style="width: 80px;" min="1" max="53" value="{{ default_week }}" placeholder="周次">
+                </div>
+            </div>
+        </header>
+
+        <!-- KPI 区 -->
+        <div class="row row-deck mb-4 row-cols-2 row-cols-lg-5">
+            <div class="col mb-3 mb-lg-0">
+                <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column">
+                    <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">故障总数</div>
+                    <div class="d-flex align-items-baseline mb-2">
+                        <span class="display-6 fw-bold text-dark me-1 lh-1" id="kpi-total-cnt">--</span>
+                        <span class="text-muted" style="font-size: 14px;">条</span>
+                    </div>
+                    <div id="kpi-total-cnt-diff" class="mt-auto"></div>
+                </div>
+            </div>
+            <div class="col mb-3 mb-lg-0">
+                <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column">
+                    <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">累计总时长</div>
+                    <div class="d-flex align-items-baseline mb-2">
+                        <span class="display-6 fw-bold text-dark me-1 lh-1" id="kpi-total-dur">--</span>
+                        <span class="text-muted" style="font-size: 14px;">时</span>
+                    </div>
+                    <div id="kpi-total-dur-diff" class="mt-auto"></div>
+                </div>
+            </div>
+            <div class="col mb-3 mb-lg-0">
+                <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column">
+                    <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">平均单次时长</div>
+                    <div class="d-flex align-items-baseline mb-2">
+                        <span class="display-6 fw-bold text-dark me-1 lh-1" id="kpi-avg-dur">--</span>
+                        <span class="text-muted" style="font-size: 14px;">时</span>
+                    </div>
+                    <div id="kpi-avg-dur-diff" class="mt-auto"></div>
+                </div>
+            </div>
+            <div class="col mb-3 mb-lg-0">
+                <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column" id="card-long-faults" style="cursor: pointer;" title="点击过滤出长时故障">
+                    <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">长时故障(≥6h)</div>
+                    <div class="d-flex align-items-baseline mb-2">
+                        <span class="display-6 fw-bold text-dark me-1 lh-1" id="kpi-long-faults">--</span>
+                        <span class="text-muted" style="font-size: 14px;">条</span>
+                    </div>
+                    <div id="kpi-long-faults-diff" class="mt-auto"></div>
+                </div>
+            </div>
+            <div class="col mb-3 mb-lg-0">
+                <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column" id="card-repeat-faults" style="cursor: pointer;" title="点击过滤出重复故障">
+                    <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">重复故障 <i class="mdi mdi-information-outline text-muted ms-1" title="近60天内同A端/部分同Z端的光缆故障"></i></div>
+                    <div class="d-flex align-items-baseline mb-2">
+                        <span class="display-6 fw-bold text-dark me-1 lh-1" id="kpi-repeat-faults">--</span>
+                        <span class="text-muted" style="font-size: 14px;">条</span>
+                    </div>
+                    <div id="kpi-repeat-faults-diff" class="mt-auto"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ECharts 图表区 -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header border-bottom-0"><h3 class="card-title">光缆属性分布</h3></div>
+                    <div class="card-body p-0">
+                        <div id="chart-resource" style="width: 100%; height: 320px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header border-bottom-0"><h3 class="card-title">各省份故障 Top 10</h3></div>
+                    <div class="card-body p-0">
+                        <div id="chart-province" style="width: 100%; height: 320px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header border-bottom-0"><h3 class="card-title">主要原因分析</h3></div>
+                    <div class="card-body p-0">
+                        <div id="chart-reason" style="width: 100%; height: 320px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下钻局部汇总栏 -->
+        <div id="filtered-kpi-summary" class="alert alert-info d-none shadow-sm mb-4" role="alert" style="font-size: 15px;">
+        </div>
+
+        <!-- 下钻明细表格区 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">
+                    故障明细
+                    <span class="badge bg-primary ms-2" id="drill-down-filter-badge" style="display:none"></span>
+                </h3>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-filter" style="display:none">清除图表过滤</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-vcenter card-table">
+                    <thead>
+                        <tr>
+                            <th>故障编号</th>
+                            <th>发生时间</th>
+                            <th>恢复时间</th>
+                            <th>历时(小时)</th>
+                            <th>分类</th>
+                            <th>光缆属性</th>
+                            <th>省份</th>
+                            <th>一级原因</th>
+                            <th>站点 (A -> Z)</th>
+                            <th>标签</th>
+                        </tr>
+                    </thead>
+                    <tbody id="details-tbody">
+                        <tr><td colspan="10" class="text-center text-muted py-4">数据加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script>
+    window.STATISTICS_DATA_API = "{% url 'plugins:netbox_otnfaults:statistics_data' %}";
+</script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}"></script>
+{% endblock %}
