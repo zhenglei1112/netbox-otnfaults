@@ -16,7 +16,7 @@ class OtnFaultDetailBasicInfoRowsSourceTestCase(unittest.TestCase):
         self.assertIn('<th scope="row"><span style="white-space: nowrap; word-break: keep-all;">处理状态</span></th>', template_text)
         self.assertIn('<th scope="row"><span style="white-space: nowrap; word-break: keep-all;">紧急程度</span></th>', template_text)
 
-        fault_number_index = template_text.index('{{ object.formatted_fault_number|default:')
+        fault_number_index = template_text.index('{{ object.fault_number|default:')
         fault_category_index = template_text.index('{% badge object.get_fault_category_display bg_color=object.get_fault_category_color %}')
         fault_status_index = template_text.index('{% badge object.get_fault_status_display bg_color=object.get_fault_status_color %}')
         urgency_index = template_text.index('{% badge object.get_urgency_display bg_color=object.get_urgency_color %}')

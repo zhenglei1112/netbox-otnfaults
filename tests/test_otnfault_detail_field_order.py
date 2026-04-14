@@ -18,7 +18,7 @@ class OtnFaultDetailFieldOrderSourceTestCase(unittest.TestCase):
     def test_first_report_source_is_between_basic_info_and_location(self) -> None:
         template_text = TEMPLATE_PATH.read_text(encoding="utf-8-sig")
 
-        basic_info_marker = "{{ object.formatted_fault_number|default:"
+        basic_info_marker = "{{ object.fault_number|default:"
         first_report_source_marker = "{{ object.get_first_report_source_display|default:"
         location_marker = "{% if object.interruption_location_a %}"
 

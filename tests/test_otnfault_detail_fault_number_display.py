@@ -8,11 +8,11 @@ MODEL_PATH = REPO_ROOT / "netbox_otnfaults" / "models.py"
 
 
 class OtnFaultDetailFaultNumberDisplaySourceTestCase(unittest.TestCase):
-    def test_template_uses_formatted_fault_number(self) -> None:
+    def test_template_uses_raw_fault_number(self) -> None:
         template_text = TEMPLATE_PATH.read_text(encoding="utf-8-sig")
 
-        self.assertIn("{{ object.formatted_fault_number|default:", template_text)
-        self.assertNotIn("{{ object.fault_number|default:", template_text)
+        self.assertIn("{{ object.fault_number|default:", template_text)
+        self.assertNotIn("{{ object.formatted_fault_number|default:", template_text)
 
     def test_model_contains_formatted_fault_number_property(self) -> None:
         model_text = MODEL_PATH.read_text(encoding="utf-8-sig")
