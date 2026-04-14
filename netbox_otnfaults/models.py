@@ -950,24 +950,24 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     def clean(self):
         super().clean()
         
-        # 时间字段顺序验证
-        time_fields = [
+        # 现场处理链路时间顺序验证
+        sequence_time_fields = [
             ('fault_occurrence_time', '故障起始时间'),
             ('dispatch_time', '处理派发时间'),
             ('departure_time', '维修出发时间'),
             ('arrival_time', '到达现场时间'),
-            ('fault_recovery_time', '故障恢复时间')
         ]
         
-        # 收集所有非空时间字段
+        # 收集现场处理链路中的非空时间字段
         times = []
-        for field_name, field_label in time_fields:
+        for field_name, field_label in sequence_time_fields:
             time_value = getattr(self, field_name)
             if time_value:
                 times.append((field_name, field_label, time_value))
         
-        # 检查时间顺序：后续时间不应早于前面的任何时间
         errors = {}
+
+        # 检查现场处理链路时间顺序：后续时间不应早于前面的任何时间
         for i in range(len(times)):
             for j in range(i + 1, len(times)):
                 field_name_i, field_label_i, time_i = times[i]
@@ -977,6 +977,15 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
                     if field_name_j not in errors:
                         errors[field_name_j] = []
                     errors[field_name_j].append(f'{field_label_j}需晚于{field_label_i}')
+
+        # 故障恢复时间只需晚于故障起始时间，无需晚于派发/出发/到场时间
+        if self.fault_recovery_time:
+            field_name_j = 'fault_recovery_time'
+            time_j = self.fault_recovery_time
+            if self.fault_occurrence_time and time_j < self.fault_occurrence_time:
+                if field_name_j not in errors:
+                    errors[field_name_j] = []
+                errors[field_name_j].append('故障恢复时间需晚于故障起始时间')
         
         # 如果有错误，抛出 ValidationError 但将错误关联到具体字段
         if errors:
