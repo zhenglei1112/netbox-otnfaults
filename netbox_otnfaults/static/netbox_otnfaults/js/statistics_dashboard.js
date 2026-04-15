@@ -108,8 +108,17 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             if (data.period && data.period.start) {
-                const periodText = `数据范围: ${data.period.start} 至 ${data.period.end || '今'}`;
-                document.getElementById('period-display').textContent = periodText;
+                const periodEl = document.getElementById('period-display');
+                if (data.period.is_future) {
+                    periodEl.textContent = `数据范围: ${data.period.start} 至 ${data.period.end}`;
+                    periodEl.classList.remove('bg-light', 'text-dark');
+                    periodEl.classList.add('bg-warning', 'text-dark');
+                } else {
+                    const periodText = `数据范围: ${data.period.start} 至 ${data.period.end || '今'}`;
+                    periodEl.textContent = periodText;
+                    periodEl.classList.remove('bg-warning');
+                    periodEl.classList.add('bg-light', 'text-dark');
+                }
             } else {
                 document.getElementById('period-display').textContent = '';
             }
@@ -378,7 +387,16 @@ document.addEventListener("DOMContentLoaded", function() {
             const data = await response.json();
 
             if (data.period && data.period.start) {
-                document.getElementById('period-display').textContent = `数据范围: ${data.period.start} 至 ${data.period.end || '今'}`;
+                const periodEl = document.getElementById('period-display');
+                if (data.period.is_future) {
+                    periodEl.textContent = `数据范围: ${data.period.start} 至 ${data.period.end}`;
+                    periodEl.classList.remove('bg-light', 'text-dark');
+                    periodEl.classList.add('bg-warning', 'text-dark');
+                } else {
+                    periodEl.textContent = `数据范围: ${data.period.start} 至 ${data.period.end || '今'}`;
+                    periodEl.classList.remove('bg-warning');
+                    periodEl.classList.add('bg-light', 'text-dark');
+                }
             }
 
             renderServiceCards(data.services || [], data.period_total_hours || 0);

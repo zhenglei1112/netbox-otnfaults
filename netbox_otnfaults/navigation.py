@@ -110,7 +110,7 @@ menu = PluginMenu(
             ),
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:statistics',
-                link_text='故障统计看板',
+                link_text='故障统计',
                 permissions=['netbox_otnfaults.view_otnfault'],
             ),
         )),

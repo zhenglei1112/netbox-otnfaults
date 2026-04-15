@@ -18,6 +18,7 @@ from .models import (
     FaultCategoryChoices, ResourceTypeChoices, CableTypeChoices,
     ServiceTypeChoices
 )
+from .statistics_period import build_period_display
 
 
 def _parse_time_range(request):
@@ -305,10 +306,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
 
         # 返回 JSON 结构
         return JsonResponse({
-            'period': {
-                'start': start_date.strftime('%Y-%m-%d') if start_date else '',
-                'end': display_end_date_str
-            },
+            'period': build_period_display(start_date, end_date, now),
             'kpis': {
                 'total_count': total_count,
                 'total_duration': round(total_duration_hours, 2),
@@ -471,10 +469,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             display_end_date_str = display_end_date.strftime('%Y-%m-%d')
 
         return JsonResponse({
-            'period': {
-                'start': start_date.strftime('%Y-%m-%d') if start_date else '',
-                'end': display_end_date_str
-            },
+            'period': build_period_display(start_date, end_date, now),
             'period_total_hours': round(period_total_hours, 2),
             'services': services_result,
         })
