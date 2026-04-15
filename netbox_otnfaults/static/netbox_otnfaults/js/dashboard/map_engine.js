@@ -177,7 +177,7 @@ window.MapEngine = (function () {
             'paths-fault-main',
             'paths-label',
             'paths-detail',
-            'faults-localization-ring',
+
             'faults-pulse',
             'faults-glow',
             'faults-core',
@@ -727,19 +727,7 @@ window.MapEngine = (function () {
         } else {
             map.addSource('faults', { type: 'geojson', data: geojson });
 
-            // 0. 定位引导环 (静态背景)
-            map.addLayer({
-                id: 'faults-localization-ring',
-                type: 'circle',
-                source: 'faults',
-                paint: {
-                    'circle-radius': 40,
-                    'circle-color': 'transparent',
-                    'circle-stroke-color': ['get', 'color'],
-                    'circle-stroke-width': 1,
-                    'circle-stroke-opacity': 0.15
-                }
-            });
+
 
             // 1. 脉冲扩散环（动画驱动）
             map.addLayer({

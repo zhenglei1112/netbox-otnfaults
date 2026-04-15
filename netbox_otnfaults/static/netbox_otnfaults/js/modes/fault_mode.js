@@ -224,21 +224,7 @@ const FaultModePlugin = {
       "#dc3545",
     ];
 
-    mapBase.addLayer({
-      id: "fault-points-localization-ring",
-      type: "circle",
-      source: "fault-points",
-      paint: {
-        "circle-radius": 24,
-        "circle-color": "transparent",
-        "circle-stroke-color": statusColorExpression,
-        "circle-stroke-width": 1,
-        "circle-stroke-opacity": 0.18,
-      },
-      layout: {
-        visibility: "none",
-      }
-    });
+
 
     mapBase.addLayer({
       id: "fault-points-layer",
@@ -298,7 +284,7 @@ const FaultModePlugin = {
     const map = this.map;
 
     // SVG转Canvas Image（彩色图标，非SDF）
-    const createColoredIcon = (svgContent, bgColor, innerSize = 64, fullSize = 96) => {
+    const createColoredIcon = (svgContent, bgColor, innerSize = 64, fullSize = 64) => {
       return new Promise((resolve, reject) => {
         // 提取SVG内部内容
         const parser = new DOMParser();
@@ -990,12 +976,12 @@ const FaultModePlugin = {
     // 切换图层可见性
     if (mode === "points") {
       map.setLayoutProperty("fault-heatmap-layer", "visibility", "none");
-      map.setLayoutProperty("fault-points-localization-ring", "visibility", "visible");
+
       map.setLayoutProperty("fault-points-layer", "visibility", "visible");
     } else {
       // heatmap
       map.setLayoutProperty("fault-heatmap-layer", "visibility", "visible");
-      map.setLayoutProperty("fault-points-localization-ring", "visibility", "none");
+
       map.setLayoutProperty("fault-points-layer", "visibility", "none");
     }
 
