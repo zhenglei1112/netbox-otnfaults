@@ -219,11 +219,11 @@ document.addEventListener("DOMContentLoaded", function() {
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
             },
-            legend: { top: '5%', type: 'scroll' },
+            legend: { bottom: 0, type: 'scroll' },
             series: [{
                 type: 'pie',
                 radius: '50%',
-                center: ['50%', '55%'],
+                center: ['50%', '45%'],
                 data: chartsData.reason.map(item => ({name: item.name, value: item.value, _duration: item.duration})),
                 emphasis: {
                     itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
