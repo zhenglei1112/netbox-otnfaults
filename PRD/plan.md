@@ -1,7 +1,7 @@
 # 光网故障多维统计与下钻展示页面 (PRD & 执行计划)
 
 ## 1. 目标说明 (Goal)
-构建一个支持多维时间过滤、多维度聚合和下钻交互的“故障统计看板”。
+构建一个支持多维时间过滤、多维度聚合和下钻交互的“故障统计”。
 主要功能包括：
 1. **时间过滤**：按年、月、周进行统计（可选择对应的年份、月份、周数），支持“本年/本月/本周截至当前”的范围筛选。
 2. **多维统计图表**：
@@ -27,7 +27,7 @@
   - 增加 `path('statistics/', statistics_views.FaultStatisticsPageView.as_view(), name='statistics')`。
   - 增加 `path('statistics/data/', statistics_views.FaultStatisticsDataAPI.as_view(), name='statistics_data')`。
 - **导航菜单** `netbox_otnfaults/navigation.py`：
-  - 在“地图”侧边栏分组中加入 `PluginMenuItem(link='plugins:netbox_otnfaults:statistics', link_text='故障统计看板')`。
+  - 在“地图”侧边栏分组中加入 `PluginMenuItem(link='plugins:netbox_otnfaults:statistics', link_text='故障统计')`。
 
 ### 2.2 核心业务逻辑说明
 关于**重复故障数**算法说明：
@@ -47,7 +47,7 @@
 2. **“重复故障”判断依据**：我假设的是前 60 天内，“A 端站点相同且 Z 端站点存在交集”的故障可判定为重名路径断点。这与业务常识是否吻合？
 
 ## 4. 测试与验证计划 (Verification Plan)
-1. 访问新菜单项“故障统计看板”，确保页面能正常加载 ECharts 和过滤表单。
+1. 访问新菜单项“故障统计”，确保页面能正常加载 ECharts 和过滤表单。
 2. 更改过滤表单为“2024年 截至当前”，检查各类 KPI 数值是否正确。
 3. 点击“光缆属性 - 自建”饼图区块，检查页面下方的表格是否只显示自建类故障。
 4. 验证“重复故障数”计数的 SQL/Python 实现性能，在几千条数据时不会超时。

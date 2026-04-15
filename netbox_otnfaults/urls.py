@@ -90,7 +90,7 @@ urlpatterns = [
     path('weekly-report/', weekly_report_views.WeeklyReportPageView.as_view(), name='weekly_report'),
     path('weekly-report/data/', weekly_report_views.WeeklyReportDataAPI.as_view(), name='weekly_report_data'),
 
-    # 故障统计看板
+    # 故障统计
     path('statistics/', statistics_views.FaultStatisticsPageView.as_view(), name='statistics'),
     path('statistics/data/', statistics_views.FaultStatisticsDataAPI.as_view(), name='statistics_data'),
     path('statistics/service-data/', statistics_views.ServiceStatisticsDataAPI.as_view(), name='statistics_service_data'),

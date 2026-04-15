@@ -1,5 +1,5 @@
 /**
- * 故障统计看板交互脚本
+ * 故障统计交互脚本
  */
 document.addEventListener("DOMContentLoaded", function() {
     // ---------------- 图表实例初始化 ----------------
