@@ -15,8 +15,54 @@ from decimal import Decimal
 
 from .models import (
     OtnFault, OtnFaultImpact, OtnPath,
-    FaultCategoryChoices, ResourceTypeChoices, CableTypeChoices
+    FaultCategoryChoices, ResourceTypeChoices, CableTypeChoices,
+    ServiceTypeChoices
 )
+
+
+def _parse_time_range(request):
+    """从请求参数解析时间范围，返回 (start_date, end_date, prev_start_date, prev_end_date, filter_type)"""
+    filter_type: str = request.GET.get('filter_type', 'year')
+    year: int = int(request.GET.get('year', timezone.now().year))
+    now = timezone.localtime()
+    tz = timezone.get_current_timezone()
+
+    start_date = None
+    end_date = None
+    prev_start_date = None
+    prev_end_date = None
+
+    if filter_type == 'year':
+        start_date = timezone.datetime(year, 1, 1, tzinfo=tz)
+        end_date = timezone.datetime(year + 1, 1, 1, tzinfo=tz)
+        prev_start_date = timezone.datetime(year - 1, 1, 1, tzinfo=tz)
+        prev_end_date = start_date
+    elif filter_type == 'month':
+        month = int(request.GET.get('month', now.month))
+        start_date = timezone.datetime(year, month, 1, tzinfo=tz)
+        next_month = (month % 12) + 1
+        next_month_year = year + (1 if month == 12 else 0)
+        end_date = timezone.datetime(next_month_year, next_month, 1, tzinfo=tz)
+        prev_month = (month - 2) % 12 + 1
+        prev_month_year = year - (1 if month == 1 else 0)
+        prev_start_date = timezone.datetime(prev_month_year, prev_month, 1, tzinfo=tz)
+        prev_end_date = start_date
+    elif filter_type == 'week':
+        week = int(request.GET.get('week', now.isocalendar()[1]))
+        first_day_of_year = date(year, 1, 4)
+        start_of_week1 = first_day_of_year - timedelta(days=first_day_of_year.isoweekday() - 1)
+        start_date_dt = start_of_week1 + timedelta(weeks=week - 1)
+        start_date = timezone.datetime.combine(start_date_dt, timezone.datetime.min.time(), tzinfo=tz)
+        end_date = start_date + timedelta(days=7)
+        prev_start_date = start_date - timedelta(days=7)
+        prev_end_date = start_date
+    else:
+        start_date = timezone.datetime(year, 1, 1, tzinfo=tz)
+        end_date = timezone.datetime(year + 1, 1, 1, tzinfo=tz)
+        prev_start_date = timezone.datetime(year - 1, 1, 1, tzinfo=tz)
+        prev_end_date = start_date
+
+    return start_date, end_date, prev_start_date, prev_end_date, filter_type
 
 class FaultStatisticsPageView(PermissionRequiredMixin, View):
     """
@@ -74,53 +120,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
     permission_required = 'netbox_otnfaults.view_otnfault'
 
     def get(self, request) -> JsonResponse:
-        filter_type = request.GET.get('filter_type', 'year')
-        year = int(request.GET.get('year', timezone.now().year))
-
+        start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
         now = timezone.localtime()
-        tz = timezone.get_current_timezone()
-        
-        start_date = None
-        end_date = None
-        prev_start_date = None
-        prev_end_date = None
-
-        if filter_type == 'year':
-            start_date = timezone.datetime(year, 1, 1, tzinfo=tz)
-            end_date = timezone.datetime(year + 1, 1, 1, tzinfo=tz)
-            prev_start_date = timezone.datetime(year - 1, 1, 1, tzinfo=tz)
-            prev_end_date = start_date
-                
-        elif filter_type == 'month':
-            month = int(request.GET.get('month', now.month))
-            start_date = timezone.datetime(year, month, 1, tzinfo=tz)
-            next_month = (month % 12) + 1
-            next_month_year = year + (1 if month == 12 else 0)
-            end_date = timezone.datetime(next_month_year, next_month, 1, tzinfo=tz)
-            
-            prev_month = (month - 2) % 12 + 1
-            prev_month_year = year - (1 if month == 1 else 0)
-            prev_start_date = timezone.datetime(prev_month_year, prev_month, 1, tzinfo=tz)
-            prev_end_date = start_date
-                
-        elif filter_type == 'week':
-            week = int(request.GET.get('week', now.isocalendar()[1]))
-            # ISO 周的起点 (周一)
-            first_day_of_year = date(year, 1, 4) # Jan 4 is always in week 1
-            start_of_week1 = first_day_of_year - timedelta(days=first_day_of_year.isoweekday() - 1)
-            start_date_dt = start_of_week1 + timedelta(weeks=week - 1)
-            start_date = timezone.datetime.combine(start_date_dt, timezone.datetime.min.time(), tzinfo=tz)
-            
-            end_date = start_date + timedelta(days=7)
-            prev_start_date = start_date - timedelta(days=7)
-            prev_end_date = start_date
-
-        else:
-            # 默认今年
-            start_date = timezone.datetime(year, 1, 1, tzinfo=tz)
-            end_date = timezone.datetime(year + 1, 1, 1, tzinfo=tz)
-            prev_start_date = timezone.datetime(year - 1, 1, 1, tzinfo=tz)
-            prev_end_date = start_date
 
         # 构建基础查询集
         qs = OtnFault.objects.select_related('province', 'interruption_location_a').prefetch_related('interruption_location')
@@ -328,4 +329,152 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'reason': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(reason_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
             },
             'details': details
+        })
+
+
+class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
+    """
+    业务故障统计聚合API。
+    按业务（BareFiberService / CircuitService）聚合 OtnFaultImpact 数据，
+    返回每个业务的统计卡片数据。
+    """
+    permission_required = 'netbox_otnfaults.view_otnfaultimpact'
+
+    def get(self, request) -> JsonResponse:
+        start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
+        now = timezone.localtime()
+
+        # 查询当前期的所有 FaultImpact
+        impacts_qs = OtnFaultImpact.objects.select_related(
+            'otn_fault', 'bare_fiber_service', 'circuit_service'
+        ).filter(
+            service_interruption_time__gte=start_date,
+            service_interruption_time__lt=end_date
+        )
+        impacts = list(impacts_qs)
+
+        # 计算周期总小时数（用于 SLA）
+        period_total_hours: float = (end_date - start_date).total_seconds() / 3600.0
+
+        # 按业务 key 聚合
+        service_map: dict = {}  # key -> stats dict
+
+        for imp in impacts:
+            # 确定业务标识和名称
+            if imp.service_type == ServiceTypeChoices.BARE_FIBER and imp.bare_fiber_service:
+                svc_key = f'bf_{imp.bare_fiber_service_id}'
+                svc_name = imp.bare_fiber_service.name
+                svc_type_label = '裸纤业务'
+            elif imp.service_type == ServiceTypeChoices.CIRCUIT and imp.circuit_service:
+                svc_key = f'cs_{imp.circuit_service_id}'
+                svc_name = imp.circuit_service.special_line_name or imp.circuit_service.name
+                svc_type_label = '电路业务'
+            else:
+                svc_key = f'unknown_{imp.id}'
+                svc_name = str(imp)
+                svc_type_label = '未知'
+
+            if svc_key not in service_map:
+                service_map[svc_key] = {
+                    'name': svc_name,
+                    'type': svc_type_label,
+                    'count': 0,
+                    'break_count': 0,   # 中断
+                    'jitter_count': 0,  # 抖动
+                    'degrade_count': 0, # 劣化
+                    'other_count': 0,
+                    'total_duration': 0.0,
+                    'long_count': 0,
+                    'intervals': [],  # 用于 SLA 合并时段
+                    'occurrence_times': [],  # 用于重复判断
+                }
+
+            stats = service_map[svc_key]
+            stats['count'] += 1
+
+            # 分类计数
+            fault_cat = imp.otn_fault.fault_category if imp.otn_fault else None
+            if fault_cat == FaultCategoryChoices.FIBER_BREAK:
+                stats['break_count'] += 1
+            elif fault_cat == FaultCategoryChoices.FIBER_JITTER:
+                stats['jitter_count'] += 1
+            elif fault_cat == FaultCategoryChoices.FIBER_DEGRADATION:
+                stats['degrade_count'] += 1
+            else:
+                stats['other_count'] += 1
+
+            # 业务中断时长
+            svc_start = imp.service_interruption_time
+            svc_end = imp.service_recovery_time if imp.service_recovery_time else now
+            dur_hours = (svc_end - svc_start).total_seconds() / 3600.0
+            stats['total_duration'] += dur_hours
+
+            if dur_hours >= 6.0:
+                stats['long_count'] += 1
+
+            # 记录时段供 SLA 计算（合并重叠）
+            stats['intervals'].append((svc_start, svc_end))
+            # 记录发生时间供重复判断
+            stats['occurrence_times'].append(svc_start)
+
+        # 构建返回结果
+        services_result = []
+        for svc_key, stats in service_map.items():
+            count = stats['count']
+            total_dur = stats['total_duration']
+            avg_dur = total_dur / count if count > 0 else 0.0
+
+            # 重复故障：同一业务 60 天内有多次影响
+            repeat_count = 0
+            times_sorted = sorted(stats['occurrence_times'])
+            for i in range(1, len(times_sorted)):
+                if (times_sorted[i] - times_sorted[i - 1]).days <= 60:
+                    repeat_count += 1
+
+            # SLA：合并重叠时段后计算不可用总时长
+            intervals = sorted(stats['intervals'], key=lambda x: x[0])
+            merged: list = []
+            for s, e in intervals:
+                if merged and s <= merged[-1][1]:
+                    merged[-1] = (merged[-1][0], max(merged[-1][1], e))
+                else:
+                    merged.append((s, e))
+            unavailable_hours = sum(
+                (e - s).total_seconds() / 3600.0 for s, e in merged
+            )
+            sla = ((period_total_hours - unavailable_hours) / period_total_hours * 100.0) if period_total_hours > 0 else 100.0
+            sla = max(0.0, sla)  # 防止负值
+
+            services_result.append({
+                'key': svc_key,
+                'name': stats['name'],
+                'type': stats['type'],
+                'count': count,
+                'break_count': stats['break_count'],
+                'jitter_count': stats['jitter_count'],
+                'degrade_count': stats['degrade_count'],
+                'other_count': stats['other_count'],
+                'total_duration': round(total_dur, 2),
+                'avg_duration': round(avg_dur, 2),
+                'long_count': stats['long_count'],
+                'repeat_count': repeat_count,
+                'sla': round(sla, 4),
+            })
+
+        # 按故障总数降序排列
+        services_result.sort(key=lambda x: x['count'], reverse=True)
+
+        # 展示日期
+        display_end_date_str = ''
+        if end_date:
+            display_end_date = end_date - timedelta(days=1)
+            display_end_date_str = display_end_date.strftime('%Y-%m-%d')
+
+        return JsonResponse({
+            'period': {
+                'start': start_date.strftime('%Y-%m-%d') if start_date else '',
+                'end': display_end_date_str
+            },
+            'period_total_hours': round(period_total_hours, 2),
+            'services': services_result,
         })

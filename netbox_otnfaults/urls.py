@@ -93,5 +93,6 @@ urlpatterns = [
     # 故障统计看板
     path('statistics/', statistics_views.FaultStatisticsPageView.as_view(), name='statistics'),
     path('statistics/data/', statistics_views.FaultStatisticsDataAPI.as_view(), name='statistics_data'),
+    path('statistics/service-data/', statistics_views.ServiceStatisticsDataAPI.as_view(), name='statistics_service_data'),
 ]
 

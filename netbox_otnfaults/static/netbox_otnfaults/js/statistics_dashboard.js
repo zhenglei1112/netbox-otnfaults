@@ -70,23 +70,28 @@ document.addEventListener("DOMContentLoaded", function() {
 
     selFilterType.addEventListener('change', () => {
         updateDateSelectors();
-        loadData();
+        loadActiveTab();
     });
     
     [selYear, selMonth, inputWeek].forEach(el => {
-        el.addEventListener('change', loadData);
+        el.addEventListener('change', loadActiveTab);
     });
 
-    // ---------------- 获取数据 ----------------
-    async function loadData() {
+    // ---------------- 构建时间参数 URL ----------------
+    function buildTimeParams() {
         const type = selFilterType.value;
         const year = selYear.value;
         const month = selMonth.value;
         const week = inputWeek.value;
+        let params = `filter_type=${type}&year=${year}`;
+        if (type === 'month') params += `&month=${month}`;
+        if (type === 'week') params += `&week=${week}`;
+        return params;
+    }
 
-        let url = `${window.STATISTICS_DATA_API}?filter_type=${type}&year=${year}`;
-        if (type === 'month') url += `&month=${month}`;
-        if (type === 'week') url += `&week=${week}`;
+    // ---------------- 获取物理故障数据 ----------------
+    async function loadData() {
+        let url = `${window.STATISTICS_DATA_API}?${buildTimeParams()}`;
 
         try {
             document.getElementById('details-tbody').innerHTML = '<tr><td colspan="10" class="text-center py-4">加载中...</td></tr>';
@@ -109,7 +114,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 document.getElementById('period-display').textContent = '';
             }
 
-            renderKPIs(data.kpis, data.prev_kpis, type);
+            renderKPIs(data.kpis, data.prev_kpis, selFilterType.value);
             renderCharts(data.charts);
         } catch (error) {
             console.error('Fetch error:', error);
@@ -357,6 +362,163 @@ document.addEventListener("DOMContentLoaded", function() {
         
         renderDetailsTable();
     });
+
+    // ---------------- 业务故障统计 ----------------
+    let serviceDataLoaded = false;
+
+    async function loadServiceData() {
+        const container = document.getElementById('service-cards-container');
+        container.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...</div>';
+
+        let url = `${window.SERVICE_STATISTICS_DATA_API}?${buildTimeParams()}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Network response error');
+            const data = await response.json();
+
+            if (data.period && data.period.start) {
+                document.getElementById('period-display').textContent = `数据范围: ${data.period.start} 至 ${data.period.end || '今'}`;
+            }
+
+            renderServiceCards(data.services || [], data.period_total_hours || 0);
+            serviceDataLoaded = true;
+        } catch (error) {
+            console.error('Service data fetch error:', error);
+            container.innerHTML = '<div class="col-12 text-center text-danger py-5">数据加载失败，请检查网络或刷新重试</div>';
+        }
+    }
+
+    function renderServiceCards(services, periodTotalHours) {
+        const container = document.getElementById('service-cards-container');
+
+        if (services.length === 0) {
+            container.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="mdi mdi-information-outline me-1"></i> 当前时间范围内无业务故障记录</div>';
+            return;
+        }
+
+        const html = services.map(svc => {
+            // SLA 颜色
+            let slaColor = '#16a34a'; // green
+            let slaBg = '#dcfce7';
+            if (svc.sla < 99) {
+                slaColor = '#dc2626'; slaBg = '#fee2e2';
+            } else if (svc.sla < 99.9) {
+                slaColor = '#ea580c'; slaBg = '#fff7ed';
+            } else if (svc.sla < 99.99) {
+                slaColor = '#ca8a04'; slaBg = '#fefce8';
+            }
+            let slaPercent = Math.min(100, svc.sla);
+
+            // 分类明细
+            let catParts = [];
+            if (svc.break_count > 0) catParts.push(`中断 <strong class="text-danger">${svc.break_count}</strong>`);
+            if (svc.jitter_count > 0) catParts.push(`抖动 <strong class="text-info">${svc.jitter_count}</strong>`);
+            if (svc.degrade_count > 0) catParts.push(`劣化 <strong class="text-warning">${svc.degrade_count}</strong>`);
+            if (svc.other_count > 0) catParts.push(`其他 <strong>${svc.other_count}</strong>`);
+            let catDetail = catParts.length > 0 ? `（${catParts.join(' | ')}）` : '';
+
+            // 类型 badge
+            let typeBadge = svc.type === '裸纤业务'
+                ? '<span class="badge bg-blue text-white">裸纤</span>'
+                : '<span class="badge bg-green text-white">电路</span>';
+
+            return `<div class="col">
+                <div class="card svc-card shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center" style="min-width: 0;">
+                                ${typeBadge}
+                                <strong class="ms-2 text-truncate" title="${svc.name}">${svc.name}</strong>
+                            </div>
+                            <div class="sla-badge text-nowrap" style="background:${slaBg}; color:${slaColor}; border: 1px solid ${slaColor}30; border-radius:20px; padding: 4px 12px; font-size:13px; font-weight:600;">
+                                SLA ${svc.sla.toFixed(2)}%
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-12">
+                                <div class="svc-stat-row">
+                                    <span class="text-muted">故障总数</span>
+                                    <span><strong class="text-primary fs-5">${svc.count}</strong> 次 ${catDetail}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <div class="svc-stat-row">
+                                    <span class="text-muted">累计时长</span>
+                                    <span><strong>${svc.total_duration}</strong> 小时</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="svc-stat-row">
+                                    <span class="text-muted">平均时长</span>
+                                    <span><strong>${svc.avg_duration}</strong> 小时</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <div class="svc-stat-row">
+                                    <span class="text-muted">长时故障(≥6h)</span>
+                                    <span><strong class="${svc.long_count > 0 ? 'text-danger' : ''}">${svc.long_count}</strong></span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="svc-stat-row">
+                                    <span class="text-muted">重复故障</span>
+                                    <span><strong class="${svc.repeat_count > 0 ? 'text-purple' : ''}">${svc.repeat_count}</strong></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="svc-sla-bar">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small class="text-muted">可用率</small>
+                                <small style="color:${slaColor}; font-weight:600;">${svc.sla.toFixed(2)}%</small>
+                            </div>
+                            <div class="progress" style="height: 6px; border-radius: 3px;">
+                                <div class="progress-bar" role="progressbar" style="width: ${slaPercent}%; background-color: ${slaColor}; border-radius: 3px;" aria-valuenow="${slaPercent}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = html;
+    }
+
+    // ---------------- Tab 切换联动 ----------------
+    function loadActiveTab() {
+        const activeTab = document.querySelector('#statisticsTab .nav-link.active');
+        if (activeTab && activeTab.id === 'tab-service-btn') {
+            loadServiceData();
+        } else {
+            loadData();
+        }
+    }
+
+    // Tab 切换时加载对应数据
+    const tabEl = document.getElementById('statisticsTab');
+    if (tabEl) {
+        tabEl.addEventListener('shown.bs.tab', function(event) {
+            if (event.target.id === 'tab-service-btn') {
+                loadServiceData();
+            } else if (event.target.id === 'tab-physical-btn') {
+                loadData();
+                // 切回时需要 resize echarts
+                setTimeout(() => {
+                    chartResource.resize();
+                    chartProvince.resize();
+                    chartReason.resize();
+                }, 100);
+            }
+        });
+    }
 
     // ---------------- 初始化启动 ----------------
     updateDateSelectors();
