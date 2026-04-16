@@ -18,6 +18,7 @@ from .models import (
     FaultCategoryChoices, ResourceTypeChoices, CableTypeChoices,
     ServiceTypeChoices
 )
+from dcim.models import Region
 from .statistics_period import build_period_display
 
 
@@ -221,6 +222,13 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         resource_stats = {}
         province_stats = {}
         reason_stats = {}
+        category_stats = {}
+
+        # 预先初始化所有的地区(作为省份展示)，保证没有故障的省份也显示为 0
+        all_provinces = Region.objects.values_list('name', flat=True)
+        for p_name in all_provinces:
+            if p_name:
+                province_stats[p_name] = {'count': 0, 'duration': 0.0}
 
         for fault in faults:
             # 持续时间计算
@@ -274,6 +282,13 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 reason_stats[reason] = {'count': 0, 'duration': 0.0}
             reason_stats[reason]['count'] += 1
             reason_stats[reason]['duration'] += duration_hours
+
+            # 4. 故障类型
+            cat_display = fault.get_fault_category_display() if fault.fault_category else '未知'
+            if cat_display not in category_stats:
+                category_stats[cat_display] = {'count': 0, 'duration': 0.0}
+            category_stats[cat_display]['count'] += 1
+            category_stats[cat_display]['duration'] += duration_hours
             
             # 明细存储（仅返回精简信息给前端作本地过滤或列表展示)
             dt_end = fault.fault_recovery_time.strftime('%Y-%m-%d %H:%M') if fault.fault_recovery_time else '未恢复'
@@ -325,6 +340,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'resource': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2), 'key': v['id']} for k, v in resource_stats.items()],
                 'province': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(province_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
                 'reason': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(reason_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
+                'category': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(category_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
             },
             'details': details
         })

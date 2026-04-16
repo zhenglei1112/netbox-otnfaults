@@ -3,14 +3,16 @@
  */
 document.addEventListener("DOMContentLoaded", function() {
     // ---------------- 图表实例初始化 ----------------
-    let chartResource = null;
-    let chartProvince = null;
-    let chartReason = null;
+    let chartResource = echarts.init(document.getElementById('chart-resource'));
+    let chartProvince = echarts.init(document.getElementById('chart-province'));
+    let chartReason = echarts.init(document.getElementById('chart-reason'));
+    let chartCategory = echarts.init(document.getElementById('chart-category'));
     
     let excludedCategories = {
         resource_type: new Set(),
         province: new Set(),
-        reason: new Set()
+        reason: new Set(),
+        category: new Set()
     };
 
     function updateExcludedSet(field, selectedObj) {
@@ -22,32 +24,32 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // 初始化只执行一次
-    chartResource = echarts.init(document.getElementById('chart-resource'));
-    chartProvince = echarts.init(document.getElementById('chart-province'));
-    chartReason = echarts.init(document.getElementById('chart-reason'));
-
     window.addEventListener('resize', () => {
         chartResource.resize();
         chartProvince.resize();
         chartReason.resize();
+        chartCategory.resize();
     });
 
-    // 绑定点击事件 (下钻)
+    // ---------------- 统一事件绑定 ----------------
+    // 点击下钻
     chartResource.on('click', params => handleChartClick(params, 'resource_type'));
     chartProvince.on('click', params => handleChartClick(params, 'province'));
     chartReason.on('click', params => handleChartClick(params, 'reason'));
+    chartCategory.on('click', params => handleChartClick(params, 'category'));
     
-    // 绑定图例切换事件 (过滤剔除)
+    // 图例切换（过滤剔除）
     chartResource.on('legendselectchanged', params => { updateExcludedSet('resource_type', params.selected); renderDetailsTable(); });
     chartProvince.on('legendselectchanged', params => { updateExcludedSet('province', params.selected); renderDetailsTable(); });
     chartReason.on('legendselectchanged', params => { updateExcludedSet('reason', params.selected); renderDetailsTable(); });
+    chartCategory.on('legendselectchanged', params => { updateExcludedSet('category', params.selected); renderDetailsTable(); });
 
+    // KPI 卡片点击下钻
     document.getElementById('card-long-faults').addEventListener('click', () => handleChartClick({name: true}, 'is_long'));
     document.getElementById('card-repeat-faults').addEventListener('click', () => handleChartClick({name: true}, 'is_repeat'));
 
     let currentAllDetails = []; // 保存后端返回的全部详情数据
-    let activeFilterField = null; // 'resource_type', 'province', 'reason'
+    let activeFilterField = null; // 'resource_type', 'province', 'reason', 'category'
     let activeFilterValue = null;
 
     // ---------------- DOM 元素 ----------------
@@ -180,10 +182,11 @@ document.addEventListener("DOMContentLoaded", function() {
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
             },
-            legend: { top: 'bottom' },
+            legend: { bottom: 0, type: 'scroll' },
             series: [{
                 type: 'pie',
-                radius: ['40%', '70%'],
+                radius: ['45%', '75%'],
+                center: ['50%', '45%'],
                 itemStyle: {
                     color: function(params) { return resourceColorMap[params.name] || '#5470c6'; },
                     borderRadius: 5, borderColor: '#fff', borderWidth: 2
@@ -192,8 +195,8 @@ document.addEventListener("DOMContentLoaded", function() {
             }]
         });
 
-        // 2. 省份 (Bar Top 10)
-        let provData = chartsData.province.slice(0, 10);
+        // 2. 省份 (Bar 全部)
+        let provData = chartsData.province;
         chartProvince.setOption({
             tooltip: { 
                 trigger: 'axis', 
@@ -206,14 +209,18 @@ document.addEventListener("DOMContentLoaded", function() {
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
             },
-            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-            xAxis: { type: 'value' },
-            yAxis: { type: 'category', data: provData.map(item => item.name).reverse() },
+            grid: { top: 30, left: '3%', right: '4%', bottom: '15%', containLabel: true },
+            xAxis: { 
+                type: 'category', 
+                data: provData.map(item => item.name),
+                axisLabel: { interval: 0, rotate: 30 }
+            },
+            yAxis: { type: 'value' },
             series: [{
                 type: 'bar',
-                label: { show: true, position: 'right' },
-                itemStyle: { color: '#3B82F6', borderRadius: [0, 4, 4, 0] },
-                data: provData.map(item => ({value: item.value, _duration: item.duration})).reverse()
+                label: { show: true, position: 'top' },
+                itemStyle: { color: '#3B82F6', borderRadius: [4, 4, 0, 0] },
+                data: provData.map(item => ({value: item.value, _duration: item.duration}))
             }]
         });
 
@@ -231,9 +238,44 @@ document.addEventListener("DOMContentLoaded", function() {
             legend: { bottom: 0, type: 'scroll' },
             series: [{
                 type: 'pie',
-                radius: '50%',
+                radius: '65%',
                 center: ['50%', '45%'],
                 data: chartsData.reason.map(item => ({name: item.name, value: item.value, _duration: item.duration})),
+                emphasis: {
+                    itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
+                }
+            }]
+        });
+
+        // 4. 故障类型 (Pie)
+        const categoryColorMap = {
+            '光缆中断': '#8B5CF6',
+            '空调故障': '#14B8A6',
+            '光缆劣化': '#F97316',
+            '光缆抖动': '#06B6D4',
+            '设备故障': '#EC4899',
+            '供电故障': '#6366F1'
+        };
+        chartCategory.setOption({
+            tooltip: {
+                trigger: 'item',
+                formatter: params => {
+                    let avg = params.value > 0 ? (params.data._duration / params.value).toFixed(2) : "0.00";
+                    return `${params.marker}${params.name}: ${params.value}次 (${params.percent}%)<br/>` +
+                           `<span style="margin-left:14px;">总历时: ${params.data._duration} 小时</span><br/>` +
+                           `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
+                }
+            },
+            legend: { bottom: 0, type: 'scroll' },
+            series: [{
+                type: 'pie',
+                radius: '65%',
+                center: ['50%', '45%'],
+                itemStyle: {
+                    color: function(params) { return categoryColorMap[params.name] || undefined; },
+                    borderRadius: 5, borderColor: '#fff', borderWidth: 2
+                },
+                data: chartsData.category.map(item => ({name: item.name, value: item.value, _duration: item.duration})),
                 emphasis: {
                     itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
                 }
@@ -259,6 +301,10 @@ document.addEventListener("DOMContentLoaded", function() {
             filteredDetails = filteredDetails.filter(item => !excludedCategories.reason.has(item.reason));
             activeConditions.push(`排除原因[${Array.from(excludedCategories.reason).join(', ')}]`);
         }
+        if (excludedCategories.category.size > 0) {
+            filteredDetails = filteredDetails.filter(item => !excludedCategories.category.has(item.category));
+            activeConditions.push(`排除故障类型[${Array.from(excludedCategories.category).join(', ')}]`);
+        }
         
         const summaryDiv = document.getElementById('filtered-kpi-summary');
 
@@ -271,6 +317,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (activeFilterField === 'resource_type') filterName = '光缆属性';
             else if (activeFilterField === 'province') filterName = '省份';
             else if (activeFilterField === 'reason') filterName = '原因';
+            else if (activeFilterField === 'category') filterName = '故障类型';
             else if (activeFilterField === 'is_long') { filterName = '特殊标签'; filterValueDisp = '长时故障(≥6h)'; }
             else if (activeFilterField === 'is_repeat') { filterName = '特殊标签'; filterValueDisp = '历史重复故障'; }
             
@@ -332,7 +379,7 @@ document.addEventListener("DOMContentLoaded", function() {
         tbody.innerHTML = html;
     }
 
-    // ---------------- 下钻事件绑定 ----------------
+    // ---------------- 下钻事件处理 ----------------
     function handleChartClick(params, fieldName) {
         if (!params.name) return;
         activeFilterField = fieldName;
@@ -345,18 +392,7 @@ document.addEventListener("DOMContentLoaded", function() {
         renderDetailsTable();
     }
 
-    chartResource.on('click', params => handleChartClick(params, 'resource_type'));
-    chartProvince.on('click', params => handleChartClick(params, 'province'));
-    chartReason.on('click', params => handleChartClick(params, 'reason'));
-
-    document.getElementById('card-long-faults').addEventListener('click', () => {
-        handleChartClick({name: true}, 'is_long');
-    });
-
-    document.getElementById('card-repeat-faults').addEventListener('click', () => {
-        handleChartClick({name: true}, 'is_repeat');
-    });
-
+    // ---------------- 清除过滤 ----------------
     btnClearFilter.addEventListener('click', () => {
         activeFilterField = null;
         activeFilterValue = null;
@@ -364,10 +400,11 @@ document.addEventListener("DOMContentLoaded", function() {
         excludedCategories.resource_type.clear();
         excludedCategories.province.clear();
         excludedCategories.reason.clear();
+        excludedCategories.category.clear();
         
         chartResource.dispatchAction({ type: 'legendAllSelect' });
         chartReason.dispatchAction({ type: 'legendAllSelect' });
-        // province chart relies on clicking bars rather than legends so no interaction needed here for unselecting them, but clear works on our internal variable
+        chartCategory.dispatchAction({ type: 'legendAllSelect' });
         
         renderDetailsTable();
     });
@@ -533,6 +570,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     chartResource.resize();
                     chartProvince.resize();
                     chartReason.resize();
+                    chartCategory.resize();
                 }, 100);
             }
         });
