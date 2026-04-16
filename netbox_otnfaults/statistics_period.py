@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 CURRENT_PERIOD_LABEL = "当前"
 
 
-FUTURE_PERIOD_LABEL = "尚未开始"
+FUTURE_PERIOD_LABEL = "未到日期"
 
 
 def build_period_display(

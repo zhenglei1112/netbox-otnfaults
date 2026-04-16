@@ -12,6 +12,38 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
+.statistics-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    line-height: 1.35;
+    text-align: center;
+}
+
+.statistics-period-label {
+    display: inline-block;
+    vertical-align: baseline;
+    font-size: 0.82em;
+    font-weight: 500;
+    line-height: 1.35;
+    color: #1f2937;
+    white-space: normal;
+}
+
+.statistics-period-flag {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: baseline;
+    padding: 0.08rem 0.45rem;
+    border-radius: 4px;
+    color: var(--tblr-success) !important;
+    background-color: rgba(var(--tblr-success-rgb), 0.12);
+    border: 1px solid rgba(var(--tblr-success-rgb), 0.3);
+    font-weight: 600;
+}
+
 .card {
     border: none;
     transition: transform 0.2s, box-shadow 0.2s;

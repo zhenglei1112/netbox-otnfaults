@@ -29,7 +29,7 @@ class StatisticsPeriodDisplayTestCase(unittest.TestCase):
             now=datetime(2026, 4, 15, 9, 30, 0),
         )
 
-        self.assertEqual(period, {"start": "2026-04-14", "end": "当前"})
+        self.assertEqual(period, {"start": "2026-04-14", "end": "当前", "is_future": False})
 
     def test_build_period_display_keeps_actual_date_when_display_end_is_not_in_future(self) -> None:
         module = load_period_helper_module()
@@ -40,7 +40,7 @@ class StatisticsPeriodDisplayTestCase(unittest.TestCase):
             now=datetime(2026, 4, 15, 9, 30, 0),
         )
 
-        self.assertEqual(period, {"start": "2026-04-01", "end": "2026-04-15"})
+        self.assertEqual(period, {"start": "2026-04-01", "end": "2026-04-15", "is_future": False})
 
     def test_statistics_views_use_shared_period_display_helper(self) -> None:
         source = STATISTICS_VIEWS_PATH.read_text(encoding="utf-8")
@@ -51,3 +51,4 @@ class StatisticsPeriodDisplayTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

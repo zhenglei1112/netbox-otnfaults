@@ -11,10 +11,10 @@
         <!-- 头部与过滤区（Tab 共享） -->
         <header class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h2 class="page-title mb-1">故障统计</h2>
-                <div class="text-muted">
-                    <span class="badge bg-light text-dark border ms-2 ms-md-0" id="period-display" style="font-weight: normal; margin-left: 0 !important;">加载中...</span>
-                </div>
+                <h2 class="page-title statistics-title mb-1">
+                    <span class="statistics-title-text">故障统计</span>
+                    <span class="statistics-period-label" id="period-display">加载中...</span>
+                </h2>
             </div>
             
             <div class="d-flex gx-2 align-items-center filter-controls">
@@ -24,24 +24,7 @@
                     <option value="week" {% if default_filter_type == 'week' %}selected{% endif %}>按周</option>
                 </select>
                 
-                <select id="filterYear" class="form-select mx-2" style="width: auto;">
-                    {% for y in years %}
-                    <option value="{{ y }}" {% if y == default_year %}selected{% endif %}>{{ y }}年</option>
-                    {% endfor %}
-                </select>
-                
-                <select id="filterMonth" class="form-select mx-2" style="width: auto; display: none;">
-                    {% for m in "123456789"|make_list %}
-                    <option value="{{ m }}" {% if m == default_month|stringformat:"i" %}selected{% endif %}>{{ m }}月</option>
-                    {% endfor %}
-                    <option value="10" {% if default_month == 10 %}selected{% endif %}>10月</option>
-                    <option value="11" {% if default_month == 11 %}selected{% endif %}>11月</option>
-                    <option value="12" {% if default_month == 12 %}selected{% endif %}>12月</option>
-                </select>
-                
-                <div id="filterWeekContainer" class="mx-2" style="display: none;">
-                    <input type="number" id="filterWeek" class="form-control" style="width: 80px;" min="1" max="53" value="{{ default_week }}" placeholder="周次">
-                </div>
+                <input type="date" id="filterDate" class="form-control mx-2" style="width: auto;" value="{{ default_date }}">
             </div>
         </header>
 

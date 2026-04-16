@@ -54,20 +54,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ---------------- DOM 元素 ----------------
     const selFilterType = document.getElementById('filterType');
-    const selYear = document.getElementById('filterYear');
-    const selMonth = document.getElementById('filterMonth');
-    const containerWeek = document.getElementById('filterWeekContainer');
-    const inputWeek = document.getElementById('filterWeek');
+    const inputDate = document.getElementById('filterDate');
 
     const badgeFilter = document.getElementById('drill-down-filter-badge');
     const btnClearFilter = document.getElementById('btn-clear-filter');
 
     // ---------------- UI 联动逻辑 ----------------
     function updateDateSelectors() {
-        const type = selFilterType.value;
-        selYear.style.display = 'inline-block';
-        selMonth.style.display = type === 'month' ? 'inline-block' : 'none';
-        containerWeek.style.display = type === 'week' ? 'inline-block' : 'none';
+        inputDate.title = '选择日期后，将按当前统计类型取该日期所在的年、月或 ISO 周';
     }
 
     selFilterType.addEventListener('change', () => {
@@ -75,20 +69,147 @@ document.addEventListener("DOMContentLoaded", function() {
         loadActiveTab();
     });
     
-    [selYear, selMonth, inputWeek].forEach(el => {
+    [inputDate].forEach(el => {
         el.addEventListener('change', loadActiveTab);
     });
 
     // ---------------- 构建时间参数 URL ----------------
+    function getIsoWeekParts(dateValue) {
+        const parts = dateValue.split('-').map(Number);
+        const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+        const dayNumber = date.getUTCDay() || 7;
+        date.setUTCDate(date.getUTCDate() + 4 - dayNumber);
+        const isoYear = date.getUTCFullYear();
+        const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+        const isoWeek = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+        return { year: isoYear, week: isoWeek };
+    }
+
+    function parseDateValue(dateValue) {
+        const parts = dateValue.split('-').map(Number);
+        return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    }
+
+    function padDatePart(value) {
+        return String(value).padStart(2, '0');
+    }
+
+    function formatDotDate(date) {
+        return `${date.getUTCFullYear()}.${padDatePart(date.getUTCMonth() + 1)}.${padDatePart(date.getUTCDate())}`;
+    }
+
+    function formatApiDate(dateValue) {
+        const parts = dateValue.split('-');
+        return `${parts[0]}.${parts[1]}.${parts[2]}`;
+    }
+
+    function formatPeriodStartDate(period, fallbackDate) {
+        if (period && period.start) {
+            return formatApiDate(period.start);
+        }
+        return formatDotDate(fallbackDate);
+    }
+
+    function formatPeriodEndDate(periodEnd, fallbackDate) {
+        if (!periodEnd) {
+            return formatDotDate(fallbackDate);
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(periodEnd)) {
+            return formatApiDate(periodEnd);
+        }
+        return periodEnd;
+    }
+
+    function getIsoWeekRange(dateValue) {
+        const date = parseDateValue(dateValue);
+        const dayNumber = date.getUTCDay() || 7;
+        const weekStart = new Date(date);
+        weekStart.setUTCDate(date.getUTCDate() - dayNumber + 1);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+        return { weekStart, weekEnd };
+    }
+
+    function getMonthWeekOrdinal(weekStart, monthDate) {
+        const firstDay = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth(), 1));
+        const firstDayNumber = firstDay.getUTCDay() || 7;
+        const firstWeekStart = new Date(firstDay);
+        firstWeekStart.setUTCDate(firstDay.getUTCDate() - firstDayNumber + 1);
+        return Math.floor((weekStart - firstWeekStart) / (7 * 86400000)) + 1;
+    }
+
+    function getYearEndDate(date) {
+        return new Date(Date.UTC(date.getUTCFullYear(), 11, 31));
+    }
+
+    function getMonthEndDate(date) {
+        return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+    }
+
+    function updatePeriodLabelState(periodEl, period) {
+        periodEl.classList.remove('text-success');
+        periodEl.classList.remove('text-warning');
+        if (period && period.end === '当前') {
+            periodEl.classList.add('text-success');
+        } else if (period && period.is_future) {
+            periodEl.classList.add('text-warning');
+        }
+    }
+
+    function formatPeriodFlag(label) {
+        return `<span class="statistics-period-flag">${label}</span>`;
+    }
+
+    function formatStatisticsPeriodLabel(type, dateValue, period) {
+        const date = parseDateValue(dateValue);
+        const year = date.getUTCFullYear();
+        const month = date.getUTCMonth() + 1;
+
+        if (type === 'year') {
+            const rangeStart = formatPeriodStartDate(period, date);
+            const rangeEnd = formatPeriodEndDate(period && period.end, getYearEndDate(date));
+            return `年统计 ${year}年（${rangeStart}至${rangeEnd}）`;
+        }
+        if (type === 'month') {
+            const rangeStart = formatPeriodStartDate(period, date);
+            const rangeEnd = formatPeriodEndDate(period && period.end, getMonthEndDate(date));
+            return `月统计 ${year}年${month}月（${rangeStart}至${rangeEnd}）`;
+        }
+        if (type === 'week') {
+            const { weekStart, weekEnd } = getIsoWeekRange(dateValue);
+            const weekLabelDate = weekEnd;
+            const weekYear = weekLabelDate.getUTCFullYear();
+            const weekMonth = weekLabelDate.getUTCMonth() + 1;
+            const weekOrdinalLabels = ['第一周', '第二周', '第三周', '第四周', '第五周', '第六周'];
+            const weekOrdinalNumber = getMonthWeekOrdinal(weekStart, weekLabelDate);
+            const weekOrdinalLabel = weekOrdinalLabels[weekOrdinalNumber - 1] || `${weekOrdinalNumber}周`;
+            const rangeStart = formatPeriodStartDate(period, weekStart);
+            const rangeEnd = formatPeriodEndDate(period && period.end, weekEnd);
+            return `${formatPeriodFlag('周统计')} ${weekYear}年${weekMonth}月${weekOrdinalLabel}（${rangeStart}至${rangeEnd}）`;
+        }
+        const rangeStart = formatPeriodStartDate(period, date);
+        const rangeEnd = formatPeriodEndDate(period && period.end, getYearEndDate(date));
+        return `年统计 ${year}年（${rangeStart}至${rangeEnd}）`;
+    }
+
     function buildTimeParams() {
         const type = selFilterType.value;
-        const year = selYear.value;
-        const month = selMonth.value;
-        const week = inputWeek.value;
-        let params = `filter_type=${type}&year=${year}`;
-        if (type === 'month') params += `&month=${month}`;
-        if (type === 'week') params += `&week=${week}`;
-        return params;
+        const selectedDate = inputDate.value;
+        const parts = selectedDate.split('-').map(Number);
+        const year = parts[0];
+        const month = parts[1];
+
+        if (type === 'year') {
+            return `filter_type=year&year=${year}`;
+        }
+        if (type === 'month') {
+            return `filter_type=month&year=${year}&month=${month}`;
+        }
+        if (type === 'week') {
+            const iso = getIsoWeekParts(selectedDate);
+            return `filter_type=week&year=${iso.year}&week=${iso.week}`;
+        }
+        return `filter_type=year&year=${year}`;
     }
 
     // ---------------- 获取物理故障数据 ----------------
@@ -111,18 +232,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
             if (data.period && data.period.start) {
                 const periodEl = document.getElementById('period-display');
-                if (data.period.is_future) {
-                    periodEl.textContent = `数据范围: ${data.period.start} 至 ${data.period.end}`;
-                    periodEl.classList.remove('bg-light', 'text-dark');
-                    periodEl.classList.add('bg-warning', 'text-dark');
-                } else {
-                    const periodText = `数据范围: ${data.period.start} 至 ${data.period.end || '今'}`;
-                    periodEl.textContent = periodText;
-                    periodEl.classList.remove('bg-warning');
-                    periodEl.classList.add('bg-light', 'text-dark');
-                }
+                periodEl.innerHTML = formatStatisticsPeriodLabel(selFilterType.value, inputDate.value, data.period);
+                updatePeriodLabelState(periodEl, data.period);
             } else {
-                document.getElementById('period-display').textContent = '';
+                document.getElementById('period-display').innerHTML = '';
             }
 
             renderKPIs(data.kpis, data.prev_kpis, selFilterType.value);
@@ -425,15 +538,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
             if (data.period && data.period.start) {
                 const periodEl = document.getElementById('period-display');
-                if (data.period.is_future) {
-                    periodEl.textContent = `数据范围: ${data.period.start} 至 ${data.period.end}`;
-                    periodEl.classList.remove('bg-light', 'text-dark');
-                    periodEl.classList.add('bg-warning', 'text-dark');
-                } else {
-                    periodEl.textContent = `数据范围: ${data.period.start} 至 ${data.period.end || '今'}`;
-                    periodEl.classList.remove('bg-warning');
-                    periodEl.classList.add('bg-light', 'text-dark');
-                }
+                periodEl.innerHTML = formatStatisticsPeriodLabel(selFilterType.value, inputDate.value, data.period);
+                updatePeriodLabelState(periodEl, data.period);
             }
 
             renderServiceCards(data.services || [], data.period_total_hours || 0);

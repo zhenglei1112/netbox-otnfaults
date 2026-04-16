@@ -74,12 +74,6 @@ class FaultStatisticsPageView(PermissionRequiredMixin, View):
 
     def get(self, request):
         now = timezone.now()
-        # 传入可选年份给前端
-        oldest_fault = OtnFault.objects.order_by('fault_occurrence_time').first()
-        start_year = oldest_fault.fault_occurrence_time.year if oldest_fault and oldest_fault.fault_occurrence_time else max(now.year - 5, 2020)
-        
-        years = list(range(start_year, now.year + 1))
-        years.reverse()
         
         # 计算智能默认值：如果是每个月第一周（前7天），显示上月；否则显示上周
         if now.day <= 7:
@@ -91,23 +85,21 @@ class FaultStatisticsPageView(PermissionRequiredMixin, View):
                 default_year = now.year
                 default_month = now.month - 1
             default_week = now.isocalendar()[1]
+            default_date: date = date(default_year, default_month, 1)
         else:
             default_filter_type = 'week'
             last_week_date = now - timedelta(days=7)
             default_year = last_week_date.isocalendar()[0]
             default_week = last_week_date.isocalendar()[1]
             default_month = now.month
-
-        if default_year not in years:
-            years.append(default_year)
-            years.sort(reverse=True)
+            default_date = last_week_date.date()
         
         return render(request, 'netbox_otnfaults/statistics_dashboard.html', {
-            'years': years,
             'default_filter_type': default_filter_type,
             'default_year': default_year,
             'default_month': default_month,
             'default_week': default_week,
+            'default_date': default_date.isoformat(),
         })
 
 class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
