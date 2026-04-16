@@ -1,10 +1,10 @@
 <style>
   .otn-cal { width: 100%; border-collapse: collapse; table-layout: fixed; }
   .otn-cal th { font-size: .7rem; color: #6c757d; text-align: center; padding: 2px 0; font-weight: 500; }
-  .otn-cal td { text-align: center; vertical-align: top; padding: 1px; height: 38px; position: relative; }
+  .otn-cal td { text-align: center; vertical-align: top; padding: 1px; height: 44px; position: relative; }
   .otn-cal-day {
     font-size: .72rem; color: var(--nbx-body-color, #495057); font-weight: 500;
-    height: 20px; line-height: 20px; margin-bottom: 2px; text-align: center;
+    height: 18px; line-height: 18px; margin-bottom: 2px; text-align: center;
   }
   .otn-cal-today-badge {
     display: inline-block;
@@ -12,7 +12,15 @@
     background: #0d6efd; color: #fff; font-weight: 700;
     line-height: 20px; text-align: center;
   }
-  .otn-cal-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; }
+  .otn-cal-dots {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1px;
+    max-width: 34px;
+    min-height: 13px;
+    margin: 0 auto;
+  }
   .otn-cal-dot {
     width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
     box-shadow: 0 0 1px rgba(0,0,0,.25);

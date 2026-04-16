@@ -51,10 +51,6 @@ class OtnFaultsCalendarWidget(DashboardWidget):
                 color = CATEGORY_CSS_COLORS.get(cat, '#adb5bd')
                 day_dots.setdefault(day, []).append(color)
 
-            # 限制每天最多显示 5 个点（避免爆格）
-            for day in day_dots:
-                day_dots[day] = day_dots[day][:5]
-
             # 构造日历网格 (weeks × 7)
             # weekday: 0=Monday, 6=Sunday
             first_weekday = first_day.weekday()  # 0=周一
