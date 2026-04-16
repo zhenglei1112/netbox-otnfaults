@@ -11,6 +11,19 @@ import taggit.managers
 from django.core.exceptions import ValidationError
 
 
+def _format_duration_units(days: int, hours: int, minutes: int, seconds: int) -> str:
+    units: list[tuple[int, str]] = [
+        (days, "天"),
+        (hours, "小时"),
+        (minutes, "分"),
+        (seconds, "秒"),
+    ]
+    for index, (value, _) in enumerate(units):
+        if value > 0:
+            return "".join(f"{amount}{label}" for amount, label in units[index:])
+    return "0秒"
+
+
 class FaultCategoryChoices(ChoiceSet):
     key = 'OtnFault.fault_category'
 
@@ -750,7 +763,8 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             total_hours = duration.total_seconds() / 3600
             
             ongoing_marker = " (未恢复)" if is_ongoing else ""
-            return f"{days}天{hours}小时{minutes}分{secs}秒（{total_hours:.2f}小时）{ongoing_marker}"
+            duration_text = _format_duration_units(days, hours, minutes, secs)
+            return f"{duration_text}（{total_hours:.2f}小时）{ongoing_marker}"
         return None
 
     @property
@@ -769,7 +783,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         返回: {
             'total_hours': float,       # 总小时数
             'display': str,             # 简短显示文本（如 "2.35小时"）
-            'full_text': str,           # 完整文本（如 "0天2小时21分0秒"）
+            'full_text': str,           # 完整文本（如 "2小时21分0秒"）
             'color': str,               # 颜色类名
             'percentage': float         # 进度百分比（0-100）
         }
@@ -807,7 +821,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             return {
                 'total_hours': total_hours,
                 'display': f"{total_hours:.2f}小时{ongoing_marker_display}",
-                'full_text': f"{days}天{hours}小时{minutes}分{secs}秒{ongoing_marker_full}",
+                'full_text': f"{_format_duration_units(days, hours, minutes, secs)}{ongoing_marker_full}",
                 'color': color,
                 'percentage': percentage,
             }
@@ -1169,7 +1183,8 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
             total_hours = total_seconds / 3600
             
             ongoing_marker = " (未恢复)" if is_ongoing else ""
-            return f"{days}天{hours}小时{minutes}分{seconds}秒（{total_hours:.2f}小时）{ongoing_marker}"
+            duration_text = _format_duration_units(days, hours, minutes, seconds)
+            return f"{duration_text}（{total_hours:.2f}小时）{ongoing_marker}"
         return None
 
     @property
@@ -1222,7 +1237,7 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
             return {
                 'total_hours': total_hours,
                 'display': f"{total_hours:.2f}小时{ongoing_marker_display}",
-                'full_text': f"{days}天{hours}小时{minutes}分{secs}秒{ongoing_marker_full}",
+                'full_text': f"{_format_duration_units(days, hours, minutes, secs)}{ongoing_marker_full}",
                 'color': color,
                 'percentage': percentage,
             }
