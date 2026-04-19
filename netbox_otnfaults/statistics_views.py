@@ -31,6 +31,114 @@ def _sorted_count_items(counts: dict[str, int]) -> list[dict[str, int]]:
     ]
 
 
+def _compute_cable_break_overview(faults: list, now) -> dict:
+    """从故障列表中筛选光缆中断并计算概览统计数据（可复用于当前期与上周期）。"""
+    cable_break_faults = [
+        f for f in faults
+        if f.fault_category == FaultCategoryChoices.FIBER_BREAK
+        and f.fault_status != FaultStatusChoices.SUSPENDED
+    ]
+
+    reason_counts: dict[str, int] = {}
+    source_counts: dict[str, int] = {}
+    total_duration: float = 0.0
+    reason_duration: dict[str, float] = {}
+    source_duration: dict[str, float] = {}
+    long_duration_buckets: dict[str, int] = {
+        '6-8小时': 0, '8-10小时': 0, '10-12小时': 0, '12小时以上': 0,
+    }
+
+    cb_valid_count = 0
+    cb_valid_dur = 0.0
+    cb_day_count = 0
+    cb_day_dur = 0.0
+    cb_night_count = 0
+    cb_night_dur = 0.0
+    cb_cons_count = 0
+    cb_cons_dur = 0.0
+    cb_noncons_count = 0
+    cb_noncons_dur = 0.0
+    histogram: dict[int, int] = {i: 0 for i in range(13)}
+
+    for fault in cable_break_faults:
+        reason = fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知'
+        if fault.resource_type == ResourceTypeChoices.SELF_BUILT:
+            source = '自控'
+        elif fault.resource_type in [ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED]:
+            source = '第三方'
+        else:
+            source = '其他/未填'
+        reason_counts[reason] = reason_counts.get(reason, 0) + 1
+        source_counts[source] = source_counts.get(source, 0) + 1
+
+        end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
+        duration_hours = (end_t - fault.fault_occurrence_time).total_seconds() / 3600.0
+
+        hist_bucket = min(12, int(duration_hours))
+        histogram[hist_bucket] += 1
+
+        total_duration += duration_hours
+        reason_duration[reason] = reason_duration.get(reason, 0.0) + duration_hours
+        source_duration[source] = source_duration.get(source, 0.0) + duration_hours
+
+        if 6.0 <= duration_hours < 8.0:
+            long_duration_buckets['6-8小时'] += 1
+        elif 8.0 <= duration_hours < 10.0:
+            long_duration_buckets['8-10小时'] += 1
+        elif 10.0 <= duration_hours < 12.0:
+            long_duration_buckets['10-12小时'] += 1
+        elif duration_hours >= 12.0:
+            long_duration_buckets['12小时以上'] += 1
+
+        if duration_hours > 0.5:
+            cb_valid_count += 1
+            cb_valid_dur += duration_hours
+
+        occ_hour = fault.fault_occurrence_time.astimezone(timezone.get_current_timezone()).hour if fault.fault_occurrence_time else 0
+        if 6 <= occ_hour < 18:
+            cb_day_count += 1
+            cb_day_dur += duration_hours
+        else:
+            cb_night_count += 1
+            cb_night_dur += duration_hours
+
+        if reason == '施工':
+            cb_cons_count += 1
+            cb_cons_dur += duration_hours
+        else:
+            cb_noncons_count += 1
+            cb_noncons_dur += duration_hours
+
+    cb_count = len(cable_break_faults)
+    avg_metrics = {
+        'overall_avg': round(total_duration / cb_count if cb_count > 0 else 0.0, 2),
+        'valid_avg': round(cb_valid_dur / cb_valid_count if cb_valid_count > 0 else 0.0, 2),
+        'daytime_avg': round(cb_day_dur / cb_day_count if cb_day_count > 0 else 0.0, 2),
+        'nighttime_avg': round(cb_night_dur / cb_night_count if cb_night_count > 0 else 0.0, 2),
+        'construction_avg': round(cb_cons_dur / cb_cons_count if cb_cons_count > 0 else 0.0, 2),
+        'non_construction_avg': round(cb_noncons_dur / cb_noncons_count if cb_noncons_count > 0 else 0.0, 2),
+    }
+
+    hist_data = []
+    for i in range(13):
+        label = f"[{i}, {i+1})" if i < 12 else "≥12"
+        count = histogram[i]
+        pct = round(count * 100.0 / cb_count, 1) if cb_count > 0 else 0.0
+        hist_data.append({'label': label, 'value': count, 'percent': pct})
+
+    return {
+        'total_count': cb_count,
+        'total_duration': round(total_duration, 2),
+        'reason_top3': _sorted_count_items(reason_counts)[:3],
+        'source_counts': _sorted_count_items(source_counts),
+        'reason_duration_top3': _sorted_count_items(reason_duration)[:3],
+        'source_duration_counts': _sorted_count_items(source_duration),
+        'long_duration_buckets': long_duration_buckets,
+        'avg_metrics': avg_metrics,
+        'histogram': hist_data,
+    }
+
+
 def _parse_time_range(request):
     """从请求参数解析时间范围，返回 (start_date, end_date, prev_start_date, prev_end_date, filter_type)"""
     filter_type: str = request.GET.get('filter_type', 'year')
@@ -181,6 +289,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         prev_long_faults = 0
         prev_repeat_faults = 0
         prev_avg_duration = 0.0
+        prev_faults = []
         
         if prev_start_date and prev_end_date:
             qs_prev = qs.filter(fault_occurrence_time__gte=prev_start_date, fault_occurrence_time__lt=prev_end_date)
@@ -349,103 +458,26 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'url': fault.get_absolute_url()
             })
 
-        cable_break_faults = [
-            fault for fault in faults
-            if fault.fault_category == FaultCategoryChoices.FIBER_BREAK
-            and fault.fault_status != FaultStatusChoices.SUSPENDED
-        ]
-        cable_break_reason_counts: dict[str, int] = {}
-        cable_break_source_counts: dict[str, int] = {}
-        cable_break_total_duration: float = 0.0
-        cable_break_reason_duration: dict[str, float] = {}
-        cable_break_source_duration: dict[str, float] = {}
-        cable_break_long_duration_buckets: dict[str, int] = {
-            '6-8小时': 0,
-            '8-10小时': 0,
-            '10-12小时': 0,
-            '12小时以上': 0,
-        }
-        
-        cb_valid_count = 0
-        cb_valid_dur = 0.0
-        cb_day_count = 0
-        cb_day_dur = 0.0
-        cb_night_count = 0
-        cb_night_dur = 0.0
-        cb_cons_count = 0
-        cb_cons_dur = 0.0
-        cb_noncons_count = 0
-        cb_noncons_dur = 0.0
-        
-        cable_break_histogram: dict[int, int] = {i: 0 for i in range(13)}
-
-        for fault in cable_break_faults:
-            reason = fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知'
-            if fault.resource_type == ResourceTypeChoices.SELF_BUILT:
-                source = '自控'
-            elif fault.resource_type in [ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED]:
-                source = '第三方'
-            else:
-                source = '其他/未填'
-            cable_break_reason_counts[reason] = cable_break_reason_counts.get(reason, 0) + 1
-            cable_break_source_counts[source] = cable_break_source_counts.get(source, 0) + 1
-
-            end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
-            duration_hours = (end_t - fault.fault_occurrence_time).total_seconds() / 3600.0
-            
-            hist_bucket = min(12, int(duration_hours))
-            cable_break_histogram[hist_bucket] += 1
-            
-            cable_break_total_duration += duration_hours
-            cable_break_reason_duration[reason] = cable_break_reason_duration.get(reason, 0.0) + duration_hours
-            cable_break_source_duration[source] = cable_break_source_duration.get(source, 0.0) + duration_hours
-            
-            if 6.0 <= duration_hours < 8.0:
-                cable_break_long_duration_buckets['6-8小时'] += 1
-            elif 8.0 <= duration_hours < 10.0:
-                cable_break_long_duration_buckets['8-10小时'] += 1
-            elif 10.0 <= duration_hours < 12.0:
-                cable_break_long_duration_buckets['10-12小时'] += 1
-            elif duration_hours >= 12.0:
-                cable_break_long_duration_buckets['12小时以上'] += 1
-                
-            if duration_hours > 0.5:
-                cb_valid_count += 1
-                cb_valid_dur += duration_hours
-                
-            occ_hour = fault.fault_occurrence_time.astimezone(timezone.get_current_timezone()).hour if fault.fault_occurrence_time else 0
-            if 6 <= occ_hour < 18:
-                cb_day_count += 1
-                cb_day_dur += duration_hours
-            else:
-                cb_night_count += 1
-                cb_night_dur += duration_hours
-                
-            if reason == '施工':
-                cb_cons_count += 1
-                cb_cons_dur += duration_hours
-            else:
-                cb_noncons_count += 1
-                cb_noncons_dur += duration_hours
-                
-        cable_break_avg_metrics = {
-             'overall_avg': round(cable_break_total_duration / len(cable_break_faults) if len(cable_break_faults) > 0 else 0.0, 2),
-             'valid_avg': round(cb_valid_dur / cb_valid_count if cb_valid_count > 0 else 0.0, 2),
-             'daytime_avg': round(cb_day_dur / cb_day_count if cb_day_count > 0 else 0.0, 2),
-             'nighttime_avg': round(cb_night_dur / cb_night_count if cb_night_count > 0 else 0.0, 2),
-             'construction_avg': round(cb_cons_dur / cb_cons_count if cb_cons_count > 0 else 0.0, 2),
-             'non_construction_avg': round(cb_noncons_dur / cb_noncons_count if cb_noncons_count > 0 else 0.0, 2),
-        }
+        # 使用辅助函数计算当前期光缆中断概览
+        cable_break_overview = _compute_cable_break_overview(faults, now)
 
         avg_duration_hours = total_duration_hours / total_count if total_count > 0 else 0.0
-        
-        hist_data = []
-        cb_count_total = len(cable_break_faults)
-        for i in range(13):
-            label = f"[{i}, {i+1})" if i < 12 else "≥12"
-            count = cable_break_histogram[i]
-            pct = round(count * 100.0 / cb_count_total, 1) if cb_count_total > 0 else 0.0
-            hist_data.append({'label': label, 'value': count, 'percent': pct})
+
+        # 计算上周期的全维度对比数据
+        prev_overall_category_stats = {}
+        prev_cable_break_overview = {}
+        if prev_start_date and prev_end_date:
+            # 上周期全量故障（用于总体情况分类对比）
+            prev_all_qs = qs_all.filter(fault_occurrence_time__gte=prev_start_date, fault_occurrence_time__lt=prev_end_date)
+            prev_all_faults = list(prev_all_qs)
+            for f in prev_all_faults:
+                cat_display = f.get_fault_category_display() if f.fault_category else '未知'
+                if cat_display not in prev_overall_category_stats:
+                    prev_overall_category_stats[cat_display] = {'count': 0}
+                prev_overall_category_stats[cat_display]['count'] += 1
+
+            # 上周期光缆中断概览（用于各子指标趋势对比）
+            prev_cable_break_overview = _compute_cable_break_overview(prev_faults, now)
 
         # 为了展示准确的截止自然日（例如周日而非下周一，10月31日而非11月1日），展示日期需减去一天
         display_end_date_str = ''
@@ -476,17 +508,11 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'reason': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(reason_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
                 'category': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(overall_category_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
             },
-            'cable_break_overview': {
-                'total_count': len(cable_break_faults),
-                'total_duration': round(cable_break_total_duration, 2),
-                'reason_top3': _sorted_count_items(cable_break_reason_counts)[:3],
-                'source_counts': _sorted_count_items(cable_break_source_counts),
-                'reason_duration_top3': _sorted_count_items(cable_break_reason_duration)[:3],
-                'source_duration_counts': _sorted_count_items(cable_break_source_duration),
-                'long_duration_buckets': cable_break_long_duration_buckets,
-                'avg_metrics': cable_break_avg_metrics,
-                'histogram': hist_data,
+            'prev_charts': {
+                'category': [{'name': k, 'value': v['count']} for k, v in sorted(prev_overall_category_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
             },
+            'cable_break_overview': cable_break_overview,
+            'prev_cable_break_overview': prev_cable_break_overview,
             'details': details
         })
 
