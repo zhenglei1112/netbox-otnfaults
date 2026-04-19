@@ -1,4 +1,4 @@
-{% extends "base/layout.html" %}
+{% extends statistics_base_template|default:"base/layout.html" %}
 {% load static %}
 
 {% block title %}故障统计{% endblock %}
@@ -18,13 +18,22 @@
             </div>
             
             <div class="d-flex gx-2 align-items-center filter-controls">
+
+                <button type="button" id="btn-prev-period" class="btn btn-outline-secondary btn-icon" title="上一周期" aria-label="上一周期">
+                    <i class="mdi mdi-chevron-left"></i>
+                </button>
                 <select id="filterType" class="form-select mx-2" style="width: auto;">
                     <option value="year" {% if default_filter_type == 'year' %}selected{% endif %}>按年</option>
+                    <option value="half" {% if default_filter_type == 'half' %}selected{% endif %}>按半年</option>
+                    <option value="quarter" {% if default_filter_type == 'quarter' %}selected{% endif %}>按季度</option>
                     <option value="month" {% if default_filter_type == 'month' %}selected{% endif %}>按月</option>
                     <option value="week" {% if default_filter_type == 'week' %}selected{% endif %}>按周</option>
                 </select>
                 
                 <input type="date" id="filterDate" class="form-control mx-2" style="width: auto;" value="{{ default_date }}">
+                <button type="button" id="btn-next-period" class="btn btn-outline-secondary btn-icon" title="下一周期" aria-label="下一周期">
+                    <i class="mdi mdi-chevron-right"></i>
+                </button>
             </div>
         </header>
 
@@ -46,48 +55,169 @@
         <div class="tab-content" id="statisticsTabContent">
             <!-- ===== 物理故障统计 Tab ===== -->
             <div class="tab-pane fade show active" id="tab-physical" role="tabpanel" aria-labelledby="tab-physical-btn">
+                <div class="card p-3 shadow-sm statistics-overall-card mb-4">
+                    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+                        <div>
+                            <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">总体情况</div>
+                            <div class="d-flex align-items-baseline flex-wrap">
+                                <span class="display-6 fw-bold text-dark me-1 lh-1" id="kpi-overall-total">--</span>
+                                <span class="statistics-overall-unit text-muted">起物理故障</span>
+                            </div>
+                        </div>
+                        <div class="statistics-overall-categories text-muted" id="kpi-overall-categories">--</div>
+                    </div>
+                </div>
+
+                <section class="statistics-cable-break-overview mb-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h3 class="h4 mb-0">光缆中断概览</h3>
+                    </div>
+                    <div class="row row-cols-1 g-3">
+                        <!-- 卡片 1：中断起数 -->
+                        <div class="col">
+                            <div class="card p-3 shadow-sm h-100 mb-0">
+                                <div class="d-flex flex-row align-items-center w-100 overflow-auto py-1" style="gap: 1.5rem;">
+                                    <div class="d-flex flex-column align-items-center flex-shrink-0 px-2" style="min-width: 140px;">
+                                        <div class="d-flex align-items-baseline">
+                                            <span class="display-5 fw-bold text-dark lh-1" id="cable-break-total-count">--</span>
+                                            <span class="ms-1 text-muted small">起</span>
+                                        </div>
+                                        <div class="fw-bold text-dark mt-2 text-nowrap">中断起数</div>
+                                    </div>
+                                    <div class="vr text-muted d-none d-md-block flex-shrink-0" style="opacity: 0.15; width: 2px; align-self: stretch;"></div>
+                                    <div id="cable-break-count-flex-list" class="d-flex flex-row flex-nowrap align-items-center gap-4 pt-3">
+                                        <div class="text-muted small py-3">数据加载中...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 卡片 2：中断总历时 -->
+                        <div class="col">
+                            <div class="card p-3 shadow-sm h-100 mb-0">
+                                <div class="d-flex flex-row align-items-center w-100 overflow-auto py-1" style="gap: 1.5rem;">
+                                    <div class="d-flex flex-column align-items-center flex-shrink-0 px-2" style="min-width: 140px;">
+                                        <div class="d-flex align-items-baseline">
+                                            <span class="display-5 fw-bold text-dark lh-1" id="cable-break-total-duration">--</span>
+                                            <span class="ms-1 text-muted small">时</span>
+                                        </div>
+                                        <div class="fw-bold text-dark mt-2 text-nowrap">中断总历时</div>
+                                    </div>
+                                    <div class="vr text-muted d-none d-md-block flex-shrink-0" style="opacity: 0.15; width: 2px; align-self: stretch;"></div>
+                                    <div id="cable-break-duration-flex-list" class="d-flex flex-row flex-nowrap align-items-center gap-4 pt-3">
+                                        <div class="text-muted small py-3">数据加载中...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 卡片 3：长时中断起数 -->
+                        <div class="col">
+                            <div class="card p-3 shadow-sm h-100 mb-0">
+                                <div class="d-flex flex-row align-items-center w-100 overflow-auto py-1" style="gap: 1.5rem;">
+                                    <div class="d-flex flex-column align-items-center flex-shrink-0 px-2" style="min-width: 140px;">
+                                        <div class="d-flex align-items-baseline">
+                                            <span class="display-5 fw-bold text-dark lh-1" id="cable-break-long-total">--</span>
+                                            <span class="ms-1 text-muted small">起</span>
+                                        </div>
+                                        <div class="fw-bold text-dark mt-2 text-nowrap">长时中断起数</div>
+                                    </div>
+                                    <div class="vr text-muted d-none d-md-block flex-shrink-0" style="opacity: 0.15; width: 2px; align-self: stretch;"></div>
+                                    <div id="cable-break-long-flex-list" class="d-flex flex-row flex-nowrap align-items-center gap-4 pt-3">
+                                        <div class="text-muted small py-3">数据加载中...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 卡片 4：平均历时深度分析 -->
+                        <div class="col">
+                            <div class="card p-3 shadow-sm h-100 mb-0">
+                                <div class="d-flex flex-row align-items-center w-100 overflow-auto py-1" style="gap: 1.5rem;">
+                                    <div class="d-flex flex-column align-items-center flex-shrink-0 px-2" style="min-width: 140px;">
+                                        <div class="d-flex align-items-baseline">
+                                            <span class="display-5 fw-bold text-dark lh-1" id="cable-break-overall-avg">--</span>
+                                            <span class="ms-1 text-muted small">时</span>
+                                        </div>
+                                        <div class="fw-bold text-dark mt-2 text-nowrap">平均历时 (全口径)</div>
+                                    </div>
+                                    <div class="vr text-muted d-none d-md-block flex-shrink-0" style="opacity: 0.15; width: 2px; align-self: stretch;"></div>
+                                    
+                                    <div class="d-flex flex-row flex-nowrap align-items-center gap-4 text-nowrap pt-3">
+                                        <!-- Group: 去除<=30分 -->
+                                        <div class="d-flex flex-column align-items-center justify-content-end">
+                                            <div class="d-flex flex-row align-items-start gap-4">
+                                                <div class="d-flex flex-column align-items-center">
+                                                    <div class="d-flex align-items-baseline">
+                                                        <span class="display-6 fw-bold text-primary lh-1" id="cable-break-valid-avg">--</span><span class="ms-1 text-muted" style="font-size: 13px;">时</span>
+                                                    </div>
+                                                    <div class="text-muted mt-2" style="font-size: 13px;">有效平均</div>
+                                                </div>
+                                            </div>
+                                            <div class="fw-semibold text-secondary text-center mt-2 w-100" style="font-size: 14px;" title="去除历时<=30分的短时中断">去除<=30分</div>
+                                        </div>
+                                        <div class="vr text-muted" style="opacity: 0.1; align-self: stretch;"></div>
+                                        
+                                        <!-- Group: 按时段 -->
+                                        <div class="d-flex flex-column align-items-center justify-content-end">
+                                            <div class="d-flex flex-row align-items-start gap-4">
+                                                <div class="d-flex flex-column align-items-center">
+                                                    <div class="d-flex align-items-baseline">
+                                                        <span class="display-6 fw-bold text-info lh-1" id="cable-break-daytime-avg">--</span><span class="ms-1 text-muted" style="font-size: 13px;">时</span>
+                                                    </div>
+                                                    <div class="text-muted mt-2" style="font-size: 13px;">日间平均</div>
+                                                </div>
+                                                <div class="vr text-muted" style="opacity: 0.1; align-self: stretch;"></div>
+                                                <div class="d-flex flex-column align-items-center">
+                                                    <div class="d-flex align-items-baseline">
+                                                        <span class="display-6 fw-bold text-purple lh-1" id="cable-break-nighttime-avg">--</span><span class="ms-1 text-muted" style="font-size: 13px;">时</span>
+                                                    </div>
+                                                    <div class="text-muted mt-2" style="font-size: 13px;">夜间平均</div>
+                                                </div>
+                                            </div>
+                                            <div class="fw-semibold text-secondary text-center mt-2 w-100" style="font-size: 14px;" title="6:00-18:00 / 18:00-6:00">按时段</div>
+                                        </div>
+                                        <div class="vr text-muted" style="opacity: 0.1; align-self: stretch;"></div>
+
+                                        <!-- Group: 按成因 -->
+                                        <div class="d-flex flex-column align-items-center justify-content-end">
+                                            <div class="d-flex flex-row align-items-start gap-4">
+                                                <div class="d-flex flex-column align-items-center">
+                                                    <div class="d-flex align-items-baseline">
+                                                        <span class="display-6 fw-bold text-warning lh-1" id="cable-break-construction-avg">--</span><span class="ms-1 text-muted" style="font-size: 13px;">时</span>
+                                                    </div>
+                                                    <div class="text-muted mt-2" style="font-size: 13px;">施工类</div>
+                                                </div>
+                                                <div class="vr text-muted" style="opacity: 0.1; align-self: stretch;"></div>
+                                                <div class="d-flex flex-column align-items-center">
+                                                    <div class="d-flex align-items-baseline">
+                                                        <span class="display-6 fw-bold text-success lh-1" id="cable-break-noncons-avg">--</span><span class="ms-1 text-muted" style="font-size: 13px;">时</span>
+                                                    </div>
+                                                    <div class="text-muted mt-2" style="font-size: 13px;">非施工类</div>
+                                                </div>
+                                            </div>
+                                            <div class="fw-semibold text-secondary text-center mt-2 w-100" style="font-size: 14px;">按成因</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card p-3 shadow-sm h-100">
+                                <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">故障历时频数分布直方图</h3></div>
+                                <div class="card-body p-0">
+                                    <div id="chart-cable-break-histogram" style="width: 100%; height: 260px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- KPI 区 -->
-                <div class="row row-deck mb-4 row-cols-2 row-cols-lg-5">
-                    <div class="col mb-3 mb-lg-0">
-                        <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column">
-                            <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">故障总数</div>
-                            <div class="d-flex align-items-baseline mb-2">
-                                <span class="display-6 fw-bold text-dark me-1 lh-1" id="kpi-total-cnt">--</span>
-                                <span class="text-muted" style="font-size: 14px;">条</span>
-                            </div>
-                            <div id="kpi-total-cnt-diff" class="mt-auto"></div>
-                        </div>
-                    </div>
-                    <div class="col mb-3 mb-lg-0">
-                        <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column">
-                            <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">累计总时长</div>
-                            <div class="d-flex align-items-baseline mb-2">
-                                <span class="display-6 fw-bold text-dark me-1 lh-1" id="kpi-total-dur">--</span>
-                                <span class="text-muted" style="font-size: 14px;">时</span>
-                            </div>
-                            <div id="kpi-total-dur-diff" class="mt-auto"></div>
-                        </div>
-                    </div>
-                    <div class="col mb-3 mb-lg-0">
-                        <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column">
-                            <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">平均单次时长</div>
-                            <div class="d-flex align-items-baseline mb-2">
-                                <span class="display-6 fw-bold text-dark me-1 lh-1" id="kpi-avg-dur">--</span>
-                                <span class="text-muted" style="font-size: 14px;">时</span>
-                            </div>
-                            <div id="kpi-avg-dur-diff" class="mt-auto"></div>
-                        </div>
-                    </div>
-                    <div class="col mb-3 mb-lg-0">
-                        <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column" id="card-long-faults" style="cursor: pointer;" title="点击过滤出长时故障">
-                            <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">长时故障(≥6h)</div>
-                            <div class="d-flex align-items-baseline mb-2">
-                                <span class="display-6 fw-bold text-dark me-1 lh-1" id="kpi-long-faults">--</span>
-                                <span class="text-muted" style="font-size: 14px;">条</span>
-                            </div>
-                            <div id="kpi-long-faults-diff" class="mt-auto"></div>
-                        </div>
-                    </div>
+                <!-- KPI 区 (在此只保留重复故障) -->
+                <div class="row row-deck mb-4 row-cols-1 row-cols-sm-2 row-cols-md-4 row-cols-lg-5">
                     <div class="col mb-3 mb-lg-0">
                         <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column" id="card-repeat-faults" style="cursor: pointer;" title="点击过滤出重复故障">
                             <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">重复故障 <i class="mdi mdi-information-outline text-muted ms-1" title="近60天内同A端/部分同Z端的光缆故障"></i></div>
@@ -111,16 +241,8 @@
                             </div>
                         </div>
                     </div>
-                    <!-- 其他三个图表：各占 1/3 -->
-                    <div class="col-md-4 mb-3 mb-md-0">
-                        <div class="card shadow-sm h-100">
-                            <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">故障类型分布</h3></div>
-                            <div class="card-body p-0">
-                                <div id="chart-category" style="width: 100%; height: 260px;"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mb-3 mb-md-0">
+                    <!-- 两个饼形/环形图表：各占 1/2 -->
+                    <div class="col-md-6 mb-3 mb-md-0">
                         <div class="card shadow-sm h-100">
                             <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">主要原因分析</h3></div>
                             <div class="card-body p-0">
@@ -128,7 +250,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4 mb-3 mb-md-0">
+                    <div class="col-md-6 mb-3 mb-md-0">
                         <div class="card shadow-sm h-100">
                             <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">光缆属性分布</h3></div>
                             <div class="card-body p-0">
@@ -189,10 +311,10 @@
 {% endblock %}
 
 {% block javascript %}
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="{% static 'netbox_otnfaults/lib/echarts.min.js' %}"></script>
 <script>
-    window.STATISTICS_DATA_API = "{% url 'plugins:netbox_otnfaults:statistics_data' %}";
-    window.SERVICE_STATISTICS_DATA_API = "{% url 'plugins:netbox_otnfaults:statistics_service_data' %}";
+    window.STATISTICS_DATA_API = "{{ statistics_data_api_url }}";
+    window.SERVICE_STATISTICS_DATA_API = "{{ statistics_service_data_api_url }}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=2"></script>
 {% endblock %}

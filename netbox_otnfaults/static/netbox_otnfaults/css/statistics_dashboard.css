@@ -12,6 +12,7 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
+
 .statistics-title {
     display: flex;
     align-items: baseline;
@@ -51,6 +52,30 @@
 .card:hover {
     box-shadow: 0 .5rem 1rem rgba(0,0,0,.08) !important;
 }
+
+.statistics-overall-unit {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.statistics-overall-categories {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.statistics-overall-category {
+    white-space: nowrap;
+}
+
+.statistics-overall-separator {
+    color: #c4c8d0;
+}
+
+
 
 /* 覆盖表格在深色主题下的表现 (如果有深色主题) */
 .table-vcenter td, .table-vcenter th {

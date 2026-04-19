@@ -14,6 +14,12 @@ def test_statistics_dashboard_uses_single_calendar_date_selector() -> None:
     assert '<select id="filterType"' in template
     assert 'type="date" id="filterDate"' in template
     assert 'value="{{ default_date }}"' in template
+    assert 'id="btn-prev-period"' in template
+    assert 'id="btn-next-period"' in template
+    assert 'title="上一周期"' in template
+    assert 'title="下一周期"' in template
+    assert '<option value="half"' in template
+    assert '<option value="quarter"' in template
     assert 'id="filterYear"' not in template
     assert 'id="filterMonth"' not in template
     assert 'id="filterWeek"' not in template
@@ -24,6 +30,10 @@ def test_statistics_page_context_provides_default_calendar_date() -> None:
 
     assert "default_date: date" in source
     assert "'default_date': default_date.isoformat()" in source
+    assert "default_filter_type = 'week'" in source
+    assert "default_date: date = timezone.localdate()" in source
+    assert "if now.day <= 7:" not in source
+    assert "last_week_date = now - timedelta(days=7)" not in source
     assert "'years': years" not in source
     assert "'weeks': weeks" not in source
 
@@ -32,27 +42,74 @@ def test_statistics_dashboard_builds_time_params_from_selected_calendar_date() -
     source = JS_PATH.read_text(encoding="utf-8")
 
     assert "const inputDate = document.getElementById('filterDate');" in source
+    assert "function getHalfYearPart(month)" in source
+    assert "function getQuarterPart(month)" in source
     assert "function getIsoWeekParts(dateValue)" in source
     assert "const selectedDate = inputDate.value;" in source
     assert "if (type === 'year')" in source
+    assert "if (type === 'half')" in source
+    assert "if (type === 'quarter')" in source
     assert "if (type === 'month')" in source
     assert "if (type === 'week')" in source
+    assert "filter_type=half&year=${year}&half=${getHalfYearPart(month)}" in source
+    assert "filter_type=quarter&year=${year}&quarter=${getQuarterPart(month)}" in source
     assert "filter_type=week&year=${iso.year}&week=${iso.week}" in source
     assert "selYear" not in source
     assert "selMonth" not in source
     assert "inputWeek" not in source
 
 
+def test_statistics_dashboard_supports_period_shortcut_shift() -> None:
+    source = JS_PATH.read_text(encoding="utf-8")
+
+    assert "const btnPrevPeriod = document.getElementById('btn-prev-period');" in source
+    assert "const btnNextPeriod = document.getElementById('btn-next-period');" in source
+    assert "function shiftSelectedPeriod(direction)" in source
+    assert "if (type === 'year')" in source
+    assert "date.setUTCFullYear(date.getUTCFullYear() + direction);" in source
+    assert "if (type === 'half')" in source
+    assert "date.setUTCMonth(date.getUTCMonth() + (direction * 6));" in source
+    assert "if (type === 'quarter')" in source
+    assert "date.setUTCMonth(date.getUTCMonth() + (direction * 3));" in source
+    assert "if (type === 'month')" in source
+    assert "date.setUTCMonth(date.getUTCMonth() + direction);" in source
+    assert "if (type === 'week')" in source
+    assert "date.setUTCDate(date.getUTCDate() + (direction * 7));" in source
+    assert "inputDate.value = formatInputDate(date);" in source
+    assert "loadActiveTab();" in source
+    assert "btnPrevPeriod.addEventListener('click', () => shiftSelectedPeriod(-1));" in source
+    assert "btnNextPeriod.addEventListener('click', () => shiftSelectedPeriod(1));" in source
+
+
 def test_statistics_dashboard_formats_period_label_by_filter_type() -> None:
     source = JS_PATH.read_text(encoding="utf-8")
 
     assert "function formatStatisticsPeriodLabel(type, dateValue, period)" in source
+    assert "function getHalfYearLabel(half)" in source
+    assert "半年统计 ${year}年${getHalfYearLabel(half)}（${rangeStart}至${rangeEnd}）" in source
+    assert "季度统计 ${year}年第${quarter}季度（${rangeStart}至${rangeEnd}）" in source
     assert "年统计 ${year}年（${rangeStart}至${rangeEnd}）" in source
     assert "月统计 ${year}年${month}月（${rangeStart}至${rangeEnd}）" in source
     assert "${formatPeriodFlag('周统计')} ${weekYear}年${weekMonth}月${weekOrdinalLabel}（${rangeStart}至${rangeEnd}）" in source
     assert "const weekOrdinalLabels = ['第一周', '第二周', '第三周', '第四周', '第五周', '第六周'];" in source
     assert "periodEl.innerHTML = formatStatisticsPeriodLabel(selFilterType.value, inputDate.value, data.period);" in source
     assert "数据范围:" not in source
+
+
+def test_statistics_backend_supports_half_and_quarter_ranges() -> None:
+    source = VIEWS_PATH.read_text(encoding="utf-8")
+
+    assert "elif filter_type == 'half':" in source
+    assert "half = int(request.GET.get('half'" in source
+    assert "start_month = 1 if half == 1 else 7" in source
+    assert "end_month = 7 if half == 1 else 1" in source
+    assert "prev_start_year = year - 1 if half == 1 else year" in source
+    assert "prev_start_month = 7 if half == 1 else 1" in source
+    assert "elif filter_type == 'quarter':" in source
+    assert "quarter = int(request.GET.get('quarter'" in source
+    assert "start_month = (quarter - 1) * 3 + 1" in source
+    assert "prev_quarter = 4 if quarter == 1 else quarter - 1" in source
+    assert "prev_year = year - 1 if quarter == 1 else year" in source
 
 
 def test_statistics_dashboard_renders_week_type_as_success_flag() -> None:
@@ -114,3 +171,23 @@ def test_statistics_period_label_is_inline_with_page_title() -> None:
     assert "font-size: 0.82em;" in css
     assert "vertical-align: baseline;" in css
     assert "periodEl.classList.add('bg-light', 'text-dark')" not in JS_PATH.read_text(encoding="utf-8")
+
+
+def test_statistics_dashboard_renders_overall_summary_card() -> None:
+    template = TEMPLATE_PATH.read_text(encoding="utf-8")
+    source = JS_PATH.read_text(encoding="utf-8")
+    css = CSS_PATH.read_text(encoding="utf-8")
+
+    assert "statistics-overall-card" in template
+    assert "总体情况" in template
+    assert 'id="kpi-overall-total"' in template
+    assert "起物理故障" in template
+    assert 'id="kpi-overall-categories"' in template
+    assert "function renderOverallSummary(kpis, chartsData)" in source
+    assert "renderOverallSummary(data.kpis, data.charts);" in source
+    assert "overallTotal.textContent = kpis.total_count;" in source
+    assert "const categories = (chartsData && chartsData.category) || [];" in source
+    assert 'separator.textContent = "|";' in source
+    assert "stat.textContent = `${item.name} ${item.value}`;" in source
+    assert ".statistics-overall-categories" in css
+    assert ".statistics-overall-separator" in css

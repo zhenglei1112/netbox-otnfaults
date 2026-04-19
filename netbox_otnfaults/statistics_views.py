@@ -4,7 +4,8 @@ OTN 故障统计展示页面 - 后端视图
 提供独立的统计看板以及聚合API（兼容ECharts等前端工具及下钻查询）。
 """
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Count, Q, F, Func, DurationField, ExpressionWrapper
 from django.contrib.auth.mixins import PermissionRequiredMixin
@@ -12,14 +13,22 @@ from django.views import View
 from datetime import timedelta, date
 from django.db.models.functions import TruncDate, Coalesce, Cast
 from decimal import Decimal
+from urllib.parse import quote
 
 from .models import (
     OtnFault, OtnFaultImpact, OtnPath,
     FaultCategoryChoices, ResourceTypeChoices, CableTypeChoices,
-    ServiceTypeChoices
+    ServiceTypeChoices, FaultStatusChoices
 )
 from dcim.models import Region
 from .statistics_period import build_period_display
+
+
+def _sorted_count_items(counts: dict[str, int]) -> list[dict[str, int]]:
+    return [
+        {'name': name, 'value': count}
+        for name, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)
+    ]
 
 
 def _parse_time_range(request):
@@ -38,6 +47,34 @@ def _parse_time_range(request):
         start_date = timezone.datetime(year, 1, 1, tzinfo=tz)
         end_date = timezone.datetime(year + 1, 1, 1, tzinfo=tz)
         prev_start_date = timezone.datetime(year - 1, 1, 1, tzinfo=tz)
+        prev_end_date = start_date
+    elif filter_type == 'half':
+        half = int(request.GET.get('half', 1 if now.month <= 6 else 2))
+        half = 1 if half <= 1 else 2
+        start_month = 1 if half == 1 else 7
+        end_month = 7 if half == 1 else 1
+        end_year = year if half == 1 else year + 1
+        prev_start_year = year - 1 if half == 1 else year
+        prev_start_month = 7 if half == 1 else 1
+        start_date = timezone.datetime(year, start_month, 1, tzinfo=tz)
+        end_date = timezone.datetime(end_year, end_month, 1, tzinfo=tz)
+        prev_start_date = timezone.datetime(prev_start_year, prev_start_month, 1, tzinfo=tz)
+        prev_end_date = start_date
+    elif filter_type == 'quarter':
+        quarter = int(request.GET.get('quarter', ((now.month - 1) // 3) + 1))
+        quarter = min(max(quarter, 1), 4)
+        start_month = (quarter - 1) * 3 + 1
+        end_month = start_month + 3
+        end_year = year
+        if end_month > 12:
+            end_month = 1
+            end_year = year + 1
+        prev_quarter = 4 if quarter == 1 else quarter - 1
+        prev_year = year - 1 if quarter == 1 else year
+        prev_start_month = (prev_quarter - 1) * 3 + 1
+        start_date = timezone.datetime(year, start_month, 1, tzinfo=tz)
+        end_date = timezone.datetime(end_year, end_month, 1, tzinfo=tz)
+        prev_start_date = timezone.datetime(prev_year, prev_start_month, 1, tzinfo=tz)
         prev_end_date = start_date
     elif filter_type == 'month':
         month = int(request.GET.get('month', now.month))
@@ -66,41 +103,42 @@ def _parse_time_range(request):
 
     return start_date, end_date, prev_start_date, prev_end_date, filter_type
 
+
+def _statistics_page_context(request: HttpRequest) -> dict[str, object]:
+    default_filter_type = 'week'
+    default_date: date = timezone.localdate()
+    default_year = default_date.isocalendar()[0]
+    default_week = default_date.isocalendar()[1]
+    default_month = default_date.month
+
+    context: dict[str, object] = {
+        'default_filter_type': default_filter_type,
+        'default_year': default_year,
+        'default_month': default_month,
+        'default_week': default_week,
+        'default_date': default_date.isoformat(),
+        'statistics_data_api_url': reverse('plugins:netbox_otnfaults:statistics_data'),
+        'statistics_service_data_api_url': reverse('plugins:netbox_otnfaults:statistics_service_data'),
+    }
+
+    return context
+
+
 class FaultStatisticsPageView(PermissionRequiredMixin, View):
     """
     故障多维统计与下钻展示页面 - 渲染主HTML
     """
     permission_required = 'netbox_otnfaults.view_otnfault'
 
-    def get(self, request):
-        now = timezone.now()
-        
-        # 计算智能默认值：如果是每个月第一周（前7天），显示上月；否则显示上周
-        if now.day <= 7:
-            default_filter_type = 'month'
-            if now.month == 1:
-                default_year = now.year - 1
-                default_month = 12
-            else:
-                default_year = now.year
-                default_month = now.month - 1
-            default_week = now.isocalendar()[1]
-            default_date: date = date(default_year, default_month, 1)
-        else:
-            default_filter_type = 'week'
-            last_week_date = now - timedelta(days=7)
-            default_year = last_week_date.isocalendar()[0]
-            default_week = last_week_date.isocalendar()[1]
-            default_month = now.month
-            default_date = last_week_date.date()
-        
-        return render(request, 'netbox_otnfaults/statistics_dashboard.html', {
-            'default_filter_type': default_filter_type,
-            'default_year': default_year,
-            'default_month': default_month,
-            'default_week': default_week,
-            'default_date': default_date.isoformat(),
-        })
+    def get(self, request: HttpRequest) -> HttpResponse:
+        return render(
+            request,
+            'netbox_otnfaults/statistics_dashboard.html',
+            _statistics_page_context(request),
+        )
+
+
+
 
 class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
     """
@@ -117,10 +155,23 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
         now = timezone.localtime()
 
-        # 构建基础查询集
-        qs = OtnFault.objects.select_related('province', 'interruption_location_a').prefetch_related('interruption_location')
+        # 先预抓取一段无过滤条件的全量当前期基础查询集，仅用于提取“总体情况面板” Banner 数据
+        qs_all = OtnFault.objects.select_related('province', 'interruption_location_a').prefetch_related('interruption_location')
+        all_current_qs = qs_all.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
+        all_faults = list(all_current_qs)
+        
+        overall_total_count = len(all_faults)
+        overall_category_stats = {}
+        for f in all_faults:
+            cat_display = f.get_fault_category_display() if f.fault_category else '未知'
+            if cat_display not in overall_category_stats:
+                overall_category_stats[cat_display] = {'count': 0, 'duration': 0.0}
+            overall_category_stats[cat_display]['count'] += 1
 
-        # 提取当前期故障
+        # 然后再构建基础查询集（现根据要求，后续绝大多数统计详情均采用“光缆中断概览”约束条件，即仅限光缆中断）
+        qs = qs_all.filter(fault_category=FaultCategoryChoices.FIBER_BREAK)
+
+        # 提取当前期光缆中断故障
         qs_current = qs.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
         faults = list(qs_current)
         
@@ -275,12 +326,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             reason_stats[reason]['count'] += 1
             reason_stats[reason]['duration'] += duration_hours
 
-            # 4. 故障类型
-            cat_display = fault.get_fault_category_display() if fault.fault_category else '未知'
-            if cat_display not in category_stats:
-                category_stats[cat_display] = {'count': 0, 'duration': 0.0}
-            category_stats[cat_display]['count'] += 1
-            category_stats[cat_display]['duration'] += duration_hours
+
             
             # 明细存储（仅返回精简信息给前端作本地过滤或列表展示)
             dt_end = fault.fault_recovery_time.strftime('%Y-%m-%d %H:%M') if fault.fault_recovery_time else '未恢复'
@@ -303,7 +349,103 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'url': fault.get_absolute_url()
             })
 
+        cable_break_faults = [
+            fault for fault in faults
+            if fault.fault_category == FaultCategoryChoices.FIBER_BREAK
+            and fault.fault_status != FaultStatusChoices.SUSPENDED
+        ]
+        cable_break_reason_counts: dict[str, int] = {}
+        cable_break_source_counts: dict[str, int] = {}
+        cable_break_total_duration: float = 0.0
+        cable_break_reason_duration: dict[str, float] = {}
+        cable_break_source_duration: dict[str, float] = {}
+        cable_break_long_duration_buckets: dict[str, int] = {
+            '6-8小时': 0,
+            '8-10小时': 0,
+            '10-12小时': 0,
+            '12小时以上': 0,
+        }
+        
+        cb_valid_count = 0
+        cb_valid_dur = 0.0
+        cb_day_count = 0
+        cb_day_dur = 0.0
+        cb_night_count = 0
+        cb_night_dur = 0.0
+        cb_cons_count = 0
+        cb_cons_dur = 0.0
+        cb_noncons_count = 0
+        cb_noncons_dur = 0.0
+        
+        cable_break_histogram: dict[int, int] = {i: 0 for i in range(13)}
+
+        for fault in cable_break_faults:
+            reason = fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知'
+            if fault.resource_type == ResourceTypeChoices.SELF_BUILT:
+                source = '自控'
+            elif fault.resource_type in [ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED]:
+                source = '第三方'
+            else:
+                source = '其他/未填'
+            cable_break_reason_counts[reason] = cable_break_reason_counts.get(reason, 0) + 1
+            cable_break_source_counts[source] = cable_break_source_counts.get(source, 0) + 1
+
+            end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
+            duration_hours = (end_t - fault.fault_occurrence_time).total_seconds() / 3600.0
+            
+            hist_bucket = min(12, int(duration_hours))
+            cable_break_histogram[hist_bucket] += 1
+            
+            cable_break_total_duration += duration_hours
+            cable_break_reason_duration[reason] = cable_break_reason_duration.get(reason, 0.0) + duration_hours
+            cable_break_source_duration[source] = cable_break_source_duration.get(source, 0.0) + duration_hours
+            
+            if 6.0 <= duration_hours < 8.0:
+                cable_break_long_duration_buckets['6-8小时'] += 1
+            elif 8.0 <= duration_hours < 10.0:
+                cable_break_long_duration_buckets['8-10小时'] += 1
+            elif 10.0 <= duration_hours < 12.0:
+                cable_break_long_duration_buckets['10-12小时'] += 1
+            elif duration_hours >= 12.0:
+                cable_break_long_duration_buckets['12小时以上'] += 1
+                
+            if duration_hours > 0.5:
+                cb_valid_count += 1
+                cb_valid_dur += duration_hours
+                
+            occ_hour = fault.fault_occurrence_time.astimezone(timezone.get_current_timezone()).hour if fault.fault_occurrence_time else 0
+            if 6 <= occ_hour < 18:
+                cb_day_count += 1
+                cb_day_dur += duration_hours
+            else:
+                cb_night_count += 1
+                cb_night_dur += duration_hours
+                
+            if reason == '施工':
+                cb_cons_count += 1
+                cb_cons_dur += duration_hours
+            else:
+                cb_noncons_count += 1
+                cb_noncons_dur += duration_hours
+                
+        cable_break_avg_metrics = {
+             'overall_avg': round(cable_break_total_duration / len(cable_break_faults) if len(cable_break_faults) > 0 else 0.0, 2),
+             'valid_avg': round(cb_valid_dur / cb_valid_count if cb_valid_count > 0 else 0.0, 2),
+             'daytime_avg': round(cb_day_dur / cb_day_count if cb_day_count > 0 else 0.0, 2),
+             'nighttime_avg': round(cb_night_dur / cb_night_count if cb_night_count > 0 else 0.0, 2),
+             'construction_avg': round(cb_cons_dur / cb_cons_count if cb_cons_count > 0 else 0.0, 2),
+             'non_construction_avg': round(cb_noncons_dur / cb_noncons_count if cb_noncons_count > 0 else 0.0, 2),
+        }
+
         avg_duration_hours = total_duration_hours / total_count if total_count > 0 else 0.0
+        
+        hist_data = []
+        cb_count_total = len(cable_break_faults)
+        for i in range(13):
+            label = f"[{i}, {i+1})" if i < 12 else "≥12"
+            count = cable_break_histogram[i]
+            pct = round(count * 100.0 / cb_count_total, 1) if cb_count_total > 0 else 0.0
+            hist_data.append({'label': label, 'value': count, 'percent': pct})
 
         # 为了展示准确的截止自然日（例如周日而非下周一，10月31日而非11月1日），展示日期需减去一天
         display_end_date_str = ''
@@ -315,7 +457,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         return JsonResponse({
             'period': build_period_display(start_date, end_date, now),
             'kpis': {
-                'total_count': total_count,
+                'total_count': overall_total_count,
                 'total_duration': round(total_duration_hours, 2),
                 'avg_duration': round(avg_duration_hours, 2),
                 'long_faults_count': long_faults_count,
@@ -332,10 +474,24 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'resource': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2), 'key': v['id']} for k, v in resource_stats.items()],
                 'province': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(province_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
                 'reason': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(reason_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
-                'category': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(category_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
+                'category': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(overall_category_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
+            },
+            'cable_break_overview': {
+                'total_count': len(cable_break_faults),
+                'total_duration': round(cable_break_total_duration, 2),
+                'reason_top3': _sorted_count_items(cable_break_reason_counts)[:3],
+                'source_counts': _sorted_count_items(cable_break_source_counts),
+                'reason_duration_top3': _sorted_count_items(cable_break_reason_duration)[:3],
+                'source_duration_counts': _sorted_count_items(cable_break_source_duration),
+                'long_duration_buckets': cable_break_long_duration_buckets,
+                'avg_metrics': cable_break_avg_metrics,
+                'histogram': hist_data,
             },
             'details': details
         })
+
+
+
 
 
 class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
@@ -481,3 +637,6 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             'period_total_hours': round(period_total_hours, 2),
             'services': services_result,
         })
+
+
+

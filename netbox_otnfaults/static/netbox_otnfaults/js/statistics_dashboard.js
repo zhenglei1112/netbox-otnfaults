@@ -6,13 +6,13 @@ document.addEventListener("DOMContentLoaded", function() {
     let chartResource = echarts.init(document.getElementById('chart-resource'));
     let chartProvince = echarts.init(document.getElementById('chart-province'));
     let chartReason = echarts.init(document.getElementById('chart-reason'));
-    let chartCategory = echarts.init(document.getElementById('chart-category'));
+    const chartHistogramElement = document.getElementById('chart-cable-break-histogram');
+    let chartHistogram = chartHistogramElement ? echarts.init(chartHistogramElement) : null;
     
     let excludedCategories = {
         resource_type: new Set(),
         province: new Set(),
-        reason: new Set(),
-        category: new Set()
+        reason: new Set()
     };
 
     function updateExcludedSet(field, selectedObj) {
@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", function() {
         chartResource.resize();
         chartProvince.resize();
         chartReason.resize();
-        chartCategory.resize();
+        if (chartHistogram) chartHistogram.resize();
     });
 
     // ---------------- 统一事件绑定 ----------------
@@ -36,25 +36,25 @@ document.addEventListener("DOMContentLoaded", function() {
     chartResource.on('click', params => handleChartClick(params, 'resource_type'));
     chartProvince.on('click', params => handleChartClick(params, 'province'));
     chartReason.on('click', params => handleChartClick(params, 'reason'));
-    chartCategory.on('click', params => handleChartClick(params, 'category'));
     
     // 图例切换（过滤剔除）
     chartResource.on('legendselectchanged', params => { updateExcludedSet('resource_type', params.selected); renderDetailsTable(); });
     chartProvince.on('legendselectchanged', params => { updateExcludedSet('province', params.selected); renderDetailsTable(); });
     chartReason.on('legendselectchanged', params => { updateExcludedSet('reason', params.selected); renderDetailsTable(); });
-    chartCategory.on('legendselectchanged', params => { updateExcludedSet('category', params.selected); renderDetailsTable(); });
 
     // KPI 卡片点击下钻
-    document.getElementById('card-long-faults').addEventListener('click', () => handleChartClick({name: true}, 'is_long'));
-    document.getElementById('card-repeat-faults').addEventListener('click', () => handleChartClick({name: true}, 'is_repeat'));
+    let repeatCard = document.getElementById('card-repeat-faults');
+    if (repeatCard) repeatCard.addEventListener('click', () => handleChartClick({name: true}, 'is_repeat'));
 
     let currentAllDetails = []; // 保存后端返回的全部详情数据
-    let activeFilterField = null; // 'resource_type', 'province', 'reason', 'category'
+    let activeFilterField = null; // 'resource_type', 'province', 'reason'
     let activeFilterValue = null;
 
     // ---------------- DOM 元素 ----------------
     const selFilterType = document.getElementById('filterType');
     const inputDate = document.getElementById('filterDate');
+    const btnPrevPeriod = document.getElementById('btn-prev-period');
+    const btnNextPeriod = document.getElementById('btn-next-period');
 
     const badgeFilter = document.getElementById('drill-down-filter-badge');
     const btnClearFilter = document.getElementById('btn-clear-filter');
@@ -73,6 +73,9 @@ document.addEventListener("DOMContentLoaded", function() {
         el.addEventListener('change', loadActiveTab);
     });
 
+    btnPrevPeriod.addEventListener('click', () => shiftSelectedPeriod(-1));
+    btnNextPeriod.addEventListener('click', () => shiftSelectedPeriod(1));
+
     // ---------------- 构建时间参数 URL ----------------
     function getIsoWeekParts(dateValue) {
         const parts = dateValue.split('-').map(Number);
@@ -90,12 +93,28 @@ document.addEventListener("DOMContentLoaded", function() {
         return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
     }
 
+    function getHalfYearPart(month) {
+        return month <= 6 ? 1 : 2;
+    }
+
+    function getQuarterPart(month) {
+        return Math.floor((month - 1) / 3) + 1;
+    }
+
+    function getHalfYearLabel(half) {
+        return half === 1 ? '上半年' : '下半年';
+    }
+
     function padDatePart(value) {
         return String(value).padStart(2, '0');
     }
 
     function formatDotDate(date) {
         return `${date.getUTCFullYear()}.${padDatePart(date.getUTCMonth() + 1)}.${padDatePart(date.getUTCDate())}`;
+    }
+
+    function formatInputDate(date) {
+        return `${date.getUTCFullYear()}-${padDatePart(date.getUTCMonth() + 1)}-${padDatePart(date.getUTCDate())}`;
     }
 
     function formatApiDate(dateValue) {
@@ -142,8 +161,55 @@ document.addEventListener("DOMContentLoaded", function() {
         return new Date(Date.UTC(date.getUTCFullYear(), 11, 31));
     }
 
+    function getHalfYearRange(date) {
+        const year = date.getUTCFullYear();
+        const half = getHalfYearPart(date.getUTCMonth() + 1);
+        const startMonth = half === 1 ? 0 : 6;
+        const endMonth = half === 1 ? 5 : 11;
+        return {
+            half,
+            start: new Date(Date.UTC(year, startMonth, 1)),
+            end: new Date(Date.UTC(year, endMonth + 1, 0))
+        };
+    }
+
+    function getQuarterRange(date) {
+        const year = date.getUTCFullYear();
+        const quarter = getQuarterPart(date.getUTCMonth() + 1);
+        const startMonth = (quarter - 1) * 3;
+        return {
+            quarter,
+            start: new Date(Date.UTC(year, startMonth, 1)),
+            end: new Date(Date.UTC(year, startMonth + 3, 0))
+        };
+    }
+
     function getMonthEndDate(date) {
         return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+    }
+
+    function shiftSelectedPeriod(direction) {
+        const type = selFilterType.value;
+        const date = parseDateValue(inputDate.value);
+
+        if (type === 'year') {
+            date.setUTCFullYear(date.getUTCFullYear() + direction);
+        }
+        if (type === 'half') {
+            date.setUTCMonth(date.getUTCMonth() + (direction * 6));
+        }
+        if (type === 'quarter') {
+            date.setUTCMonth(date.getUTCMonth() + (direction * 3));
+        }
+        if (type === 'month') {
+            date.setUTCMonth(date.getUTCMonth() + direction);
+        }
+        if (type === 'week') {
+            date.setUTCDate(date.getUTCDate() + (direction * 7));
+        }
+
+        inputDate.value = formatInputDate(date);
+        loadActiveTab();
     }
 
     function updatePeriodLabelState(periodEl, period) {
@@ -169,6 +235,18 @@ document.addEventListener("DOMContentLoaded", function() {
             const rangeStart = formatPeriodStartDate(period, date);
             const rangeEnd = formatPeriodEndDate(period && period.end, getYearEndDate(date));
             return `年统计 ${year}年（${rangeStart}至${rangeEnd}）`;
+        }
+        if (type === 'half') {
+            const { half, start, end } = getHalfYearRange(date);
+            const rangeStart = formatPeriodStartDate(period, start);
+            const rangeEnd = formatPeriodEndDate(period && period.end, end);
+            return `半年统计 ${year}年${getHalfYearLabel(half)}（${rangeStart}至${rangeEnd}）`;
+        }
+        if (type === 'quarter') {
+            const { quarter, start, end } = getQuarterRange(date);
+            const rangeStart = formatPeriodStartDate(period, start);
+            const rangeEnd = formatPeriodEndDate(period && period.end, end);
+            return `季度统计 ${year}年第${quarter}季度（${rangeStart}至${rangeEnd}）`;
         }
         if (type === 'month') {
             const rangeStart = formatPeriodStartDate(period, date);
@@ -201,6 +279,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
         if (type === 'year') {
             return `filter_type=year&year=${year}`;
+        }
+        if (type === 'half') {
+            return `filter_type=half&year=${year}&half=${getHalfYearPart(month)}`;
+        }
+        if (type === 'quarter') {
+            return `filter_type=quarter&year=${year}&quarter=${getQuarterPart(month)}`;
         }
         if (type === 'month') {
             return `filter_type=month&year=${year}&month=${month}`;
@@ -239,6 +323,8 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             renderKPIs(data.kpis, data.prev_kpis, selFilterType.value);
+            renderOverallSummary(data.kpis, data.charts);
+            renderCableBreakOverview(data.cable_break_overview);
             renderCharts(data.charts);
         } catch (error) {
             console.error('Fetch error:', error);
@@ -248,17 +334,15 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ---------------- 渲染部分 ----------------
     function renderKPIs(kpis, prevKpis, type) {
-        document.getElementById('kpi-total-cnt').textContent = kpis.total_count;
-        document.getElementById('kpi-total-dur').textContent = kpis.total_duration;
-        document.getElementById('kpi-avg-dur').textContent = kpis.avg_duration;
-        document.getElementById('kpi-long-faults').textContent = kpis.long_faults_count;
-        document.getElementById('kpi-repeat-faults').textContent = kpis.repeat_faults_count;
+        let repeatEl = document.getElementById('kpi-repeat-faults');
+        if (repeatEl) repeatEl.textContent = kpis.repeat_faults_count;
         
-        const periodStrMap = { 'year': '上年', 'month': '上月', 'week': '上周' };
+        const periodStrMap = { 'year': '上年', 'half': '上半年', 'quarter': '上季度', 'month': '上月', 'week': '上周' };
         const label = periodStrMap[type] || '上期';
         
         function renderDiff(elId, current, prev, unit) {
             const el = document.getElementById(elId);
+            if (!el) return;
             if (!prevKpis) { el.innerHTML = ''; return; }
             let diff = current - prev;
             if (!Number.isInteger(diff)) diff = parseFloat(diff.toFixed(2));
@@ -275,11 +359,175 @@ document.addEventListener("DOMContentLoaded", function() {
             el.innerHTML = `<span class="badge fw-normal" style="${style} padding: 4px 10px; font-size:12px;">较${label} ${symbol}${diff} ${unit}</span>`;
         }
         
-        renderDiff('kpi-total-cnt-diff', kpis.total_count, prevKpis.total_count, '条');
-        renderDiff('kpi-total-dur-diff', kpis.total_duration, prevKpis.total_duration, '小时');
-        renderDiff('kpi-avg-dur-diff', kpis.avg_duration, prevKpis.avg_duration, '小时');
-        renderDiff('kpi-long-faults-diff', kpis.long_faults_count, prevKpis.long_faults_count, '条');
         renderDiff('kpi-repeat-faults-diff', kpis.repeat_faults_count, prevKpis.repeat_faults_count, '条');
+    }
+
+    function renderOverallSummary(kpis, chartsData) {
+        const overallTotal = document.getElementById('kpi-overall-total');
+        const categoriesEl = document.getElementById('kpi-overall-categories');
+        if (!overallTotal || !categoriesEl) return;
+
+        overallTotal.textContent = kpis.total_count;
+        categoriesEl.innerHTML = '';
+
+        const categories = (chartsData && chartsData.category) || [];
+        if (categories.length === 0) {
+            categoriesEl.textContent = '暂无类型数据';
+            return;
+        }
+
+        categories.forEach((item, index) => {
+            if (index > 0) {
+                const separator = document.createElement('span');
+                separator.className = 'statistics-overall-separator';
+                separator.textContent = "|";
+                categoriesEl.appendChild(separator);
+            }
+
+            const stat = document.createElement('span');
+            stat.className = 'statistics-overall-category';
+            stat.textContent = `${item.name} ${item.value}`;
+            categoriesEl.appendChild(stat);
+        });
+    }
+
+    function buildFlexItemCore(value, unit, title, colorClass = "text-primary") {
+        return `
+            <div class="d-flex flex-column align-items-center text-nowrap">
+                <div class="d-flex align-items-baseline">
+                    <span class="display-6 fw-bold ${colorClass} lh-1">${value}</span><span class="ms-1 text-muted" style="font-size: 13px;">${unit}</span>
+                </div>
+                <div class="text-muted mt-2" style="font-size: 13px;">${title}</div>
+            </div>
+        `;
+    }
+
+    function buildFlexGroup(items, unit, groupTitle, colorClass) {
+        if (!items || items.length === 0) return "";
+        let groupHtml = `<div class="d-flex flex-column align-items-center justify-content-end">`;
+        groupHtml += `<div class="d-flex flex-row align-items-start gap-4">`;
+        items.forEach((item, index) => {
+            if (index > 0) {
+               groupHtml += `<div class="vr text-muted" style="opacity: 0.1; align-self: stretch;"></div>`;
+            }
+            let val = (item && item.value !== undefined) ? item.value : item;
+            let name = (item && (item.name !== undefined || item.title !== undefined)) ? (item.name || item.title) : item;
+            groupHtml += buildFlexItemCore(val, unit, name, colorClass);
+        });
+        groupHtml += `</div>`;
+        if (groupTitle) {
+            groupHtml += `<div class="fw-semibold text-secondary text-center mt-2 w-100" style="font-size: 14px;">${groupTitle}</div>`;
+        }
+        groupHtml += `</div>`;
+        return groupHtml;
+    }
+
+    function renderCableBreakOverview(overview) {
+        const totalEl = document.getElementById('cable-break-total-count');
+        const durationTotalEl = document.getElementById('cable-break-total-duration');
+        const longTotalEl = document.getElementById('cable-break-long-total');
+        if (!totalEl || !longTotalEl) return;
+
+        overview = overview || {};
+        totalEl.textContent = overview.total_count || 0;
+        if (durationTotalEl) durationTotalEl.textContent = overview.total_duration ? overview.total_duration.toFixed(2) : "0.00";
+
+        const separator = `<div class="vr text-muted" style="opacity: 0.1; align-self: stretch;"></div>`;
+
+        // 卡片1: 中断起数
+        let htmlCount = "";
+        if (overview.reason_top3 && overview.reason_top3.length > 0) {
+            htmlCount += buildFlexGroup(overview.reason_top3, "起", "一级原因", "text-teal");
+        }
+        if (overview.source_counts && overview.source_counts.length > 0) {
+            htmlCount += (htmlCount ? separator : "") + buildFlexGroup(overview.source_counts, "起", "光缆属性", "text-green");
+        }
+        const countList = document.getElementById('cable-break-count-flex-list');
+        if (countList) countList.innerHTML = htmlCount || '<div class="text-muted small py-3">暂无数据</div>';
+
+        // 卡片2: 中断总历时
+        let htmlDur = "";
+        let durReasonItems = (overview.reason_duration_top3 || []).map(i => ({...i, value: parseFloat(i.value).toFixed(2)}));
+        let durSourceItems = (overview.source_duration_counts || []).map(i => ({...i, value: parseFloat(i.value).toFixed(2)}));
+        
+        if (durReasonItems.length > 0) {
+            htmlDur += buildFlexGroup(durReasonItems, "时", "一级原因", "text-teal");
+        }
+        if (durSourceItems.length > 0) {
+            htmlDur += (htmlDur ? separator : "") + buildFlexGroup(durSourceItems, "时", "光缆属性", "text-green");
+        }
+        const durList = document.getElementById('cable-break-duration-flex-list');
+        if (durList) durList.innerHTML = htmlDur || '<div class="text-muted small py-3">暂无数据</div>';
+
+        // 卡片3: 长时中断起数
+        let htmlLong = "";
+        const buckets = overview.long_duration_buckets || {};
+        const orderedBuckets = ['6-8小时', '8-10小时', '10-12小时', '12小时以上'];
+        let longTotal = 0;
+        let longItems = orderedBuckets.map(b => {
+            let count = buckets[b] || 0;
+            longTotal += count;
+            return { value: count, name: b };
+        });
+        longTotalEl.textContent = longTotal;
+        
+        if (longItems.length > 0) {
+            htmlLong += buildFlexGroup(longItems, "起", "历时分布", "text-danger");
+        }
+        const longList = document.getElementById('cable-break-long-flex-list');
+        if (longList) longList.innerHTML = htmlLong || '<div class="text-muted small py-3">暂无数据</div>';
+        
+        // 卡片4: 平均历时深度分析
+        const oAvgEl = document.getElementById('cable-break-overall-avg');
+        if (oAvgEl && overview.avg_metrics) {
+            oAvgEl.textContent = overview.avg_metrics.overall_avg.toFixed(2);
+            document.getElementById('cable-break-valid-avg').textContent = overview.avg_metrics.valid_avg.toFixed(2);
+            document.getElementById('cable-break-daytime-avg').textContent = overview.avg_metrics.daytime_avg.toFixed(2);
+            document.getElementById('cable-break-nighttime-avg').textContent = overview.avg_metrics.nighttime_avg.toFixed(2);
+            document.getElementById('cable-break-construction-avg').textContent = overview.avg_metrics.construction_avg.toFixed(2);
+            document.getElementById('cable-break-noncons-avg').textContent = overview.avg_metrics.non_construction_avg.toFixed(2);
+        }
+        
+        if (overview.histogram && chartHistogram) {
+            let histLabels = overview.histogram.map(item => item.label);
+            let histValues = overview.histogram.map(item => ({value: item.value, _percent: item.percent}));
+            
+            chartHistogram.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: function(params) {
+                        let p = params[0];
+                        return `${p.name} 小时<br/>数量：${p.value}起 (${p.data._percent}%)`;
+                    }
+                },
+                grid: { top: 30, left: '3%', right: '4%', bottom: '10%', containLabel: true },
+                xAxis: { 
+                    type: 'category', 
+                    data: histLabels,
+                    name: '历时(小时)',
+                    axisLabel: { interval: 0, fontSize: 11 }
+                },
+                yAxis: { type: 'value', name: '起数', minInterval: 1 },
+                series: [{
+                    type: 'bar',
+                    barWidth: '60%',
+                    itemStyle: { color: '#8B5CF6', borderRadius: [2, 2, 0, 0] },
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: function(params) {
+                            if(params.value === 0) return '';
+                            return `${params.value}起\n${params.data._percent}%`;
+                        },
+                        fontSize: 10,
+                        lineHeight: 14,
+                        align: 'center'
+                    },
+                    data: histValues
+                }]
+            });
+        }
     }
 
     function renderCharts(chartsData) {
@@ -360,40 +608,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }]
         });
 
-        // 4. 故障类型 (Pie)
-        const categoryColorMap = {
-            '光缆中断': '#8B5CF6',
-            '空调故障': '#14B8A6',
-            '光缆劣化': '#F97316',
-            '光缆抖动': '#06B6D4',
-            '设备故障': '#EC4899',
-            '供电故障': '#6366F1'
-        };
-        chartCategory.setOption({
-            tooltip: {
-                trigger: 'item',
-                formatter: params => {
-                    let avg = params.value > 0 ? (params.data._duration / params.value).toFixed(2) : "0.00";
-                    return `${params.marker}${params.name}: ${params.value}次 (${params.percent}%)<br/>` +
-                           `<span style="margin-left:14px;">总历时: ${params.data._duration} 小时</span><br/>` +
-                           `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
-                }
-            },
-            legend: { bottom: 0, type: 'scroll' },
-            series: [{
-                type: 'pie',
-                radius: '65%',
-                center: ['50%', '45%'],
-                itemStyle: {
-                    color: function(params) { return categoryColorMap[params.name] || undefined; },
-                    borderRadius: 5, borderColor: '#fff', borderWidth: 2
-                },
-                data: chartsData.category.map(item => ({name: item.name, value: item.value, _duration: item.duration})),
-                emphasis: {
-                    itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
-                }
-            }]
-        });
     }
 
     // ---------------- 渲染下钻表格 ----------------
@@ -414,10 +628,6 @@ document.addEventListener("DOMContentLoaded", function() {
             filteredDetails = filteredDetails.filter(item => !excludedCategories.reason.has(item.reason));
             activeConditions.push(`排除原因[${Array.from(excludedCategories.reason).join(', ')}]`);
         }
-        if (excludedCategories.category.size > 0) {
-            filteredDetails = filteredDetails.filter(item => !excludedCategories.category.has(item.category));
-            activeConditions.push(`排除故障类型[${Array.from(excludedCategories.category).join(', ')}]`);
-        }
         
         const summaryDiv = document.getElementById('filtered-kpi-summary');
 
@@ -430,7 +640,6 @@ document.addEventListener("DOMContentLoaded", function() {
             if (activeFilterField === 'resource_type') filterName = '光缆属性';
             else if (activeFilterField === 'province') filterName = '省份';
             else if (activeFilterField === 'reason') filterName = '原因';
-            else if (activeFilterField === 'category') filterName = '故障类型';
             else if (activeFilterField === 'is_long') { filterName = '特殊标签'; filterValueDisp = '长时故障(≥6h)'; }
             else if (activeFilterField === 'is_repeat') { filterName = '特殊标签'; filterValueDisp = '历史重复故障'; }
             
@@ -513,11 +722,9 @@ document.addEventListener("DOMContentLoaded", function() {
         excludedCategories.resource_type.clear();
         excludedCategories.province.clear();
         excludedCategories.reason.clear();
-        excludedCategories.category.clear();
         
         chartResource.dispatchAction({ type: 'legendAllSelect' });
         chartReason.dispatchAction({ type: 'legendAllSelect' });
-        chartCategory.dispatchAction({ type: 'legendAllSelect' });
         
         renderDetailsTable();
     });
@@ -676,7 +883,6 @@ document.addEventListener("DOMContentLoaded", function() {
                     chartResource.resize();
                     chartProvince.resize();
                     chartReason.resize();
-                    chartCategory.resize();
                 }, 100);
             }
         });
