@@ -369,10 +369,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
         overallTotal.textContent = kpis.total_count;
 
-        const categories = (chartsData && chartsData.category) || [];
+        let categories = (chartsData && chartsData.category) || [];
         if (categories.length === 0) {
-            categoriesList.innerHTML = '<div class="text-muted small py-3">暂无数据</div>';
-            return;
+            categories = [{name: '--', value: 0}];
         }
 
         const prevCategories = (prevChartsData && prevChartsData.category) || [];
@@ -395,22 +394,22 @@ document.addEventListener("DOMContentLoaded", function() {
         const symbol = cur > prev ? '+' : '';
         const diffText = `${symbol}${formatTrendDiff(cur, prev)}`;
         if (cur > prev) {
-            return `<span class="text-danger ms-1" style="font-size: 0.7em;">⬆ ${diffText}</span>`;
+            return `<span class="statistics-trend-diff text-danger">⬆ ${diffText}</span>`;
         } else {
-            return `<span class="text-success ms-1" style="font-size: 0.7em;">⬇ ${diffText}</span>`;
+            return `<span class="statistics-trend-diff text-success">⬇ ${diffText}</span>`;
         }
     }
 
     function renderTrendBesideMetric(metricEl, currentValue, previousValue) {
         if (!metricEl) return;
-        const wrapper = metricEl.parentElement;
-        if (!wrapper) return;
+        const metricTrendContainer = metricEl.parentElement;
+        if (!metricTrendContainer || !metricTrendContainer.parentElement) return;
 
-        let trendEl = wrapper.querySelector('.statistics-metric-trend');
+        let trendEl = metricTrendContainer.parentElement.querySelector('.statistics-metric-trend');
         if (!trendEl) {
             trendEl = document.createElement('span');
-            trendEl.className = 'statistics-metric-trend';
-            wrapper.appendChild(trendEl);
+            trendEl.className = 'statistics-metric-trend statistics-kpi-trend-row';
+            metricTrendContainer.parentElement.insertBefore(trendEl, metricTrendContainer.nextSibling);
         }
         trendEl.innerHTML = buildTrendArrow(currentValue, previousValue);
     }
@@ -419,20 +418,18 @@ document.addEventListener("DOMContentLoaded", function() {
         const arrow = buildTrendArrow(value, prevValue);
         return `
             <div class="text-center">
-                <div class="fs-3 fw-bold ${colorClass} lh-1">${value}<span class="ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span>${arrow}</div>
+                <div class="fs-3 fw-bold ${colorClass} lh-1">${value}<span class="ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span></div>
                 <div class="text-muted mt-1" style="font-size: 12px;">${title}</div>
+                ${arrow ? `<div class="statistics-kpi-trend-row">${arrow}</div>` : ''}
             </div>
         `;
     }
 
     function buildFlexGroup(items, unit, groupTitle, colorClass, prevItems) {
         if (!items || items.length === 0) return "";
-        let groupHtml = `<div class="d-flex align-items-center me-4">`;
-        if (groupTitle) {
-            groupHtml += `<span class="badge bg-light text-secondary border me-3 px-2 py-1 flex-shrink-0" style="font-size: 13px;">${groupTitle}</span>`;
-        }
-        groupHtml += `<div class="d-flex flex-wrap gap-4">`;
-        items.forEach((item, index) => {
+        let groupHtml = `<div class="statistics-kpi-group">`;
+        groupHtml += `<div class="statistics-kpi-group-items">`;
+        items.forEach((item) => {
             let val = (item && item.value !== undefined) ? item.value : item;
             let name = (item && (item.name !== undefined || item.title !== undefined)) ? (item.name || item.title) : item;
             // 按名称在上周期数据中查找对应值
@@ -443,14 +440,33 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             groupHtml += buildFlexItemCore(val, unit, name, colorClass, prevVal);
         });
-        groupHtml += `</div></div>`;
+        groupHtml += `</div>`;
+        if (groupTitle) {
+            groupHtml += `<span class="badge bg-light text-secondary border px-2 py-1 statistics-kpi-group-title">${groupTitle}</span>`;
+        }
+        groupHtml += `</div>`;
         return groupHtml;
+    }
+
+    function buildGroupedFlexLayout(groups) {
+        const validGroups = (groups || []).filter(group => group);
+        if (validGroups.length === 0) return "";
+
+        let html = "";
+        validGroups.forEach((groupHtml, index) => {
+            if (index > 0) {
+                html += `<div class="statistics-kpi-group-separator" aria-hidden="true"></div>`;
+            }
+            html += groupHtml;
+        });
+        return html;
     }
 
     function renderCableBreakOverview(overview, prevOverview) {
         const totalEl = document.getElementById('cable-break-total-count');
         const durationTotalEl = document.getElementById('cable-break-total-duration');
         const longTotalEl = document.getElementById('cable-break-long-total');
+        const longDurationTotalEl = document.getElementById('cable-break-long-duration-total');
         if (!totalEl || !longTotalEl) return;
 
         overview = overview || {};
@@ -464,14 +480,16 @@ document.addEventListener("DOMContentLoaded", function() {
         let htmlCount = "";
         const prevReasonTop3 = prevOverview.reason_top3 || [];
         const prevSourceCounts = prevOverview.source_counts || [];
-        if (overview.reason_top3 && overview.reason_top3.length > 0) {
-            htmlCount += buildFlexGroup(overview.reason_top3, "起", "原因TOP3", "text-indigo", prevReasonTop3);
-        }
-        if (overview.source_counts && overview.source_counts.length > 0) {
-            htmlCount += buildFlexGroup(overview.source_counts, "起", "光缆属性", "text-indigo", prevSourceCounts);
-        }
+        let reasonTop3 = overview.reason_top3 || [];
+        if (reasonTop3.length === 0) reasonTop3 = [{name: '--', value: 0}];
+        htmlCount += buildFlexGroup(reasonTop3, "起", "原因TOP3", "text-indigo", prevReasonTop3);
+
+        let sourceCounts = overview.source_counts || [];
+        if (sourceCounts.length === 0) sourceCounts = [{name: '--', value: 0}];
+        htmlCount += buildFlexGroup(sourceCounts, "起", "光缆属性", "text-indigo", prevSourceCounts);
+
         const countList = document.getElementById('cable-break-count-flex-list');
-        if (countList) countList.innerHTML = htmlCount || '<div class="text-muted small py-3">暂无数据</div>';
+        if (countList) countList.innerHTML = htmlCount;
 
         // 卡片2: 长时中断起数
         let htmlLong = "";
@@ -494,18 +512,48 @@ document.addEventListener("DOMContentLoaded", function() {
 
         renderTrendBesideMetric(longTotalEl, longTotal, prevLongTotal);
 
-        if (longItems.length > 0) {
-            htmlLong += buildFlexGroup(longItems, "起", "历时分布", "text-indigo", prevLongItems);
-        }
+        if (longItems.length === 0) longItems = [{name: '--', value: 0}];
+        htmlLong += buildFlexGroup(longItems, "起", "历时分布", "text-indigo", prevLongItems);
+        
         const longList = document.getElementById('cable-break-long-flex-list');
-        if (longList) longList.innerHTML = htmlLong || '<div class="text-muted small py-3">暂无数据</div>';
+        if (longList) longList.innerHTML = htmlLong;
 
-        // 卡片3: 中断总历时
+        // 卡片3: 长时中断历时
+        let htmlLongDuration = "";
+        const longDurationBuckets = overview.long_duration_bucket_durations || {};
+        const prevLongDurationBuckets = prevOverview.long_duration_bucket_durations || {};
+        let longDurationTotal = Number(overview.long_duration_total || 0);
+        let prevLongDurationTotal = Number(prevOverview.long_duration_total || 0);
+        let longDurationItems = orderedBuckets.map(b => {
+            const duration = Number(longDurationBuckets[b] || 0);
+            return { value: duration.toFixed(2), name: b };
+        });
+        let prevLongDurationItems = orderedBuckets.map(b => {
+            const duration = Number(prevLongDurationBuckets[b] || 0);
+            return { value: duration.toFixed(2), name: b };
+        });
+
+        if (longDurationTotalEl) {
+            longDurationTotalEl.textContent = longDurationTotal.toFixed(2);
+            renderTrendBesideMetric(longDurationTotalEl, longDurationTotal, prevLongDurationTotal);
+        }
+
+        if (longDurationItems.length === 0) longDurationItems = [{name: '--', value: "0.00"}];
+        htmlLongDuration += buildFlexGroup(longDurationItems, "时", "历时分布", "text-indigo", prevLongDurationItems);
+        
+        const longDurationList = document.getElementById('cable-break-long-duration-flex-list');
+        if (longDurationList) longDurationList.innerHTML = htmlLongDuration;
+
+        // 卡片4: 中断总历时
         let htmlDur = "";
         const prevDurReasonTop3 = prevOverview.reason_duration_top3 || [];
         const prevDurSourceCounts = prevOverview.source_duration_counts || [];
         let durReasonItems = (overview.reason_duration_top3 || []).map(i => ({...i, value: parseFloat(i.value).toFixed(2)}));
+        if (durReasonItems.length === 0) durReasonItems = [{name: '--', value: "0.00"}];
+        
         let durSourceItems = (overview.source_duration_counts || []).map(i => ({...i, value: parseFloat(i.value).toFixed(2)}));
+        if (durSourceItems.length === 0) durSourceItems = [{name: '--', value: "0.00"}];
+        
         let prevDurReasonItems = prevDurReasonTop3.map(i => ({...i, value: parseFloat(i.value).toFixed(2)}));
         let prevDurSourceItems = prevDurSourceCounts.map(i => ({...i, value: parseFloat(i.value).toFixed(2)}));
 
@@ -515,16 +563,13 @@ document.addEventListener("DOMContentLoaded", function() {
             renderTrendBesideMetric(durationTotalEl, currentDuration, prevOverview.total_duration);
         }
 
-        if (durReasonItems.length > 0) {
-            htmlDur += buildFlexGroup(durReasonItems, "时", "原因TOP3", "text-indigo", prevDurReasonItems);
-        }
-        if (durSourceItems.length > 0) {
-            htmlDur += buildFlexGroup(durSourceItems, "时", "光缆属性", "text-indigo", prevDurSourceItems);
-        }
+        htmlDur += buildFlexGroup(durReasonItems, "时", "原因TOP3", "text-indigo", prevDurReasonItems);
+        htmlDur += buildFlexGroup(durSourceItems, "时", "光缆属性", "text-indigo", prevDurSourceItems);
+        
         const durList = document.getElementById('cable-break-duration-flex-list');
-        if (durList) durList.innerHTML = htmlDur || '<div class="text-muted small py-3">暂无数据</div>';
+        if (durList) durList.innerHTML = htmlDur;
 
-        // 卡片4: 平均历时深度分析
+        // 卡片5: 平均历时深度分析
         const oAvgEl = document.getElementById('cable-break-overall-avg');
         const prevMetrics = prevOverview.avg_metrics || {};
         if (oAvgEl && overview.avg_metrics) {
@@ -545,7 +590,18 @@ document.addEventListener("DOMContentLoaded", function() {
                     const curV = m[f.key];
                     const prevV = prevMetrics[f.key];
                     const arrow = buildTrendArrow(curV, prevV);
-                    el.innerHTML = `${curV.toFixed(2)}${arrow}`;
+                    el.innerHTML = `${curV.toFixed(2)}`;
+                    
+                    const parentCenter = el.closest('.text-center');
+                    if (parentCenter) {
+                        let trendEl = parentCenter.querySelector('.statistics-kpi-trend-row');
+                        if (!trendEl) {
+                            trendEl = document.createElement('div');
+                            trendEl.className = 'statistics-kpi-trend-row';
+                            parentCenter.appendChild(trendEl);
+                        }
+                        trendEl.innerHTML = arrow;
+                    }
                 }
             });
         }

@@ -79,6 +79,163 @@
     color: #c4c8d0;
 }
 
+.statistics-cable-break-summary-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    gap: 1rem;
+}
+
+.statistics-cable-break-summary-card {
+    border-radius: 14px;
+}
+
+.statistics-cable-break-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.statistics-cable-break-main {
+    flex: 0 0 220px;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+    margin-right: 0.25rem;
+}
+
+.statistics-cable-break-summary-card-primary {
+    min-width: 0;
+}
+
+.statistics-cable-break-summary-card-secondary {
+    min-width: 0;
+}
+
+.statistics-cable-break-summary-card-secondary .statistics-cable-break-main {
+    flex-basis: 180px;
+}
+
+.statistics-kpi-grouped-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: center;
+    justify-content: flex-start;
+    column-gap: 0.75rem;
+    row-gap: 0.5rem;
+    flex: 1 1 260px;
+    min-width: 0;
+}
+
+.statistics-kpi-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.statistics-kpi-group + .statistics-kpi-group {
+    position: relative;
+    margin-left: 1rem;
+    padding-left: 1rem;
+}
+
+.statistics-kpi-group + .statistics-kpi-group::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 1px;
+    height: 3.25rem;
+    background: rgba(31, 41, 55, 0.14);
+    border-radius: 999px;
+    transform: translateY(-50%);
+}
+
+.statistics-kpi-group-items {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 1rem;
+}
+
+.statistics-kpi-group-items > .text-center {
+    flex: 0 0 auto;
+    min-width: max-content;
+    white-space: nowrap;
+}
+
+.statistics-kpi-group-title {
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.statistics-kpi-trend-row {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 12px;
+    line-height: 1;
+    min-height: 12px;
+    white-space: nowrap;
+}
+
+.statistics-trend-diff {
+    font-size: 1em;
+    font-weight: 600;
+}
+
+.statistics-metric-trend {
+    margin-left: 0;
+    white-space: nowrap;
+}
+
+.statistics-kpi-group-separator {
+    width: 1px;
+    height: 3.25rem;
+    background: rgba(31, 41, 55, 0.14);
+    border-radius: 999px;
+    align-self: center;
+}
+
+
+
+@media (max-width: 767.98px) {
+    .statistics-cable-break-summary-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .statistics-cable-break-main {
+        flex-basis: 132px;
+    }
+
+    .statistics-kpi-grouped-list {
+        align-items: flex-start;
+    }
+
+    .statistics-kpi-group-separator {
+        display: none;
+    }
+
+    .statistics-kpi-group {
+        align-items: flex-start;
+    }
+
+    .statistics-kpi-group + .statistics-kpi-group {
+        margin-left: 0;
+        padding-left: 0;
+    }
+
+    .statistics-kpi-group + .statistics-kpi-group::before {
+        display: none;
+    }
+
+    .statistics-kpi-group-items {
+        justify-content: flex-start;
+    }
+}
+
 
 
 /* 覆盖表格在深色主题下的表现 (如果有深色主题) */
@@ -112,5 +269,3 @@
     padding-top: 10px;
     margin-top: 4px;
 }
-
-

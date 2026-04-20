@@ -1,5 +1,19 @@
 # PLAN
 
+## 故障统计页光缆中断概览指标分组样式调整
+
+- [x] 为光缆中断概览分组布局补充源码级回归测试，覆盖组标签下置和组间短竖线
+- [x] 调整统计页脚本生成的分组 DOM 结构，使组标签显示在本组指标下方
+- [x] 为分组容器补充样式，使用较短的竖向分隔线区分不同指标组
+- [x] 运行目标测试与语法校验
+
+## 故障统计页光缆中断概览首行拆分双卡
+
+- [x] 为首行双卡不等宽布局补充源码级回归测试，覆盖卡片间距和主次宽度
+- [x] 调整统计页模板，将中断起数和长时中断起数拆为同一行两张卡片
+- [x] 调整样式，实现首行双卡不等宽布局，并让各卡片之间保留间隔
+- [x] 运行目标测试与语法校验
+
 ## OtnFaultImpact list filter multi-select for services
 
 - [x] Add a failing regression test covering multi-select filter fields for `bare_fiber_service` and `circuit_service`

@@ -47,6 +47,10 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
     long_duration_buckets: dict[str, int] = {
         '6-8小时': 0, '8-10小时': 0, '10-12小时': 0, '12小时以上': 0,
     }
+    long_duration_bucket_durations: dict[str, float] = {
+        '6-8小时': 0.0, '8-10小时': 0.0, '10-12小时': 0.0, '12小时以上': 0.0,
+    }
+    long_duration_total: float = 0.0
 
     cb_valid_count = 0
     cb_valid_dur = 0.0
@@ -83,12 +87,20 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
 
         if 6.0 <= duration_hours < 8.0:
             long_duration_buckets['6-8小时'] += 1
+            long_duration_bucket_durations['6-8小时'] += duration_hours
+            long_duration_total += duration_hours
         elif 8.0 <= duration_hours < 10.0:
             long_duration_buckets['8-10小时'] += 1
+            long_duration_bucket_durations['8-10小时'] += duration_hours
+            long_duration_total += duration_hours
         elif 10.0 <= duration_hours < 12.0:
             long_duration_buckets['10-12小时'] += 1
+            long_duration_bucket_durations['10-12小时'] += duration_hours
+            long_duration_total += duration_hours
         elif duration_hours >= 12.0:
             long_duration_buckets['12小时以上'] += 1
+            long_duration_bucket_durations['12小时以上'] += duration_hours
+            long_duration_total += duration_hours
 
         if duration_hours > 0.5:
             cb_valid_count += 1
@@ -126,14 +138,21 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
         pct = round(count * 100.0 / cb_count, 1) if cb_count > 0 else 0.0
         hist_data.append({'label': label, 'value': count, 'percent': pct})
 
+    long_duration_bucket_durations = {
+        name: round(duration, 2)
+        for name, duration in long_duration_bucket_durations.items()
+    }
+
     return {
         'total_count': cb_count,
         'total_duration': round(total_duration, 2),
+        'long_duration_total': round(long_duration_total, 2),
         'reason_top3': _sorted_count_items(reason_counts)[:3],
         'source_counts': _sorted_count_items(source_counts),
         'reason_duration_top3': _sorted_count_items(reason_duration)[:3],
         'source_duration_counts': _sorted_count_items(source_duration),
         'long_duration_buckets': long_duration_buckets,
+        'long_duration_bucket_durations': long_duration_bucket_durations,
         'avg_metrics': avg_metrics,
         'histogram': hist_data,
     }
@@ -663,6 +682,5 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             'period_total_hours': round(period_total_hours, 2),
             'services': services_result,
         })
-
 
 
