@@ -893,6 +893,18 @@ class OtnFaultImpactFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='电路业务'
     )
+    circuit_business_category = forms.MultipleChoiceField(
+        choices=[(v, l) for v, l, *_ in BusinessCategoryChoices.CHOICES],
+        required=False,
+        label='业务门类',
+        widget=forms.SelectMultiple()
+    )
+    circuit_service_group = forms.MultipleChoiceField(
+        choices=[(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES],
+        required=False,
+        label='业务组',
+        widget=forms.SelectMultiple()
+    )
     service_interruption_time_after = forms.DateTimeField(
         required=False,
         label='业务故障时间（开始）',

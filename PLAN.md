@@ -15,6 +15,13 @@
 - [x] Add an `otnfaultimpact_list.html` template matching the OtnFault list shortcut UI and bind the list view to it
 - [x] Run targeted regression tests and Python syntax validation
 
+## OtnFaultImpact list circuit category/group multi-select filters
+
+- [x] Add a failing regression test covering multi-select filter fields for `circuit_business_category` and `circuit_service_group`
+- [x] Update `OtnFaultImpactFilterForm` to expose both circuit-related choice filters as multi-select inputs
+- [x] Update `OtnFaultImpactFilterSet` to filter `circuit_service__business_category` and `circuit_service__service_group` with multi-select choices
+- [x] Run targeted regression tests and Python syntax validation
+
 ## ???????????????????
 
 - [x] ????????????????????????????????/????????????????????

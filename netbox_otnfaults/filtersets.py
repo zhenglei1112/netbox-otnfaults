@@ -123,6 +123,18 @@ class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
         queryset=CircuitService.objects.all(),
         label='电路业务',
     )
+    circuit_business_category = django_filters.MultipleChoiceFilter(
+        field_name='circuit_service__business_category',
+        choices=CircuitService._meta.get_field('business_category').choices,
+        label='业务门类',
+        distinct=True,
+    )
+    circuit_service_group = django_filters.MultipleChoiceFilter(
+        field_name='circuit_service__service_group',
+        choices=CircuitService._meta.get_field('service_group').choices,
+        label='业务组',
+        distinct=True,
+    )
     service_interruption_time_after = django_filters.DateTimeFilter(
         field_name='service_interruption_time', lookup_expr='gte'
     )
@@ -139,6 +151,8 @@ class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
             'service_type',
             'bare_fiber_service',
             'circuit_service',
+            'circuit_business_category',
+            'circuit_service_group',
             'service_interruption_time_after',
             'service_interruption_time_before',
             'service_recovery_time',
