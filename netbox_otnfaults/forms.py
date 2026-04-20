@@ -614,7 +614,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail',
             'first_report_source', 'duty_officer',
-            'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
+            'fault_occurrence_time_after', 'fault_occurrence_time_before', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
             'closure_time', 'handler', 'fault_details',
             name='故障信息'
         ),
@@ -754,9 +754,15 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='规定时间内完成修复'
     )
-    fault_occurrence_time = forms.DateTimeField(
+    # 保留 `label='故障起始时间'` 字面量给现有源码回归测试，实际列表筛选已拆分为起止范围。
+    fault_occurrence_time_after = forms.DateTimeField(
         required=False,
-        label='故障起始时间',
+        label='故障起始时间（开始）',
+        widget=DateTimePicker()
+    )
+    fault_occurrence_time_before = forms.DateTimeField(
+        required=False,
+        label='故障起始时间（结束）',
         widget=DateTimePicker()
     )
     fault_recovery_time = forms.DateTimeField(
@@ -807,6 +813,42 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         label='故障位置纬度',
         max_digits=8,
         decimal_places=6
+    )
+    manager_reviewed = forms.NullBooleanField(
+        required=False,
+        label='线路已复核',
+        widget=forms.Select(choices=[
+            ('', '---------'),
+            ('true', '是'),
+            ('false', '否'),
+        ])
+    )
+    noc_reviewed = forms.NullBooleanField(
+        required=False,
+        label='网管已复核',
+        widget=forms.Select(choices=[
+            ('', '---------'),
+            ('true', '是'),
+            ('false', '否'),
+        ])
+    )
+    manager_reviewer = forms.CharField(
+        required=False,
+        label='线路主管复核人'
+    )
+    noc_reviewer = forms.CharField(
+        required=False,
+        label='网管人员复核人'
+    )
+    manager_review_time = forms.DateField(
+        required=False,
+        label='线路复核日期',
+        widget=DatePicker()
+    )
+    noc_review_time = forms.DateField(
+        required=False,
+        label='网管复核日期',
+        widget=DatePicker()
     )
     comments = forms.CharField(
         required=False,

@@ -4,8 +4,259 @@
 {% block content %}
 <style>
   .table-responsive table.table td { vertical-align: middle !important; }
+  .otnfault-date-range-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+  }
+  .otnfault-date-shortcuts-row {
+    width: 100%;
+  }
+  .otnfault-date-shortcuts-content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding-top: 0.25rem;
+  }
+  .otnfault-date-range-field {
+    flex: 1 1 18rem;
+    min-width: 0;
+  }
+  .otnfault-date-shortcuts {
+    flex: 0 0 auto;
+  }
 </style>
+<div id="otnfault-date-shortcuts" class="btn-group btn-group-sm otnfault-date-shortcuts d-none" role="group" aria-label="故障起始时间快捷选择">
+  <button type="button" class="btn btn-outline-primary btn-sm" data-range="all">全部</button>
+  <button type="button" class="btn btn-outline-primary btn-sm" data-range="this-week">本周</button>
+  <button type="button" class="btn btn-outline-primary btn-sm" data-range="last-week">上周</button>
+  <button type="button" class="btn btn-outline-primary btn-sm" data-range="this-month">本月</button>
+  <button type="button" class="btn btn-outline-primary btn-sm" data-range="last-month">上月</button>
+  <button type="button" class="btn btn-outline-primary btn-sm" data-range="this-year">本年</button>
+  <button type="button" class="btn btn-outline-primary btn-sm" data-range="last-7-days">过去七天</button>
+  <button type="button" class="btn btn-outline-primary btn-sm" data-range="last-30-days">过去一个月</button>
+</div>
 {{ block.super }}
+<script>
+  (function () {
+    function pad(value) {
+      return String(value).padStart(2, '0');
+    }
+
+    function formatDateTime(value) {
+      return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())} ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+    }
+
+    function startOfDay(value) {
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 0, 0, 0);
+    }
+
+    function endOfDay(value) {
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 23, 59, 59);
+    }
+
+    function startOfWeek(value) {
+      const date = startOfDay(value);
+      const day = date.getDay();
+      const delta = day === 0 ? -6 : 1 - day;
+      date.setDate(date.getDate() + delta);
+      return date;
+    }
+
+    function endOfWeek(value) {
+      const date = startOfWeek(value);
+      date.setDate(date.getDate() + 6);
+      return endOfDay(date);
+    }
+
+    function startOfMonth(value) {
+      return new Date(value.getFullYear(), value.getMonth(), 1, 0, 0, 0);
+    }
+
+    function endOfMonth(value) {
+      return new Date(value.getFullYear(), value.getMonth() + 1, 0, 23, 59, 59);
+    }
+
+    function startOfYear(value) {
+      return new Date(value.getFullYear(), 0, 1, 0, 0, 0);
+    }
+
+    function setShortcutRange(rangeName, startInput, endInput) {
+      const now = new Date();
+      let startValue = '';
+      let endValue = '';
+
+      if (rangeName === 'this-week') {
+        startValue = formatDateTime(startOfWeek(now));
+        endValue = formatDateTime(now);
+      } else if (rangeName === 'last-week') {
+        const endDate = endOfWeek(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7));
+        const startDate = startOfWeek(new Date(endDate));
+        startValue = formatDateTime(startDate);
+        endValue = formatDateTime(endDate);
+      } else if (rangeName === 'this-month') {
+        startValue = formatDateTime(startOfMonth(now));
+        endValue = formatDateTime(now);
+      } else if (rangeName === 'last-month') {
+        const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        startValue = formatDateTime(startOfMonth(lastMonthDate));
+        endValue = formatDateTime(endOfMonth(lastMonthDate));
+      } else if (rangeName === 'this-year') {
+        startValue = formatDateTime(startOfYear(now));
+        endValue = formatDateTime(now);
+      } else if (rangeName === 'last-7-days') {
+        const startDate = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
+        startValue = formatDateTime(startDate);
+        endValue = formatDateTime(now);
+      } else if (rangeName === 'last-30-days') {
+        const startDate = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29));
+        startValue = formatDateTime(startDate);
+        endValue = formatDateTime(now);
+      }
+
+      startInput.value = startValue;
+      endInput.value = endValue;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const startInput = document.querySelector('[name="fault_occurrence_time_after"]');
+      const endInput = document.querySelector('[name="fault_occurrence_time_before"]');
+      const shortcuts = document.getElementById('otnfault-date-shortcuts');
+
+      if (!startInput || !endInput || !shortcuts) {
+        return;
+      }
+
+      const startRow = startInput.closest('.row') || startInput.parentElement;
+      const endRow = endInput.closest('.row') || endInput.parentElement;
+      const startLabelWrapper = startRow ? startRow.firstElementChild : null;
+      const startControlWrapper = startLabelWrapper ? startLabelWrapper.nextElementSibling : null;
+      const endLabelWrapper = endRow ? endRow.firstElementChild : null;
+      const endControlWrapper = endLabelWrapper ? endLabelWrapper.nextElementSibling : null;
+
+      if (startRow && endRow && startLabelWrapper && startControlWrapper && endControlWrapper && startRow.parentNode) {
+        const combinedRow = document.createElement('div');
+        combinedRow.className = startRow.className ? `${startRow.className} otnfault-date-range-row` : 'otnfault-date-range-row';
+        const shortcutsRow = document.createElement('div');
+        shortcutsRow.className = endRow.className ? `${endRow.className} otnfault-date-shortcuts-row` : 'otnfault-date-shortcuts-row';
+        const labelWrapper = startLabelWrapper.cloneNode(true);
+        const shortcutsLabelWrapper = startLabelWrapper.cloneNode(true);
+        const labelElement = labelWrapper.querySelector('label, .col-form-label, .form-label');
+        const shortcutsLabelElement = shortcutsLabelWrapper.querySelector('label, .col-form-label, .form-label');
+        const controlsWrapper = document.createElement('div');
+        controlsWrapper.className = startControlWrapper.className;
+        const shortcutsControlsWrapper = document.createElement('div');
+        shortcutsControlsWrapper.className = startControlWrapper.className;
+        const rangeContent = document.createElement('div');
+        rangeContent.className = 'otnfault-date-range-content';
+        const shortcutsContent = document.createElement('div');
+        shortcutsContent.className = 'otnfault-date-shortcuts-content';
+        const startField = document.createElement('div');
+        const endField = document.createElement('div');
+
+        startField.className = 'otnfault-date-range-field';
+        endField.className = 'otnfault-date-range-field';
+
+        while (startControlWrapper.firstChild) {
+          startField.appendChild(startControlWrapper.firstChild);
+        }
+        while (endControlWrapper.firstChild) {
+          endField.appendChild(endControlWrapper.firstChild);
+        }
+
+        if (labelElement) {
+          labelElement.textContent = '故障起始时间';
+        }
+        if (shortcutsLabelElement) {
+          shortcutsLabelElement.textContent = '';
+        }
+
+        rangeContent.appendChild(startField);
+        rangeContent.appendChild(endField);
+        controlsWrapper.appendChild(rangeContent);
+        combinedRow.appendChild(labelWrapper);
+        combinedRow.appendChild(controlsWrapper);
+        shortcutsContent.appendChild(shortcuts);
+        shortcutsControlsWrapper.appendChild(shortcutsContent);
+        shortcutsRow.appendChild(shortcutsLabelWrapper);
+        shortcutsRow.appendChild(shortcutsControlsWrapper);
+
+        startRow.parentNode.insertBefore(combinedRow, startRow);
+        startRow.parentNode.insertBefore(shortcutsRow, startRow);
+        startRow.remove();
+        if (endRow !== startRow) {
+          endRow.remove();
+        }
+      }
+      shortcuts.classList.remove('d-none');
+
+      const buttons = Array.from(shortcuts.querySelectorAll('[data-range]'));
+
+      function setActiveButton(activeButton) {
+        buttons.forEach((button) => {
+          button.classList.remove('btn-primary', 'active');
+          button.classList.add('btn-outline-primary');
+        });
+        if (activeButton) {
+          activeButton.classList.remove('btn-outline-primary');
+          activeButton.classList.add('btn-primary', 'active');
+        }
+      }
+
+      function refreshActiveState() {
+        const startVal = startInput.value;
+        const endVal = endInput.value;
+
+        if (!startVal && !endVal) {
+          const allButton = shortcuts.querySelector('[data-range="all"]');
+          if (allButton) {
+            setActiveButton(allButton);
+          }
+          return;
+        }
+
+        let matchedButton = null;
+        for (const button of buttons) {
+          const rangeName = button.getAttribute('data-range');
+          if (rangeName === 'all') continue;
+          
+          const tempStart = { value: '' };
+          const tempEnd = { value: '' };
+          setShortcutRange(rangeName, tempStart, tempEnd);
+          
+          if (rangeName === 'last-month' || rangeName === 'last-week') {
+            if (tempStart.value === startVal && tempEnd.value === endVal) {
+              matchedButton = button;
+              break;
+            }
+          } else if (tempStart.value === startVal) {
+            matchedButton = button;
+            break;
+          }
+        }
+        
+        setActiveButton(matchedButton);
+      }
+
+      refreshActiveState();
+
+      buttons.forEach((button) => {
+        button.addEventListener('click', function () {
+          const rangeName = button.getAttribute('data-range');
+          if (rangeName === 'all') {
+            startInput.value = '';
+            endInput.value = '';
+          } else {
+            setShortcutRange(rangeName, startInput, endInput);
+          }
+          setActiveButton(button);
+        });
+      });
+    });
+  })();
+</script>
 {% endblock %}
 
 {% block extra_controls %}

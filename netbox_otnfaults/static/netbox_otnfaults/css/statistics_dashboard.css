@@ -39,10 +39,14 @@
     vertical-align: baseline;
     padding: 0.08rem 0.45rem;
     border-radius: 4px;
-    color: var(--tblr-success) !important;
-    background-color: rgba(var(--tblr-success-rgb), 0.12);
-    border: 1px solid rgba(var(--tblr-success-rgb), 0.3);
+    color: #206bc4 !important;
+    background-color: rgba(32, 107, 196, 0.12);
+    border: 1px solid rgba(32, 107, 196, 0.3);
     font-weight: 600;
+}
+
+.text-indigo {
+    color: #206bc4 !important;
 }
 
 .card {
@@ -50,7 +54,7 @@
     transition: transform 0.2s, box-shadow 0.2s;
 }
 .card:hover {
-    box-shadow: 0 .5rem 1rem rgba(0,0,0,.08) !important;
+    box-shadow: 0 .25rem .5rem rgba(0,0,0,.05) !important;
 }
 
 .statistics-overall-unit {
@@ -82,23 +86,6 @@
     vertical-align: middle;
 }
 
-/* Tab 导航增强 */
-#statisticsTab .nav-link {
-    font-weight: 500;
-    color: #6e7687;
-    border: none;
-    padding: 10px 20px;
-    transition: color 0.2s, border-bottom-color 0.2s;
-}
-#statisticsTab .nav-link.active {
-    color: #206bc4;
-    border-bottom: 2px solid #206bc4;
-    background: transparent;
-}
-#statisticsTab .nav-link:hover:not(.active) {
-    color: #333;
-    border-bottom: 2px solid #dee2e6;
-}
 
 /* ===== 业务故障统计卡片 ===== */
 .svc-card {
@@ -126,7 +113,4 @@
     margin-top: 4px;
 }
 
-/* 自定义紫色文本 */
-.text-purple {
-    color: #8B5CF6 !important;
-}
+

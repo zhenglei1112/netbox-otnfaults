@@ -13,6 +13,12 @@ from .models import (
 
 
 class OtnFaultFilterSet(NetBoxModelFilterSet):
+    fault_occurrence_time_after = django_filters.DateTimeFilter(
+        field_name='fault_occurrence_time', lookup_expr='gte'
+    )
+    fault_occurrence_time_before = django_filters.DateTimeFilter(
+        field_name='fault_occurrence_time', lookup_expr='lte'
+    )
     bidirectional_pair = django_filters.CharFilter(
         method='filter_bidirectional_pair',
         label='双向站点对筛选 (id1,id2)',
@@ -35,14 +41,16 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
         fields = (
             'id', 'fault_number', 'duty_officer',
             'interruption_location_a', 'interruption_location',
-            'fault_occurrence_time', 'fault_recovery_time', 'fault_category',
+            'fault_occurrence_time_after', 'fault_occurrence_time_before',
+            'fault_recovery_time', 'fault_category',
             'interruption_reason', 'fault_details', 'interruption_longitude',
             'interruption_latitude', 'province', 'urgency', 'first_report_source',
             'line_manager', 'operations_manager', 'maintenance_mode', 'handling_unit', 'contract',
             'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'timeout_reason', 'resource_type', 'resource_owner', 'cable_route',
             'handler', 'cable_break_location', 'recovery_mode', 'comments',
-            'fault_status', 'manager_reviewed',
+            'fault_status', 'manager_reviewed', 'manager_reviewer', 'noc_reviewed', 'noc_reviewer',
+            'manager_review_time', 'noc_review_time'
         )
 
     def search(self, queryset, name, value):

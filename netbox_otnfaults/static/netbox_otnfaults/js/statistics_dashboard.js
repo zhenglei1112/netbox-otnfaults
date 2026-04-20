@@ -465,10 +465,10 @@ document.addEventListener("DOMContentLoaded", function() {
         const prevReasonTop3 = prevOverview.reason_top3 || [];
         const prevSourceCounts = prevOverview.source_counts || [];
         if (overview.reason_top3 && overview.reason_top3.length > 0) {
-            htmlCount += buildFlexGroup(overview.reason_top3, "起", "原因TOP3", "text-teal", prevReasonTop3);
+            htmlCount += buildFlexGroup(overview.reason_top3, "起", "原因TOP3", "text-indigo", prevReasonTop3);
         }
         if (overview.source_counts && overview.source_counts.length > 0) {
-            htmlCount += buildFlexGroup(overview.source_counts, "起", "光缆属性", "text-green", prevSourceCounts);
+            htmlCount += buildFlexGroup(overview.source_counts, "起", "光缆属性", "text-indigo", prevSourceCounts);
         }
         const countList = document.getElementById('cable-break-count-flex-list');
         if (countList) countList.innerHTML = htmlCount || '<div class="text-muted small py-3">暂无数据</div>';
@@ -495,7 +495,7 @@ document.addEventListener("DOMContentLoaded", function() {
         renderTrendBesideMetric(longTotalEl, longTotal, prevLongTotal);
 
         if (longItems.length > 0) {
-            htmlLong += buildFlexGroup(longItems, "起", "历时分布", "text-danger", prevLongItems);
+            htmlLong += buildFlexGroup(longItems, "起", "历时分布", "text-indigo", prevLongItems);
         }
         const longList = document.getElementById('cable-break-long-flex-list');
         if (longList) longList.innerHTML = htmlLong || '<div class="text-muted small py-3">暂无数据</div>';
@@ -516,10 +516,10 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         if (durReasonItems.length > 0) {
-            htmlDur += buildFlexGroup(durReasonItems, "时", "原因TOP3", "text-teal", prevDurReasonItems);
+            htmlDur += buildFlexGroup(durReasonItems, "时", "原因TOP3", "text-indigo", prevDurReasonItems);
         }
         if (durSourceItems.length > 0) {
-            htmlDur += buildFlexGroup(durSourceItems, "时", "光缆属性", "text-green", prevDurSourceItems);
+            htmlDur += buildFlexGroup(durSourceItems, "时", "光缆属性", "text-indigo", prevDurSourceItems);
         }
         const durList = document.getElementById('cable-break-duration-flex-list');
         if (durList) durList.innerHTML = htmlDur || '<div class="text-muted small py-3">暂无数据</div>';
@@ -574,7 +574,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 series: [{
                     type: 'bar',
                     barWidth: '60%',
-                    itemStyle: { color: '#8B5CF6', borderRadius: [2, 2, 0, 0] },
+                    itemStyle: { color: '#206bc4', borderRadius: [2, 2, 0, 0] },
                     label: {
                         show: true,
                         position: 'top',
@@ -594,7 +594,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderCharts(chartsData) {
         // 1. 光缆属性 (Pie)
-        const resourceColorMap = { '自建': '#10B981', '协调': '#3B82F6', '租赁': '#8B5CF6', '未指定': '#9CA3AF' };
+        const resourceColorMap = { '自建': '#206bc4', '协调': '#4299e1', '租赁': '#66b2ff', '未指定': '#cbd5e1' };
         chartResource.setOption({
             tooltip: { 
                 trigger: 'item', 
@@ -642,13 +642,14 @@ document.addEventListener("DOMContentLoaded", function() {
             series: [{
                 type: 'bar',
                 label: { show: true, position: 'top' },
-                itemStyle: { color: '#3B82F6', borderRadius: [4, 4, 0, 0] },
+                itemStyle: { color: '#206bc4', borderRadius: [4, 4, 0, 0] },
                 data: provData.map(item => ({value: item.value, _duration: item.duration}))
             }]
         });
 
         // 3. 一级原因 (Pie)
         chartReason.setOption({
+            color: ['#206bc4', '#4299e1', '#66b2ff', '#99ccff', '#b3d4ff', '#cbd5e1'],
             tooltip: { 
                 trigger: 'item', 
                 formatter: params => {
