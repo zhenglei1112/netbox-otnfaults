@@ -883,15 +883,25 @@ class OtnFaultImpactFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='业务类型'
     )
-    bare_fiber_service = DynamicModelChoiceField(
+    bare_fiber_service = DynamicModelMultipleChoiceField(
         queryset=BareFiberService.objects.all(),
         required=False,
         label='裸纤业务'
     )
-    circuit_service = DynamicModelChoiceField(
+    circuit_service = DynamicModelMultipleChoiceField(
         queryset=CircuitService.objects.all(),
         required=False,
         label='电路业务'
+    )
+    service_interruption_time_after = forms.DateTimeField(
+        required=False,
+        label='业务故障时间（开始）',
+        widget=DateTimePicker()
+    )
+    service_interruption_time_before = forms.DateTimeField(
+        required=False,
+        label='业务故障时间（结束）',
+        widget=DateTimePicker()
     )
 
 class OtnPathForm(NetBoxModelForm):

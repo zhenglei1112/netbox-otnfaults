@@ -1,5 +1,20 @@
 # PLAN
 
+## OtnFaultImpact list filter multi-select for services
+
+- [x] Add a failing regression test covering multi-select filter fields for `bare_fiber_service` and `circuit_service`
+- [x] Update `OtnFaultImpactFilterForm` to use multi-select widgets for both service filters
+- [x] Update `OtnFaultImpactFilterSet` to accept multiple selected services
+- [x] Run targeted regression tests and Python syntax validation
+
+## OtnFaultImpact list interruption time range filter
+
+- [x] Add a failing regression test covering start/end interruption time fields, filterset range filters, and list template shortcut UI
+- [x] Update `OtnFaultImpactFilterForm` to use start/end `service_interruption_time` range fields
+- [x] Update `OtnFaultImpactFilterSet` to apply `gte`/`lte` range filtering on `service_interruption_time`
+- [x] Add an `otnfaultimpact_list.html` template matching the OtnFault list shortcut UI and bind the list view to it
+- [x] Run targeted regression tests and Python syntax validation
+
 ## ???????????????????
 
 - [x] ????????????????????????????????/????????????????????

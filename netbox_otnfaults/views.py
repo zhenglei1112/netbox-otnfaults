@@ -484,6 +484,7 @@ class OtnFaultImpactListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView
     table = OtnFaultImpactTable
     filterset = OtnFaultImpactFilterSet
     filterset_form = OtnFaultImpactFilterForm
+    template_name = 'netbox_otnfaults/otnfaultimpact_list.html'
 
 class OtnFaultImpactBulkImportView(generic.BulkImportView):
     """故障影响业务批量导入视图"""
