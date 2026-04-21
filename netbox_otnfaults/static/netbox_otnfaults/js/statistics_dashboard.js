@@ -51,6 +51,8 @@ document.addEventListener("DOMContentLoaded", function() {
     let currentAllDetails = []; // 保存后端返回的全部详情数据
     let activeFilterField = null; // 'resource_type', 'province', 'reason'
     let activeFilterValue = null;
+    let activeFilterExtraField = null;
+    let activeFilterExtraValue = null;
     let activeFilterLabel = null;
 
     // ---------------- DOM 元素 ----------------
@@ -881,7 +883,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // 2. 应用单点下钻过滤
         if (activeFilterField && activeFilterValue !== null) {
-            filteredDetails = filteredDetails.filter(item => applyDetailFilter(item, activeFilterField, activeFilterValue));
+            filteredDetails = filteredDetails.filter(item => {
+                if (!applyDetailFilter(item, activeFilterField, activeFilterValue)) return false;
+                if (activeFilterExtraField && activeFilterExtraValue !== null) {
+                    return applyDetailFilter(item, activeFilterExtraField, activeFilterExtraValue);
+                }
+                return true;
+            });
             
             let filterName = '';
             let filterValueDisp = activeFilterLabel || activeFilterValue;
@@ -898,6 +906,9 @@ document.addEventListener("DOMContentLoaded", function() {
             else if (activeFilterField === 'is_repeat') { filterName = '特殊标签'; filterValueDisp = '历史重复故障'; }
             
             activeConditions.push(`下钻：${filterName}=${filterValueDisp}`);
+            if (activeFilterExtraField === 'is_valid_duration' && activeFilterExtraValue === true) {
+                activeConditions.push('附加：有效历时>30分钟');
+            }
         }
 
         if (activeConditions.length > 0) {
@@ -965,6 +976,8 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!params.name) return;
         activeFilterField = fieldName;
         activeFilterValue = params.name;
+        activeFilterExtraField = null;
+        activeFilterExtraValue = null;
         activeFilterLabel = null;
         // 滚动到下方的表格
         const tbl = document.getElementById('details-tbody');
@@ -980,6 +993,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
         activeFilterField = fieldName;
         activeFilterValue = normalizeFilterValue(fieldName, metric.dataset.filterValue);
+        activeFilterExtraField = metric.dataset.filterExtraField || null;
+        activeFilterExtraValue = activeFilterExtraField
+            ? normalizeFilterValue(activeFilterExtraField, metric.dataset.filterExtraValue)
+            : null;
         activeFilterLabel = metric.dataset.filterLabel || metric.dataset.filterValue;
 
         const tbl = document.getElementById('details-tbody');
@@ -993,6 +1010,8 @@ document.addEventListener("DOMContentLoaded", function() {
     btnClearFilter.addEventListener('click', () => {
         activeFilterField = null;
         activeFilterValue = null;
+        activeFilterExtraField = null;
+        activeFilterExtraValue = null;
         activeFilterLabel = null;
         
         excludedCategories.resource_type.clear();

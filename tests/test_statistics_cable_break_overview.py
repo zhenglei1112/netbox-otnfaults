@@ -315,19 +315,29 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             'data-filter-field="is_repeat" data-filter-value="true"',
             'data-filter-field="is_long" data-filter-value="true"',
             'data-filter-field="is_valid_duration" data-filter-value="true"',
-            'data-filter-field="occurrence_period" data-filter-value="日间"',
-            'data-filter-field="occurrence_period" data-filter-value="夜间"',
-            'data-filter-field="cause_group" data-filter-value="施工类"',
-            'data-filter-field="cause_group" data-filter-value="非施工类"',
+            'data-filter-field="occurrence_period" data-filter-value="日间" data-filter-extra-field="is_valid_duration" data-filter-extra-value="true"',
+            'data-filter-field="occurrence_period" data-filter-value="夜间" data-filter-extra-field="is_valid_duration" data-filter-extra-value="true"',
+            'data-filter-field="cause_group" data-filter-value="施工类" data-filter-extra-field="is_valid_duration" data-filter-extra-value="true"',
+            'data-filter-field="cause_group" data-filter-value="非施工类" data-filter-extra-field="is_valid_duration" data-filter-extra-value="true"',
         ]:
             self.assertIn(static_filter, template)
 
+        self.assertIn("valid_duration = duration_hours > 0.5", views)
+        self.assertIn("if valid_duration:", views)
+        self.assertIn("if occurrence_period == '日间':", views)
+        self.assertIn("if reason == '施工':", views)
         self.assertIn("document.addEventListener('click', function(event)", source)
         self.assertIn("const metric = event.target.closest('.statistics-drill-metric');", source)
         self.assertIn("handleMetricFilterClick(metric);", source)
         self.assertIn("function handleMetricFilterClick(metric)", source)
         self.assertIn("function normalizeFilterValue(fieldName, value)", source)
         self.assertIn("function applyDetailFilter(item, fieldName, value)", source)
+        self.assertIn("let activeFilterExtraField = null;", source)
+        self.assertIn("let activeFilterExtraValue = null;", source)
+        self.assertIn("metric.dataset.filterExtraField || null", source)
+        self.assertIn("normalizeFilterValue(activeFilterExtraField, metric.dataset.filterExtraValue)", source)
+        self.assertIn("applyDetailFilter(item, activeFilterExtraField, activeFilterExtraValue)", source)
+        self.assertIn("附加：有效历时>30分钟", source)
         self.assertIn("buildFlexItemCore(val, unit, name, colorClass, prevVal, filterField, name)", source)
         self.assertIn('buildFlexGroup(reasonTop3, "起", "原因TOP3", "text-indigo", prevReasonTop3, "reason")', source)
         self.assertIn('buildFlexGroup(sourceCounts, "起", "光缆属性", "text-indigo", prevSourceCounts, "source_group")', source)

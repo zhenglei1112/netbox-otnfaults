@@ -181,24 +181,26 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
             long_duration_bucket_durations['12小时以上'] += duration_hours
             long_duration_total += duration_hours
 
-        if duration_hours > 0.5:
+        valid_duration = duration_hours > 0.5
+        if valid_duration:
             cb_valid_count += 1
             cb_valid_dur += duration_hours
 
         occurrence_period = _occurrence_period_for_fault(fault)
-        if occurrence_period == '日间':
-            cb_day_count += 1
-            cb_day_dur += duration_hours
-        else:
-            cb_night_count += 1
-            cb_night_dur += duration_hours
+        if valid_duration:
+            if occurrence_period == '日间':
+                cb_day_count += 1
+                cb_day_dur += duration_hours
+            else:
+                cb_night_count += 1
+                cb_night_dur += duration_hours
 
-        if reason == '施工':
-            cb_cons_count += 1
-            cb_cons_dur += duration_hours
-        else:
-            cb_noncons_count += 1
-            cb_noncons_dur += duration_hours
+            if reason == '施工':
+                cb_cons_count += 1
+                cb_cons_dur += duration_hours
+            else:
+                cb_noncons_count += 1
+                cb_noncons_dur += duration_hours
 
     cb_count = len(cable_break_faults)
     avg_metrics = {
