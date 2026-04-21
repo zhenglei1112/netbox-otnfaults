@@ -390,6 +390,7 @@ class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
             'is_picker': False,
             'is_embedded_map': request.GET.get('modal') == 'true',
             'is_minimal_map': is_embedded_map,
+            'disable_3d_buildings': True,
             'debug_mode': False,
             'show_debug_panel': False,
             'debug_date': '2025-12-05 00:00:00',

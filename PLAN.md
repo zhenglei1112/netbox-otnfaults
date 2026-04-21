@@ -20,6 +20,14 @@
 - [x] Configure only the statistics cable-break map mode to hide fault categories and keep processing statuses visible
 - [x] Run targeted regression tests and JavaScript syntax validation
 
+## Statistics cable-break map modal GPU usage reduction
+
+- [x] Identify statistics map-specific GPU pressure from globe projection and unconditional 3D buildings layer
+- [x] Switch only the statistics cable-break map mode to Mercator projection for modal point display
+- [x] Add a scoped `disable3dBuildings` configuration path while preserving shared OTN paths and site layers
+- [x] Preserve the province GeoJSON layer with the same fill and boundary styling as the fault distribution map
+- [x] Run targeted regression tests and JavaScript/Python syntax validation
+
 ## 故障统计页光缆中断概览指标分组样式调整
 
 - [x] 为光缆中断概览分组布局补充源码级回归测试，覆盖组标签下置和组间短竖线

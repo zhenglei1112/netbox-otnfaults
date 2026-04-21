@@ -207,7 +207,7 @@ class OTNMapCore {
                 "fill-opacity": 0.05      // 极低透明度，显得更浅
               }
             },
-            buildingFirstSymbolId
+            firstSymbolId
           );
 
           // 边界线图层
@@ -371,6 +371,8 @@ class OTNMapCore {
     // B. ...
     // C. 3D 建筑图层（缩放级别 >= 15 时显示）
     // 添加 OpenFreeMap 矢量瓦片源（包含 OSM 建筑高度数据）
+    if (this.config.disable3dBuildings) return;
+
     this.map.addSource('openfreemap-buildings', {
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet'

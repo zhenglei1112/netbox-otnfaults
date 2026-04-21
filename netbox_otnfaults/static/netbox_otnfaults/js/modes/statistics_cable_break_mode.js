@@ -3,6 +3,11 @@
  *
  * Reuses the unified map core and the fault-map data/popup conventions, but
  * keeps controls and layers isolated from the normal fault distribution mode.
+ *
+ * Performance optimisations (v9):
+ *   - Shared site layers are "down-tuned" for iframe context
+ *   - Fault points use clustered WebGL layers (not DOM Markers)
+ *   - Clusters auto-expand on click; individual pins show popup on hover
  */
 
 class CableBreakSkippedCountControl {
@@ -39,7 +44,6 @@ const StatisticsCableBreakModePlugin = {
   mapBase: null,
   config: null,
   features: [],
-  markers: [],
   currentPopup: null,
   popupCloseTimer: null,
   skippedCountControl: null,
@@ -51,49 +55,213 @@ const StatisticsCableBreakModePlugin = {
     this.mapBase = core.mapBase;
     this.config = core.config;
 
+    this._optimizeSharedLayers();
     this._initData();
-    this._addDefaultMarkers();
+    this._addFaultLayer();
     this._addControls();
+    this._setupEventListeners();
     this._fitBounds();
   },
 
+  // ─── 性能核心：降档共享图层的 GPU 密集属性 ───
+  _optimizeSharedLayers() {
+    const map = this.map;
+
+    if (map.getLayer("netbox-sites-labels")) {
+      map.setPaintProperty("netbox-sites-labels", "text-halo-blur", 0);
+      map.setLayerZoomRange("netbox-sites-labels", 8, 24);
+    }
+
+    if (map.getLayer("netbox-sites-layer")) {
+      map.setPaintProperty("netbox-sites-layer", "circle-stroke-width", 0);
+      map.setPaintProperty("netbox-sites-layer", "circle-opacity", 0.55);
+      map.setPaintProperty("netbox-sites-layer", "circle-radius", 3);
+    }
+
+    if (map.getLayer("user-geojson-fill")) {
+      map.setPaintProperty("user-geojson-fill", "fill-opacity", 0.02);
+    }
+  },
+
+  // ─── 数据初始化 ───
   _initData() {
     const markerData = this.config.markerData || [];
     this.features = FaultDataService.convertToFeatures(markerData);
   },
 
-  _addDefaultMarkers() {
-    this.features.forEach((feature) => {
-      const marker = new maplibregl.Marker({ color: this._getMarkerColor(feature) })
-        .setLngLat(feature.geometry.coordinates)
-        .addTo(this.map);
+  // ─── 水滴形 SVG 图标生成（复刻原生 Marker 3D 效果） ───
+  _createTeardropIcon(fillColor) {
+    const svg = `<svg width="54" height="82" viewBox="0 0 27 41" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="13.5" cy="34.8" rx="10.5" ry="5.25" fill="black" opacity="0.12"/>
+      <path fill="${fillColor}" d="M27,13.5C27,19.1 20.3,27 14.1,34.1C13.7,34.5 13.2,34.5 12.9,34.1C6.6,27 0,19.2 0,13.5C0,6 6,0 13.5,0C20.9,0 27,6 27,13.5Z"/>
+      <path opacity="0.25" d="M13.5,0C6,0 0,6 0,13.5C0,19.2 6.6,27 12.9,34.1C13.2,34.5 13.7,34.5 14.1,34.1C20.3,27 27,19.1 27,13.5C27,6 20.9,0 13.5,0ZM13.5,1C20.4,1 26,6.6 26,13.5C26,15.8 24.7,19.8 21.5,24.4C18.9,28.2 15.9,31.6 13.5,34C11.1,31.6 8.1,28.2 5.5,24.4C2.3,19.8 1,15.8 1,13.5C1,6.6 6.6,1 13.5,1Z"/>
+      <circle fill="white" cx="13.5" cy="13.5" r="5.5"/>
+    </svg>`;
 
-      marker.getElement().addEventListener("mouseenter", () => {
-        this._showFaultPopup(feature);
-      });
-      marker.getElement().addEventListener("mouseleave", () => {
-        this._startPopupCloseTimer();
-      });
-      marker.getElement().addEventListener("click", () => {
-        this._showFaultPopup(feature);
-      });
-
-      this.markers.push(marker);
+    return new Promise((resolve) => {
+      const img = new Image(54, 82);
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
     });
   },
 
-  _getMarkerColor(feature) {
-    const properties = feature.properties || {};
-    const statusKey = properties.statusKey || properties.status_key || 'processing';
+  // ─── 聚合模式 + 水滴图标 ───
+  async _addFaultLayer() {
+    const map = this.map;
+    const geojson = {
+      type: "FeatureCollection",
+      features: this.features,
+    };
 
-    return (
-      properties.statusColorHex ||
-      (typeof FAULT_STATUS_COLORS !== "undefined" && FAULT_STATUS_COLORS[statusKey]) ||
-      (typeof FAULT_STATUS_COLORS !== "undefined" && FAULT_STATUS_COLORS.processing) ||
-      "#dc3545"
-    );
+    // 启用聚合的 GeoJSON 数据源
+    map.addSource("cable-break-faults", {
+      type: "geojson",
+      data: geojson,
+      cluster: true,
+      clusterMaxZoom: 12,
+      clusterRadius: 50,
+    });
+
+    // ── A. 聚合圆圈层 ──
+    map.addLayer({
+      id: "cb-clusters",
+      type: "circle",
+      source: "cable-break-faults",
+      filter: ["has", "point_count"],
+      paint: {
+        // 根据聚合数量渐变大小和颜色
+        "circle-color": [
+          "step", ["get", "point_count"],
+          "#51bbd6",   // < 5: 浅蓝
+          5, "#f1a340", // 5-10: 橙色
+          10, "#e04040", // ≥ 10: 红色
+        ],
+        "circle-radius": [
+          "step", ["get", "point_count"],
+          18,         // < 5: 18px
+          5, 24,      // 5-10: 24px
+          10, 30,     // ≥ 10: 30px
+        ],
+        "circle-stroke-width": 3,
+        "circle-stroke-color": "rgba(255,255,255,0.7)",
+        "circle-opacity": 0.85,
+      },
+    });
+
+    // ── B. 聚合数字标签层 ──
+    map.addLayer({
+      id: "cb-cluster-count",
+      type: "symbol",
+      source: "cable-break-faults",
+      filter: ["has", "point_count"],
+      layout: {
+        "text-field": "{point_count_abbreviated}",
+        "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+        "text-size": 13,
+        "text-allow-overlap": true,
+      },
+      paint: {
+        "text-color": "#ffffff",
+      },
+    });
+
+    // ── C. 非聚合的单个故障点（水滴图标） ──
+    const statusEntries = {
+      processing: FAULT_STATUS_COLORS.processing || "#dc3545",
+      temporary_recovery: FAULT_STATUS_COLORS.temporary_recovery || "#0d6efd",
+      suspended: FAULT_STATUS_COLORS.suspended || "#ffc107",
+      closed: FAULT_STATUS_COLORS.closed || "#198754",
+    };
+
+    const iconPromises = Object.entries(statusEntries).map(async ([key, color]) => {
+      const iconName = `cb-pin-${key}`;
+      if (!map.hasImage(iconName)) {
+        const img = await this._createTeardropIcon(color);
+        if (img && !map.hasImage(iconName)) {
+          map.addImage(iconName, img, { pixelRatio: 2 });
+        }
+      }
+    });
+    await Promise.all(iconPromises);
+
+    const iconImageExpr = [
+      "match",
+      ["coalesce", ["get", "statusKey"], "processing"],
+      "processing", "cb-pin-processing",
+      "temporary_recovery", "cb-pin-temporary_recovery",
+      "suspended", "cb-pin-suspended",
+      "closed", "cb-pin-closed",
+      "cb-pin-processing",
+    ];
+
+    map.addLayer({
+      id: "cable-break-faults-layer",
+      type: "symbol",
+      source: "cable-break-faults",
+      filter: ["!", ["has", "point_count"]],
+      layout: {
+        "icon-image": iconImageExpr,
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 10, 1.0],
+        "icon-allow-overlap": true,
+        "icon-anchor": "bottom",
+        "icon-pitch-alignment": "viewport",
+        "icon-rotation-alignment": "viewport",
+      },
+    });
   },
 
+  // ─── 图层事件监听 ───
+  _setupEventListeners() {
+    const map = this.map;
+
+    // 聚合圆圈：点击展开
+    map.on("click", "cb-clusters", async (e) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: ["cb-clusters"] });
+      if (!features.length) return;
+      const clusterId = features[0].properties.cluster_id;
+      try {
+        const zoom = await map.getSource("cable-break-faults").getClusterExpansionZoom(clusterId);
+        map.easeTo({
+          center: features[0].geometry.coordinates,
+          zoom: zoom,
+          duration: 500,
+        });
+      } catch (err) {
+        console.warn("[CableBreakMap] Cluster expansion failed:", err);
+      }
+    });
+
+    map.on("mouseenter", "cb-clusters", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "cb-clusters", () => {
+      map.getCanvas().style.cursor = "";
+    });
+
+    // 单个故障点：悬浮弹窗
+    const layerId = "cable-break-faults-layer";
+
+    map.on("mouseenter", layerId, (e) => {
+      map.getCanvas().style.cursor = "pointer";
+      if (e.features && e.features.length) {
+        this._showFaultPopup(e.features[0]);
+      }
+    });
+
+    map.on("mouseleave", layerId, () => {
+      map.getCanvas().style.cursor = "";
+      this._startPopupCloseTimer();
+    });
+
+    map.on("click", layerId, (e) => {
+      if (e.features && e.features.length) {
+        this._showFaultPopup(e.features[0]);
+      }
+    });
+  },
+
+  // ─── 控件注册 ───
   _addControls() {
     if (typeof FaultLegendControl !== "undefined") {
       this.legendControl = new FaultLegendControl({ showCategories: false, showStatuses: true });
@@ -106,12 +274,15 @@ const StatisticsCableBreakModePlugin = {
     map.addControl(this.skippedCountControl, 'bottom-left');
   },
 
+  // ─── Popup 显示（保留延迟关闭逻辑） ───
   _showFaultPopup(feature) {
     if (typeof PopupTemplates === "undefined") return;
 
     this._clearPopupCloseTimer();
 
-    const html = PopupTemplates.faultPopup(feature.properties)
+    const props = feature.properties || {};
+
+    const html = PopupTemplates.faultPopup(props)
       .replaceAll('target="_blank"', 'target="_parent"');
 
     if (this.currentPopup) {
@@ -155,6 +326,7 @@ const StatisticsCableBreakModePlugin = {
     }, 250);
   },
 
+  // ─── 自适应视野 ───
   _fitBounds() {
     if (!this.features.length) return;
 
