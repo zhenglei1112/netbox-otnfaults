@@ -84,8 +84,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
         self.assertIn('class="statistics-kpi-grouped-list', template)
         self.assertIn("function buildGroupedFlexLayout(groups)", source)
-        self.assertIn('class="statistics-kpi-group"', source)
+        self.assertIn('class="statistics-kpi-group${compactClass}"', source)
         self.assertIn("statistics-kpi-group-title", source)
+        self.assertIn('const compactClass = items.length >= 4 ? " statistics-kpi-group--compact" : "";', source)
+        self.assertIn('let groupHtml = `<div class="statistics-kpi-group${compactClass}">`;', source)
         self.assertIn("statistics-kpi-group-separator", source)
         self.assertNotIn("badge bg-light text-secondary border px-2 py-1 statistics-kpi-group-title", source)
         self.assertNotIn("badge bg-light text-secondary border px-2 py-1 statistics-kpi-group-title", template)
@@ -95,6 +97,11 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("gap: 0.85rem;", css)
         self.assertIn("justify-content: center;", css)
         self.assertIn("flex: 1 1 0;", css)
+        self.assertIn(".statistics-kpi-group--compact .statistics-kpi-group-items", css)
+        self.assertIn("flex-wrap: nowrap;", css)
+        self.assertIn(".statistics-kpi-group--compact .fs-3", css)
+        self.assertIn("font-size: 1.05rem !important;", css)
+        self.assertIn(".statistics-kpi-group--compact .statistics-kpi-trend-row", css)
         self.assertIn("transform: translateX(-0.5rem);", css)
 
     def test_cable_break_first_row_uses_asymmetric_two_card_layout(self) -> None:

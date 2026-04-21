@@ -523,7 +523,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function buildFlexGroup(items, unit, groupTitle, colorClass, prevItems, filterField) {
         if (!items || items.length === 0) return "";
-        let groupHtml = `<div class="statistics-kpi-group">`;
+        const compactClass = items.length >= 4 ? " statistics-kpi-group--compact" : "";
+        let groupHtml = `<div class="statistics-kpi-group${compactClass}">`;
         groupHtml += `<div class="statistics-kpi-group-items">`;
         items.forEach((item) => {
             let val = (item && item.value !== undefined) ? item.value : item;

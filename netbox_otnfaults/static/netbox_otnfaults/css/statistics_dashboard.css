@@ -249,6 +249,31 @@
     white-space: nowrap;
 }
 
+.statistics-kpi-group--compact {
+    gap: 0.5rem;
+}
+
+.statistics-kpi-group--compact .statistics-kpi-group-items {
+    flex-wrap: nowrap;
+    gap: 0.65rem;
+}
+
+.statistics-kpi-group--compact .statistics-kpi-group-items > .text-center {
+    min-width: 0;
+}
+
+.statistics-kpi-group--compact .fs-3 {
+    font-size: 1.05rem !important;
+}
+
+.statistics-kpi-group--compact .text-muted {
+    font-size: 11px !important;
+}
+
+.statistics-kpi-group--compact .statistics-kpi-trend-row {
+    font-size: 11px;
+}
+
 .statistics-kpi-group-title {
     display: inline-flex;
     align-items: center;
