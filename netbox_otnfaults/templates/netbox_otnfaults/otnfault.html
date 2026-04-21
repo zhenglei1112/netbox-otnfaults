@@ -120,15 +120,14 @@
               <span class="mx-2 text-muted">|</span>
               <span class="text-muted small">GPS:</span>
               <span>{{ object.interruption_latitude }}, {{ object.interruption_longitude }}</span>
-              {% if config.MAPS_URL %}
-                <div class="position-absolute top-50 end-0 me-2 translate-middle-y d-print-none">
-                  <a href="{{ config.MAPS_URL }}{{ object.interruption_latitude|unlocalize }},{{ object.interruption_longitude|unlocalize }}"
-                    target="_blank" class="btn btn-primary btn-sm" style="background-color: #00897b; border-color: #00897b;">
-                    <i class="mdi mdi-map-marker"></i> 地图
-                  </a>
-                </div>
-              {% endif %}
             {% endif %}
+            <div class="position-absolute top-50 end-0 me-2 translate-middle-y d-print-none">
+              {% url 'plugins:netbox_otnfaults:location_map' as location_map_url %}
+              <a href="{{ location_map_url }}?{% if object.interruption_location_a %}a_site={{ object.interruption_location_a.pk }}&{% endif %}{% if object.interruption_location.all %}z_sites={% for site in object.interruption_location.all %}{{ site.pk }}{% if not forloop.last %},{% endif %}{% endfor %}&{% endif %}{% if object.interruption_latitude and object.interruption_longitude %}q={{ object.interruption_latitude|unlocalize }},{{ object.interruption_longitude|unlocalize }}{% endif %}"
+                target="_blank" class="btn btn-primary btn-sm" style="background-color: #00897b; border-color: #00897b;">
+                <i class="mdi mdi-map-marker"></i> 地图
+              </a>
+            </div>
           </td>
         </tr>
         <tr>

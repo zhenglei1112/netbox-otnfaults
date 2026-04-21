@@ -803,8 +803,8 @@ class LocationMapView(PermissionRequiredMixin, View):
         a_site_id = request.GET.get('a_site', '')
         z_sites_param = request.GET.get('z_sites', '')
         
-        if is_picker and target_lat is None and target_lng is None:
-            # 如果是 picker 模式且没有指定 q 坐标，尝试根据 A/Z 站点计算中心
+        if target_lat is None and target_lng is None:
+            # 如果没有指定 q 坐标，尝试根据 A/Z 站点计算中心
             try:
                 site_ids = []
                 if a_site_id:
