@@ -101,6 +101,20 @@ def get_cable_break_base_queryset(start_date, end_date) -> QuerySet:
     )
 
 
+def _occurrence_period_for_fault(fault) -> str:
+    """Return the daytime/nighttime bucket based on the fault start time."""
+    if not fault.fault_occurrence_time:
+        return '夜间'
+
+    local_occurrence = timezone.localtime(fault.fault_occurrence_time)
+    return '日间' if 6 <= local_occurrence.hour < 18 else '夜间'
+
+
+def _format_local_datetime(value) -> str:
+    """Format a timezone-aware datetime in the active local timezone."""
+    return timezone.localtime(value).strftime('%Y-%m-%d %H:%M')
+
+
 def _compute_cable_break_overview(faults: list, now) -> dict:
     """从故障列表中筛选光缆中断并计算概览统计数据（可复用于当前期与上周期）。"""
     cable_break_faults = [
@@ -171,8 +185,8 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
             cb_valid_count += 1
             cb_valid_dur += duration_hours
 
-        occ_hour = fault.fault_occurrence_time.astimezone(timezone.get_current_timezone()).hour if fault.fault_occurrence_time else 0
-        if 6 <= occ_hour < 18:
+        occurrence_period = _occurrence_period_for_fault(fault)
+        if occurrence_period == '日间':
             cb_day_count += 1
             cb_day_dur += duration_hours
         else:
@@ -521,20 +535,18 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             else:
                 duration_bucket = ''
 
-            occurrence_hour = occ_time.astimezone(timezone.get_current_timezone()).hour if occ_time else 0
-            occurrence_period = '日间' if 6 <= occurrence_hour < 18 else '夜间'
+            occurrence_period = _occurrence_period_for_fault(fault)
             cause_group = '施工类' if reason == '施工' else '非施工类'
 
             
             # 明细存储（仅返回精简信息给前端作本地过滤或列表展示)
-            dt_end = fault.fault_recovery_time.strftime('%Y-%m-%d %H:%M') if fault.fault_recovery_time else '未恢复'
             z_site_names = [s.name for s in fault.interruption_location.all()]
             
             details.append({
                 'id': fault.id,
                 'fault_number': fault.fault_number,
-                'fault_occurrence_time': occ_time.strftime('%Y-%m-%d %H:%M'),
-                'fault_recovery_time': dt_end,
+                'fault_occurrence_time': _format_local_datetime(occ_time),
+                'fault_recovery_time': _format_local_datetime(fault.fault_recovery_time) if fault.fault_recovery_time else '未恢复',
                 'duration': round(duration_hours, 2),
                 'category': fault.get_fault_category_display(),
                 'resource_type': r_type_display,

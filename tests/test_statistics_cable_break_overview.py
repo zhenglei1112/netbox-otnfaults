@@ -288,6 +288,19 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         source = JS_PATH.read_text(encoding="utf-8")
         views = VIEWS_PATH.read_text(encoding="utf-8")
 
+        self.assertIn("def _occurrence_period_for_fault(fault) -> str:", views)
+        self.assertIn("local_occurrence = timezone.localtime(fault.fault_occurrence_time)", views)
+        self.assertIn("return '日间' if 6 <= local_occurrence.hour < 18 else '夜间'", views)
+        self.assertGreaterEqual(views.count("_occurrence_period_for_fault(fault)"), 2)
+        self.assertIn("def _format_local_datetime(value) -> str:", views)
+        self.assertIn("return timezone.localtime(value).strftime('%Y-%m-%d %H:%M')", views)
+        self.assertIn("'fault_occurrence_time': _format_local_datetime(occ_time)", views)
+        self.assertIn("'fault_recovery_time': _format_local_datetime(fault.fault_recovery_time) if fault.fault_recovery_time else '未恢复'", views)
+        self.assertNotIn("occ_hour = fault.fault_occurrence_time.astimezone", views)
+        self.assertNotIn("occurrence_hour = occ_time.astimezone", views)
+        self.assertNotIn("occ_time.strftime('%Y-%m-%d %H:%M')", views)
+        self.assertNotIn("fault.fault_recovery_time.strftime('%Y-%m-%d %H:%M')", views)
+
         for detail_field in [
             "'source_group': source_group",
             "'duration_bucket': duration_bucket",
