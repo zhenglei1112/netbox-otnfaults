@@ -70,12 +70,22 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
     def test_cable_break_group_layout_uses_bottom_labels_and_short_separators(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
 
         self.assertIn('class="statistics-kpi-grouped-list', template)
         self.assertIn("function buildGroupedFlexLayout(groups)", source)
         self.assertIn('class="statistics-kpi-group"', source)
         self.assertIn("statistics-kpi-group-title", source)
         self.assertIn("statistics-kpi-group-separator", source)
+        self.assertNotIn("badge bg-light text-secondary border px-2 py-1 statistics-kpi-group-title", source)
+        self.assertNotIn("badge bg-light text-secondary border px-2 py-1 statistics-kpi-group-title", template)
+        self.assertIn("letter-spacing: 0.08em;", css)
+        self.assertIn("pointer-events: none;", css)
+        self.assertIn("margin-top: 0.45rem;", css)
+        self.assertIn("gap: 0.85rem;", css)
+        self.assertIn("justify-content: center;", css)
+        self.assertIn("flex: 1 1 0;", css)
+        self.assertIn("transform: translateX(-0.5rem);", css)
 
     def test_cable_break_first_row_uses_asymmetric_two_card_layout(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -92,19 +102,16 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".statistics-cable-break-summary-grid", css)
         self.assertIn("grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);", css)
         self.assertIn("gap: 1rem;", css)
-        self.assertIn("flex: 0 0 148px;", css)
+        self.assertIn("flex: 0 0 220px;", css)
 
     def test_duration_and_long_duration_cards_share_one_row(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
-        duration_grid = template.split('statistics-cable-break-duration-grid', 1)[1].split('<div class="card p-0 shadow-sm statistics-cable-break-summary-card mb-4">', 1)[0]
+        duration_grid = template.split('id="cable-break-total-duration"', 1)[1].split('<div class="card p-0 shadow-sm statistics-cable-break-summary-card mb-4">', 1)[0]
 
-        self.assertIn('id="cable-break-total-duration"', duration_grid)
         self.assertIn('id="cable-break-long-duration-total"', duration_grid)
-        self.assertIn(".statistics-cable-break-duration-grid", css)
-        self.assertIn(".statistics-cable-break-duration-grid .statistics-kpi-grouped-list", css)
-        self.assertIn("flex-direction: column;", css)
-        self.assertIn(".statistics-cable-break-duration-grid .statistics-kpi-group-separator", css)
+        self.assertIn("statistics-cable-break-summary-grid", duration_grid)
+        self.assertIn(".statistics-cable-break-summary-grid", css)
 
     def test_dashboard_script_preserves_metric_id_nodes_when_rendering_trends(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")

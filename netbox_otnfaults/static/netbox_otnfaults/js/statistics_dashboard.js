@@ -442,7 +442,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
         groupHtml += `</div>`;
         if (groupTitle) {
-            groupHtml += `<span class="badge bg-light text-secondary border px-2 py-1 statistics-kpi-group-title">${groupTitle}</span>`;
+            groupHtml += `<span class="statistics-kpi-group-title">${groupTitle}</span>`;
         }
         groupHtml += `</div>`;
         return groupHtml;
