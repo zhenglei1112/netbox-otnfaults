@@ -26,7 +26,9 @@ import json
 from django.core.serializers.json import DjangoJSONEncoder
 from django.conf import settings
 from django.urls import reverse
+from urllib.parse import urlencode
 from .map_modes import get_mode_config
+from .statistics_views import _parse_time_range, get_cable_break_base_queryset
 from .view_mixins import ExcelFriendlyCSVExportMixin
 
 
@@ -331,6 +333,154 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             'secondary': '#6c757d',
         }
         return COLOR_MAP.get(color_name, '#6c757d') # Default to gray
+
+
+class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
+    """Map view for cable-break faults selected by the statistics page period."""
+    permission_required = 'netbox_otnfaults.view_otnfault'
+
+    def get(self, request):
+        plugin_settings = get_plugin_settings()
+        mode_config = get_mode_config('statistics_cable_break')
+
+        time_keys = ['filter_type', 'year', 'half', 'quarter', 'month', 'week']
+        time_params = {
+            key: request.GET.get(key)
+            for key in time_keys
+            if request.GET.get(key) not in [None, '']
+        }
+        map_data_url = reverse('plugins:netbox_otnfaults:statistics_cable_break_map_data')
+        if time_params:
+            map_data_url = f"{map_data_url}?{urlencode(time_params)}"
+
+        color_view = OtnFaultGlobeMapView()
+        is_embedded_map = request.GET.get('modal') == 'true'
+
+        return render(request, 'netbox_otnfaults/unified_map.html', {
+            'map_mode': 'statistics_cable_break',
+            'mode_config': mode_config,
+            'header_info': None,
+            'layers_config': json.dumps(mode_config.get('layers', {})),
+            'projection': mode_config.get('projection', 'mercator'),
+            'map_data_url': map_data_url,
+            'apikey': plugin_settings.get('map_api_key', ''),
+            'map_center': json.dumps(plugin_settings.get('map_default_center', [112.53, 33.00])),
+            'map_zoom': plugin_settings.get('map_default_zoom', 4.2),
+            'use_local_basemap': plugin_settings.get('use_local_basemap', False),
+            'local_tiles_url': plugin_settings.get('local_tiles_url', ''),
+            'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
+            'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''),
+            'fault_list_url': reverse('plugins:netbox_otnfaults:otnfault_list'),
+            'colors_config': json.dumps({
+                'category_colors': {
+                    val: color_view._get_hex_color(color)
+                    for val, label, color in FaultCategoryChoices.CHOICES
+                },
+                'category_names': {val: label for val, label, color in FaultCategoryChoices.CHOICES},
+                'status_colors': {
+                    val: color_view._get_hex_color(color)
+                    for val, label, color in FaultStatusChoices.CHOICES
+                },
+                'status_names': {val: label for val, label, color in FaultStatusChoices.CHOICES},
+                'popup_status_colors': {
+                    key: color_view._get_hex_color(key)
+                    for key in ['orange', 'blue', 'yellow', 'green', 'gray', 'red', 'secondary', 'purple']
+                }
+            }, cls=DjangoJSONEncoder),
+            'is_picker': False,
+            'is_embedded_map': request.GET.get('modal') == 'true',
+            'is_minimal_map': is_embedded_map,
+            'debug_mode': False,
+            'show_debug_panel': False,
+            'debug_date': '2025-12-05 00:00:00',
+        })
+
+
+class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
+    """Async map data for cable-break faults in the statistics page period."""
+    permission_required = 'netbox_otnfaults.view_otnfault'
+
+    def get(self, request):
+        start_date, end_date, _prev_start_date, _prev_end_date, _filter_type = _parse_time_range(request)
+        base_qs = get_cable_break_base_queryset(start_date, end_date)
+        display_qs = (
+            base_qs.exclude(interruption_latitude__isnull=True)
+            .exclude(interruption_longitude__isnull=True)
+            .select_related('province', 'interruption_location_a', 'handling_unit')
+            .prefetch_related('interruption_location', 'images', 'impacts', 'secondary_impacts')
+        )
+        skipped_count = base_qs.count() - display_qs.count()
+
+        marker_data = [self._build_marker_data(fault) for fault in display_qs]
+        heatmap_data = [
+            {
+                'lat': marker['lat'],
+                'lng': marker['lng'],
+                'count': 1,
+                'occurrence_time': marker['occurrence_time'],
+                'category': marker['category'],
+            }
+            for marker in marker_data
+        ]
+
+        return JsonResponse({
+            'sites_data': OtnFaultMapDataView()._get_sites_data(),
+            'heatmap_data': heatmap_data,
+            'marker_data': marker_data,
+            'skipped_count': skipped_count,
+        })
+
+    def _build_marker_data(self, fault: OtnFault) -> dict:
+        z_sites = [site.name for site in fault.interruption_location.all()]
+        z_sites_str = '、'.join(z_sites) if z_sites else '未指定'
+        occurrence_time_str = (
+            timezone.localtime(fault.fault_occurrence_time).strftime('%Y-%m-%d %H:%M:%S')
+            if fault.fault_occurrence_time else '未记录'
+        )
+        recovery_time_str = (
+            timezone.localtime(fault.fault_recovery_time).strftime('%Y-%m-%d %H:%M:%S')
+            if fault.fault_recovery_time else '未恢复'
+        )
+        fault_duration_str = fault.fault_duration if getattr(fault, 'fault_duration', None) else '无法计算'
+        reason_display = fault.get_interruption_reason_display()
+        if not reason_display or reason_display == fault.interruption_reason:
+            reason_display = '-'
+
+        return {
+            'id': fault.pk,
+            'lat': float(fault.interruption_latitude),
+            'lng': float(fault.interruption_longitude),
+            'coords_from_site': False,
+            'number': fault.fault_number,
+            'url': fault.get_absolute_url(),
+            'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}",
+            'category': fault.fault_category or 'other',
+            'category_display': fault.get_fault_category_display() or '未知类型',
+            'province': fault.province.name if fault.province else '未指定',
+            'a_site': fault.interruption_location_a.name if fault.interruption_location_a else '未指定',
+            'a_site_id': fault.interruption_location_a.pk if fault.interruption_location_a else None,
+            'z_sites': z_sites_str,
+            'status': fault.get_fault_status_display(),
+            'status_key': fault.fault_status,
+            'status_color': FaultStatusChoices.colors.get(fault.fault_status, 'secondary'),
+            'occurrence_time': occurrence_time_str,
+            'recovery_time': recovery_time_str,
+            'fault_duration': fault_duration_str,
+            'reason': reason_display,
+            'fault_details': fault.fault_details or '',
+            'cable_route': fault.get_cable_route_display() if fault.cable_route else '-',
+            'cable_break_location': fault.get_cable_break_location_display() if fault.cable_break_location else '-',
+            'recovery_mode': fault.get_recovery_mode_display() if fault.recovery_mode else '-',
+            'maintenance_mode': fault.get_maintenance_mode_display() if fault.maintenance_mode else '-',
+            'handling_unit': str(fault.handling_unit) if fault.handling_unit else '-',
+            'handler': fault.handler or '-',
+            'has_images': fault.images.exists(),
+            'image_count': fault.images.count(),
+            'images': [
+                {'url': image.image.url, 'name': image.name or '故障图片'}
+                for image in fault.images.all()
+            ],
+        }
 
 
 @register_model_view(OtnFault)
@@ -1025,6 +1175,7 @@ class LocationMapView(PermissionRequiredMixin, View):
             
             # 位置/路径模式特定数据
             'is_picker': is_picker,
+            'is_minimal_map': is_picker,
             'target_lat': target_lat,
             'target_lng': target_lng,
             'highlight_path_data': json.dumps(highlight_path_data, cls=DjangoJSONEncoder) if highlight_path_data else 'null',

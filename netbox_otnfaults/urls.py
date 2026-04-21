@@ -94,6 +94,8 @@ urlpatterns = [
     path('statistics/', statistics_views.FaultStatisticsPageView.as_view(), name='statistics'),
     path('statistics/data/', statistics_views.FaultStatisticsDataAPI.as_view(), name='statistics_data'),
     path('statistics/service-data/', statistics_views.ServiceStatisticsDataAPI.as_view(), name='statistics_service_data'),
+    path('statistics/cable-break-map/', views.StatisticsCableBreakMapView.as_view(), name='statistics_cable_break_map'),
+    path('statistics/cable-break-map-data/', views.StatisticsCableBreakMapDataAPI.as_view(), name='statistics_cable_break_map_data'),
 
 ]
 

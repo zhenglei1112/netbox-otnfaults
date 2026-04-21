@@ -86,10 +86,10 @@ def test_statistics_dashboard_formats_period_label_by_filter_type() -> None:
 
     assert "function formatStatisticsPeriodLabel(type, dateValue, period)" in source
     assert "function getHalfYearLabel(half)" in source
-    assert "半年统计 ${year}年${getHalfYearLabel(half)}（${rangeStart}至${rangeEnd}）" in source
-    assert "季度统计 ${year}年第${quarter}季度（${rangeStart}至${rangeEnd}）" in source
-    assert "年统计 ${year}年（${rangeStart}至${rangeEnd}）" in source
-    assert "月统计 ${year}年${month}月（${rangeStart}至${rangeEnd}）" in source
+    assert "${formatPeriodFlag('半年统计')} ${year}年${getHalfYearLabel(half)}（${rangeStart}至${rangeEnd}）" in source
+    assert "${formatPeriodFlag('季度统计')} ${year}年第${quarter}季度（${rangeStart}至${rangeEnd}）" in source
+    assert "${formatPeriodFlag('年统计')} ${year}年（${rangeStart}至${rangeEnd}）" in source
+    assert "${formatPeriodFlag('月统计')} ${year}年${month}月（${rangeStart}至${rangeEnd}）" in source
     assert "${formatPeriodFlag('周统计')} ${weekYear}年${weekMonth}月${weekOrdinalLabel}（${rangeStart}至${rangeEnd}）" in source
     assert "const weekOrdinalLabels = ['第一周', '第二周', '第三周', '第四周', '第五周', '第六周'];" in source
     assert "periodEl.innerHTML = formatStatisticsPeriodLabel(selFilterType.value, inputDate.value, data.period);" in source
@@ -119,6 +119,10 @@ def test_statistics_dashboard_renders_week_type_as_success_flag() -> None:
     assert "function formatPeriodFlag(label)" in source
     assert '<span class="statistics-period-flag">${label}</span>' in source
     assert "formatPeriodFlag('周统计')" in source
+    assert "formatPeriodFlag('年统计')" in source
+    assert "formatPeriodFlag('半年统计')" in source
+    assert "formatPeriodFlag('季度统计')" in source
+    assert "formatPeriodFlag('月统计')" in source
     assert "periodEl.innerHTML = formatStatisticsPeriodLabel(selFilterType.value, inputDate.value, data.period);" in source
     assert "periodEl.textContent = formatStatisticsPeriodLabel" not in source
     assert ".statistics-period-flag" in css
@@ -142,11 +146,24 @@ def test_statistics_dashboard_period_label_uses_api_period_end_status() -> None:
 
 def test_statistics_dashboard_current_period_uses_success_color() -> None:
     source = JS_PATH.read_text(encoding="utf-8")
+    css = CSS_PATH.read_text(encoding="utf-8")
 
     assert "function updatePeriodLabelState(periodEl, period)" in source
     assert "if (period && period.end === '当前')" in source
-    assert "periodEl.classList.add('text-success');" in source
-    assert "periodEl.classList.remove('text-success');" in source
+    assert "periodEl.classList.add('statistics-period-label--current');" in source
+    assert "periodEl.classList.remove('statistics-period-label--current');" in source
+    assert ".statistics-period-label--current .statistics-period-flag" in css
+
+
+def test_statistics_dashboard_future_period_uses_warning_color() -> None:
+    source = JS_PATH.read_text(encoding="utf-8")
+    css = CSS_PATH.read_text(encoding="utf-8")
+
+    assert "else if (period && period.is_future)" in source
+    assert "periodEl.classList.add('statistics-period-label--future');" in source
+    assert "periodEl.classList.remove('statistics-period-label--future');" in source
+    assert ".statistics-period-label--future" in css
+    assert ".statistics-period-label--future .statistics-period-flag" in css
 
 
 def test_statistics_dashboard_labels_cross_month_week_by_week_end_month() -> None:

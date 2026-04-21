@@ -33,6 +33,20 @@ MAP_MODES = {
             'controls/SearchControl.js'
         ]
     },
+    'statistics_cable_break': {
+        'title': '光缆中断故障地图',
+        'plugin_file': 'statistics_cable_break_mode.js?v=4',
+        'projection': 'globe',
+        'header_actions': [],
+        'js_files': [
+            'core/config.js',
+            'utils/api.js',
+            'services/FaultDataService.js',
+            'controls/FaultLegendControl.js',
+            'controls/SearchControl.js'
+        ],
+        'layers': {}
+    },
     'location': {
         'title': '位置地图',
         'plugin_file': 'location_mode.js',

@@ -1,9 +1,9 @@
-{% extends is_picker|yesno:'netbox_otnfaults/base_minimal.html,base/layout.html' %}
+{% extends is_minimal_map|yesno:'netbox_otnfaults/base_minimal.html,base/layout.html' %}
 {% load static %}
 {% block title %}{{ mode_config.title }}{% if header_info %} - {{ header_info }}{% endif %}{% endblock %}
 
 {% block content %}
-{% if is_picker %}
+{% if is_picker or is_embedded_map %}
 <div style="position: relative; width: 100%; height: 100vh;">
   <div id="map" style="height: 100vh; width: 100%"></div>
 {% else %}
@@ -51,7 +51,7 @@
           </div>
         </div>
         {% endif %}
-{% if is_picker %}
+{% if is_picker or is_embedded_map %}
 </div>
 {% else %}
       </div>
@@ -147,7 +147,7 @@
     otnPathsPmtilesUrl: '{{ otn_paths_pmtiles_url }}',
     layers: {{ layers_config|safe }},
     projection: '{{ projection }}',
-    mapDataUrl: '{{ map_data_url }}',
+    mapDataUrl: '{{ map_data_url|escapejs }}',
     userGeojsonUrl: '{% static "netbox_otnfaults/data/中国_省.geojson" %}',
     {% if colors_config %}colorsConfig: {{ colors_config|safe }},{% endif %}
     {% if fault_list_url %}faultListUrl: '{{ fault_list_url }}',{% endif %}
@@ -159,6 +159,7 @@
     {% if path_group_id %}pathGroupId: {{ path_group_id }},{% endif %}
     {% if path_group_name %}pathGroupName: '{{ path_group_name }}',{% endif %}
     isPicker: {{ is_picker|yesno:"true,false" }},
+    isEmbeddedMap: {{ is_embedded_map|yesno:"true,false" }},
   };
 
   

@@ -1,5 +1,25 @@
 # PLAN
 
+## Statistics cable-break map modal matches picker UI
+
+- [x] Add source regression assertions for picker-style modal structure and manual backdrop behavior
+- [x] Align the statistics cable-break map modal header, close button, dialog classes, and iframe sizing with the map picker modal
+- [x] Switch the statistics map modal to the same manual DOM show/hide behavior, including the dark 0.85 backdrop and outside-click close
+- [x] Run targeted regression tests and JavaScript syntax validation
+
+## Statistics cable-break map marker colors by fault status
+
+- [x] Add source regression assertions that statistics cable-break markers use fault processing status colors
+- [x] Update the statistics cable-break map mode to color standard MapLibre markers from `statusColorHex` / `FAULT_STATUS_COLORS`
+- [x] Run targeted regression tests and JavaScript syntax validation
+
+## Statistics cable-break map legend shows only statuses
+
+- [x] Add source regression assertions that legend category hiding is scoped to the statistics cable-break map mode
+- [x] Make `FaultLegendControl` accept backward-compatible display options for category/status sections
+- [x] Configure only the statistics cable-break map mode to hide fault categories and keep processing statuses visible
+- [x] Run targeted regression tests and JavaScript syntax validation
+
 ## 故障统计页光缆中断概览指标分组样式调整
 
 - [x] 为光缆中断概览分组布局补充源码级回归测试，覆盖组标签下置和组间短竖线
@@ -632,3 +652,117 @@
 - [x] 调整 `statistics_dashboard.html`，在统计类型和日期选择器旁增加上一周期/下一周期按钮
 - [x] 调整 `statistics_dashboard.js`，按当前统计类型对日期执行年/半年/季度/月/周偏移，并刷新当前 Tab
 - [x] 运行定向测试和 JS 语法检查，确认快捷加减逻辑可用
+
+## 故障统计概览指标点击过滤
+
+- [x] 为故障统计概览指标点击过滤增加源码级失败测试，覆盖主指标、分项指标、重复指标和后端明细过滤字段
+- [x] 调整 `statistics_views.py`，为明细补充光缆属性分组、历时分布、有效历时、发生时段、成因分组等过滤字段
+- [x] 调整 `statistics_dashboard.html`，给静态主指标和平均历时分项补充统一点击过滤属性
+- [x] 调整 `statistics_dashboard.js`，让动态分项指标统一渲染为可点击过滤项，并扩展过滤标签显示
+- [x] 运行定向测试、JS 语法检查和源码语法校验，确认所有指标均可点击过滤明细
+
+## 故障统计卡片文字不可选中
+
+- [x] 为统计页卡片文字不可选中增加源码级测试，约束卡片禁选且表格仍可选中
+- [x] 调整 `statistics_dashboard.css`，将故障统计页面卡片统一设置为不可选中文本
+- [x] 运行定向测试和 CSS 差异检查
+
+## 故障统计页面新增光缆中断地图模态方案
+
+### 目标
+- [ ] 在故障统计页面的“光缆中断概览”区域增加一个地图按钮，点击后以模态窗口展示当前选择时间范围内的光缆中断故障。
+- [ ] 地图统计口径必须与现有“光缆中断概览”一致：`fault_category == FaultCategoryChoices.FIBER_BREAK`，且 `fault_status != FaultStatusChoices.SUSPENDED`。
+- [ ] 地图底层复用现有统一地图体系：`unified_map.html`、`unified_map_core.js`、`maplibregl_base.js` 和模式插件机制。
+- [ ] 新增独立地图模式，避免改动或干扰现有 `fault`、`location`、`path`、`pathgroup`、`route_editor` 模式。
+
+### 现有实现依据
+- [ ] 故障统计页面入口：`netbox_otnfaults/statistics_views.py` 的 `FaultStatisticsPageView`、`FaultStatisticsDataAPI`，模板与脚本为 `statistics_dashboard.html`、`statistics_dashboard.js`、`statistics_dashboard.css`。
+- [ ] 时间范围解析：复用 `statistics_views.py` 中 `_parse_time_range(request)`，确保年、半年、季度、月、周的开始/结束时间与统计卡片完全一致。
+- [ ] 光缆中断概览口径：抽取底层 QuerySet 构造函数，避免在聚合统计与地图数据接口中分别手写过滤条件。
+- [ ] 统一地图入口：`views.py` 中 `OtnFaultGlobeMapView`、`LocationMapView` 共同渲染 `unified_map.html`，地图模式由 `map_modes.py` 配置，前端由 `unified_map_core.js` 加载对应 `modes/*.js` 插件。
+- [ ] 故障分布图样式：`modes/fault_mode.js` 使用 `FaultDataService.convertToFeatures()`、`utils/fault_icons.js`、`FAULT_CATEGORY_COLORS`、`PopupTemplates.js` 和 `fault_popup_animations.css` 生成故障图标、悬停/点击弹窗与高亮效果。
+- [ ] 模态参考：`otnfault_edit.html` 的地图选点定位通过 Bootstrap 模态 + iframe 打开 `/plugins/otnfaults/map/location/?picker=true`，关闭时清空 iframe。
+
+### 推荐方案
+- [ ] 新增地图模式 `statistics_cable_break`，在 `map_modes.py` 中配置为独立模式：
+  - `title`: `光缆中断故障地图`
+  - `plugin_file`: 建议新增 `statistics_cable_break_mode.js`
+  - `projection`: 建议沿用故障分布图的 `globe`
+  - `controls`: 保留 `navigation`、`fullscreen`、`scale`
+  - `js_files`: 复用 `utils/fault_icons.js`、`services/FaultDataService.js`、`controls/FaultLegendControl.js`，不加载 `LayerToggleControl.js` 和 `FaultStatisticsControl.js`，避免用户在模态内再次改变时间范围或统计口径。
+- [ ] 新增页面视图 `StatisticsCableBreakMapView`，渲染 `unified_map.html`：
+  - URL 建议：`statistics/cable-break-map/`
+  - 读取统计页同一组时间参数：`filter_type`、`year`、`half`、`quarter`、`month`、`week`
+  - 将 `map_data_url` 指向新的地图数据接口，并原样带上时间参数。
+  - 支持 `modal=true` 或 `embedded=true` 参数，让 `unified_map.html` 进入无外层卡片/满容器模式；如果复用现有 `is_picker` 的最小布局语义不合适，建议新增 `is_embedded_map`，不要把统计地图伪装成 picker。
+- [ ] 在 `statistics_views.py` 中先抽取 `get_cable_break_base_queryset(start_date, end_date)`：
+  - 返回基础 Django QuerySet，而不是已物化的 list。
+  - 基础过滤包含 `fault_occurrence_time__gte=start_date`、`fault_occurrence_time__lt=end_date`、`fault_category=FaultCategoryChoices.FIBER_BREAK`，并排除 `fault_status=FaultStatusChoices.SUSPENDED`。
+  - `_compute_cable_break_overview()` 改为接收该 QuerySet 或由调用方传入该 QuerySet 物化后的对象集合，聚合统计不再重复维护口径。
+  - `StatisticsCableBreakMapDataAPI` 在该 QuerySet 后继续链式追加坐标校验、`select_related()`、`prefetch_related()` 和字段提取。
+- [ ] 新增数据接口 `StatisticsCableBreakMapDataAPI`：
+  - URL 建议：`statistics/cable-break-map-data/`
+  - 使用 `_parse_time_range(request)` 获取当前选择周期。
+  - 通过 `get_cable_break_base_queryset(start_date, end_date)` 获取统一口径基础数据。
+  - 仅返回具备 `interruption_latitude` 和 `interruption_longitude` 的故障点；同时返回 `skipped_count`，用于前端提示“有 N 条故障缺少坐标未展示”。
+  - 返回结构尽量与 `OtnFaultMapDataView` 的 `marker_data` / `heatmap_data` 保持兼容，使 `FaultDataService.convertToFeatures()` 可直接复用。
+  - 数据字段至少包含 `id`、`fault_number`、`fault_category`、`fault_status`、`fault_occurrence_time`、`fault_recovery_time`、`duration`、`province`、`reason`、`site_a`、`site_z`、`url`、`lat`、`lng`。
+- [ ] 新增前端模式插件 `statistics_cable_break_mode.js`：
+  - 以 `fault_mode.js` 的故障点图层、图标加载、弹窗模板和鼠标悬停交互为蓝本。
+  - 只保留统计地图需要的点图层、可选热力图/图例、自动缩放到点位范围。
+  - 使用独立 source/layer id，例如 `statistics-cable-break-points`、`statistics-cable-break-points-layer`，避免与故障分布图 `fault-points` 等 id 冲突。
+  - 不挂载故障分布图中的时间范围控件和统计控件；当前时间范围由统计页按钮 URL 决定。
+  - 对无数据场景显示轻量提示，不改变底图和共享图层。
+  - Popup 中指向故障详情页的 `<a>` 必须增加 `target="_parent"` 或 `target="_blank"`，防止在 iframe 内加载完整 NetBox UI 形成页面嵌套。
+  - 当接口返回 `skipped_count > 0` 时，使用极简 MapLibre Control 在地图左下角显示非阻塞提示，例如“本期另有 N 条光缆中断缺失经纬度，未在地图绘制”；禁止使用 `alert()` 或阻塞遮罩。
+- [ ] 在 `statistics_dashboard.html` 中增加地图按钮和模态容器：
+  - 按钮位置建议放在“光缆中断概览”标题右侧，使用 `btn btn-sm btn-outline-primary` 和 `mdi-map-marker-radius` 图标。
+  - 模态结构参考 `otnfault_edit.html`，使用 `modal-xl` 或 `modal-fullscreen-lg-down`，iframe 高度建议 `72vh`。
+  - iframe 外层增加 Skeleton Loading 或 Spinner，打开模态后立即显示，iframe `load` 事件触发后隐藏，避免 MapLibre 和瓦片加载前出现白屏。
+  - iframe URL 由前端根据当前 `buildTimeParams()` 生成，保证用户切换统计周期后打开的是同一周期地图。
+- [ ] 在 `statistics_dashboard.js` 中增加模态控制：
+  - 复用已有 `buildTimeParams()` 构造查询参数。
+  - 点击地图按钮时打开 `/plugins/otnfaults/statistics/cable-break-map/?modal=true&${buildTimeParams()}`。
+  - 关闭模态时将 iframe `src` 置为 `about:blank`，释放 MapLibre / Deck.gl 资源。
+  - 绑定 iframe `load` 事件或模态显示后的兜底定时器，控制 Loading 显隐；关闭模态时同步复位 Loading 状态。
+  - 不改变现有统计数据加载、图表下钻、明细表过滤逻辑。
+- [ ] 在 `statistics_dashboard.css` 中补充模态地图尺寸与小屏适配：
+  - 确保 iframe 容器有稳定高度，避免地图初始化时容器高度为 0。
+  - 移动端使用接近全屏的模态高度。
+
+### 测试方案
+- [ ] 新增或扩展源代码级测试，覆盖 `statistics_dashboard.html` 中存在地图按钮、模态 iframe 容器和必要的静态资源入口。
+- [ ] 新增 `statistics_dashboard.js` 源码测试，覆盖按钮事件使用 `buildTimeParams()` 构造地图 URL，且关闭模态会清空 iframe。
+- [ ] 新增 `statistics_dashboard.html` / `statistics_dashboard.js` 源码测试，覆盖模态地图存在 Loading 容器，iframe `load` 后隐藏 Loading，关闭模态后复位 Loading 并清空 iframe。
+- [ ] 新增后端测试，验证 `StatisticsCableBreakMapDataAPI` 与 `_compute_cable_break_overview()` 口径一致：
+  - 包含光缆中断且非挂起的故障会返回。
+  - 挂起状态故障不会返回。
+  - 非光缆中断故障不会返回。
+  - 时间范围外故障不会返回。
+  - 缺少经纬度故障不进入点位列表，但计入 `skipped_count`。
+- [ ] 新增底层口径复用测试，验证 `get_cable_break_base_queryset(start_date, end_date)` 同时被统计概览与统计地图数据接口使用，且后续坐标过滤只发生在地图接口层。
+- [ ] 新增统计地图模式源码测试，验证 Popup 链接包含 `target="_parent"` 或 `target="_blank"`，`skipped_count` 提示通过 MapLibre Control 渲染且代码中不出现 `alert(`。
+- [ ] 新增地图模式配置测试，验证 `statistics_cable_break` 不复用 `fault` 模式名、不加载 `LayerToggleControl.js` / `FaultStatisticsControl.js`，并使用独立插件文件。
+- [ ] 运行定向测试与语法检查：
+  - `python -m py_compile .\netbox_otnfaults\statistics_views.py .\netbox_otnfaults\views.py .\netbox_otnfaults\map_modes.py`
+  - `python -m pytest tests/test_statistics_cable_break_overview.py tests/test_statistics_dashboard_assets.py`
+  - 如新增 JS 源码测试，运行对应测试文件。
+
+### 风险与约束
+- [ ] 不新增或猜测 NetBox 核心 API；仅新增插件内页面 URL 与 JSON 数据接口。
+- [ ] 不修改 `netbox/` 核心目录。
+- [ ] 现有 `OtnFaultMapDataView` 默认取最近 12 个月，不适合直接作为统计页地图数据源，否则会与当前选择周期不一致。
+- [ ] 复用 `fault_mode.js` 代码时要避免复制过多控制逻辑；如果图标/弹窗逻辑无法直接复用，应先抽取小型共享 helper，再让故障分布图和统计地图共同调用。
+- [ ] 地图模态内不做二次统计筛选，统计页的图表下钻过滤与本需求的“当前选择时间范围内光缆中断故障”保持独立。
+- [ ] iframe 内的任何详情跳转都必须跳出 iframe；否则用户会看到完整 NetBox 页面嵌套在地图模态内。
+- [ ] 必须坚持关闭模态时将 iframe `src` 置为 `about:blank`，避免反复打开后累积 WebGL contexts 导致地图黑屏。
+
+### 当前实现状态
+- [x] 已抽取 `get_cable_break_base_queryset(start_date, end_date)`，统计概览与地图数据接口共用同一基础口径。
+- [x] 已新增 `statistics_cable_break` 独立地图模式、页面视图、数据 API 与 URL，不加载故障分布图的时间范围控件和统计控件。
+- [x] 已在故障统计页“光缆中断概览”标题右侧增加地图按钮，并通过 Bootstrap 模态 + iframe 加载统一地图。
+- [x] 已实现 iframe loading 覆盖层，iframe `load` 后隐藏；模态关闭时将 iframe `src` 置为 `about:blank`。
+- [x] 已新增 `statistics_cable_break_mode.js`，使用独立 source/layer id，复用 `FaultDataService`、故障颜色、图例和故障 popup 模板。
+- [x] 已强制地图 popup 内链接使用 `target="_parent"`，避免在 iframe 内嵌套完整 NetBox 页面。
+- [x] 已实现 `skipped_count` 非阻塞 MapLibre Control，在地图左下角提示缺少经纬度未绘制的故障数量。
+- [x] 已运行定向 unittest 和只读语法检查；本地无 pytest，且 `py_compile` 写 `.pyc` 被现有 `__pycache__` 权限阻止。

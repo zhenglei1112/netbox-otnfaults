@@ -83,16 +83,31 @@
                 <section class="statistics-cable-break-overview mb-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <h3 class="h4 mb-0">光缆中断概览</h3>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="statistics-cable-break-map-btn" title="打开光缆中断地图" aria-label="打开光缆中断地图">
+                            <i class="mdi mdi-map-marker-radius me-1"></i>地图
+                        </button>
                     </div>
                     <div class="statistics-cable-break-summary-grid mb-3">
                         <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-primary">
                             <div class="statistics-cable-break-row py-3">
                                 <div class="statistics-cable-break-main d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
-                                    <div class="d-flex align-items-baseline justify-content-center">
-                                        <span class="display-5 fw-bold text-indigo lh-1" id="cable-break-total-count">--</span>
-                                        <span class="ms-1 text-muted small">起</span>
+                                    <div class="statistics-break-main-metrics">
+                                        <div class="statistics-break-main-metric-primary statistics-drill-metric" data-filter-field="category" data-filter-value="光缆中断" data-filter-label="中断起数">
+                                            <div class="d-flex align-items-baseline justify-content-center">
+                                                <span class="display-5 fw-bold text-indigo lh-1" id="cable-break-total-count">--</span>
+                                                <span class="ms-1 text-muted small">起</span>
+                                            </div>
+                                            <div class="fw-bold text-dark mt-2 text-nowrap">中断起数</div>
+                                        </div>
+                                        <div class="statistics-break-main-metric-secondary statistics-repeat-inline statistics-drill-metric" id="card-repeat-faults" data-filter-field="is_repeat" data-filter-value="true" data-filter-label="重复" title="点击过滤出重复故障">
+                                            <div class="statistics-repeat-value-row d-flex align-items-baseline justify-content-center">
+                                                <span class="fs-2 fw-bold text-indigo me-1 lh-1" id="kpi-repeat-faults">--</span>
+                                                <span class="text-muted" style="font-size: 13px;">起</span>
+                                            </div>
+                                            <div id="kpi-repeat-faults-diff" class="statistics-repeat-diff-row statistics-repeat-compact-diff"></div>
+                                            <div class="fw-bold text-dark mt-2 text-nowrap">重复</div>
+                                        </div>
                                     </div>
-                                    <div class="fw-bold text-dark mt-2 text-nowrap">中断起数</div>
                                 </div>
                                 <div id="cable-break-count-flex-list" class="statistics-kpi-grouped-list px-4 py-1">
                                     <div class="text-muted small">数据加载中...</div>
@@ -102,7 +117,7 @@
 
                         <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-secondary">
                             <div class="statistics-cable-break-row py-3">
-                                <div class="statistics-cable-break-main d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
+                                <div class="statistics-cable-break-main d-flex flex-column align-items-center flex-shrink-0 px-2 text-center statistics-drill-metric" data-filter-field="is_long" data-filter-value="true" data-filter-label="长时中断">
                                     <div class="d-flex align-items-baseline justify-content-center">
                                         <span class="display-5 fw-bold text-indigo lh-1" id="cable-break-long-total">--</span>
                                         <span class="ms-1 text-muted small">起</span>
@@ -119,7 +134,7 @@
                     <div class="statistics-cable-break-summary-grid mb-3">
                         <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-primary">
                             <div class="statistics-cable-break-row py-3">
-                                <div class="statistics-cable-break-main d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
+                                <div class="statistics-cable-break-main d-flex flex-column align-items-center flex-shrink-0 px-2 text-center statistics-drill-metric" data-filter-field="category" data-filter-value="光缆中断" data-filter-label="中断总历时">
                                     <div class="d-flex align-items-baseline justify-content-center">
                                         <span class="display-5 fw-bold text-indigo lh-1" id="cable-break-total-duration">--</span>
                                         <span class="ms-1 text-muted small">时</span>
@@ -134,7 +149,7 @@
 
                         <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-secondary">
                             <div class="statistics-cable-break-row py-3">
-                                <div class="statistics-cable-break-main d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
+                                <div class="statistics-cable-break-main d-flex flex-column align-items-center flex-shrink-0 px-2 text-center statistics-drill-metric" data-filter-field="is_long" data-filter-value="true" data-filter-label="长时中断历时">
                                     <div class="d-flex align-items-baseline justify-content-center">
                                         <span class="display-5 fw-bold text-indigo lh-1" id="cable-break-long-duration-total">--</span>
                                         <span class="ms-1 text-muted small">时</span>
@@ -151,7 +166,7 @@
                     <div class="statistics-cable-break-summary-grid mb-4">
                         <div class="card p-0 shadow-sm statistics-cable-break-summary-card">
                             <div class="statistics-cable-break-row py-3">
-                                <div class="statistics-cable-break-main d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
+                                <div class="statistics-cable-break-main d-flex flex-column align-items-center flex-shrink-0 px-2 text-center statistics-drill-metric" data-filter-field="category" data-filter-value="光缆中断" data-filter-label="平均历时">
                                     <div class="d-flex align-items-baseline justify-content-center">
                                         <span class="display-5 fw-bold text-indigo lh-1" id="cable-break-overall-avg">--</span>
                                         <span class="ms-1 text-muted small">时</span>
@@ -162,7 +177,7 @@
                                     <!-- Badge Group 1 -->
                                     <div class="statistics-kpi-group">
                                         <div class="statistics-kpi-group-items">
-                                            <div class="text-center">
+                                            <div class="text-center statistics-drill-metric" data-filter-field="is_valid_duration" data-filter-value="true" data-filter-label="有效平均">
                                                 <div class="fs-3 fw-bold text-indigo lh-1" id="cable-break-valid-avg">--</div>
                                                 <div class="text-muted mt-1" style="font-size: 12px;">有效平均</div>
                                             </div>
@@ -173,11 +188,11 @@
                                     <!-- Badge Group 2 -->
                                     <div class="statistics-kpi-group">
                                         <div class="statistics-kpi-group-items">
-                                            <div class="text-center">
+                                            <div class="text-center statistics-drill-metric" data-filter-field="occurrence_period" data-filter-value="日间" data-filter-label="日间平均">
                                                 <div class="fs-3 fw-bold text-indigo lh-1" id="cable-break-daytime-avg">--</div>
                                                 <div class="text-muted mt-1" style="font-size: 12px;">日间平均</div>
                                             </div>
-                                            <div class="text-center">
+                                            <div class="text-center statistics-drill-metric" data-filter-field="occurrence_period" data-filter-value="夜间" data-filter-label="夜间平均">
                                                 <div class="fs-3 fw-bold text-indigo lh-1" id="cable-break-nighttime-avg">--</div>
                                                 <div class="text-muted mt-1" style="font-size: 12px;">夜间平均</div>
                                             </div>
@@ -188,11 +203,11 @@
                                     <!-- Badge Group 3 -->
                                     <div class="statistics-kpi-group">
                                         <div class="statistics-kpi-group-items">
-                                            <div class="text-center">
+                                            <div class="text-center statistics-drill-metric" data-filter-field="cause_group" data-filter-value="施工类" data-filter-label="施工类">
                                                 <div class="fs-3 fw-bold text-indigo lh-1" id="cable-break-construction-avg">--</div>
                                                 <div class="text-muted mt-1" style="font-size: 12px;">施工类</div>
                                             </div>
-                                            <div class="text-center">
+                                            <div class="text-center statistics-drill-metric" data-filter-field="cause_group" data-filter-value="非施工类" data-filter-label="非施工类">
                                                 <div class="fs-3 fw-bold text-indigo lh-1" id="cable-break-noncons-avg">--</div>
                                                 <div class="text-muted mt-1" style="font-size: 12px;">非施工类</div>
                                             </div>
@@ -208,7 +223,7 @@
                     <div class="row mt-3">
                         <div class="col-12">
                             <div class="card p-3 shadow-sm h-100">
-                                <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">故障历时频数分布直方图</h3></div>
+                                <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">故障历时频数分布</h3></div>
                                 <div class="card-body p-0">
                                     <div id="chart-cable-break-histogram" style="width: 100%; height: 260px;"></div>
                                 </div>
@@ -216,21 +231,6 @@
                         </div>
                     </div>
                 </section>
-
-                <!-- KPI 区 -->
-                <!-- KPI 区 (在此只保留重复故障) -->
-                <div class="row row-deck mb-4 row-cols-1 row-cols-sm-2 row-cols-md-4 row-cols-lg-5">
-                    <div class="col mb-3 mb-lg-0">
-                        <div class="card p-3 shadow-sm text-start h-100 d-flex flex-column" id="card-repeat-faults" style="cursor: pointer;" title="点击过滤出重复故障">
-                            <div class="text-muted mb-2 fw-semibold text-nowrap text-truncate">重复故障 <i class="mdi mdi-information-outline text-muted ms-1" title="近60天内同A端/部分同Z端的光缆故障"></i></div>
-                            <div class="d-flex align-items-baseline mb-2">
-                                <span class="display-6 fw-bold text-indigo me-1 lh-1" id="kpi-repeat-faults">--</span>
-                                <span class="text-muted" style="font-size: 14px;">条</span>
-                            </div>
-                            <div id="kpi-repeat-faults-diff" class="mt-auto"></div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- ECharts 图表区 -->
                 <div class="row mb-4">
@@ -310,6 +310,28 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="statisticsCableBreakMapModal" tabindex="-1" aria-labelledby="statisticsCableBreakMapModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title" id="statisticsCableBreakMapModalLabel">
+                    <i class="mdi mdi-map-marker-radius me-1"></i>光缆中断故障地图
+                </h5>
+                <button type="button" class="btn-close" id="statisticsCableBreakMapCloseBtn" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="statistics-cable-break-map-frame-wrap">
+                    <div class="statistics-cable-break-map-loading" id="statistics-cable-break-map-loading">
+                        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+                        <span class="ms-2">地图加载中...</span>
+                    </div>
+                    <iframe id="statistics-cable-break-map-iframe" class="statistics-cable-break-map-iframe" title="光缆中断故障地图" src="about:blank" style="width: 100%; height: 70vh; border: none;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block javascript %}
@@ -317,6 +339,7 @@
 <script>
     window.STATISTICS_DATA_API = "{{ statistics_data_api_url }}";
     window.SERVICE_STATISTICS_DATA_API = "{{ statistics_service_data_api_url }}";
+    window.STATISTICS_CABLE_BREAK_MAP_URL = "{{ statistics_cable_break_map_url }}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=2"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=4"></script>
 {% endblock %}

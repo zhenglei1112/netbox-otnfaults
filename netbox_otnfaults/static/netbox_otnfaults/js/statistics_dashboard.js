@@ -42,22 +42,97 @@ document.addEventListener("DOMContentLoaded", function() {
     chartProvince.on('legendselectchanged', params => { updateExcludedSet('province', params.selected); renderDetailsTable(); });
     chartReason.on('legendselectchanged', params => { updateExcludedSet('reason', params.selected); renderDetailsTable(); });
 
-    // KPI 卡片点击下钻
-    let repeatCard = document.getElementById('card-repeat-faults');
-    if (repeatCard) repeatCard.addEventListener('click', () => handleChartClick({name: true}, 'is_repeat'));
+    document.addEventListener('click', function(event) {
+        const metric = event.target.closest('.statistics-drill-metric');
+        if (!metric) return;
+        handleMetricFilterClick(metric);
+    });
 
     let currentAllDetails = []; // 保存后端返回的全部详情数据
     let activeFilterField = null; // 'resource_type', 'province', 'reason'
     let activeFilterValue = null;
+    let activeFilterLabel = null;
 
     // ---------------- DOM 元素 ----------------
     const selFilterType = document.getElementById('filterType');
     const inputDate = document.getElementById('filterDate');
     const btnPrevPeriod = document.getElementById('btn-prev-period');
     const btnNextPeriod = document.getElementById('btn-next-period');
+    const btnCableBreakMap = document.getElementById('statistics-cable-break-map-btn');
+    const cableBreakMapModal = document.getElementById('statisticsCableBreakMapModal');
+    const cableBreakMapCloseBtn = document.getElementById('statisticsCableBreakMapCloseBtn');
+    const cableBreakMapIframe = document.getElementById('statistics-cable-break-map-iframe');
+    const cableBreakMapLoading = document.getElementById('statistics-cable-break-map-loading');
+    let cableBreakMapManualBackdrop = null;
 
     const badgeFilter = document.getElementById('drill-down-filter-badge');
     const btnClearFilter = document.getElementById('btn-clear-filter');
+
+    function setCableBreakMapLoading(visible) {
+        if (!cableBreakMapLoading) return;
+        cableBreakMapLoading.classList.toggle('d-none', !visible);
+    }
+
+    function openCableBreakMapModal() {
+        if (!cableBreakMapModal || !cableBreakMapIframe || !window.STATISTICS_CABLE_BREAK_MAP_URL) return;
+        setCableBreakMapLoading(true);
+        cableBreakMapIframe.src = `${window.STATISTICS_CABLE_BREAK_MAP_URL}?modal=true&${buildTimeParams()}`;
+        showCableBreakMapModalFallback();
+    }
+
+    function closeCableBreakMapModal() {
+        if (!cableBreakMapIframe) return;
+        cableBreakMapIframe.src = 'about:blank';
+        setCableBreakMapLoading(false);
+        hideCableBreakMapModalFallback();
+    }
+
+    function showCableBreakMapModalFallback() {
+        if (!cableBreakMapManualBackdrop) {
+            cableBreakMapManualBackdrop = document.createElement('div');
+            cableBreakMapManualBackdrop.className = 'modal-backdrop fade show';
+            cableBreakMapManualBackdrop.style.opacity = '0.85';
+            cableBreakMapManualBackdrop.addEventListener('click', closeCableBreakMapModal);
+            document.body.appendChild(cableBreakMapManualBackdrop);
+        }
+
+        cableBreakMapModal.style.display = 'block';
+        cableBreakMapModal.classList.add('show');
+        cableBreakMapModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+    }
+
+    function hideCableBreakMapModalFallback() {
+        if (!cableBreakMapModal) return;
+        cableBreakMapModal.classList.remove('show');
+        cableBreakMapModal.style.display = 'none';
+        cableBreakMapModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+
+        if (cableBreakMapManualBackdrop) {
+            cableBreakMapManualBackdrop.remove();
+            cableBreakMapManualBackdrop = null;
+        }
+    }
+
+    if (btnCableBreakMap) {
+        btnCableBreakMap.addEventListener('click', openCableBreakMapModal);
+    }
+    if (cableBreakMapIframe) {
+        cableBreakMapIframe.addEventListener('load', () => {
+            if (cableBreakMapIframe.src !== 'about:blank') {
+                setCableBreakMapLoading(false);
+            }
+        });
+    }
+    if (cableBreakMapCloseBtn) {
+        cableBreakMapCloseBtn.addEventListener('click', closeCableBreakMapModal);
+    }
+    if (cableBreakMapModal) {
+        cableBreakMapModal.addEventListener('click', function(event) {
+            if (event.target === cableBreakMapModal) closeCableBreakMapModal();
+        });
+    }
 
     // ---------------- UI 联动逻辑 ----------------
     function updateDateSelectors() {
@@ -213,12 +288,12 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function updatePeriodLabelState(periodEl, period) {
-        periodEl.classList.remove('text-success');
-        periodEl.classList.remove('text-warning');
+        periodEl.classList.remove('statistics-period-label--current');
+        periodEl.classList.remove('statistics-period-label--future');
         if (period && period.end === '当前') {
-            periodEl.classList.add('text-success');
+            periodEl.classList.add('statistics-period-label--current');
         } else if (period && period.is_future) {
-            periodEl.classList.add('text-warning');
+            periodEl.classList.add('statistics-period-label--future');
         }
     }
 
@@ -234,24 +309,24 @@ document.addEventListener("DOMContentLoaded", function() {
         if (type === 'year') {
             const rangeStart = formatPeriodStartDate(period, date);
             const rangeEnd = formatPeriodEndDate(period && period.end, getYearEndDate(date));
-            return `年统计 ${year}年（${rangeStart}至${rangeEnd}）`;
+            return `${formatPeriodFlag('年统计')} ${year}年（${rangeStart}至${rangeEnd}）`;
         }
         if (type === 'half') {
             const { half, start, end } = getHalfYearRange(date);
             const rangeStart = formatPeriodStartDate(period, start);
             const rangeEnd = formatPeriodEndDate(period && period.end, end);
-            return `半年统计 ${year}年${getHalfYearLabel(half)}（${rangeStart}至${rangeEnd}）`;
+            return `${formatPeriodFlag('半年统计')} ${year}年${getHalfYearLabel(half)}（${rangeStart}至${rangeEnd}）`;
         }
         if (type === 'quarter') {
             const { quarter, start, end } = getQuarterRange(date);
             const rangeStart = formatPeriodStartDate(period, start);
             const rangeEnd = formatPeriodEndDate(period && period.end, end);
-            return `季度统计 ${year}年第${quarter}季度（${rangeStart}至${rangeEnd}）`;
+            return `${formatPeriodFlag('季度统计')} ${year}年第${quarter}季度（${rangeStart}至${rangeEnd}）`;
         }
         if (type === 'month') {
             const rangeStart = formatPeriodStartDate(period, date);
             const rangeEnd = formatPeriodEndDate(period && period.end, getMonthEndDate(date));
-            return `月统计 ${year}年${month}月（${rangeStart}至${rangeEnd}）`;
+            return `${formatPeriodFlag('月统计')} ${year}年${month}月（${rangeStart}至${rangeEnd}）`;
         }
         if (type === 'week') {
             const { weekStart, weekEnd } = getIsoWeekRange(dateValue);
@@ -358,8 +433,25 @@ document.addEventListener("DOMContentLoaded", function() {
             
             el.innerHTML = `<span class="badge fw-normal" style="${style} padding: 4px 10px; font-size:12px;">较${label} ${symbol}${diff} ${unit}</span>`;
         }
+
+        function renderCompactMetricDiff(elId, current, prev) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            if (!prevKpis) { el.innerHTML = ''; return; }
+
+            let diff = current - prev;
+            if (!Number.isInteger(diff)) diff = parseFloat(diff.toFixed(2));
+
+            if (diff > 0) {
+                el.innerHTML = `<span class="text-danger fw-bold">⬆${diff}</span>`;
+            } else if (diff < 0) {
+                el.innerHTML = `<span class="text-success fw-bold">⬇${Math.abs(diff)}</span>`;
+            } else {
+                el.innerHTML = '';
+            }
+        }
         
-        renderDiff('kpi-repeat-faults-diff', kpis.repeat_faults_count, prevKpis.repeat_faults_count, '条');
+        renderCompactMetricDiff('kpi-repeat-faults-diff', kpis.repeat_faults_count, prevKpis.repeat_faults_count);
     }
 
     function renderOverallSummary(kpis, chartsData, prevChartsData) {
@@ -375,7 +467,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const prevCategories = (prevChartsData && prevChartsData.category) || [];
-        let htmlContent = buildFlexGroup(categories, "起", "故障分类", "text-secondary", prevCategories);
+        let htmlContent = buildFlexGroup(categories, "起", "故障分类", "text-indigo", prevCategories);
         categoriesList.innerHTML = htmlContent;
     }
 
@@ -414,10 +506,14 @@ document.addEventListener("DOMContentLoaded", function() {
         trendEl.innerHTML = buildTrendArrow(currentValue, previousValue);
     }
 
-    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue) {
+    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue) {
         const arrow = buildTrendArrow(value, prevValue);
+        const filterClass = filterField ? " statistics-drill-metric" : "";
+        const filterAttrs = filterField
+            ? ` data-filter-field="${filterField}" data-filter-value="${filterValue}" data-filter-label="${title}"`
+            : "";
         return `
-            <div class="text-center">
+            <div class="text-center${filterClass}"${filterAttrs}>
                 <div class="fs-3 fw-bold ${colorClass} lh-1">${value}<span class="ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span></div>
                 <div class="text-muted mt-1" style="font-size: 12px;">${title}</div>
                 ${arrow ? `<div class="statistics-kpi-trend-row">${arrow}</div>` : ''}
@@ -425,7 +521,7 @@ document.addEventListener("DOMContentLoaded", function() {
         `;
     }
 
-    function buildFlexGroup(items, unit, groupTitle, colorClass, prevItems) {
+    function buildFlexGroup(items, unit, groupTitle, colorClass, prevItems, filterField) {
         if (!items || items.length === 0) return "";
         let groupHtml = `<div class="statistics-kpi-group">`;
         groupHtml += `<div class="statistics-kpi-group-items">`;
@@ -438,7 +534,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 const match = prevItems.find(p => (p.name || p.title) === name);
                 if (match) prevVal = match.value;
             }
-            groupHtml += buildFlexItemCore(val, unit, name, colorClass, prevVal);
+            groupHtml += buildFlexItemCore(val, unit, name, colorClass, prevVal, filterField, name);
         });
         groupHtml += `</div>`;
         if (groupTitle) {
@@ -482,11 +578,11 @@ document.addEventListener("DOMContentLoaded", function() {
         const prevSourceCounts = prevOverview.source_counts || [];
         let reasonTop3 = overview.reason_top3 || [];
         if (reasonTop3.length === 0) reasonTop3 = [{name: '--', value: 0}];
-        htmlCount += buildFlexGroup(reasonTop3, "起", "原因TOP3", "text-indigo", prevReasonTop3);
+        htmlCount += buildFlexGroup(reasonTop3, "起", "原因TOP3", "text-indigo", prevReasonTop3, "reason");
 
         let sourceCounts = overview.source_counts || [];
         if (sourceCounts.length === 0) sourceCounts = [{name: '--', value: 0}];
-        htmlCount += buildFlexGroup(sourceCounts, "起", "光缆属性", "text-indigo", prevSourceCounts);
+        htmlCount += buildFlexGroup(sourceCounts, "起", "光缆属性", "text-indigo", prevSourceCounts, "source_group");
 
         const countList = document.getElementById('cable-break-count-flex-list');
         if (countList) countList.innerHTML = htmlCount;
@@ -513,7 +609,7 @@ document.addEventListener("DOMContentLoaded", function() {
         renderTrendBesideMetric(longTotalEl, longTotal, prevLongTotal);
 
         if (longItems.length === 0) longItems = [{name: '--', value: 0}];
-        htmlLong += buildFlexGroup(longItems, "起", "历时分布", "text-indigo", prevLongItems);
+        htmlLong += buildFlexGroup(longItems, "起", "历时分布", "text-indigo", prevLongItems, "duration_bucket");
         
         const longList = document.getElementById('cable-break-long-flex-list');
         if (longList) longList.innerHTML = htmlLong;
@@ -539,7 +635,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         if (longDurationItems.length === 0) longDurationItems = [{name: '--', value: "0.00"}];
-        htmlLongDuration += buildFlexGroup(longDurationItems, "时", "历时分布", "text-indigo", prevLongDurationItems);
+        htmlLongDuration += buildFlexGroup(longDurationItems, "时", "历时分布", "text-indigo", prevLongDurationItems, "duration_bucket");
         
         const longDurationList = document.getElementById('cable-break-long-duration-flex-list');
         if (longDurationList) longDurationList.innerHTML = htmlLongDuration;
@@ -563,8 +659,8 @@ document.addEventListener("DOMContentLoaded", function() {
             renderTrendBesideMetric(durationTotalEl, currentDuration, prevOverview.total_duration);
         }
 
-        htmlDur += buildFlexGroup(durReasonItems, "时", "原因TOP3", "text-indigo", prevDurReasonItems);
-        htmlDur += buildFlexGroup(durSourceItems, "时", "光缆属性", "text-indigo", prevDurSourceItems);
+        htmlDur += buildFlexGroup(durReasonItems, "时", "原因TOP3", "text-indigo", prevDurReasonItems, "reason");
+        htmlDur += buildFlexGroup(durSourceItems, "时", "光缆属性", "text-indigo", prevDurSourceItems, "source_group");
         
         const durList = document.getElementById('cable-break-duration-flex-list');
         if (durList) durList.innerHTML = htmlDur;
@@ -609,6 +705,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (overview.histogram && chartHistogram) {
             let histLabels = overview.histogram.map(item => item.label);
             let histValues = overview.histogram.map(item => ({value: item.value, _percent: item.percent}));
+            const histogramMaxValue = Math.max(...overview.histogram.map(item => item.value), 0);
             
             chartHistogram.setOption({
                 tooltip: {
@@ -619,14 +716,19 @@ document.addEventListener("DOMContentLoaded", function() {
                         return `${p.name} 小时<br/>数量：${p.value}起 (${p.data._percent}%)`;
                     }
                 },
-                grid: { top: 30, left: '3%', right: '4%', bottom: '10%', containLabel: true },
+                grid: { top: 62, left: '3%', right: '4%', bottom: '10%', containLabel: true },
                 xAxis: { 
                     type: 'category', 
                     data: histLabels,
                     name: '历时(小时)',
                     axisLabel: { interval: 0, fontSize: 11 }
                 },
-                yAxis: { type: 'value', name: '起数', minInterval: 1 },
+                yAxis: {
+                    type: 'value',
+                    name: '起数',
+                    minInterval: 1,
+                    max: histogramMaxValue > 0 ? Math.ceil(histogramMaxValue * 1.25) : 1
+                },
                 series: [{
                     type: 'bar',
                     barWidth: '60%',
@@ -666,6 +768,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 type: 'pie',
                 radius: ['45%', '75%'],
                 center: ['50%', '45%'],
+                label: {
+                    show: true,
+                    formatter: formatPieSliceLabel,
+                    alignTo: 'edge',
+                    edgeDistance: 10,
+                    lineHeight: 15,
+                    fontSize: 11
+                },
                 itemStyle: {
                     color: function(params) { return resourceColorMap[params.name] || '#5470c6'; },
                     borderRadius: 5, borderColor: '#fff', borderWidth: 2
@@ -720,6 +830,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 type: 'pie',
                 radius: '65%',
                 center: ['50%', '45%'],
+                label: {
+                    show: true,
+                    formatter: formatPieSliceLabel,
+                    alignTo: 'edge',
+                    edgeDistance: 10,
+                    lineHeight: 15,
+                    fontSize: 11
+                },
                 data: chartsData.reason.map(item => ({name: item.name, value: item.value, _duration: item.duration})),
                 emphasis: {
                     itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
@@ -730,6 +848,16 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // ---------------- 渲染下钻表格 ----------------
+    function normalizeFilterValue(fieldName, value) {
+        if (value === 'true') return true;
+        if (value === 'false') return false;
+        return value;
+    }
+
+    function applyDetailFilter(item, fieldName, value) {
+        return item[fieldName] === value;
+    }
+
     function renderDetailsTable() {
         let filteredDetails = currentAllDetails;
         let activeConditions = []; // 存入文本用于展示当前所有生效的过滤状态
@@ -752,13 +880,19 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // 2. 应用单点下钻过滤
         if (activeFilterField && activeFilterValue !== null) {
-            filteredDetails = filteredDetails.filter(item => item[activeFilterField] === activeFilterValue);
+            filteredDetails = filteredDetails.filter(item => applyDetailFilter(item, activeFilterField, activeFilterValue));
             
             let filterName = '';
-            let filterValueDisp = activeFilterValue;
+            let filterValueDisp = activeFilterLabel || activeFilterValue;
             if (activeFilterField === 'resource_type') filterName = '光缆属性';
+            else if (activeFilterField === 'source_group') filterName = '光缆属性';
             else if (activeFilterField === 'province') filterName = '省份';
             else if (activeFilterField === 'reason') filterName = '原因';
+            else if (activeFilterField === 'duration_bucket') filterName = '历时分布';
+            else if (activeFilterField === 'category') filterName = '分类';
+            else if (activeFilterField === 'occurrence_period') filterName = '发生时段';
+            else if (activeFilterField === 'cause_group') filterName = '成因';
+            else if (activeFilterField === 'is_valid_duration') { filterName = '特殊标签'; filterValueDisp = '有效平均'; }
             else if (activeFilterField === 'is_long') { filterName = '特殊标签'; filterValueDisp = '长时故障(≥6h)'; }
             else if (activeFilterField === 'is_repeat') { filterName = '特殊标签'; filterValueDisp = '历史重复故障'; }
             
@@ -820,12 +954,33 @@ document.addEventListener("DOMContentLoaded", function() {
         tbody.innerHTML = html;
     }
 
+    function formatPieSliceLabel(params) {
+        if (!params.value) return params.name;
+        return `${params.name}\n${params.value}次 ${params.percent}%`;
+    }
+
     // ---------------- 下钻事件处理 ----------------
     function handleChartClick(params, fieldName) {
         if (!params.name) return;
         activeFilterField = fieldName;
         activeFilterValue = params.name;
+        activeFilterLabel = null;
         // 滚动到下方的表格
+        const tbl = document.getElementById('details-tbody');
+        if (tbl) {
+            tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        renderDetailsTable();
+    }
+
+    function handleMetricFilterClick(metric) {
+        const fieldName = metric.dataset.filterField;
+        if (!fieldName) return;
+
+        activeFilterField = fieldName;
+        activeFilterValue = normalizeFilterValue(fieldName, metric.dataset.filterValue);
+        activeFilterLabel = metric.dataset.filterLabel || metric.dataset.filterValue;
+
         const tbl = document.getElementById('details-tbody');
         if (tbl) {
             tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -837,6 +992,7 @@ document.addEventListener("DOMContentLoaded", function() {
     btnClearFilter.addEventListener('click', () => {
         activeFilterField = null;
         activeFilterValue = null;
+        activeFilterLabel = null;
         
         excludedCategories.resource_type.clear();
         excludedCategories.province.clear();

@@ -4,10 +4,12 @@
  * 仅在故障点模式下可见，热力图模式下隐藏
  */
 class FaultLegendControl {
-    constructor() {
+    constructor(options = {}) {
         this.container = null;
         this.visible = false;
         this.isCollapsed = true; // 默认状态为收起
+        this.showCategories = options.showCategories !== false;
+        this.showStatuses = options.showStatuses !== false;
     }
 
     onAdd(map) {
@@ -72,19 +74,23 @@ class FaultLegendControl {
                     <span class="legend-title"><i class="mdi mdi-information-outline me-1"></i>图例</span>
                 </div>
                 <div class="card-body p-2 position-relative">
+                    ${this.showCategories ? `
                     <div class="legend-section">
                         <div class="legend-header text-body-secondary">故障类型</div>
                         <div class="legend-body mt-1">
                             ${categoryItems}
                         </div>
                     </div>
-                    <div class="legend-divider border-top my-2"></div>
+                    ` : ''}
+                    ${this.showCategories && this.showStatuses ? '<div class="legend-divider border-top my-2"></div>' : ''}
+                    ${this.showStatuses ? `
                     <div class="legend-section">
                         <div class="legend-header text-body-secondary">故障状态</div>
                         <div class="legend-body mt-1">
                             ${statusItems}
                         </div>
                     </div>
+                    ` : ''}
                     
                     <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 legend-close-btn position-absolute" style="bottom: 4px; right: 8px;" title="收起图例">
                         <i class="mdi mdi-arrow-bottom-right fs-5"></i>
