@@ -604,6 +604,11 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const prevCategories = (prevChartsData && prevChartsData.category) || [];
+        const prevOverallTotal = prevCategories.length > 0
+            ? prevCategories.reduce((sum, c) => sum + (c.value || 0), 0)
+            : undefined;
+        renderTrendBesideMetric(overallTotal, kpis.total_count, prevOverallTotal);
+
         let htmlContent = buildFlexGroup(categories, "起", "故障分类", "text-indigo", prevCategories);
         categoriesList.innerHTML = htmlContent;
     }
