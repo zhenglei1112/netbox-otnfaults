@@ -408,6 +408,23 @@
     overflow: hidden;
 }
 
+.statistics-cable-break-map-header {
+    gap: 0.75rem;
+}
+
+.statistics-cable-break-map-title {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.statistics-cable-break-map-period {
+    text-align: left;
+}
+
 .statistics-cable-break-map-frame-wrap {
     position: relative;
     height: calc(85vh - 46px);
@@ -455,5 +472,15 @@
 
     .statistics-cable-break-map-frame-wrap {
         height: calc(85vh - 46px);
+    }
+
+    .statistics-cable-break-map-header {
+        align-items: flex-start;
+    }
+
+    .statistics-cable-break-map-title {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.25rem;
     }
 }

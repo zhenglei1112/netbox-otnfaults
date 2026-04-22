@@ -43,16 +43,83 @@ class CableBreakSkippedCountControl {
   }
 }
 
+class CableBreakQuickFilterControl {
+  constructor(plugin) {
+    this.plugin = plugin;
+    this.container = null;
+    this.buttons = new Map();
+    this.filters = [
+      { key: "selfControlled", label: "自控", icon: "shield", title: "仅显示自控光缆中断" },
+      { key: "long", label: "长时", icon: "hourglass", title: "仅显示历时大于等于 6 小时的故障" },
+      { key: "repeat", label: "重复", icon: "repeat", title: "仅显示历史重复故障" },
+      { key: "validDuration", label: "滤除短时", icon: "filter", title: "过滤历时小于等于 30 分钟的故障" },
+    ];
+  }
+
+  onAdd(map) {
+    this.map = map;
+    this.container = document.createElement("div");
+    this.container.className = "maplibregl-ctrl statistics-cable-break-quick-filters";
+
+    this.filters.forEach((filter) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "statistics-cable-break-quick-filter-button";
+      button.innerHTML = `${renderQuickFilterIcon(filter.icon)}<span>${filter.label}</span>`;
+      button.title = filter.title;
+      button.setAttribute("aria-label", filter.title);
+      button.setAttribute("aria-pressed", "false");
+      button.addEventListener("click", () => {
+        this.plugin.toggleFilter(filter.key);
+        this.update();
+      });
+      this.buttons.set(filter.key, button);
+      this.container.appendChild(button);
+    });
+
+    return this.container;
+  }
+
+  update() {
+    this.buttons.forEach((button, filterKey) => {
+      const active = this.plugin.activeQuickFilters.has(filterKey);
+      button.classList.toggle("statistics-cable-break-quick-filter-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  onRemove() {
+    if (this.container && this.container.parentNode) {
+      this.container.parentNode.removeChild(this.container);
+    }
+    this.map = undefined;
+  }
+}
+
+function renderQuickFilterIcon(icon) {
+  const iconPaths = {
+    shield: '<path d="M12 3.2 19 6v5.4c0 4.2-2.8 7.7-7 9.4-4.2-1.7-7-5.2-7-9.4V6z"></path><path d="M9.2 12.1 11.2 14l3.8-4"></path>',
+    hourglass: '<path d="M7 3h10"></path><path d="M7 21h10"></path><path d="M8 3c0 4.2 2.2 6.2 4 8 1.8-1.8 4-3.8 4-8"></path><path d="M8 21c0-4.2 2.2-6.2 4-8 1.8 1.8 4 3.8 4 8"></path>',
+    repeat: '<path d="M17 2.5l3.5 3.5L17 9.5"></path><path d="M3.5 11V9.5A3.5 3.5 0 0 1 7 6h13.5"></path><path d="M7 21.5 3.5 18 7 14.5"></path><path d="M20.5 13v1.5A3.5 3.5 0 0 1 17 18H3.5"></path>',
+    filter: '<path d="M4 5h16l-6.2 7.1v5.2l-3.6 1.8v-7z"></path>',
+  };
+  const path = iconPaths[icon] || iconPaths.filter;
+  return `<svg class="statistics-cable-break-quick-filter-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
+}
+
 const StatisticsCableBreakModePlugin = {
   core: null,
   map: null,
   mapBase: null,
   config: null,
   features: [],
+  filteredFeatures: [],
+  activeQuickFilters: new Set(),
   currentPopup: null,
   popupCloseTimer: null,
   skippedCountControl: null,
   legendControl: null,
+  quickFilterControl: null,
 
   init(core) {
     this.core = core;
@@ -92,6 +159,7 @@ const StatisticsCableBreakModePlugin = {
   _initData() {
     const markerData = this.config.markerData || [];
     this.features = FaultDataService.convertToFeatures(markerData);
+    this.filteredFeatures = this.features;
   },
 
   // ─── 水滴形 SVG 图标生成（复刻原生 Marker 3D 效果） ───
@@ -117,7 +185,7 @@ const StatisticsCableBreakModePlugin = {
     const map = this.map;
     const geojson = {
       type: "FeatureCollection",
-      features: this.features,
+      features: this.filteredFeatures,
     };
 
     // 启用聚合的 GeoJSON 数据源
@@ -297,8 +365,56 @@ const StatisticsCableBreakModePlugin = {
     }
 
     const map = this.map;
+    this.quickFilterControl = new CableBreakQuickFilterControl(this);
+    map.addControl(this.quickFilterControl, "top-left");
+
     this.skippedCountControl = new CableBreakSkippedCountControl(this.config.skipped_count || 0, this.config.defaulted_count || 0);
     map.addControl(this.skippedCountControl, 'bottom-left');
+  },
+
+  toggleFilter(filterKey) {
+    if (this.activeQuickFilters.has(filterKey)) {
+      this.activeQuickFilters.delete(filterKey);
+    } else {
+      this.activeQuickFilters.add(filterKey);
+    }
+    this.applyQuickFilters();
+  },
+
+  applyQuickFilters() {
+    this.filteredFeatures = this.features.filter((feature) => {
+      const matchesSelfControlled = feature.properties.sourceGroup === '自控';
+      const matchesLong = feature.properties.isLong === true;
+      const matchesRepeat = feature.properties.isRepeat === true;
+      const matchesValidDuration = feature.properties.isValidDuration === true;
+
+      if (this.activeQuickFilters.has("selfControlled") && !matchesSelfControlled) {
+        return false;
+      }
+      if (this.activeQuickFilters.has("long") && !matchesLong) {
+        return false;
+      }
+      if (this.activeQuickFilters.has("repeat") && !matchesRepeat) {
+        return false;
+      }
+      if (this.activeQuickFilters.has("validDuration") && !matchesValidDuration) {
+        return false;
+      }
+      return true;
+    });
+
+    const source = this.map.getSource("cable-break-faults");
+    if (source) {
+      source.setData({
+        type: "FeatureCollection",
+        features: this.filteredFeatures,
+      });
+    }
+
+    if (this.currentPopup) {
+      this.currentPopup.remove();
+      this.currentPopup = null;
+    }
   },
 
   // ─── Popup 显示（保留延迟关闭逻辑） ───
@@ -376,6 +492,67 @@ statisticsCableBreakStyle.textContent = `
     font-size: 12px;
     line-height: 1.45;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  }
+
+  .statistics-cable-break-quick-filters.maplibregl-ctrl {
+    display: flex;
+    gap: 8px;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .statistics-cable-break-quick-filter-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: auto;
+    min-width: 66px;
+    height: 38px;
+    margin: 0;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 4px;
+    color: #202124;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .statistics-cable-break-quick-filter-button + .statistics-cable-break-quick-filter-button {
+    border-left: 0;
+  }
+
+  .statistics-cable-break-quick-filter-button:hover,
+  .statistics-cable-break-quick-filter-button:focus,
+  .statistics-cable-break-quick-filter-button:active {
+    background: #ffffff !important;
+  }
+
+  .statistics-cable-break-quick-filter-button.statistics-cable-break-quick-filter-active {
+    color: #4f73ff;
+    background: #ffffff !important;
+  }
+
+  .statistics-cable-break-quick-filter-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .statistics-cable-break-quick-filter-icon circle {
+    fill: currentColor;
+    stroke: none;
   }
 `;
 document.head.appendChild(statisticsCableBreakStyle);

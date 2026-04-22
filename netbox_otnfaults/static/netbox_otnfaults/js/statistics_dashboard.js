@@ -65,6 +65,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const cableBreakMapCloseBtn = document.getElementById('statisticsCableBreakMapCloseBtn');
     const cableBreakMapIframe = document.getElementById('statistics-cable-break-map-iframe');
     const cableBreakMapLoading = document.getElementById('statistics-cable-break-map-loading');
+    const cableBreakMapPeriod = document.getElementById('statistics-cable-break-map-period');
     let cableBreakMapManualBackdrop = null;
 
     const badgeFilter = document.getElementById('drill-down-filter-badge');
@@ -77,9 +78,18 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function openCableBreakMapModal() {
         if (!cableBreakMapModal || !cableBreakMapIframe || !window.STATISTICS_CABLE_BREAK_MAP_URL) return;
-        setCableBreakMapLoading(true);
-        cableBreakMapIframe.src = `${window.STATISTICS_CABLE_BREAK_MAP_URL}?modal=true&${buildTimeParams()}`;
+        refreshCableBreakMapFrame();
         showCableBreakMapModalFallback();
+    }
+
+    function refreshCableBreakMapFrame() {
+        if (!cableBreakMapIframe || !window.STATISTICS_CABLE_BREAK_MAP_URL) return;
+        setCableBreakMapLoading(true);
+        if (cableBreakMapPeriod) {
+            cableBreakMapPeriod.innerHTML = formatStatisticsPeriodLabel(selFilterType.value, inputDate.value, buildLocalPeriodForDate(selFilterType.value, inputDate.value));
+            updatePeriodLabelState(cableBreakMapPeriod, buildLocalPeriodForDate(selFilterType.value, inputDate.value));
+        }
+        cableBreakMapIframe.src = `${window.STATISTICS_CABLE_BREAK_MAP_URL}?modal=true&${buildTimeParams()}`;
     }
 
     function closeCableBreakMapModal() {
@@ -265,9 +275,8 @@ document.addEventListener("DOMContentLoaded", function() {
         return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
     }
 
-    function shiftSelectedPeriod(direction) {
-        const type = selFilterType.value;
-        const date = parseDateValue(inputDate.value);
+    function shiftPeriodDate(dateValue, type, direction) {
+        const date = parseDateValue(dateValue);
 
         if (type === 'year') {
             date.setUTCFullYear(date.getUTCFullYear() + direction);
@@ -285,8 +294,46 @@ document.addEventListener("DOMContentLoaded", function() {
             date.setUTCDate(date.getUTCDate() + (direction * 7));
         }
 
-        inputDate.value = formatInputDate(date);
+        return formatInputDate(date);
+    }
+
+    function shiftSelectedPeriod(direction) {
+        inputDate.value = shiftPeriodDate(inputDate.value, selFilterType.value, direction);
         loadActiveTab();
+    }
+
+    function buildLocalPeriodForDate(type, dateValue) {
+        const date = parseDateValue(dateValue);
+        const today = new Date();
+        const todayUtc = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+        let start = date;
+        let end = date;
+
+        if (type === 'year') {
+            start = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+            end = getYearEndDate(date);
+        } else if (type === 'half') {
+            const range = getHalfYearRange(date);
+            start = range.start;
+            end = range.end;
+        } else if (type === 'quarter') {
+            const range = getQuarterRange(date);
+            start = range.start;
+            end = range.end;
+        } else if (type === 'month') {
+            start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+            end = getMonthEndDate(date);
+        } else if (type === 'week') {
+            const range = getIsoWeekRange(dateValue);
+            start = range.weekStart;
+            end = range.weekEnd;
+        }
+
+        return {
+            start: formatInputDate(start),
+            end: todayUtc >= start && todayUtc <= end ? '当前' : formatInputDate(end),
+            is_future: start > todayUtc,
+        };
     }
 
     function updatePeriodLabelState(periodEl, period) {
@@ -347,9 +394,9 @@ document.addEventListener("DOMContentLoaded", function() {
         return `年统计 ${year}年（${rangeStart}至${rangeEnd}）`;
     }
 
-    function buildTimeParams() {
+    function buildTimeParams(dateValue = inputDate.value) {
         const type = selFilterType.value;
-        const selectedDate = inputDate.value;
+        const selectedDate = dateValue;
         const parts = selectedDate.split('-').map(Number);
         const year = parts[0];
         const month = parts[1];

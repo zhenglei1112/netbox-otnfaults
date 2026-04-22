@@ -1,5 +1,30 @@
 # PLAN
 
+## Statistics cable-break map in-map quick filters
+
+- [x] Add source regression assertions for a MapLibre in-map quick filter control
+- [x] Add map marker metadata for self-controlled, long, repeat, and valid-duration filtering
+- [x] Filter the existing GeoJSON source in the map plugin without reloading the iframe
+- [x] Run focused source tests and syntax checks
+
+## Statistics cable-break map quick filter visual polish
+
+- [x] Add source regression assertions for icon-and-text MapLibre-style buttons
+- [x] Style quick filters to match existing white map controls with blue selected text
+- [x] Run focused source tests and JavaScript syntax checks
+
+## Statistics cable-break map separated quick filter buttons
+
+- [x] Add source regression assertions for separated map quick filter buttons
+- [x] Split visual styling so each filter button has independent radius and shadow
+- [x] Run focused source tests and JavaScript syntax checks
+
+## Statistics cable-break map quick filter hover background
+
+- [x] Add source regression assertion that quick filter hover keeps an opaque white background
+- [x] Override MapLibre button hover/active background for quick filter buttons
+- [x] Run focused source tests and JavaScript syntax checks
+
 ## Statistics cable-break map coordinate fallback audit
 
 - [x] Trace `skipped_count` from the statistics map API through `FaultDataService` and the MapLibre control
@@ -21,6 +46,14 @@
 - [x] Add a regression assertion that the statistics map uses a stable center/zoom instead of fitting fault data bounds
 - [x] Replace data-driven initial viewport fitting with fixed map center/zoom and resize after iframe layout settles
 - [x] Bump the statistics map plugin asset version
+- [x] Run focused tests
+
+## Statistics cable-break map modal period navigation
+
+- [x] Inspect existing statistics period label and main previous/next period controls
+- [x] Add source regression assertions for modal period label, navigation buttons, iframe refresh, and asset version bump
+- [x] Add modal title controls and period label markup using the existing period label visual style
+- [x] Add independent modal period state so changing the map period reloads only the iframe
 - [x] Run focused tests
 
 ## Statistics cable-break map modal matches picker UI

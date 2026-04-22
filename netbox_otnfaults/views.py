@@ -28,7 +28,7 @@ from django.conf import settings
 from django.urls import reverse
 from urllib.parse import urlencode
 from .map_modes import get_mode_config
-from .statistics_views import _parse_time_range, get_cable_break_base_queryset
+from .statistics_views import _parse_time_range, _source_group_for_fault, get_cable_break_base_queryset
 from .view_mixins import ExcelFriendlyCSVExportMixin
 
 
@@ -403,18 +403,44 @@ class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
 
     def get(self, request):
         start_date, end_date, _prev_start_date, _prev_end_date, _filter_type = _parse_time_range(request)
+        now = timezone.localtime()
         base_qs = get_cable_break_base_queryset(start_date, end_date)
         fault_qs = (
             base_qs
             .select_related('province', 'interruption_location_a', 'handling_unit')
             .prefetch_related('interruption_location', 'images', 'impacts', 'secondary_impacts')
         )
+        faults = list(fault_qs)
+
+        if faults:
+            min_occurrence = min(fault.fault_occurrence_time for fault in faults)
+            check_start = min_occurrence - timedelta(days=60)
+            past_faults_list = list(
+                OtnFault.objects.filter(
+                    fault_occurrence_time__gte=check_start,
+                    fault_occurrence_time__lt=end_date,
+                    fault_category__in=[
+                        FaultCategoryChoices.FIBER_BREAK,
+                        FaultCategoryChoices.FIBER_DEGRADATION,
+                        FaultCategoryChoices.FIBER_JITTER,
+                    ],
+                )
+                .select_related('interruption_location_a')
+                .prefetch_related('interruption_location')
+            )
+        else:
+            past_faults_list = []
+
+        fault_z_sites_cache = {
+            past_fault.id: set(site.id for site in past_fault.interruption_location.all())
+            for past_fault in past_faults_list
+        }
 
         marker_data = []
         skipped_count = 0
         defaulted_count = 0
-        for fault in fault_qs:
-            marker = self._build_marker_data(fault)
+        for fault in faults:
+            marker = self._build_marker_data(fault, now, past_faults_list, fault_z_sites_cache)
             if marker is None:
                 skipped_count += 1
                 continue
@@ -441,7 +467,36 @@ class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
             'defaulted_count': defaulted_count,
         })
 
-    def _build_marker_data(self, fault: OtnFault) -> dict | None:
+    def _is_repeat_fault(self, fault: OtnFault, past_faults_list: list[OtnFault], fault_z_sites_cache: dict[int, set[int]]) -> bool:
+        if not fault.is_fiber_fault:
+            return False
+
+        fault_z_site_ids = fault_z_sites_cache.get(
+            fault.id,
+            set(site.id for site in fault.interruption_location.all()),
+        )
+
+        for past_fault in past_faults_list:
+            if past_fault.id == fault.id:
+                continue
+            if past_fault.fault_occurrence_time >= fault.fault_occurrence_time:
+                continue
+            if (fault.fault_occurrence_time - past_fault.fault_occurrence_time) > timedelta(days=60):
+                continue
+            if past_fault.interruption_location_a_id != fault.interruption_location_a_id:
+                continue
+            if fault_z_sites_cache.get(past_fault.id, set()).intersection(fault_z_site_ids):
+                return True
+
+        return False
+
+    def _build_marker_data(
+        self,
+        fault: OtnFault,
+        now,
+        past_faults_list: list[OtnFault],
+        fault_z_sites_cache: dict[int, set[int]],
+    ) -> dict | None:
         z_sites = [site.name for site in fault.interruption_location.all()]
         z_sites_str = '、'.join(z_sites) if z_sites else '未指定'
         occurrence_time_str = (
@@ -456,6 +511,9 @@ class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
         reason_display = fault.get_interruption_reason_display()
         if not reason_display or reason_display == fault.interruption_reason:
             reason_display = '-'
+
+        end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
+        duration_hours = (end_t - fault.fault_occurrence_time).total_seconds() / 3600.0
 
         coords_from_site = False
         coords_source = 'fault'
@@ -503,6 +561,11 @@ class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
             'occurrence_time': occurrence_time_str,
             'recovery_time': recovery_time_str,
             'fault_duration': fault_duration_str,
+            'duration_hours': round(duration_hours, 2),
+            'source_group': _source_group_for_fault(fault),
+            'is_long': duration_hours >= 6.0,
+            'is_valid_duration': duration_hours > 0.5,
+            'is_repeat': self._is_repeat_fault(fault, past_faults_list, fault_z_sites_cache),
             'reason': reason_display,
             'fault_details': fault.fault_details or '',
             'cable_route': fault.get_cable_route_display() if fault.cable_route else '-',

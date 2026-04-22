@@ -35,7 +35,7 @@ MAP_MODES = {
     },
     'statistics_cable_break': {
         'title': '光缆中断故障地图',
-        'plugin_file': 'statistics_cable_break_mode.js?v=11',
+        'plugin_file': 'statistics_cable_break_mode.js?v=12',
         'projection': 'mercator',
         'header_actions': [],
         'js_files': [
