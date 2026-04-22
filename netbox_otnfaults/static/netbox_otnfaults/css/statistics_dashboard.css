@@ -394,9 +394,23 @@
     margin-top: 4px;
 }
 
+.statistics-cable-break-map-dialog {
+    width: 85vw;
+    max-width: 85vw;
+    height: 85vh;
+    max-height: 85vh;
+    margin: 0 auto;
+}
+
+.statistics-cable-break-map-dialog .modal-content {
+    width: 100%;
+    height: 85vh;
+    overflow: hidden;
+}
+
 .statistics-cable-break-map-frame-wrap {
     position: relative;
-    height: 70vh;
+    height: calc(85vh - 46px);
     background: #f3f4f6;
     overflow: hidden;
 }
@@ -432,7 +446,14 @@
 }
 
 @media (max-width: 767.98px) {
+    .statistics-cable-break-map-dialog {
+        width: 85vw;
+        max-width: 85vw;
+        height: 85vh;
+        max-height: 85vh;
+    }
+
     .statistics-cable-break-map-frame-wrap {
-        height: 70vh;
+        height: calc(85vh - 46px);
     }
 }

@@ -70,6 +70,7 @@ class OTNMapCore {
           this.config.markerData = data.marker_data;
           this.config.heatmapData = data.heatmap_data;
           this.config.skipped_count = data.skipped_count || 0;
+          this.config.defaulted_count = data.defaulted_count || 0;
           if (window.OTNPerf) window.OTNPerf.mark('data_fetched');
         }
       } catch (err) {

@@ -404,15 +404,24 @@ class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
     def get(self, request):
         start_date, end_date, _prev_start_date, _prev_end_date, _filter_type = _parse_time_range(request)
         base_qs = get_cable_break_base_queryset(start_date, end_date)
-        display_qs = (
-            base_qs.exclude(interruption_latitude__isnull=True)
-            .exclude(interruption_longitude__isnull=True)
+        fault_qs = (
+            base_qs
             .select_related('province', 'interruption_location_a', 'handling_unit')
             .prefetch_related('interruption_location', 'images', 'impacts', 'secondary_impacts')
         )
-        skipped_count = base_qs.count() - display_qs.count()
 
-        marker_data = [self._build_marker_data(fault) for fault in display_qs]
+        marker_data = []
+        skipped_count = 0
+        defaulted_count = 0
+        for fault in fault_qs:
+            marker = self._build_marker_data(fault)
+            if marker is None:
+                skipped_count += 1
+                continue
+            if marker.get('coords_from_site'):
+                defaulted_count += 1
+            marker_data.append(marker)
+
         heatmap_data = [
             {
                 'lat': marker['lat'],
@@ -429,9 +438,10 @@ class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
             'heatmap_data': heatmap_data,
             'marker_data': marker_data,
             'skipped_count': skipped_count,
+            'defaulted_count': defaulted_count,
         })
 
-    def _build_marker_data(self, fault: OtnFault) -> dict:
+    def _build_marker_data(self, fault: OtnFault) -> dict | None:
         z_sites = [site.name for site in fault.interruption_location.all()]
         z_sites_str = '、'.join(z_sites) if z_sites else '未指定'
         occurrence_time_str = (
@@ -447,11 +457,37 @@ class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
         if not reason_display or reason_display == fault.interruption_reason:
             reason_display = '-'
 
+        coords_from_site = False
+        coords_source = 'fault'
+        if fault.interruption_latitude is not None and fault.interruption_longitude is not None:
+            lat = float(fault.interruption_latitude)
+            lng = float(fault.interruption_longitude)
+        elif (
+            fault.interruption_location_a
+            and fault.interruption_location_a.latitude is not None
+            and fault.interruption_location_a.longitude is not None
+        ):
+            lat = float(fault.interruption_location_a.latitude)
+            lng = float(fault.interruption_location_a.longitude)
+            coords_from_site = True
+            coords_source = 'a_site'
+        else:
+            for site in fault.interruption_location.all():
+                if site.latitude is not None and site.longitude is not None:
+                    lat = float(site.latitude)
+                    lng = float(site.longitude)
+                    coords_from_site = True
+                    coords_source = 'z_site'
+                    break
+            else:
+                return None
+
         return {
             'id': fault.pk,
-            'lat': float(fault.interruption_latitude),
-            'lng': float(fault.interruption_longitude),
-            'coords_from_site': False,
+            'lat': lat,
+            'lng': lng,
+            'coords_from_site': coords_from_site,
+            'coords_source': coords_source,
             'number': fault.fault_number,
             'url': fault.get_absolute_url(),
             'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}",

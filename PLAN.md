@@ -1,5 +1,13 @@
 # PLAN
 
+## Statistics cable-break map coordinate fallback audit
+
+- [x] Trace `skipped_count` from the statistics map API through `FaultDataService` and the MapLibre control
+- [x] Identify that current fallback uses fault coordinates, then only the A-side site coordinates
+- [x] Add a regression assertion that Z-side site coordinates are also considered before skipping a fault
+- [x] Update the map data API to return source metadata for A-side and Z-side coordinate fallbacks
+- [x] Run the focused source test and Python syntax check
+
 ## Statistics cable-break map modal matches picker UI
 
 - [x] Add source regression assertions for picker-style modal structure and manual backdrop behavior

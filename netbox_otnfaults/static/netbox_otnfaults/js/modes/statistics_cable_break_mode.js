@@ -11,8 +11,9 @@
  */
 
 class CableBreakSkippedCountControl {
-  constructor(skipped_count) {
+  constructor(skipped_count, defaulted_count) {
     this.skipped_count = skipped_count || 0;
+    this.defaulted_count = defaulted_count || 0;
     this.container = null;
   }
 
@@ -21,8 +22,12 @@ class CableBreakSkippedCountControl {
     this.container = document.createElement("div");
     this.container.className = "maplibregl-ctrl statistics-cable-break-skipped-count";
 
-    if (this.skipped_count > 0) {
-      this.container.textContent = `本期另有 ${this.skipped_count} 条光缆中断缺失经纬度，未在地图绘制`;
+    if (this.defaulted_count > 0 && this.skipped_count > 0) {
+      this.container.textContent = `本期另有 ${this.defaulted_count} 条光缆中断缺失经纬度，已按默认站点坐标绘制；${this.skipped_count} 条缺少可用站点坐标，未在地图绘制`;
+    } else if (this.defaulted_count > 0) {
+      this.container.textContent = `本期另有 ${this.defaulted_count} 条光缆中断缺失经纬度，已按默认站点坐标绘制`;
+    } else if (this.skipped_count > 0) {
+      this.container.textContent = `本期另有 ${this.skipped_count} 条光缆中断缺少可用站点坐标，未在地图绘制`;
     } else {
       this.container.style.display = "none";
     }
@@ -90,10 +95,11 @@ const StatisticsCableBreakModePlugin = {
   },
 
   // ─── 水滴形 SVG 图标生成（复刻原生 Marker 3D 效果） ───
-  _createTeardropIcon(fillColor) {
+  _createTeardropIcon(fillColor, dashed = false) {
     const svg = `<svg width="54" height="82" viewBox="0 0 27 41" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="13.5" cy="34.8" rx="10.5" ry="5.25" fill="black" opacity="0.12"/>
       <path fill="${fillColor}" d="M27,13.5C27,19.1 20.3,27 14.1,34.1C13.7,34.5 13.2,34.5 12.9,34.1C6.6,27 0,19.2 0,13.5C0,6 6,0 13.5,0C20.9,0 27,6 27,13.5Z"/>
+      <path fill="none" stroke="white" stroke-width="2" stroke-dasharray="${dashed ? '3 2' : '0'}" d="M13.5,1C20.4,1 26,6.6 26,13.5C26,15.8 24.7,19.8 21.5,24.4C18.9,28.2 15.9,31.6 13.5,34C11.1,31.6 8.1,28.2 5.5,24.4C2.3,19.8 1,15.8 1,13.5C1,6.6 6.6,1 13.5,1Z"/>
       <path opacity="0.25" d="M13.5,0C6,0 0,6 0,13.5C0,19.2 6.6,27 12.9,34.1C13.2,34.5 13.7,34.5 14.1,34.1C20.3,27 27,19.1 27,13.5C27,6 20.9,0 13.5,0ZM13.5,1C20.4,1 26,6.6 26,13.5C26,15.8 24.7,19.8 21.5,24.4C18.9,28.2 15.9,31.6 13.5,34C11.1,31.6 8.1,28.2 5.5,24.4C2.3,19.8 1,15.8 1,13.5C1,6.6 6.6,1 13.5,1Z"/>
       <circle fill="white" cx="13.5" cy="13.5" r="5.5"/>
     </svg>`;
@@ -182,17 +188,38 @@ const StatisticsCableBreakModePlugin = {
           map.addImage(iconName, img, { pixelRatio: 2 });
         }
       }
+
+      const defaultedIconName = `cb-pin-${key}-defaulted`;
+      if (!map.hasImage(defaultedIconName)) {
+        const img = await this._createTeardropIcon(color, true);
+        if (img && !map.hasImage(defaultedIconName)) {
+          map.addImage(defaultedIconName, img, { pixelRatio: 2 });
+        }
+      }
     });
     await Promise.all(iconPromises);
 
     const iconImageExpr = [
-      "match",
-      ["coalesce", ["get", "statusKey"], "processing"],
-      "processing", "cb-pin-processing",
-      "temporary_recovery", "cb-pin-temporary_recovery",
-      "suspended", "cb-pin-suspended",
-      "closed", "cb-pin-closed",
-      "cb-pin-processing",
+      "case",
+      ["to-boolean", ["get", "coordsFromSite"]],
+      [
+        "match",
+        ["coalesce", ["get", "statusKey"], "processing"],
+        "processing", "cb-pin-processing-defaulted",
+        "temporary_recovery", "cb-pin-temporary_recovery-defaulted",
+        "suspended", "cb-pin-suspended-defaulted",
+        "closed", "cb-pin-closed-defaulted",
+        "cb-pin-processing-defaulted",
+      ],
+      [
+        "match",
+        ["coalesce", ["get", "statusKey"], "processing"],
+        "processing", "cb-pin-processing",
+        "temporary_recovery", "cb-pin-temporary_recovery",
+        "suspended", "cb-pin-suspended",
+        "closed", "cb-pin-closed",
+        "cb-pin-processing",
+      ],
     ];
 
     map.addLayer({
@@ -270,7 +297,7 @@ const StatisticsCableBreakModePlugin = {
     }
 
     const map = this.map;
-    this.skippedCountControl = new CableBreakSkippedCountControl(this.config.skipped_count || 0);
+    this.skippedCountControl = new CableBreakSkippedCountControl(this.config.skipped_count || 0, this.config.defaulted_count || 0);
     map.addControl(this.skippedCountControl, 'bottom-left');
   },
 
