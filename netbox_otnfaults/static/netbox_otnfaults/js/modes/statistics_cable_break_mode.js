@@ -65,7 +65,7 @@ const StatisticsCableBreakModePlugin = {
     this._addFaultLayer();
     this._addControls();
     this._setupEventListeners();
-    this._fitBounds();
+    this._setStableView();
   },
 
   // ─── 性能核心：降档共享图层的 GPU 密集属性 ───
@@ -353,22 +353,15 @@ const StatisticsCableBreakModePlugin = {
     }, 250);
   },
 
-  // ─── 自适应视野 ───
-  _fitBounds() {
-    if (!this.features.length) return;
-
-    const bounds = new maplibregl.LngLatBounds();
-    this.features.forEach((feature) => {
-      bounds.extend(feature.geometry.coordinates);
+  // ─── 固定初始视野，避免故障点分布压缩地图窗口观感 ───
+  _setStableView() {
+    this.map.resize();
+    this.map.jumpTo({
+      center: this.config.center,
+      zoom: this.config.zoom,
+      bearing: 0,
+      pitch: 0,
     });
-
-    if (!bounds.isEmpty()) {
-      this.map.fitBounds(bounds, {
-        padding: 80,
-        maxZoom: 10,
-        duration: 700,
-      });
-    }
   },
 };
 

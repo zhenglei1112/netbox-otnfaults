@@ -8,6 +8,21 @@
 - [x] Update the map data API to return source metadata for A-side and Z-side coordinate fallbacks
 - [x] Run the focused source test and Python syntax check
 
+## Statistics cable-break map modal width hardening
+
+- [x] Inspect modal CSS and screenshot symptom for width override/caching issues
+- [x] Add a source regression assertion for a stronger dialog width selector
+- [x] Harden the modal width rules against Bootstrap/Tabler defaults on desktop and small screens
+- [x] Run the focused statistics dashboard source test
+
+## Statistics cable-break map fixed viewport
+
+- [x] Trace the apparent narrow map symptom to data-driven `fitBounds()`
+- [x] Add a regression assertion that the statistics map uses a stable center/zoom instead of fitting fault data bounds
+- [x] Replace data-driven initial viewport fitting with fixed map center/zoom and resize after iframe layout settles
+- [x] Bump the statistics map plugin asset version
+- [x] Run focused tests
+
 ## Statistics cable-break map modal matches picker UI
 
 - [x] Add source regression assertions for picker-style modal structure and manual backdrop behavior

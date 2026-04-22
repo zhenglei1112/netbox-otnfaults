@@ -396,7 +396,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         mode_block = map_modes.split("'statistics_cable_break': {", 1)[1].split("},", 1)[0]
 
         self.assertIn("'title': '光缆中断故障地图'", mode_block)
-        self.assertIn("'plugin_file': 'statistics_cable_break_mode.js?v=10'", mode_block)
+        self.assertIn("'plugin_file': 'statistics_cable_break_mode.js?v=11'", mode_block)
         self.assertIn("'projection': 'mercator'", mode_block)
         self.assertIn("'services/FaultDataService.js'", mode_block)
         self.assertIn("'controls/FaultLegendControl.js'", mode_block)
@@ -432,6 +432,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         css = CSS_PATH.read_text(encoding="utf-8")
 
         self.assertIn("window.STATISTICS_CABLE_BREAK_MAP_URL", template)
+        self.assertIn("statistics_dashboard.css' %}?v=2", template)
         self.assertIn("statistics-cable-break-map-btn", template)
         self.assertIn("statisticsCableBreakMapModal", template)
         self.assertIn("modal-dialog modal-dialog-centered statistics-cable-break-map-dialog", template)
@@ -460,7 +461,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("hideCableBreakMapModalFallback();", source)
         self.assertIn("cableBreakMapIframe.addEventListener('load'", source)
         self.assertIn(".statistics-cable-break-map-dialog", css)
-        self.assertIn("width: 85vw;", css)
+        self.assertIn(".modal-dialog.statistics-cable-break-map-dialog", css)
+        self.assertIn("width: min(1600px, calc(100vw - 3rem)) !important;", css)
+        self.assertIn("max-width: min(1600px, calc(100vw - 3rem)) !important;", css)
         self.assertIn("height: 85vh;", css)
         self.assertIn(".statistics-cable-break-map-dialog .modal-content", css)
         self.assertIn("statistics-cable-break-map-loading", css)
@@ -514,7 +517,14 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("class CableBreakSkippedCountControl", source)
         self.assertIn("onAdd(map)", source)
         self.assertIn("map.addControl(this.skippedCountControl, 'bottom-left');", source)
-        self.assertIn("fitBounds", source)
+        self.assertIn("this._setStableView();", source)
+        self.assertIn("_setStableView()", source)
+        self.assertIn("this.map.resize();", source)
+        self.assertIn("this.map.jumpTo({", source)
+        self.assertIn("center: this.config.center", source)
+        self.assertIn("zoom: this.config.zoom", source)
+        self.assertNotIn("fitBounds", source)
+        self.assertNotIn("new maplibregl.LngLatBounds", source)
         self.assertNotIn("alert(", source)
         self.assertIn("window.initOTNMap(StatisticsCableBreakModePlugin);", source)
 
