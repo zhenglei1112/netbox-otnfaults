@@ -856,3 +856,16 @@
 ### 测试方案
 - [x] 运行 `python -m unittest tests.test_statistics_dashboard_assets`。
 - [x] 运行 `node --check netbox_otnfaults/static/netbox_otnfaults/js/statistics_dashboard.js`。
+## 2026-04-22 本地时区日期时间一致性审计
+
+### 实施步骤
+- [x] 审计插件生产代码中的 `timezone.now()`、`datetime.now()`、`date.today()`、前端 `Date.UTC()` 等当前时间用法。
+- [x] 将业务日期边界、默认年份、前端“当前/未来”判断、展示格式化改为本地时区口径。
+- [x] 将持续时长计算中的当前时间统一改为 `timezone.localtime()`，保证插件运行时代码不直接读取 UTC 当前时间。
+- [x] 补充源码级回归测试，覆盖业务代码中不得直接用 UTC 当前日期做日期边界、年份或格式化。
+- [x] 运行定向测试、语法检查和最终差异审查。
+
+### 风险约束
+- [x] 不修改 NetBox 核心目录。
+- [x] 不改变已有查询业务口径，只修正“当前日期时间”的时区来源。
+- [x] 不把持续时长计算改成 naive datetime。

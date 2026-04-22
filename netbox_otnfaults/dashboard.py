@@ -29,7 +29,7 @@ class OtnFaultsCalendarWidget(DashboardWidget):
 
     def render(self, request) -> str:
         try:
-            now = timezone.localtime(timezone.now())
+            now = timezone.localtime()
             year, month = now.year, now.month
             today_day = now.day
 

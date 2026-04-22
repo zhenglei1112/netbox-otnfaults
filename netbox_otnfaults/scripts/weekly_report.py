@@ -45,7 +45,7 @@ class WeeklyReportText(Script):
     def get_fault_duration(self, f):
         if not f.fault_occurrence_time:
             return 0.0
-        end_time = f.fault_recovery_time or timezone.now()
+        end_time = f.fault_recovery_time or timezone.localtime()
         return (end_time - f.fault_occurrence_time).total_seconds() / 3600.0
 
     def run(self, data, commit):
@@ -211,7 +211,7 @@ class WeeklyReportText(Script):
                 else:
                     break_cnt += 1
                     block_cnt += 1
-                    end_time = imp.service_recovery_time or timezone.now()
+                    end_time = imp.service_recovery_time or timezone.localtime()
                     s_dur += (end_time - imp.service_interruption_time).total_seconds() / 3600.0
                     
                 prov = f.province.name if f.province else ""

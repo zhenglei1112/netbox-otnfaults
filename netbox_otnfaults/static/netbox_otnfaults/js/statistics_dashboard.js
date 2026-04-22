@@ -251,18 +251,18 @@ document.addEventListener("DOMContentLoaded", function() {
     // ---------------- 构建时间参数 URL ----------------
     function getIsoWeekParts(dateValue) {
         const parts = dateValue.split('-').map(Number);
-        const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-        const dayNumber = date.getUTCDay() || 7;
-        date.setUTCDate(date.getUTCDate() + 4 - dayNumber);
-        const isoYear = date.getUTCFullYear();
-        const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+        const date = new Date(parts[0], parts[1] - 1, parts[2]);
+        const dayNumber = date.getDay() || 7;
+        date.setDate(date.getDate() + 4 - dayNumber);
+        const isoYear = date.getFullYear();
+        const yearStart = new Date(isoYear, 0, 1);
         const isoWeek = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
         return { year: isoYear, week: isoWeek };
     }
 
     function parseDateValue(dateValue) {
         const parts = dateValue.split('-').map(Number);
-        return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+        return new Date(parts[0], parts[1] - 1, parts[2]);
     }
 
     function getHalfYearPart(month) {
@@ -282,11 +282,11 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function formatDotDate(date) {
-        return `${date.getUTCFullYear()}.${padDatePart(date.getUTCMonth() + 1)}.${padDatePart(date.getUTCDate())}`;
+        return `${date.getFullYear()}.${padDatePart(date.getMonth() + 1)}.${padDatePart(date.getDate())}`;
     }
 
     function formatInputDate(date) {
-        return `${date.getUTCFullYear()}-${padDatePart(date.getUTCMonth() + 1)}-${padDatePart(date.getUTCDate())}`;
+        return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
     }
 
     function formatApiDate(dateValue) {
@@ -313,70 +313,70 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function getIsoWeekRange(dateValue) {
         const date = parseDateValue(dateValue);
-        const dayNumber = date.getUTCDay() || 7;
+        const dayNumber = date.getDay() || 7;
         const weekStart = new Date(date);
-        weekStart.setUTCDate(date.getUTCDate() - dayNumber + 1);
+        weekStart.setDate(date.getDate() - dayNumber + 1);
         const weekEnd = new Date(weekStart);
-        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+        weekEnd.setDate(weekStart.getDate() + 6);
         return { weekStart, weekEnd };
     }
 
     function getMonthWeekOrdinal(weekStart, monthDate) {
-        const firstDay = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth(), 1));
-        const firstDayNumber = firstDay.getUTCDay() || 7;
+        const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+        const firstDayNumber = firstDay.getDay() || 7;
         const firstWeekStart = new Date(firstDay);
-        firstWeekStart.setUTCDate(firstDay.getUTCDate() - firstDayNumber + 1);
+        firstWeekStart.setDate(firstDay.getDate() - firstDayNumber + 1);
         return Math.floor((weekStart - firstWeekStart) / (7 * 86400000)) + 1;
     }
 
     function getYearEndDate(date) {
-        return new Date(Date.UTC(date.getUTCFullYear(), 11, 31));
+        return new Date(date.getFullYear(), 11, 31);
     }
 
     function getHalfYearRange(date) {
-        const year = date.getUTCFullYear();
-        const half = getHalfYearPart(date.getUTCMonth() + 1);
+        const year = date.getFullYear();
+        const half = getHalfYearPart(date.getMonth() + 1);
         const startMonth = half === 1 ? 0 : 6;
         const endMonth = half === 1 ? 5 : 11;
         return {
             half,
-            start: new Date(Date.UTC(year, startMonth, 1)),
-            end: new Date(Date.UTC(year, endMonth + 1, 0))
+            start: new Date(year, startMonth, 1),
+            end: new Date(year, endMonth + 1, 0)
         };
     }
 
     function getQuarterRange(date) {
-        const year = date.getUTCFullYear();
-        const quarter = getQuarterPart(date.getUTCMonth() + 1);
+        const year = date.getFullYear();
+        const quarter = getQuarterPart(date.getMonth() + 1);
         const startMonth = (quarter - 1) * 3;
         return {
             quarter,
-            start: new Date(Date.UTC(year, startMonth, 1)),
-            end: new Date(Date.UTC(year, startMonth + 3, 0))
+            start: new Date(year, startMonth, 1),
+            end: new Date(year, startMonth + 3, 0)
         };
     }
 
     function getMonthEndDate(date) {
-        return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+        return new Date(date.getFullYear(), date.getMonth() + 1, 0);
     }
 
     function shiftPeriodDate(dateValue, type, direction) {
         const date = parseDateValue(dateValue);
 
         if (type === 'year') {
-            date.setUTCFullYear(date.getUTCFullYear() + direction);
+            date.setFullYear(date.getFullYear() + direction);
         }
         if (type === 'half') {
-            date.setUTCMonth(date.getUTCMonth() + (direction * 6));
+            date.setMonth(date.getMonth() + (direction * 6));
         }
         if (type === 'quarter') {
-            date.setUTCMonth(date.getUTCMonth() + (direction * 3));
+            date.setMonth(date.getMonth() + (direction * 3));
         }
         if (type === 'month') {
-            date.setUTCMonth(date.getUTCMonth() + direction);
+            date.setMonth(date.getMonth() + direction);
         }
         if (type === 'week') {
-            date.setUTCDate(date.getUTCDate() + (direction * 7));
+            date.setDate(date.getDate() + (direction * 7));
         }
 
         return formatInputDate(date);
@@ -390,12 +390,12 @@ document.addEventListener("DOMContentLoaded", function() {
     function buildLocalPeriodForDate(type, dateValue) {
         const date = parseDateValue(dateValue);
         const today = new Date();
-        const todayUtc = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+        const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         let start = date;
         let end = date;
 
         if (type === 'year') {
-            start = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+            start = new Date(date.getFullYear(), 0, 1);
             end = getYearEndDate(date);
         } else if (type === 'half') {
             const range = getHalfYearRange(date);
@@ -406,7 +406,7 @@ document.addEventListener("DOMContentLoaded", function() {
             start = range.start;
             end = range.end;
         } else if (type === 'month') {
-            start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+            start = new Date(date.getFullYear(), date.getMonth(), 1);
             end = getMonthEndDate(date);
         } else if (type === 'week') {
             const range = getIsoWeekRange(dateValue);
@@ -416,8 +416,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
         return {
             start: formatInputDate(start),
-            end: todayUtc >= start && todayUtc <= end ? '当前' : formatInputDate(end),
-            is_future: start > todayUtc,
+            end: todayLocal >= start && todayLocal <= end ? '当前' : formatInputDate(end),
+            is_future: start > todayLocal,
         };
     }
 
@@ -437,8 +437,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function formatStatisticsPeriodLabel(type, dateValue, period) {
         const date = parseDateValue(dateValue);
-        const year = date.getUTCFullYear();
-        const month = date.getUTCMonth() + 1;
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
 
         if (type === 'year') {
             const rangeStart = formatPeriodStartDate(period, date);
@@ -465,8 +465,8 @@ document.addEventListener("DOMContentLoaded", function() {
         if (type === 'week') {
             const { weekStart, weekEnd } = getIsoWeekRange(dateValue);
             const weekLabelDate = weekEnd;
-            const weekYear = weekLabelDate.getUTCFullYear();
-            const weekMonth = weekLabelDate.getUTCMonth() + 1;
+            const weekYear = weekLabelDate.getFullYear();
+            const weekMonth = weekLabelDate.getMonth() + 1;
             const weekOrdinalLabels = ['第一周', '第二周', '第三周', '第四周', '第五周', '第六周'];
             const weekOrdinalNumber = getMonthWeekOrdinal(weekStart, weekLabelDate);
             const weekOrdinalLabel = weekOrdinalLabels[weekOrdinalNumber - 1] || `${weekOrdinalNumber}周`;

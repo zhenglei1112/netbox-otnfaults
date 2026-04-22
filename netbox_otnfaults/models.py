@@ -752,7 +752,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     def _format_duration(self, start, end):
         if start:
             is_ongoing = not bool(end)
-            end_time = end if end else timezone.now()
+            end_time = end if end else timezone.localtime()
             duration = end_time - start
             days = duration.days
             seconds = duration.seconds
@@ -790,7 +790,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         """
         if self.fault_occurrence_time:
             is_ongoing = not bool(self.fault_recovery_time)
-            end_time = self.fault_recovery_time if self.fault_recovery_time else timezone.now()
+            end_time = self.fault_recovery_time if self.fault_recovery_time else timezone.localtime()
             duration = end_time - self.fault_occurrence_time
             total_seconds = duration.total_seconds()
             total_hours = total_seconds / 3600
@@ -907,7 +907,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         end_t = self.fault_recovery_time
         
         date_str = timezone.localtime(start_t).strftime('%Y-%m-%d') if start_t else ''
-        calc_end_t = end_t if end_t else timezone.now()
+        calc_end_t = end_t if end_t else timezone.localtime()
         
         total_duration = ""
         if start_t:
@@ -1011,7 +1011,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
 
     def save(self, *args, **kwargs):
         if not self.fault_number:
-            today = timezone.now().strftime('%Y%m%d')
+            today = timezone.localdate().strftime('%Y%m%d')
             prefix = f'F{today}'
             last_fault = OtnFault.objects.filter(fault_number__startswith=prefix).order_by('fault_number').last()
             if last_fault:
@@ -1170,7 +1170,7 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
     def service_duration(self):
         if self.service_interruption_time:
             is_ongoing = not bool(self.service_recovery_time)
-            end_time = self.service_recovery_time if self.service_recovery_time else timezone.now()
+            end_time = self.service_recovery_time if self.service_recovery_time else timezone.localtime()
             duration = end_time - self.service_interruption_time
             days = duration.days
             seconds = duration.seconds
@@ -1192,7 +1192,7 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         """返回业务中断历时的小时数，格式为 xx.xx"""
         if self.service_interruption_time:
             is_ongoing = not bool(self.service_recovery_time)
-            end_time = self.service_recovery_time if self.service_recovery_time else timezone.now()
+            end_time = self.service_recovery_time if self.service_recovery_time else timezone.localtime()
             duration = end_time - self.service_interruption_time
             total_hours = duration.total_seconds() / 3600
             ongoing_marker = " (未恢复)" if is_ongoing else ""
@@ -1206,7 +1206,7 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         """
         if self.service_interruption_time:
             is_ongoing = not bool(self.service_recovery_time)
-            end_time = self.service_recovery_time if self.service_recovery_time else timezone.now()
+            end_time = self.service_recovery_time if self.service_recovery_time else timezone.localtime()
             duration = end_time - self.service_interruption_time
             total_seconds = duration.total_seconds()
             total_hours = total_seconds / 3600

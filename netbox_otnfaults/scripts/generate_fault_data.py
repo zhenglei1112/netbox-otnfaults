@@ -393,7 +393,7 @@ class GenerateFaultData(Script):
             recovery_mode=random.choice(self.recovery_modes),
             
             # 其他
-            comments=f"测试数据 #{index+1}，生成时间：{timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            comments=f"测试数据 #{index+1}，生成时间：{timezone.localtime().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         
         return fault, selected_sites

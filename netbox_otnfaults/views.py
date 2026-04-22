@@ -114,7 +114,7 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             })
         
         # 故障模式需要额外的热力图和标记点数据
-        now = timezone.now()
+        now = timezone.localtime()
         # 改为最近12个月，避免跨年时数据为空
         twelve_months_ago = now - timedelta(days=365)
         
@@ -612,7 +612,7 @@ class OtnFaultView(generic.ObjectView):
             site_faults_qs = OtnFault.objects.none()
 
         site_time_filter = request.GET.get('site_time_filter', 'all')
-        now = timezone.now()
+        now = timezone.localtime()
         if site_time_filter == 'this_week':
             start = (now - timedelta(days=now.weekday())).replace(
                 hour=0, minute=0, second=0, microsecond=0)
@@ -1412,7 +1412,7 @@ class BareFiberServiceView(generic.ObjectView):
 
         # 时间过滤
         time_filter = request.GET.get('time_filter', 'all')
-        now = timezone.now()
+        now = timezone.localtime()
         qs = instance.fault_impacts.all()
         
         if time_filter == 'this_week':
@@ -1555,7 +1555,7 @@ class CircuitServiceView(generic.ObjectView):
 
         # 时间过滤
         time_filter = request.GET.get('time_filter', 'all')
-        now = timezone.now()
+        now = timezone.localtime()
         qs = instance.fault_impacts.all()
         
         if time_filter == 'this_week':

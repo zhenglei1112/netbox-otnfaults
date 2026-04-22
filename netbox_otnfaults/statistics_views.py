@@ -242,7 +242,7 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
 def _parse_time_range(request):
     """从请求参数解析时间范围，返回 (start_date, end_date, prev_start_date, prev_end_date, filter_type)"""
     filter_type: str = request.GET.get('filter_type', 'year')
-    year: int = int(request.GET.get('year', timezone.now().year))
+    year: int = int(request.GET.get('year', timezone.localdate().year))
     now = timezone.localtime()
     tz = timezone.get_current_timezone()
 

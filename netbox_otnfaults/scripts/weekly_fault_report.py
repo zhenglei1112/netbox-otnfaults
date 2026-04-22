@@ -610,7 +610,7 @@ class WeeklyFaultReport(Script):
         if report_date:
             base_date = report_date
         else:
-            base_date = timezone.now().date()
+            base_date = timezone.localdate()
         
         # 获取脚本参数
         self.include_unresolved = data['include_unresolved']

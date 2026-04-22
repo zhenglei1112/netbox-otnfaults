@@ -125,7 +125,7 @@ class HeatmapDataView(APIView):
                 logger.info(f"从缓存返回热力图数据，key: {cache_key}")
                 return Response(cached_data)
             
-            now = timezone.now()
+            now = timezone.localtime()
             
             # 根据时间范围计算起始时间
             if time_range == 'month':

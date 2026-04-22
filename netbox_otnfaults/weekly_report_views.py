@@ -55,7 +55,7 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
     def _get_fault_duration(self, fault: OtnFault) -> float:
         if not fault.fault_occurrence_time:
             return 0.0
-        end_time = fault.fault_recovery_time or timezone.now()
+        end_time = fault.fault_recovery_time or timezone.localtime()
         return (end_time - fault.fault_occurrence_time).total_seconds() / 3600.0
 
     def get(self, request, *args, **kwargs) -> JsonResponse:
@@ -241,7 +241,7 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
                 else:
                     break_cnt += 1
                     block_cnt += 1
-                    end_time = impact.service_recovery_time or timezone.now()
+                    end_time = impact.service_recovery_time or timezone.localtime()
                     service_duration += (
                         end_time - impact.service_interruption_time
                     ).total_seconds() / 3600.0

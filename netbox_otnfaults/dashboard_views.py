@@ -111,7 +111,7 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
     permission_required = 'netbox_otnfaults.view_otnfault'
 
     def get(self, request) -> JsonResponse:
-        now = timezone.now()
+        now = timezone.localtime()
         twenty_four_hours_ago = now - timedelta(hours=24)
         year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
