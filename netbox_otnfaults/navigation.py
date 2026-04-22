@@ -104,11 +104,6 @@ menu = PluginMenu(
                 permissions=['netbox_otnfaults.view_otnfault'],
             ),
             PluginMenuItem(
-                link='plugins:netbox_otnfaults:weekly_report',
-                link_text='光缆故障每周通报',
-                permissions=['netbox_otnfaults.view_otnfault'],
-            ),
-            PluginMenuItem(
                 link='plugins:netbox_otnfaults:statistics',
                 link_text='故障统计',
                 permissions=['netbox_otnfaults.view_otnfault'],

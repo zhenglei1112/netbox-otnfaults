@@ -4,7 +4,7 @@
 {% block title %}故障统计{% endblock %}
 
 {% block content %}
-<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=2" rel="stylesheet">
+<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=3" rel="stylesheet">
 
 <div class="page page-statistics">
     <div class="page-wrapper container-xl" style="padding-top: 20px;">
@@ -224,7 +224,7 @@
 
                     <div class="row mt-3">
                         <div class="col-12">
-                            <div class="card p-3 shadow-sm h-100">
+                            <div class="card shadow-sm h-100">
                                 <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">故障历时频数分布</h3></div>
                                 <div class="card-body p-0">
                                     <div id="chart-cable-break-histogram" style="width: 100%; height: 260px;"></div>
@@ -346,5 +346,5 @@
     window.SERVICE_STATISTICS_DATA_API = "{{ statistics_service_data_api_url }}";
     window.STATISTICS_CABLE_BREAK_MAP_URL = "{{ statistics_cable_break_map_url }}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=5"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=6"></script>
 {% endblock %}

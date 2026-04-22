@@ -844,3 +844,15 @@
 - [x] 运行新增帧率静态资源测试。
 - [x] 运行涉及统一地图资源加载的既有测试。
 - [x] 对修改的 JS 文件运行语法检查；本次未修改生产 Python。
+
+## 2026-04-22 故障统计页面主题适配
+### 实施步骤
+- [x] 统一 `statistics_dashboard.css` 的浅色/深色主题变量，覆盖页面背景、筛选控件、卡片、KPI 标签、分隔线、表格和地图弹窗 loading。
+- [x] 消除统计页内硬编码文本色造成的深色模式低对比问题，重点覆盖指标名称、分组标题、日期选择区域和筛选摘要。
+- [x] 调整 `statistics_dashboard.js` 中 ECharts 配色，按当前 `data-bs-theme` 生成坐标轴、图例、tooltip、标签、网格线和柱状/饼图色板。
+- [x] 监听主题属性变化并重新渲染已加载图表，避免用户切换 NetBox 主题后图表仍停留在旧主题颜色。
+- [x] 增加静态测试，验证主题 CSS 选择器、图表主题 helper 和静态资源版本号已接入。
+
+### 测试方案
+- [x] 运行 `python -m unittest tests.test_statistics_dashboard_assets`。
+- [x] 运行 `node --check netbox_otnfaults/static/netbox_otnfaults/js/statistics_dashboard.js`。

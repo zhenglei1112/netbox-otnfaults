@@ -273,6 +273,16 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("grid: { top: 62", histogram_source)
         self.assertIn("max: histogramMaxValue > 0 ? Math.ceil(histogramMaxValue * 1.25) : 1", histogram_source)
 
+    def test_histogram_card_header_matches_province_chart_card_spacing(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        histogram_card = template.split('id="chart-cable-break-histogram"', 1)[0].rsplit('<div class="card ', 1)[1].split(">", 1)[0]
+        province_card = template.split('id="chart-province"', 1)[0].rsplit('<div class="card ', 1)[1].split(">", 1)[0]
+
+        self.assertIn('shadow-sm h-100"', histogram_card)
+        self.assertEqual(province_card, histogram_card)
+        self.assertNotIn("p-3", histogram_card)
+
     def test_reason_and_resource_pies_show_count_and_percent_labels(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
         chart_source = source.split("function renderCharts(chartsData)", 1)[1].split("// ---------------- 渲染下钻表格", 1)[0]

@@ -49,6 +49,9 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     let currentAllDetails = []; // 保存后端返回的全部详情数据
+    let currentChartsData = null;
+    let currentCableBreakOverview = null;
+    let currentPrevCableBreakOverview = null;
     let activeFilterField = null; // 'resource_type', 'province', 'reason'
     let activeFilterValue = null;
     let activeFilterExtraField = null;
@@ -70,6 +73,88 @@ document.addEventListener("DOMContentLoaded", function() {
 
     const badgeFilter = document.getElementById('drill-down-filter-badge');
     const btnClearFilter = document.getElementById('btn-clear-filter');
+
+    function isDarkTheme() {
+        return document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    }
+
+    function getStatisticsPageStyle() {
+        const page = document.querySelector('.page-statistics') || document.documentElement;
+        return getComputedStyle(page);
+    }
+
+    function getCssColor(style, name, fallback) {
+        const value = style.getPropertyValue(name).trim();
+        return value || fallback;
+    }
+
+    function getChartTheme() {
+        const style = getStatisticsPageStyle();
+        const dark = isDarkTheme();
+        return {
+            dark,
+            text: getCssColor(style, '--statistics-text', dark ? '#dce3ee' : '#182433'),
+            muted: getCssColor(style, '--statistics-muted', dark ? '#aeb8c7' : '#667085'),
+            heading: getCssColor(style, '--statistics-heading', dark ? '#f2f6fb' : '#111827'),
+            border: getCssColor(style, '--statistics-border', dark ? '#3d4656' : '#d9dee7'),
+            surface: getCssColor(style, '--statistics-surface', dark ? '#1f2632' : '#ffffff'),
+            primary: getCssColor(style, '--statistics-primary', dark ? '#6ea8fe' : '#206bc4'),
+            axisLine: dark ? '#4f5d73' : '#c8d0dc',
+            tooltipBg: dark ? 'rgba(31, 38, 50, 0.96)' : 'rgba(255, 255, 255, 0.98)',
+            tooltipBorder: dark ? '#4f5d73' : '#d9dee7',
+            chartPalette: dark
+                ? ['#6ea8fe', '#20c997', '#ffd43b', '#ff8787', '#b197fc', '#63e6be', '#adb5bd']
+                : ['#206bc4', '#2fb344', '#f59f00', '#d63939', '#ae3ec9', '#0ca678', '#667085']
+        };
+    }
+
+    function buildTooltipTheme(theme) {
+        return {
+            backgroundColor: theme.tooltipBg,
+            borderColor: theme.tooltipBorder,
+            textStyle: { color: theme.text },
+            extraCssText: 'box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);'
+        };
+    }
+
+    function buildAxisTheme(theme, axisLabelOverrides = {}) {
+        return {
+            axisLine: { lineStyle: { color: theme.axisLine } },
+            axisTick: { lineStyle: { color: theme.axisLine } },
+            axisLabel: Object.assign({ color: theme.muted }, axisLabelOverrides),
+            nameTextStyle: { color: theme.muted },
+            splitLine: { lineStyle: { color: theme.border, type: 'dashed' } }
+        };
+    }
+
+    function buildLegendTheme(theme) {
+        return {
+            textStyle: { color: theme.muted },
+            inactiveColor: theme.dark ? '#697386' : '#b8c0cc',
+            pageIconColor: theme.muted,
+            pageIconInactiveColor: theme.border,
+            pageTextStyle: { color: theme.muted }
+        };
+    }
+
+    function buildPieLabelTheme(theme) {
+        return {
+            color: theme.text,
+            fontWeight: 600
+        };
+    }
+
+    function refreshChartsForTheme() {
+        if (currentCableBreakOverview) {
+            renderCableBreakOverview(currentCableBreakOverview, currentPrevCableBreakOverview || {});
+        }
+        if (currentChartsData) {
+            renderCharts(currentChartsData);
+        }
+    }
+
+    const themeObserver = new MutationObserver(refreshChartsForTheme);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
 
     function setCableBreakMapLoading(visible) {
         if (!cableBreakMapLoading) return;
@@ -448,6 +533,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
             renderKPIs(data.kpis, data.prev_kpis, selFilterType.value);
             renderOverallSummary(data.kpis, data.charts, data.prev_charts);
+            currentCableBreakOverview = data.cable_break_overview || null;
+            currentPrevCableBreakOverview = data.prev_cable_break_overview || null;
+            currentChartsData = data.charts || null;
             renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview);
             renderCharts(data.charts);
         } catch (error) {
@@ -756,11 +844,13 @@ document.addEventListener("DOMContentLoaded", function() {
             let histLabels = overview.histogram.map(item => item.label);
             let histValues = overview.histogram.map(item => ({value: item.value, _percent: item.percent}));
             const histogramMaxValue = Math.max(...overview.histogram.map(item => item.value), 0);
+            const chartTheme = getChartTheme();
             
             chartHistogram.setOption({
                 tooltip: {
+                    ...buildTooltipTheme(chartTheme),
                     trigger: 'axis',
-                    axisPointer: { type: 'shadow' },
+                    axisPointer: { type: 'shadow', shadowStyle: { color: chartTheme.dark ? 'rgba(110, 168, 254, 0.14)' : 'rgba(32, 107, 196, 0.1)' } },
                     formatter: function(params) {
                         let p = params[0];
                         return `${p.name} 小时<br/>数量：${p.value}起 (${p.data._percent}%)`;
@@ -771,18 +861,19 @@ document.addEventListener("DOMContentLoaded", function() {
                     type: 'category', 
                     data: histLabels,
                     name: '历时(小时)',
-                    axisLabel: { interval: 0, fontSize: 11 }
+                    ...buildAxisTheme(chartTheme, { interval: 0, fontSize: 11 })
                 },
                 yAxis: {
                     type: 'value',
                     name: '起数',
                     minInterval: 1,
-                    max: histogramMaxValue > 0 ? Math.ceil(histogramMaxValue * 1.25) : 1
+                    max: histogramMaxValue > 0 ? Math.ceil(histogramMaxValue * 1.25) : 1,
+                    ...buildAxisTheme(chartTheme)
                 },
                 series: [{
                     type: 'bar',
                     barWidth: '60%',
-                    itemStyle: { color: '#206bc4', borderRadius: [2, 2, 0, 0] },
+                    itemStyle: { color: chartTheme.primary, borderRadius: [2, 2, 0, 0] },
                     label: {
                         show: true,
                         position: 'top',
@@ -790,6 +881,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             if(params.value === 0) return '';
                             return `${params.value}起\n${params.data._percent}%`;
                         },
+                        color: chartTheme.heading,
                         fontSize: 10,
                         lineHeight: 14,
                         align: 'center'
@@ -801,10 +893,19 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function renderCharts(chartsData) {
+        if (!chartsData) return;
+        const chartTheme = getChartTheme();
         // 1. 光缆属性 (Pie)
-        const resourceColorMap = { '自建': '#206bc4', '协调': '#4299e1', '租赁': '#66b2ff', '未指定': '#cbd5e1' };
+        const resourceColorMap = {
+            '自建': chartTheme.chartPalette[0],
+            '协调': chartTheme.chartPalette[1],
+            '租赁': chartTheme.chartPalette[2],
+            '未指定': chartTheme.dark ? '#697386' : '#cbd5e1'
+        };
         chartResource.setOption({
+            textStyle: { color: chartTheme.text },
             tooltip: { 
+                ...buildTooltipTheme(chartTheme),
                 trigger: 'item', 
                 formatter: params => {
                     let avg = params.value > 0 ? (params.data._duration / params.value).toFixed(2) : "0.00";
@@ -813,22 +914,24 @@ document.addEventListener("DOMContentLoaded", function() {
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
             },
-            legend: { bottom: 0, type: 'scroll' },
+            legend: { bottom: 0, type: 'scroll', ...buildLegendTheme(chartTheme) },
             series: [{
                 type: 'pie',
                 radius: ['45%', '75%'],
                 center: ['50%', '45%'],
                 label: {
                     show: true,
+                    ...buildPieLabelTheme(chartTheme),
                     formatter: formatPieSliceLabel,
                     alignTo: 'edge',
                     edgeDistance: 10,
                     lineHeight: 15,
                     fontSize: 11
                 },
+                labelLine: { lineStyle: { color: chartTheme.border } },
                 itemStyle: {
                     color: function(params) { return resourceColorMap[params.name] || '#5470c6'; },
-                    borderRadius: 5, borderColor: '#fff', borderWidth: 2
+                    borderRadius: 5, borderColor: chartTheme.surface, borderWidth: 2
                 },
                 data: chartsData.resource.map(item => ({name: item.name, value: item.value, _duration: item.duration}))
             }]
@@ -837,9 +940,11 @@ document.addEventListener("DOMContentLoaded", function() {
         // 2. 省份 (Bar 全部)
         let provData = chartsData.province;
         chartProvince.setOption({
+            textStyle: { color: chartTheme.text },
             tooltip: { 
+                ...buildTooltipTheme(chartTheme),
                 trigger: 'axis', 
-                axisPointer: { type: 'shadow' },
+                axisPointer: { type: 'shadow', shadowStyle: { color: chartTheme.dark ? 'rgba(110, 168, 254, 0.14)' : 'rgba(32, 107, 196, 0.1)' } },
                 formatter: params => {
                     let p = params[0];
                     let avg = p.value > 0 ? (p.data._duration / p.value).toFixed(2) : "0.00";
@@ -852,21 +957,23 @@ document.addEventListener("DOMContentLoaded", function() {
             xAxis: { 
                 type: 'category', 
                 data: provData.map(item => item.name),
-                axisLabel: { interval: 0, rotate: 30 }
+                ...buildAxisTheme(chartTheme, { interval: 0, rotate: 30 })
             },
-            yAxis: { type: 'value' },
+            yAxis: { type: 'value', ...buildAxisTheme(chartTheme) },
             series: [{
                 type: 'bar',
-                label: { show: true, position: 'top' },
-                itemStyle: { color: '#206bc4', borderRadius: [4, 4, 0, 0] },
+                label: { show: true, position: 'top', color: chartTheme.heading, fontWeight: 600 },
+                itemStyle: { color: chartTheme.primary, borderRadius: [4, 4, 0, 0] },
                 data: provData.map(item => ({value: item.value, _duration: item.duration}))
             }]
         });
 
         // 3. 一级原因 (Pie)
         chartReason.setOption({
-            color: ['#206bc4', '#4299e1', '#66b2ff', '#99ccff', '#b3d4ff', '#cbd5e1'],
+            textStyle: { color: chartTheme.text },
+            color: chartTheme.chartPalette,
             tooltip: { 
+                ...buildTooltipTheme(chartTheme),
                 trigger: 'item', 
                 formatter: params => {
                     let avg = params.value > 0 ? (params.data._duration / params.value).toFixed(2) : "0.00";
@@ -875,22 +982,25 @@ document.addEventListener("DOMContentLoaded", function() {
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
             },
-            legend: { bottom: 0, type: 'scroll' },
+            legend: { bottom: 0, type: 'scroll', ...buildLegendTheme(chartTheme) },
             series: [{
                 type: 'pie',
                 radius: '65%',
                 center: ['50%', '45%'],
                 label: {
                     show: true,
+                    ...buildPieLabelTheme(chartTheme),
                     formatter: formatPieSliceLabel,
                     alignTo: 'edge',
                     edgeDistance: 10,
                     lineHeight: 15,
                     fontSize: 11
                 },
+                labelLine: { lineStyle: { color: chartTheme.border } },
+                itemStyle: { borderColor: chartTheme.surface, borderWidth: 2 },
                 data: chartsData.reason.map(item => ({name: item.name, value: item.value, _duration: item.duration})),
                 emphasis: {
-                    itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
+                    itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: chartTheme.dark ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.3)' }
                 }
             }]
         });
