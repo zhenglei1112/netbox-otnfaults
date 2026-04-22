@@ -33,6 +33,9 @@ class OTNMapCore {
       if (window.OTNPerf) window.OTNPerf.mark('map_instance_created');
       window.map = this.map;
       window.mapBase = this.mapBase;
+      if (window.OTNMapFrameRateToggle) {
+        window.OTNMapFrameRateToggle.register(this.map);
+      }
     } catch (e) {
       NetBoxMapBase.showError("map", e.message);
       return;

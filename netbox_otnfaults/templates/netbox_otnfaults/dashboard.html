@@ -15,6 +15,10 @@
     <!-- MapLibre GL -->
     <link href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}" rel="stylesheet">
     <script src="{% static 'netbox_otnfaults/lib/maplibre-gl.js' %}"></script>
+    <script>
+        window.mapboxgl = window.maplibregl;
+    </script>
+    <script src="{% static 'netbox_otnfaults/lib/mapbox-gl-framerate.js' %}"></script>
     <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
 
     <!-- Dashboard CSS -->
@@ -236,6 +240,7 @@
     </script>
 
     <!-- JS Modules -->
+    <script src="{% static 'netbox_otnfaults/js/map_framerate_toggle.js' %}"></script>
     <script src="{% static 'netbox_otnfaults/js/dashboard/map_engine.js' %}"></script>
     <script src="{% static 'netbox_otnfaults/js/dashboard/directing_engine.js' %}"></script>
     <script src="{% static 'netbox_otnfaults/js/dashboard/panels.js' %}"></script>

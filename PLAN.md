@@ -830,3 +830,17 @@
 - [x] 已强制地图 popup 内链接使用 `target="_parent"`，避免在 iframe 内嵌套完整 NetBox 页面。
 - [x] 已实现 `skipped_count` 非阻塞 MapLibre Control，在地图左下角提示缺少经纬度未绘制的故障数量。
 - [x] 已运行定向 unittest 和只读语法检查；本地无 pytest，且 `py_compile` 写 `.pyc` 被现有 `__pycache__` 权限阻止。
+## 2026-04-22 地图帧率调试开关
+
+### 实施步骤
+- [x] 将 `mapbox/mapbox-gl-framerate` v0.1.2 发布文件作为本地静态资源纳入插件，避免运行时依赖外网。
+- [x] 新增共享前端控制器 `map_framerate_toggle.js`，默认不显示帧率控件，仅在复杂热键 `Ctrl+Alt+Shift+F` 触发时打开/关闭。
+- [x] 兼容当前项目使用的 MapLibre 全局对象：加载库前提供 `window.mapboxgl = window.maplibregl` 兼容别名，控制器优先使用 `window.FrameRateControl`，再回退到 `mapboxgl.FrameRateControl`。
+- [x] 在 `unified_map.html` 覆盖的所有地图窗口加载帧率库和控制器，并在 `OTNMapCore` 地图创建后注册热键。
+- [x] 在大屏地图 `dashboard.html` / `dashboard/map_engine.js` 加载并注册同一控制器，覆盖独立地图入口。
+- [x] 增加源码级测试，验证默认关闭、热键组合、资源加载入口和大屏/统一地图都接入。
+
+### 测试方案
+- [x] 运行新增帧率静态资源测试。
+- [x] 运行涉及统一地图资源加载的既有测试。
+- [x] 对修改的 JS 文件运行语法检查；本次未修改生产 Python。

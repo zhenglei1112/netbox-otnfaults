@@ -66,6 +66,10 @@
   rel="stylesheet"
 />
 <script src="{% static 'netbox_otnfaults/lib/maplibre-gl.js' %}"></script>
+<script>
+  window.mapboxgl = window.maplibregl;
+</script>
+<script src="{% static 'netbox_otnfaults/lib/mapbox-gl-framerate.js' %}"></script>
 <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
 <script src="{% static 'netbox_otnfaults/lib/deck-gl.min.js' %}"></script>
 <script src="{% static 'netbox_otnfaults/lib/maplibre-gl-measures.js' %}"></script>
@@ -188,6 +192,7 @@
 <!-- 基础 JS -->
 <script src="{% static 'netbox_otnfaults/js/maplibregl_base.js' %}"></script>
 <script src="{% static 'netbox_otnfaults/js/services/PopupTemplates.js' %}"></script>
+<script src="{% static 'netbox_otnfaults/js/map_framerate_toggle.js' %}"></script>
 
 <!-- 模式特定 JS -->
 {% for js_file in mode_config.js_files %}

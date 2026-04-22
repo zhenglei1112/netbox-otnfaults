@@ -35,6 +35,10 @@ window.MapEngine = (function () {
         });
 
         // 禁用大屏交互（自动播控模式）
+        if (window.OTNMapFrameRateToggle) {
+            window.OTNMapFrameRateToggle.register(map);
+        }
+
         map.dragRotate.disable();
         map.touchZoomRotate.disable();
         map.scrollZoom.disable();
