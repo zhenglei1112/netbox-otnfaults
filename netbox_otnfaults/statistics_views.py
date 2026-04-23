@@ -657,19 +657,23 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 svc_key = f'bf_{imp.bare_fiber_service_id}'
                 svc_name = imp.bare_fiber_service.name
                 svc_type_label = '裸纤业务'
+                svc_sort_rank = 0
             elif imp.service_type == ServiceTypeChoices.CIRCUIT and imp.circuit_service:
                 svc_key = f'cs_{imp.circuit_service_id}'
                 svc_name = imp.circuit_service.special_line_name or imp.circuit_service.name
                 svc_type_label = '电路业务'
+                svc_sort_rank = 1
             else:
                 svc_key = f'unknown_{imp.id}'
                 svc_name = str(imp)
                 svc_type_label = '未知'
+                svc_sort_rank = 2
 
             if svc_key not in service_map:
                 service_map[svc_key] = {
                     'name': svc_name,
                     'type': svc_type_label,
+                    'sort_rank': svc_sort_rank,
                     'count': 0,
                     'break_count': 0,   # 中断
                     'jitter_count': 0,  # 抖动
@@ -741,6 +745,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'key': svc_key,
                 'name': stats['name'],
                 'type': stats['type'],
+                'sort_rank': stats['sort_rank'],
                 'count': count,
                 'break_count': stats['break_count'],
                 'jitter_count': stats['jitter_count'],
@@ -753,8 +758,10 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'sla': round(sla, 4),
             })
 
-        # 按故障总数降序排列
-        services_result.sort(key=lambda x: x['count'], reverse=True)
+        # 按业务类型分组：裸纤在前，电路在后；组内按故障总数降序，名称升序兜底。
+        services_result.sort(key=lambda x: (x['sort_rank'], -x['count'], x['name']))
+        for result in services_result:
+            result.pop('sort_rank', None)
 
         # 展示日期
         display_end_date_str = ''
