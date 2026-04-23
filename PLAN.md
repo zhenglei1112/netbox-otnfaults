@@ -885,3 +885,21 @@
 - [x] 不修改 NetBox 核心目录。
 - [x] 不改变已有查询业务口径，只修正“当前日期时间”的时区来源。
 - [x] 不把持续时长计算改成 naive datetime。
+## 2026-04-23 ImportOtnPaths 导入参数增强
+### 实施步骤
+- [x] 为 `ImportOtnPaths` 增加 ArcGIS 线图层 URL 脚本参数，默认保持当前 `FeatureServer/1`。
+- [x] 为 `ImportOtnPaths` 增加允许重复端点入库开关，默认保持现有查重跳过行为。
+- [x] 补充单元测试覆盖自定义 ArcGIS URL、默认重复端点跳过、开启开关后重复端点入库。
+- [x] 运行定向测试和语法检查。
+
+## 2026-04-23 路径组地图网络拓扑开关
+### 实施步骤
+- [x] 扩展 `LayerToggleControl`，支持通过配置隐藏故障分布图专属的视图模式、时间范围和故障类型筛选，仅保留“显示网络拓扑”图层开关。
+- [x] 在 `pathgroup` 地图模式加载 `controls/LayerToggleControl.js`，并在 `location_mode.js` 中仅为路径组地图初始化拓扑图层开关。
+- [x] 保持故障分布图现有控件默认行为不变，避免影响故障点/热力图/故障类型筛选。
+- [x] 增加源码级回归测试，覆盖路径组地图加载并初始化拓扑开关、拓扑专用配置不渲染故障筛选区。
+
+### 测试方案
+- [x] 运行 `python -m unittest tests.test_pathgroup_topology_toggle`。
+- [x] `python -m py_compile .\netbox_otnfaults\map_modes.py` 受当前 `.pyc` 写入权限阻断；已改用 `ast.parse` 对 `map_modes.py` 做只读语法检查。
+- [x] 运行 `node --check netbox_otnfaults/static/netbox_otnfaults/js/controls/LayerToggleControl.js` 和 `node --check netbox_otnfaults/static/netbox_otnfaults/js/modes/location_mode.js`。

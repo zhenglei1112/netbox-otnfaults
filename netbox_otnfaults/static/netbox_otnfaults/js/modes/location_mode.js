@@ -12,6 +12,7 @@ const LocationModePlugin = {
   // 模式切换状态 (仅路径组模式使用)
   viewMode: 'detail', // 'detail' | 'simple'
   arcLayers: [],      // 弧形线图层ID列表
+  layerToggleControl: null,
 
   init(core) {
     this.core = core;
@@ -28,6 +29,9 @@ const LocationModePlugin = {
     if (this.config.mode === 'pathgroup' && this.config.pathGroupId) {
       this._initSpatialSelectControl();
     }
+
+    // 0.6 初始化网络拓扑图层开关 (仅路径组模式)
+    this._initPathGroupTopologyToggle();
 
     // 1. 处理高亮路径 (Path / PathGroup 模式)
     if (this.config.highlightPathData) {
@@ -418,6 +422,22 @@ const LocationModePlugin = {
 
     // 添加控件到地图左上角
     map.addControl(this.spatialSelectControl, 'top-left');
+  },
+
+  _initPathGroupTopologyToggle() {
+    if (this.config.mode !== 'pathgroup') return;
+    if (typeof LayerToggleControl === 'undefined') return;
+
+    this.layerToggleControl = new LayerToggleControl({
+      title: '图层设置',
+      sections: {
+        viewMode: false,
+        timeRange: false,
+        categories: false,
+        topology: true,
+      },
+    });
+    this.mapBase.addControl(this.layerToggleControl, 'top-left');
   },
 
   // =============================================

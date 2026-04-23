@@ -9,6 +9,12 @@
 class LayerToggleControl {
     constructor(options) {
         this.options = options || {};
+        this.sections = Object.assign({
+            viewMode: true,
+            timeRange: true,
+            categories: true,
+            topology: true
+        }, this.options.sections || {});
 
         // 默认状态
         this.currentMode = 'smart'; // 'smart' | 'points' | 'heatmap'
@@ -38,7 +44,7 @@ class LayerToggleControl {
         this.button = document.createElement('button');
         this.button.className = 'maplibregl-ctrl-icon toggle-button bg-transparent';
         this.button.innerHTML = window.mapBase.svgIcons.filter;
-        this.button.title = '视图与时间设置';
+        this.button.title = this.options.title || '视图与时间设置';
 
         // Interaction: Hover to show, Leave to hide (with delay)
 
@@ -91,55 +97,69 @@ class LayerToggleControl {
         this.container.appendChild(menu);
         this.menu = menu;
 
-        // 1. 视图模式选择（卡片式UI）
-        this.addHeader(menu, '视图模式');
-        const modeGroup = document.createElement('div');
-        modeGroup.className = 'view-mode-cards';
-        modeGroup.style.cssText = 'display: flex; gap: 8px; padding: 8px 12px;';
+        let hasSection = false;
+        const addSectionDivider = () => {
+            if (hasSection) {
+                this.addDivider(menu);
+            }
+            hasSection = true;
+        };
 
-        const modes = [
-            { value: 'smart', label: '智能', desc: '自动切换' },
-            { value: 'points', label: '故障点', desc: '显示标记' },
-            { value: 'heatmap', label: '热力图', desc: '密度分布' }
-        ];
+        if (this.sections.viewMode) {
+            // 1. 视图模式选择（卡片式UI）
+            addSectionDivider();
+            this.addHeader(menu, '视图模式');
+            const modeGroup = document.createElement('div');
+            modeGroup.className = 'view-mode-cards';
+            modeGroup.style.cssText = 'display: flex; gap: 8px; padding: 8px 12px;';
 
-        modes.forEach(mode => {
-            const card = this.createModeCard(mode.value, mode.label, mode.desc, this.currentMode === mode.value);
-            card.onclick = (e) => {
-                e.stopPropagation();
-                // 更新所有卡片样式（移除选中状态）
-                modeGroup.querySelectorAll('.mode-card').forEach(c => {
-                    c.classList.remove('active');
-                });
-                // 高亮选中的卡片
-                card.classList.add('active');
-                this.setMode(mode.value);
-            };
-            modeGroup.appendChild(card);
-        });
+            const modes = [
+                { value: 'smart', label: '智能', desc: '自动切换' },
+                { value: 'points', label: '故障点', desc: '显示标记' },
+                { value: 'heatmap', label: '热力图', desc: '密度分布' }
+            ];
 
-        menu.appendChild(modeGroup);
+            modes.forEach(mode => {
+                const card = this.createModeCard(mode.value, mode.label, mode.desc, this.currentMode === mode.value);
+                card.onclick = (e) => {
+                    e.stopPropagation();
+                    // 更新所有卡片样式（移除选中状态）
+                    modeGroup.querySelectorAll('.mode-card').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    // 高亮选中的卡片
+                    card.classList.add('active');
+                    this.setMode(mode.value);
+                };
+                modeGroup.appendChild(card);
+            });
 
-        this.addDivider(menu);
+            menu.appendChild(modeGroup);
+        }
 
-        // 2. 时间范围选择（滑动条）
-        this.addHeader(menu, '时间范围');
-        this.createTimeSlider(menu);
+        if (this.sections.timeRange) {
+            // 2. 时间范围选择（滑动条）
+            addSectionDivider();
+            this.addHeader(menu, '时间范围');
+            this.createTimeSlider(menu);
+        }
 
-        this.addDivider(menu);
+        if (this.sections.categories) {
+            // 3. 故障类型筛选（整合自 CategoryFilterControl）
+            addSectionDivider();
+            this.addHeader(menu, '故障类型');
+            this.createCategoryFilter(menu);
+        }
 
-        // 3. 故障类型筛选（整合自 CategoryFilterControl）
-        this.addHeader(menu, '故障类型');
-        this.createCategoryFilter(menu);
-
-        this.addDivider(menu);
-
-        // 4. 其他图层
-        this.addHeader(menu, '其他图层');
-        this.createCheckbox(menu, '显示网络拓扑', this.arcgisVisible, (checked) => {
-            this.arcgisVisible = checked;
-            this.updateArcgisLayersVisibility();
-        });
+        if (this.sections.topology) {
+            // 4. 其他图层
+            addSectionDivider();
+            this.addHeader(menu, '其他图层');
+            this.createCheckbox(menu, '显示网络拓扑', this.arcgisVisible, (checked) => {
+                this.arcgisVisible = checked;
+                this.updateArcgisLayersVisibility();
+            });
+        }
 
         // 定位菜单
         menu.style.top = '40px';
