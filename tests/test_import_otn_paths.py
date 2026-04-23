@@ -84,13 +84,25 @@ class _FakeSiteManager:
 
 
 class _FakeFilterResult:
+    def __init__(self, first_result=None) -> None:
+        self._first_result = first_result
+
     def first(self):
-        return None
+        return self._first_result
 
 
 class _FakeOtnPathManager:
     def filter(self, *args, **kwargs):
         return _FakeFilterResult()
+
+
+class _ExistingOtnPath:
+    pk = 42
+
+
+class _ExistingOtnPathManager:
+    def filter(self, *args, **kwargs):
+        return _FakeFilterResult(_ExistingOtnPath())
 
 
 class _FakeOtnPath:
@@ -120,6 +132,7 @@ def _install_import_stubs(fake_site_class, fake_otn_path_class) -> None:
     extras_scripts_module.Script = _Script
     extras_scripts_module.IntegerVar = _Var
     extras_scripts_module.BooleanVar = _Var
+    extras_scripts_module.StringVar = _Var
     sys.modules["extras"] = extras_module
     sys.modules["extras.scripts"] = extras_scripts_module
 
@@ -172,6 +185,11 @@ def _load_script_module(fake_site_class, fake_otn_path_class):
 
 
 class ImportOtnPathsNetBoxMatchingTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        _FakeOtnPath.objects = _FakeOtnPathManager()
+        _FakeOtnPath.created = []
+        _FakeOtnPath.save_calls = 0
+
     def test_run_matches_line_endpoints_against_netbox_sites_when_arcgis_points_are_empty(self) -> None:
         site_a = _FakeSite(name="Alpha", slug="alpha", latitude=25.0, longitude=118.0)
         site_z = _FakeSite(name="Beta", slug="beta", latitude=25.001, longitude=118.001)
@@ -217,6 +235,148 @@ class ImportOtnPathsNetBoxMatchingTestCase(unittest.TestCase):
         self.assertEqual(created_path["site_a"].name, "Alpha")
         self.assertEqual(created_path["site_z"].name, "Beta")
         self.assertEqual(created_path["name"], "Alpha-Beta")
+
+    def test_run_fetches_from_configured_arcgis_line_url(self) -> None:
+        site_a = _FakeSite(name="Alpha", slug="alpha", latitude=25.0, longitude=118.0)
+        site_z = _FakeSite(name="Beta", slug="beta", latitude=25.001, longitude=118.001)
+        _FakeSite.objects = _FakeSiteManager([site_a, site_z])
+
+        module = _load_script_module(_FakeSite, _FakeOtnPath)
+        script = module.ImportOtnPaths()
+        script.log_info = lambda message: None
+        script.log_warning = lambda message: None
+        script.log_success = lambda message: None
+        script.log_failure = lambda message: None
+
+        fetched_urls = []
+
+        def _fake_fetch(url):
+            fetched_urls.append(url)
+            if url == "http://example.test/arcgis/rest/services/OTN/Custom/FeatureServer/7":
+                return {
+                    "features": [
+                        {
+                            "geometry": {
+                                "paths": [
+                                    [
+                                        [118.0, 25.0],
+                                        [118.001, 25.001],
+                                    ]
+                                ]
+                            },
+                            "attributes": {
+                                "O_NAME": "Alpha-Beta",
+                                "O_COM": "demo",
+                            },
+                        }
+                    ]
+                }
+            raise AssertionError(f"Unexpected URL {url}")
+
+        script.fetch_arcgis_data = _fake_fetch
+        script.run(
+            {
+                "distance_threshold": 200,
+                "dry_run": True,
+                "arcgis_line_url": "http://example.test/arcgis/rest/services/OTN/Custom/FeatureServer/7/",
+            },
+            commit=False,
+        )
+
+        self.assertEqual(
+            fetched_urls,
+            ["http://example.test/arcgis/rest/services/OTN/Custom/FeatureServer/7"],
+        )
+        self.assertEqual(len(_FakeOtnPath.created), 1)
+
+    def test_duplicate_endpoint_paths_are_skipped_by_default(self) -> None:
+        site_a = _FakeSite(name="Alpha", slug="alpha", latitude=25.0, longitude=118.0)
+        site_z = _FakeSite(name="Beta", slug="beta", latitude=25.001, longitude=118.001)
+        _FakeSite.objects = _FakeSiteManager([site_a, site_z])
+        _FakeOtnPath.objects = _ExistingOtnPathManager()
+
+        module = _load_script_module(_FakeSite, _FakeOtnPath)
+        script = module.ImportOtnPaths()
+        script.log_info = lambda message: None
+        script.log_warning = lambda message: None
+        script.log_success = lambda message: None
+        script.log_failure = lambda message: None
+
+        def _fake_fetch(url):
+            if url.endswith("/1"):
+                return {
+                    "features": [
+                        {
+                            "geometry": {
+                                "paths": [
+                                    [
+                                        [118.0, 25.0],
+                                        [118.001, 25.001],
+                                    ]
+                                ]
+                            },
+                            "attributes": {
+                                "O_NAME": "Alpha-Beta",
+                                "O_COM": "demo",
+                            },
+                        }
+                    ]
+                }
+            return {"features": []}
+
+        script.fetch_arcgis_data = _fake_fetch
+        report = script.run({"distance_threshold": 200, "dry_run": True}, commit=False)
+
+        self.assertEqual(len(_FakeOtnPath.created), 0)
+        self.assertIn("因查重未入库的路径共 1 条", report)
+
+    def test_duplicate_endpoint_paths_can_be_imported_when_allowed(self) -> None:
+        site_a = _FakeSite(name="Alpha", slug="alpha", latitude=25.0, longitude=118.0)
+        site_z = _FakeSite(name="Beta", slug="beta", latitude=25.001, longitude=118.001)
+        _FakeSite.objects = _FakeSiteManager([site_a, site_z])
+        _FakeOtnPath.objects = _ExistingOtnPathManager()
+
+        module = _load_script_module(_FakeSite, _FakeOtnPath)
+        script = module.ImportOtnPaths()
+        script.log_info = lambda message: None
+        script.log_warning = lambda message: None
+        script.log_success = lambda message: None
+        script.log_failure = lambda message: None
+
+        def _fake_fetch(url):
+            if url.endswith("/1"):
+                return {
+                    "features": [
+                        {
+                            "geometry": {
+                                "paths": [
+                                    [
+                                        [118.0, 25.0],
+                                        [118.001, 25.001],
+                                    ]
+                                ]
+                            },
+                            "attributes": {
+                                "O_NAME": "Alpha-Beta-Different-Route",
+                                "O_COM": "demo",
+                            },
+                        }
+                    ]
+                }
+            return {"features": []}
+
+        script.fetch_arcgis_data = _fake_fetch
+        report = script.run(
+            {
+                "distance_threshold": 200,
+                "dry_run": True,
+                "allow_duplicate_endpoints": True,
+            },
+            commit=False,
+        )
+
+        self.assertEqual(len(_FakeOtnPath.created), 1)
+        self.assertNotIn("因查重未入库的路径", report)
 
     def test_dry_run_skips_save_even_when_commit_is_true(self) -> None:
         site_a = _FakeSite(name="Alpha", slug="alpha", latitude=25.0, longitude=118.0)

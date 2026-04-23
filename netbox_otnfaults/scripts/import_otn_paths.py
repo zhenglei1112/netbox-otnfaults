@@ -1,4 +1,4 @@
-from extras.scripts import Script, IntegerVar, BooleanVar
+from extras.scripts import Script, IntegerVar, BooleanVar, StringVar
 from netbox_otnfaults.models import OtnPath, CableTypeChoices
 from dcim.models import Site
 from django.db.models import Q
@@ -10,13 +10,25 @@ import random
 from typing import Any
 
 class ImportOtnPaths(Script):
+    DEFAULT_ARCGIS_LINE_URL = "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN2026/FeatureServer/1"
+
     class Meta:
         name = "Import OTN Paths from ArcGIS"
         description = "Fetch line and point data from ArcGIS and create OtnPath objects."
 
+    arcgis_line_url = StringVar(
+        default=DEFAULT_ARCGIS_LINE_URL,
+        description="ArcGIS 线图层 FeatureServer Layer URL；填写图层地址，不需要包含 /query。"
+    )
+
     distance_threshold = IntegerVar(
         default=100,
         description="路径端点匹配站点的最大合法距离范围，单位为米 (m)。超过此容差距离的端点将被抛弃并关联归为【未指定】站点。"
+    )
+
+    allow_duplicate_endpoints = BooleanVar(
+        default=False,
+        description="允许两端站点相同的路径重复入库。用于同一站点对存在不同实际路由走向的场景。"
     )
 
     dry_run = BooleanVar(
@@ -424,6 +436,8 @@ class ImportOtnPaths(Script):
     def run(self, data, commit):
         threshold_m = data.get('distance_threshold', 100)
         dry_run = data.get('dry_run', True)
+        allow_duplicate_endpoints = data.get('allow_duplicate_endpoints', False)
+        arcgis_line_url = (data.get('arcgis_line_url') or self.DEFAULT_ARCGIS_LINE_URL).rstrip('/')
         should_save = bool(commit and not dry_run)
 
         if dry_run:
@@ -455,7 +469,7 @@ class ImportOtnPaths(Script):
 
         # 2. Process Line Layers
         line_configs = [
-            {"url": "http://192.168.30.216:6080/arcgis/rest/services/OTN/OTN2026/FeatureServer/1"}
+            {"url": arcgis_line_url}
         ]
 
         for config in line_configs:
@@ -653,7 +667,7 @@ class ImportOtnPaths(Script):
 
                 # Check for existing duplicate path (Bidirectional)
                 # 双端均为"未指定"时跳过去重，保持入库
-                if nb_site_a != unspecified_site or nb_site_z != unspecified_site:
+                if not allow_duplicate_endpoints and (nb_site_a != unspecified_site or nb_site_z != unspecified_site):
                     existing_path = OtnPath.objects.filter(
                         Q(site_a=nb_site_a, site_z=nb_site_z) |
                         Q(site_a=nb_site_z, site_z=nb_site_a)
