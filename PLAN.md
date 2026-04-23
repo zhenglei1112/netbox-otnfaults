@@ -1,5 +1,13 @@
 # PLAN
 
+## 2026-04-23 地图样式个人偏好实施计划
+
+- [x] 完成中文设计规格：`docs/superpowers/specs/2026-04-23-map-style-preferences-design.md`。
+- [x] 编写实施计划：`docs/superpowers/plans/2026-04-23-map-style-preferences.md`。
+- [ ] 按计划先补充源码级回归测试，再实现偏好模型、服务、API、模板注入和前端控制面板。
+- [ ] 运行定向源码测试、Python 语法检查和 JavaScript 语法检查。
+- [ ] 如有真实 NetBox 环境，运行 `makemigrations` 后紧接着运行 `migrate`。
+
 ## 2026-04-23 Fat Views refactor for map data APIs
 
 - [x] Add source regression coverage requiring shared color helpers and extracted map serializers/services.
