@@ -39,6 +39,36 @@ class OtnFaultFaultNumberLocalDateSourceTestCase(unittest.TestCase):
         self.assertIn("timezone.localdate().strftime('%Y%m%d')", save_source)
         self.assertNotIn("timezone.now().strftime('%Y%m%d')", save_source)
 
+    def test_save_generates_fault_number_inside_transaction_with_row_lock(self) -> None:
+        source = MODELS_PATH.read_text(encoding="utf-8-sig")
+        module = _parse_module(MODELS_PATH)
+        class_node = _find_class(module, "OtnFault")
+        save_node = _find_method(class_node, "save")
+        save_source = ast.get_source_segment(source, save_node)
+
+        self.assertIsNotNone(save_source)
+        assert save_source is not None
+
+        self.assertIn("transaction.atomic()", save_source)
+        self.assertIn("select_for_update()", save_source)
+        self.assertIn("order_by('-fault_number')", save_source)
+        self.assertIn(".first()", save_source)
+        self.assertNotIn("order_by('fault_number').last()", save_source)
+
+    def test_save_retries_generated_fault_number_after_unique_collision(self) -> None:
+        source = MODELS_PATH.read_text(encoding="utf-8-sig")
+        module = _parse_module(MODELS_PATH)
+        class_node = _find_class(module, "OtnFault")
+        save_node = _find_method(class_node, "save")
+        save_source = ast.get_source_segment(source, save_node)
+
+        self.assertIsNotNone(save_source)
+        assert save_source is not None
+
+        self.assertIn("except IntegrityError", save_source)
+        self.assertIn("self.fault_number = ''", save_source)
+        self.assertIn("raise", save_source)
+
 
 if __name__ == "__main__":
     unittest.main()

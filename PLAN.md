@@ -1,5 +1,13 @@
 # PLAN
 
+## 2026-04-23 故障编号并发生成修复
+
+### 实施步骤
+- [x] 补充源码级回归测试，覆盖 `OtnFault.save()` 自动生成 `fault_number` 时必须使用事务、行锁和唯一冲突重试。
+- [x] 修改 `OtnFault.save()`，在数据库事务中通过 `select_for_update()` 锁定同日前缀编号记录后生成新编号。
+- [x] 对自动生成编号保存时的 `IntegrityError` 做有限重试，覆盖当天首条记录无可锁行和并发快照竞争场景。
+- [x] 运行定向测试与 Python 语法检查。
+
 ## Statistics cable-break map in-map quick filters
 
 - [x] Add source regression assertions for a MapLibre in-map quick filter control

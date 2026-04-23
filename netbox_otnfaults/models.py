@@ -1,4 +1,7 @@
 ﻿from django.db import models
+from typing import Any
+
+from django.db import IntegrityError, transaction
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
@@ -1009,18 +1012,42 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         if errors:
             raise ValidationError(errors)
 
-    def save(self, *args, **kwargs):
-        if not self.fault_number:
-            today = timezone.localdate().strftime('%Y%m%d')
-            prefix = f'F{today}'
-            last_fault = OtnFault.objects.filter(fault_number__startswith=prefix).order_by('fault_number').last()
-            if last_fault:
-                last_number = int(last_fault.fault_number[9:])
-                new_number = last_number + 1
-            else:
-                new_number = 1
-            self.fault_number = f'{prefix}{new_number:03d}'
-        super().save(*args, **kwargs)
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self.fault_number:
+            super().save(*args, **kwargs)
+            return
+
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                with transaction.atomic():
+                    today = timezone.localdate().strftime('%Y%m%d')
+                    prefix = f'F{today}'
+                    last_fault = (
+                        OtnFault.objects.select_for_update()
+                        .filter(fault_number__startswith=prefix)
+                        .order_by('-fault_number')
+                        .first()
+                    )
+                    if last_fault:
+                        last_number = int(last_fault.fault_number[9:])
+                        new_number = last_number + 1
+                    else:
+                        new_number = 1
+                    self.fault_number = f'{prefix}{new_number:03d}'
+
+                    if kwargs.get('update_fields') is not None:
+                        kwargs['update_fields'] = {
+                            *kwargs['update_fields'],
+                            'fault_number',
+                        }
+
+                    super().save(*args, **kwargs)
+                return
+            except IntegrityError:
+                self.fault_number = ''
+                if attempt == max_attempts - 1:
+                    raise
 
 class ServiceTypeChoices(ChoiceSet):
     key = 'OtnFaultImpact.service_type'
