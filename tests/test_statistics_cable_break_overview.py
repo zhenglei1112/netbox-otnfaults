@@ -5,6 +5,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VIEWS_PATH = REPO_ROOT / "netbox_otnfaults" / "statistics_views.py"
 APP_VIEWS_PATH = REPO_ROOT / "netbox_otnfaults" / "views.py"
+UTILS_PATH = REPO_ROOT / "netbox_otnfaults" / "utils.py"
+MAP_DATA_PATH = REPO_ROOT / "netbox_otnfaults" / "services" / "fault_map_data.py"
 URLS_PATH = REPO_ROOT / "netbox_otnfaults" / "urls.py"
 MAP_MODES_PATH = REPO_ROOT / "netbox_otnfaults" / "map_modes.py"
 FAULT_MODE_PATH = REPO_ROOT / "netbox_otnfaults" / "static" / "netbox_otnfaults" / "js" / "modes" / "fault_mode.js"
@@ -379,6 +381,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
     def test_statistics_cable_break_map_routes_and_context_are_declared(self) -> None:
         stats_source = VIEWS_PATH.read_text(encoding="utf-8")
         views_source = APP_VIEWS_PATH.read_text(encoding="utf-8")
+        map_data_source = MAP_DATA_PATH.read_text(encoding="utf-8")
         urls_source = URLS_PATH.read_text(encoding="utf-8")
 
         self.assertIn("'statistics_cable_break_map_url': reverse('plugins:netbox_otnfaults:statistics_cable_break_map')", stats_source)
@@ -389,15 +392,38 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("'disable_3d_buildings': True", views_source)
         self.assertIn("class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):", views_source)
         self.assertIn("get_cable_break_base_queryset(start_date, end_date)", views_source)
-        self.assertIn("skipped_count", views_source)
-        self.assertIn("defaulted_count", views_source)
-        self.assertIn("coords_from_site", views_source)
-        self.assertIn("coords_source", views_source)
-        self.assertIn("fault.interruption_location_a.latitude", views_source)
-        self.assertIn("for site in fault.interruption_location.all():", views_source)
-        self.assertIn("'z_site'", views_source)
+        self.assertIn("build_statistics_cable_break_map_payload(faults, end_date, now)", views_source)
+        self.assertIn("skipped_count", map_data_source)
+        self.assertIn("defaulted_count", map_data_source)
+        self.assertIn("coords_from_site", map_data_source)
+        self.assertIn("coords_source", map_data_source)
+        self.assertIn("fault.interruption_location_a.latitude", map_data_source)
+        self.assertIn("for site in fault.interruption_location.all():", map_data_source)
+        self.assertIn("'z_site'", map_data_source)
         self.assertIn("path('statistics/cable-break-map/', views.StatisticsCableBreakMapView.as_view(), name='statistics_cable_break_map')", urls_source)
         self.assertIn("path('statistics/cable-break-map-data/', views.StatisticsCableBreakMapDataAPI.as_view(), name='statistics_cable_break_map_data')", urls_source)
+
+    def test_map_data_views_delegate_color_and_marker_serialization(self) -> None:
+        views_source = APP_VIEWS_PATH.read_text(encoding="utf-8")
+        self.assertTrue(UTILS_PATH.exists(), "map color helpers should live in netbox_otnfaults/utils.py")
+        self.assertTrue(MAP_DATA_PATH.exists(), "map payload serializers should live in services/fault_map_data.py")
+        utils_source = UTILS_PATH.read_text(encoding="utf-8")
+        map_data_source = MAP_DATA_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("def get_hex_color(color_name: str | None) -> str:", utils_source)
+        self.assertIn("def build_fault_colors_config() -> dict[str, dict[str, str]]:", utils_source)
+        self.assertNotIn("def _get_hex_color", views_source)
+        self.assertIn("build_fault_colors_config()", views_source)
+        self.assertNotIn("color_view = OtnFaultGlobeMapView()", views_source)
+
+        self.assertIn("class FaultMapMarkerSerializer", map_data_source)
+        self.assertIn("class StatisticsCableBreakMapMarkerSerializer", map_data_source)
+        self.assertIn("def get_sites_data() -> list[dict]:", map_data_source)
+        self.assertIn("def build_fault_map_payload() -> dict[str, list[dict]]:", map_data_source)
+        self.assertIn("def build_statistics_cable_break_map_payload(", map_data_source)
+        self.assertNotIn("def _build_marker_data", views_source)
+        self.assertNotIn("def _is_repeat_fault", views_source)
+        self.assertNotIn("OtnFaultMapDataView()._get_sites_data()", views_source)
 
     def test_statistics_cable_break_map_mode_is_isolated_from_fault_mode_controls(self) -> None:
         map_modes = MAP_MODES_PATH.read_text(encoding="utf-8")
@@ -554,6 +580,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
     def test_statistics_cable_break_map_uses_in_map_quick_filters_without_iframe_reload(self) -> None:
         views_source = APP_VIEWS_PATH.read_text(encoding="utf-8")
+        map_data_source = MAP_DATA_PATH.read_text(encoding="utf-8")
         map_source = STATISTICS_MAP_MODE_PATH.read_text(encoding="utf-8")
         service_source = (REPO_ROOT / "netbox_otnfaults" / "static" / "netbox_otnfaults" / "js" / "services" / "FaultDataService.js").read_text(encoding="utf-8")
         dashboard_source = JS_PATH.read_text(encoding="utf-8")
@@ -562,11 +589,11 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             "'source_group': _source_group_for_fault(fault)",
             "'is_long': duration_hours >= 6.0",
             "'is_valid_duration': duration_hours > 0.5",
-            "'is_repeat': self._is_repeat_fault(fault, past_faults_list, fault_z_sites_cache)",
+            "'is_repeat': self._is_repeat_fault()",
         ]:
-            self.assertIn(marker_field, views_source)
+            self.assertIn(marker_field, map_data_source)
 
-        self.assertIn("def _is_repeat_fault(", views_source)
+        self.assertIn("def _is_repeat_fault(self) -> bool:", map_data_source)
         self.assertIn("class CableBreakQuickFilterControl", map_source)
         self.assertIn("this.quickFilterControl = new CableBreakQuickFilterControl(this);", map_source)
         self.assertIn('map.addControl(this.quickFilterControl, "top-left");', map_source)

@@ -1,5 +1,13 @@
 # PLAN
 
+## 2026-04-23 Fat Views refactor for map data APIs
+
+- [x] Add source regression coverage requiring shared color helpers and extracted map serializers/services.
+- [x] Move `_get_hex_color` and shared map color config generation into `netbox_otnfaults/utils.py`.
+- [x] Move site and fault marker serialization out of `views.py` into a dedicated map data module.
+- [x] Update `OtnFaultMapDataView` and `StatisticsCableBreakMapDataAPI` to orchestrate querysets only.
+- [x] Run focused source tests and Python syntax checks.
+
 ## 2026-04-23 故障编号并发生成修复
 
 ### 实施步骤

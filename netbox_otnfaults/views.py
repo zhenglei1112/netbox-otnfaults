@@ -2,7 +2,7 @@ from netbox.views import generic
 from django.shortcuts import render
 from utilities.views import register_model_view, ViewTab
 from django_tables2 import RequestConfig
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, FaultCategoryChoices, FaultStatusChoices, OtnPathGroupSite, BareFiberService, CircuitService
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
 from dcim.models import Site
 from .forms import (
     OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
@@ -28,7 +28,13 @@ from django.conf import settings
 from django.urls import reverse
 from urllib.parse import urlencode
 from .map_modes import get_mode_config
-from .statistics_views import _parse_time_range, _source_group_for_fault, get_cable_break_base_queryset
+from .statistics_views import _parse_time_range, get_cable_break_base_queryset
+from .utils import build_fault_colors_config, get_hex_color
+from .services.fault_map_data import (
+    build_fault_map_payload,
+    build_statistics_cable_break_map_payload,
+    get_sites_data,
+)
 from .view_mixins import ExcelFriendlyCSVExportMixin
 
 
@@ -57,54 +63,12 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
     """OTN故障地图数据视图 (Async API)"""
     permission_required = 'netbox_otnfaults.view_otnfault'
     
-    def _get_hex_color(self, color_name):
-        """Map standard NetBox/Bootstrap color names to Hex values."""
-        COLOR_MAP = {
-            'dark': '#343a40',
-            'gray': '#6c757d',
-            'light-gray': '#aaacae',
-            'blue': '#0d6efd',
-            'indigo': '#6610f2',
-            'purple': '#6f42c1',
-            'pink': '#d63384',
-            'red': '#dc3545',
-            'orange': '#f5a623', # Using the project's preferred orange
-            'yellow': '#ffc107',
-            'green': '#198754',
-            'teal': '#20c997',
-            'cyan': '#0dcaf0',
-            'white': '#ffffff',
-            'secondary': '#6c757d',
-        }
-        return COLOR_MAP.get(color_name, '#6c757d') # Default to gray
-    
-    def _get_sites_data(self):
-        """获取站点数据 (所有地图模式共享)"""
-        sites_data = [
-            {
-                'id': site.pk,
-                'name': site.name,
-                'latitude': float(site.latitude),
-                'longitude': float(site.longitude),
-                'url': site.get_absolute_url(),
-                'status': site.get_status_display(),
-                'status_color': site.get_status_color(),
-                'tenant': site.tenant.name if site.tenant else None,
-                'region': site.region.name if site.region else None,
-                'group': site.group.name if site.group else None,
-                'facility': site.facility,
-                'description': site.description
-            }
-            for site in Site.objects.filter(latitude__isnull=False, longitude__isnull=False).select_related('tenant', 'region', 'group')
-        ]
-        return sites_data
-
     def get(self, request):
         # 检查请求模式
         mode = request.GET.get('mode', 'fault')
         
         # 获取站点数据 (所有模式都需要)
-        sites_data = self._get_sites_data()
+        sites_data = get_sites_data()
         
         # 根据模式返回不同数据
         if mode != 'fault':
@@ -113,145 +77,12 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
                 'sites_data': sites_data
             })
         
-        # 故障模式需要额外的热力图和标记点数据
-        now = timezone.localtime()
-        # 改为最近12个月，避免跨年时数据为空
-        twelve_months_ago = now - timedelta(days=365)
-        
-        # 获取最近12个月的所有故障
-        all_faults = OtnFault.objects.filter(fault_occurrence_time__gte=twelve_months_ago)
-        
-        # 热力图数据
-        heatmap_faults = all_faults.exclude(
-            interruption_longitude__isnull=True
-        ).exclude(
-            interruption_latitude__isnull=True
-        )
-        heatmap_data = []
-        for fault in heatmap_faults:
-            fault_category = fault.fault_category
-            category_key = 'other'
-            if fault_category:
-                # 仅保留标准的分类键值，不再向下兼容历史杂乱数据
-                valid_categories = ['power_fault', 'fiber_break', 'fiber_degradation', 'fiber_jitter', 'ac_fault', 'device_fault']
-                category_key = fault_category if fault_category in valid_categories else 'other'
-                
-            heatmap_data.append({
-                'lat': float(fault.interruption_latitude),
-                'lng': float(fault.interruption_longitude),
-                'count': 1,
-                'occurrence_time': fault.fault_occurrence_time.isoformat() if fault.fault_occurrence_time else None,
-                'category': category_key
-            })
-
-        # 标记点数据
-        marker_faults = all_faults.select_related(
-            'province', 'interruption_location_a', 'handling_unit'
-        ).prefetch_related(
-            'interruption_location', 'images', 'impacts', 'impacts__bare_fiber_service', 'impacts__circuit_service',
-            'secondary_impacts', 'secondary_impacts__bare_fiber_service', 'secondary_impacts__circuit_service'
-        )
-        
-        marker_data = []
-        for fault in marker_faults:
-            fault_category = fault.fault_category
-            category_key = 'other'
-            if fault_category:
-                # 仅保留标准的分类键值，不再向下兼容历史杂乱数据
-                valid_categories = ['power_fault', 'fiber_break', 'fiber_degradation', 'fiber_jitter', 'ac_fault', 'device_fault']
-                category_key = fault_category if fault_category in valid_categories else 'other'
-            
-            z_sites = [s.name for s in fault.interruption_location.all()]
-            z_sites_str = '、'.join(z_sites) if z_sites else '未指定'
-
-            # 合并主故障和次要故障的影响记录并去重
-            all_impacts = list(fault.impacts.all()) + list(fault.secondary_impacts.all())
-            # 使用字典去重，key 为 impact.pk
-            unique_impacts = {impact.pk: impact for impact in all_impacts}.values()
-
-            impacted_businesses = []
-            impacts_details = []
-            for impact in unique_impacts:
-                business_name = None
-                if impact.service_type == 'bare_fiber' and impact.bare_fiber_service:
-                    business_name = impact.bare_fiber_service.name
-                elif impact.service_type == 'circuit' and impact.circuit_service:
-                    business_name = impact.circuit_service.name
-                    
-                if business_name:
-                    impacted_businesses.append(business_name)
-                    impacts_details.append({
-                        'name': business_name,
-                        'duration_hours': impact.service_duration_hours
-                    })
-
-            impacted_business_str = '、'.join(impacted_businesses) if impacted_businesses else '无重保/影响业务'
-            # 简化逻辑：直接获取属性
-            occurrence_time_str = fault.fault_occurrence_time.strftime('%Y-%m-%d %H:%M:%S') if fault.fault_occurrence_time else '未记录'
-            recovery_time_str = fault.fault_recovery_time.strftime('%Y-%m-%d %H:%M:%S') if fault.fault_recovery_time else '未恢复'
-            fault_duration_str = fault.fault_duration if hasattr(fault, 'fault_duration') and fault.fault_duration else '无法计算'
-
-            if fault.interruption_latitude is not None and fault.interruption_longitude is not None:
-                lat = float(fault.interruption_latitude)
-                lng = float(fault.interruption_longitude)
-                coords_from_site = False
-            elif fault.interruption_location_a and fault.interruption_location_a.latitude and fault.interruption_location_a.longitude:
-                lat = float(fault.interruption_location_a.latitude)
-                lng = float(fault.interruption_location_a.longitude)
-                coords_from_site = True
-            else:
-                continue
-            
-            # 直接获取标准配置即可，不再进行遍历全部选项以及拆解英文的复杂向后兼容推测
-            reason_display = fault.get_interruption_reason_display()
-            if not reason_display or reason_display == fault.interruption_reason:
-                reason_display = '—'
-
-            marker_data.append({
-                'lat': lat,
-                'lng': lng,
-                'coords_from_site': coords_from_site,
-                'number': fault.fault_number,
-                'url': fault.get_absolute_url(),
-                'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}",
-                'category': category_key,
-                'category_display': fault.get_fault_category_display() or '未知类型',
-                'province': fault.province.name if fault.province else '未指定',
-                'a_site': fault.interruption_location_a.name if fault.interruption_location_a else '未指定',
-                'a_site_id': fault.interruption_location_a.pk if fault.interruption_location_a else None,
-                'z_sites': z_sites_str,
-                'z_site_ids': [s.pk for s in fault.interruption_location.all()],
-                'impacted_business': impacted_business_str,
-                'impacts_details': impacts_details,
-                'status': fault.get_fault_status_display() or '未知状态',
-                'status_key': fault.fault_status or 'processing',
-                'status_color': fault.get_fault_status_color(),
-                'occurrence_time': occurrence_time_str,
-                'recovery_time': recovery_time_str,
-                'fault_duration': fault_duration_str,
-                'reason': reason_display,
-                'fault_details': fault.fault_details or '无详细描述',
-                'process': fault.fault_details or '无处理过程',
-                'resource_type': fault.get_resource_type_display() or '—',
-                'cable_route': fault.get_cable_route_display() or '—',
-                'cable_break_location': fault.get_cable_break_location_display() or '—',
-                'recovery_mode': fault.get_recovery_mode_display() or '—',
-                'maintenance_mode': fault.get_maintenance_mode_display() or '—',
-                'handling_unit': fault.handling_unit.name if fault.handling_unit else '—',
-                'handler': fault.handler or '—',
-                'images': [{'name': img.name, 'url': img.image.url} for img in fault.images.all()] if hasattr(fault, 'images') else [],
-                'has_images': fault.images.exists() if hasattr(fault, 'images') else False,
-                'image_count': fault.images.count() if hasattr(fault, 'images') else 0
-            })
-
-        # 站点数据已在方法开始时获取
-        # 返回故障模式的完整数据
+        payload = build_fault_map_payload()
         return JsonResponse({
             'sites_data': sites_data,
-            'heatmap_data': heatmap_data,
-            'marker_data': marker_data
+            'heatmap_data': payload['heatmap_data'],
+            'marker_data': payload['marker_data'],
         })
-
 
 class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
     """OTN故障分布图（地球模式）视图"""
@@ -290,50 +121,13 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
 
             # 辅助数据
             'fault_list_url': reverse('plugins:netbox_otnfaults:otnfault_list'),
-            'colors_config': json.dumps({
-                'category_colors': {
-                    val: self._get_hex_color(color)
-                    for val, label, color in FaultCategoryChoices.CHOICES
-                },
-                'category_names': {val: label for val, label, color in FaultCategoryChoices.CHOICES},
-                'status_colors': {
-                    val: self._get_hex_color(color)
-                    for val, label, color in FaultStatusChoices.CHOICES
-                },
-                'status_names': {val: label for val, label, color in FaultStatusChoices.CHOICES},
-                'popup_status_colors': {
-                    key: self._get_hex_color(key) 
-                    for key in ['orange', 'blue', 'yellow', 'green', 'gray', 'red', 'secondary', 'purple']
-                }
-            }, cls=DjangoJSONEncoder),
+            'colors_config': json.dumps(build_fault_colors_config(), cls=DjangoJSONEncoder),
 
             # 调试模式参数
             'debug_mode': False,
             'show_debug_panel': False,
             'debug_date': '2025-12-05 00:00:00',
         })
-
-    def _get_hex_color(self, color_name):
-        """Map standard NetBox/Bootstrap color names to Hex values."""
-        COLOR_MAP = {
-            'dark': '#343a40',
-            'gray': '#6c757d',
-            'light-gray': '#aaacae',
-            'blue': '#0d6efd',
-            'indigo': '#6610f2',
-            'purple': '#6f42c1',
-            'pink': '#d63384',
-            'red': '#dc3545',
-            'orange': '#f5a623', # Using the project's preferred orange
-            'yellow': '#ffc107',
-            'green': '#198754',
-            'teal': '#20c997',
-            'cyan': '#0dcaf0',
-            'white': '#ffffff',
-            'secondary': '#6c757d',
-        }
-        return COLOR_MAP.get(color_name, '#6c757d') # Default to gray
-
 
 class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
     """Map view for cable-break faults selected by the statistics page period."""
@@ -353,7 +147,6 @@ class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
         if time_params:
             map_data_url = f"{map_data_url}?{urlencode(time_params)}"
 
-        color_view = OtnFaultGlobeMapView()
         is_embedded_map = request.GET.get('modal') == 'true'
 
         return render(request, 'netbox_otnfaults/unified_map.html', {
@@ -371,22 +164,7 @@ class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
             'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
             'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''),
             'fault_list_url': reverse('plugins:netbox_otnfaults:otnfault_list'),
-            'colors_config': json.dumps({
-                'category_colors': {
-                    val: color_view._get_hex_color(color)
-                    for val, label, color in FaultCategoryChoices.CHOICES
-                },
-                'category_names': {val: label for val, label, color in FaultCategoryChoices.CHOICES},
-                'status_colors': {
-                    val: color_view._get_hex_color(color)
-                    for val, label, color in FaultStatusChoices.CHOICES
-                },
-                'status_names': {val: label for val, label, color in FaultStatusChoices.CHOICES},
-                'popup_status_colors': {
-                    key: color_view._get_hex_color(key)
-                    for key in ['orange', 'blue', 'yellow', 'green', 'gray', 'red', 'secondary', 'purple']
-                }
-            }, cls=DjangoJSONEncoder),
+            'colors_config': json.dumps(build_fault_colors_config(), cls=DjangoJSONEncoder),
             'is_picker': False,
             'is_embedded_map': request.GET.get('modal') == 'true',
             'is_minimal_map': is_embedded_map,
@@ -412,176 +190,14 @@ class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
         )
         faults = list(fault_qs)
 
-        if faults:
-            min_occurrence = min(fault.fault_occurrence_time for fault in faults)
-            check_start = min_occurrence - timedelta(days=60)
-            past_faults_list = list(
-                OtnFault.objects.filter(
-                    fault_occurrence_time__gte=check_start,
-                    fault_occurrence_time__lt=end_date,
-                    fault_category__in=[
-                        FaultCategoryChoices.FIBER_BREAK,
-                        FaultCategoryChoices.FIBER_DEGRADATION,
-                        FaultCategoryChoices.FIBER_JITTER,
-                    ],
-                )
-                .select_related('interruption_location_a')
-                .prefetch_related('interruption_location')
-            )
-        else:
-            past_faults_list = []
-
-        fault_z_sites_cache = {
-            past_fault.id: set(site.id for site in past_fault.interruption_location.all())
-            for past_fault in past_faults_list
-        }
-
-        marker_data = []
-        skipped_count = 0
-        defaulted_count = 0
-        for fault in faults:
-            marker = self._build_marker_data(fault, now, past_faults_list, fault_z_sites_cache)
-            if marker is None:
-                skipped_count += 1
-                continue
-            if marker.get('coords_from_site'):
-                defaulted_count += 1
-            marker_data.append(marker)
-
-        heatmap_data = [
-            {
-                'lat': marker['lat'],
-                'lng': marker['lng'],
-                'count': 1,
-                'occurrence_time': marker['occurrence_time'],
-                'category': marker['category'],
-            }
-            for marker in marker_data
-        ]
-
+        payload = build_statistics_cable_break_map_payload(faults, end_date, now)
         return JsonResponse({
-            'sites_data': OtnFaultMapDataView()._get_sites_data(),
-            'heatmap_data': heatmap_data,
-            'marker_data': marker_data,
-            'skipped_count': skipped_count,
-            'defaulted_count': defaulted_count,
+            'sites_data': get_sites_data(),
+            'heatmap_data': payload['heatmap_data'],
+            'marker_data': payload['marker_data'],
+            'skipped_count': payload['skipped_count'],
+            'defaulted_count': payload['defaulted_count'],
         })
-
-    def _is_repeat_fault(self, fault: OtnFault, past_faults_list: list[OtnFault], fault_z_sites_cache: dict[int, set[int]]) -> bool:
-        if not fault.is_fiber_fault:
-            return False
-
-        fault_z_site_ids = fault_z_sites_cache.get(
-            fault.id,
-            set(site.id for site in fault.interruption_location.all()),
-        )
-
-        for past_fault in past_faults_list:
-            if past_fault.id == fault.id:
-                continue
-            if past_fault.fault_occurrence_time >= fault.fault_occurrence_time:
-                continue
-            if (fault.fault_occurrence_time - past_fault.fault_occurrence_time) > timedelta(days=60):
-                continue
-            if past_fault.interruption_location_a_id != fault.interruption_location_a_id:
-                continue
-            if fault_z_sites_cache.get(past_fault.id, set()).intersection(fault_z_site_ids):
-                return True
-
-        return False
-
-    def _build_marker_data(
-        self,
-        fault: OtnFault,
-        now,
-        past_faults_list: list[OtnFault],
-        fault_z_sites_cache: dict[int, set[int]],
-    ) -> dict | None:
-        z_sites = [site.name for site in fault.interruption_location.all()]
-        z_sites_str = '、'.join(z_sites) if z_sites else '未指定'
-        occurrence_time_str = (
-            timezone.localtime(fault.fault_occurrence_time).strftime('%Y-%m-%d %H:%M:%S')
-            if fault.fault_occurrence_time else '未记录'
-        )
-        recovery_time_str = (
-            timezone.localtime(fault.fault_recovery_time).strftime('%Y-%m-%d %H:%M:%S')
-            if fault.fault_recovery_time else '未恢复'
-        )
-        fault_duration_str = fault.fault_duration if getattr(fault, 'fault_duration', None) else '无法计算'
-        reason_display = fault.get_interruption_reason_display()
-        if not reason_display or reason_display == fault.interruption_reason:
-            reason_display = '-'
-
-        end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
-        duration_hours = (end_t - fault.fault_occurrence_time).total_seconds() / 3600.0
-
-        coords_from_site = False
-        coords_source = 'fault'
-        if fault.interruption_latitude is not None and fault.interruption_longitude is not None:
-            lat = float(fault.interruption_latitude)
-            lng = float(fault.interruption_longitude)
-        elif (
-            fault.interruption_location_a
-            and fault.interruption_location_a.latitude is not None
-            and fault.interruption_location_a.longitude is not None
-        ):
-            lat = float(fault.interruption_location_a.latitude)
-            lng = float(fault.interruption_location_a.longitude)
-            coords_from_site = True
-            coords_source = 'a_site'
-        else:
-            for site in fault.interruption_location.all():
-                if site.latitude is not None and site.longitude is not None:
-                    lat = float(site.latitude)
-                    lng = float(site.longitude)
-                    coords_from_site = True
-                    coords_source = 'z_site'
-                    break
-            else:
-                return None
-
-        return {
-            'id': fault.pk,
-            'lat': lat,
-            'lng': lng,
-            'coords_from_site': coords_from_site,
-            'coords_source': coords_source,
-            'number': fault.fault_number,
-            'url': fault.get_absolute_url(),
-            'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}",
-            'category': fault.fault_category or 'other',
-            'category_display': fault.get_fault_category_display() or '未知类型',
-            'province': fault.province.name if fault.province else '未指定',
-            'a_site': fault.interruption_location_a.name if fault.interruption_location_a else '未指定',
-            'a_site_id': fault.interruption_location_a.pk if fault.interruption_location_a else None,
-            'z_sites': z_sites_str,
-            'status': fault.get_fault_status_display(),
-            'status_key': fault.fault_status,
-            'status_color': FaultStatusChoices.colors.get(fault.fault_status, 'secondary'),
-            'occurrence_time': occurrence_time_str,
-            'recovery_time': recovery_time_str,
-            'fault_duration': fault_duration_str,
-            'duration_hours': round(duration_hours, 2),
-            'source_group': _source_group_for_fault(fault),
-            'is_long': duration_hours >= 6.0,
-            'is_valid_duration': duration_hours > 0.5,
-            'is_repeat': self._is_repeat_fault(fault, past_faults_list, fault_z_sites_cache),
-            'reason': reason_display,
-            'fault_details': fault.fault_details or '',
-            'cable_route': fault.get_cable_route_display() if fault.cable_route else '-',
-            'cable_break_location': fault.get_cable_break_location_display() if fault.cable_break_location else '-',
-            'recovery_mode': fault.get_recovery_mode_display() if fault.recovery_mode else '-',
-            'maintenance_mode': fault.get_maintenance_mode_display() if fault.maintenance_mode else '-',
-            'handling_unit': str(fault.handling_unit) if fault.handling_unit else '-',
-            'handler': fault.handler or '-',
-            'has_images': fault.images.exists(),
-            'image_count': fault.images.count(),
-            'images': [
-                {'url': image.image.url, 'name': image.name or '故障图片'}
-                for image in fault.images.all()
-            ],
-        }
-
 
 @register_model_view(OtnFault)
 class OtnFaultView(generic.ObjectView):
@@ -1182,7 +798,7 @@ class LocationMapView(PermissionRequiredMixin, View):
                 for gs in group_sites:
                     if gs.site.latitude and gs.site.longitude:
                         role_color = gs.get_role_color() or 'gray'
-                        hex_color = self._get_hex_color(role_color)
+                        hex_color = get_hex_color(role_color)
                         highlight_sites_data.append({
                             'id': gs.site.pk,
                             'name': gs.site.name,
@@ -1335,28 +951,6 @@ class LocationMapView(PermissionRequiredMixin, View):
             params['path_group_id'] = path_group_id
         
         return f"{base_url}?{urlencode(params)}"
-
-    def _get_hex_color(self, color_name):
-        """将 NetBox 标准颜色名转换为 Hex 值"""
-        COLOR_MAP = {
-            'dark': '#343a40',
-            'gray': '#6c757d',
-            'light-gray': '#aaacae',
-            'blue': '#0d6efd',
-            'indigo': '#6610f2',
-            'purple': '#6f42c1',
-            'pink': '#d63384',
-            'red': '#dc3545',
-            'orange': '#f5a623',
-            'yellow': '#ffc107',
-            'green': '#198754',
-            'teal': '#20c997',
-            'cyan': '#0dcaf0',
-            'white': '#ffffff',
-            'secondary': '#6c757d',
-        }
-        return COLOR_MAP.get(color_name, '#6c757d')
-
 
 class RouteEditorView(PermissionRequiredMixin, View):
     """OTN线路设计器视图"""
