@@ -169,6 +169,59 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-construction-avg"', template)
         self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-noncons-avg"', template)
 
+    def test_valid_duration_labels_use_consistent_hover_copy(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        map_source = STATISTICS_MAP_MODE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('data-info-content="<=30分钟"', template)
+        self.assertIn('title: "<=30分钟"', map_source)
+
+    def test_kpi_group_titles_allow_hover_tooltips(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+        title_block = css.split(".statistics-kpi-group-title {", 1)[1].split("}", 1)[0]
+
+        self.assertNotIn("pointer-events: none;", title_block)
+        self.assertIn("pointer-events: auto;", title_block)
+
+    def test_valid_duration_group_renders_hover_info_icon(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        source = JS_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('class="statistics-kpi-group-title-label">滤除短时</span>', template)
+        self.assertIn('class="statistics-info-button"', template)
+        self.assertIn('title="<=30分钟"', template)
+        self.assertIn('aria-label="滤除短时说明"', template)
+        self.assertNotIn("const infoButton = event.target.closest('.statistics-info-button');", source)
+        self.assertNotIn("toggleStatisticsInfoPopover(infoButton);", source)
+        self.assertNotIn("closeStatisticsInfoPopovers();", source)
+        self.assertIn(".statistics-info-button {", css)
+        self.assertIn(".statistics-kpi-group-title-label {", css)
+        self.assertNotIn(".statistics-info-button::after {", css)
+        self.assertNotIn(".statistics-info-button:hover::after,", css)
+        self.assertNotIn(".statistics-info-button:focus-visible::after {", css)
+        self.assertIn("gap: 0;", css)
+        self.assertIn("margin-right: 0.12rem;", css)
+        self.assertIn("font-size: 0.82rem;", css)
+
+    def test_cause_group_title_declares_short_duration_filter(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('class="statistics-kpi-group-title-label">按成因</span>', template)
+        self.assertIn('aria-label="按成因说明"', template)
+        self.assertIn('data-info-content="按成因统计也滤除历时小于等于 30 分钟的故障"', template)
+
+    def test_occurrence_period_title_renders_info_icon(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('class="statistics-info-button"', template)
+        self.assertIn('title="6:00-18:00 / 18:00-6:00"', template)
+
+    def test_valid_duration_info_button_avoids_native_title_tooltip(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertNotIn('data-info-content="<=30分钟"', template)
+
     def test_duration_reason_group_label_uses_reason_top3(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
         overview_source = source.split("function renderCharts")[0]

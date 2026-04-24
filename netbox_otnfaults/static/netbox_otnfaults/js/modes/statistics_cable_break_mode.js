@@ -52,7 +52,7 @@ class CableBreakQuickFilterControl {
       { key: "selfControlled", label: "自控", icon: "shield", title: "仅显示自控光缆中断" },
       { key: "long", label: "长时", icon: "hourglass", title: "仅显示历时大于等于 6 小时的故障" },
       { key: "repeat", label: "重复", icon: "repeat", title: "仅显示历史重复故障" },
-      { key: "validDuration", label: "滤除短时", icon: "filter", title: "过滤历时小于等于 30 分钟的故障" },
+      { key: "validDuration", label: "滤除短时", icon: "filter", title: "<=30分钟" },
     ];
   }
 
