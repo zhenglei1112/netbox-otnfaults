@@ -911,3 +911,9 @@
 - [x] 运行 `python -m unittest tests.test_pathgroup_topology_toggle`。
 - [x] `python -m py_compile .\netbox_otnfaults\map_modes.py` 受当前 `.pyc` 写入权限阻断；已改用 `ast.parse` 对 `map_modes.py` 做只读语法检查。
 - [x] 运行 `node --check netbox_otnfaults/static/netbox_otnfaults/js/controls/LayerToggleControl.js` 和 `node --check netbox_otnfaults/static/netbox_otnfaults/js/modes/location_mode.js`。
+## 2026-04-24 取消 ImportOtnPaths 自动写长度
+### 实施步骤
+- [x] 为 `ImportOtnPaths` 增加回归测试，确认导入时不再自动写入 `calculated_length`。
+- [x] 移除 `ImportOtnPaths` 中基于几何自动计算长度并写入 `calculated_length` 的逻辑。
+- [x] 调整导入日志，不再输出脚本自动计算出的长度值。
+- [x] 运行定向测试和只读语法检查。

@@ -5,7 +5,6 @@ from django.db.models import Q
 import requests
 import math
 from difflib import SequenceMatcher
-from decimal import Decimal
 import random
 from typing import Any
 
@@ -678,17 +677,6 @@ class ImportOtnPaths(Script):
                         self.log_warning(f"Path already exists between {nb_site_a.name} and {nb_site_z.name} (ID: {existing_path.pk}). Skipping. O_Name: {feat_name}")
                         continue
 
-                # 使用合并后的坐标计算总长度
-                length_m = 0.0
-                for i in range(len(merged_coords) - 1):
-                    p1 = merged_coords[i]
-                    p2 = merged_coords[i+1]
-                    is_geo = abs(p1[0]) <= 180 and abs(p1[1]) <= 90
-                    if is_geo:
-                        length_m += self.haversine(p1[1], p1[0], p2[1], p2[0])
-                    else:
-                        length_m += math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
-
                 cable_type_choice = random.choice([
                     CableTypeChoices.SELF_BUILT,
                     CableTypeChoices.COORDINATED,
@@ -705,14 +693,13 @@ class ImportOtnPaths(Script):
                     cable_type=cable_type_choice,
                     description=o_name[:200],
                     comments=o_com,
-                    calculated_length=Decimal(str(length_m)).quantize(Decimal("0.00")),
                     geometry=merged_coords
                 )
 
                 if should_save:
-                    self.log_success(f"Prepared OtnPath for save: {path_name} (Length: {length_m:.2f}m)")
+                    self.log_success(f"Prepared OtnPath for save: {path_name}")
                 else:
-                    self.log_info(f"[Dry-run] Prepared OtnPath: {path_name} (Length: {length_m:.2f}m)")
+                    self.log_info(f"[Dry-run] Prepared OtnPath: {path_name}")
 
                 if should_save:
                     try:

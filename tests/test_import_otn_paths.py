@@ -235,6 +235,7 @@ class ImportOtnPathsNetBoxMatchingTestCase(unittest.TestCase):
         self.assertEqual(created_path["site_a"].name, "Alpha")
         self.assertEqual(created_path["site_z"].name, "Beta")
         self.assertEqual(created_path["name"], "Alpha-Beta")
+        self.assertNotIn("calculated_length", created_path)
 
     def test_run_fetches_from_configured_arcgis_line_url(self) -> None:
         site_a = _FakeSite(name="Alpha", slug="alpha", latitude=25.0, longitude=118.0)
