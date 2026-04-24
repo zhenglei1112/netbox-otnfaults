@@ -8,6 +8,7 @@ from collections import Counter
 
 from extras.scripts import Script, DateVar
 from netbox_otnfaults.models import OtnFault, OtnFaultImpact, ResourceTypeChoices, FaultCategoryChoices
+from netbox_otnfaults.statistics_views import _source_group_for_fault
 
 
 class WeeklyReportText(Script):
@@ -64,8 +65,8 @@ class WeeklyReportText(Script):
         diff_count = total_count - prev_count
         diff_count_str = f"增加{diff_count}" if diff_count >= 0 else f"减少{abs(diff_count)}"
         
-        self_built_count = faults.filter(resource_type=ResourceTypeChoices.SELF_BUILT).count()
-        leased_count = faults.filter(resource_type__in=[ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED]).count()
+        self_controlled_count = sum(1 for f in faults if _source_group_for_fault(f) == "自控")
+        third_party_count = sum(1 for f in faults if _source_group_for_fault(f) == "第三方")
         
         # Reason counts
         construction_count = faults.filter(interruption_reason='construction').count()
@@ -103,8 +104,8 @@ class WeeklyReportText(Script):
         diff_dur = total_dur - prev_dur
         diff_dur_str = f"增加{diff_dur:.1f}" if diff_dur >= 0 else f"减少{abs(diff_dur):.1f}"
         
-        self_built_dur = sum(self.get_fault_duration(f) for f in faults if f.resource_type == ResourceTypeChoices.SELF_BUILT)
-        leased_dur = sum(self.get_fault_duration(f) for f in faults if f.resource_type in [ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED])
+        self_controlled_dur = sum(self.get_fault_duration(f) for f in faults if _source_group_for_fault(f) == "自控")
+        third_party_dur = sum(self.get_fault_duration(f) for f in faults if _source_group_for_fault(f) == "第三方")
         no_const_dur = sum(self.get_fault_duration(f) for f in faults if f.interruption_reason != 'construction')
         
         # Provinces
@@ -274,7 +275,7 @@ class WeeklyReportText(Script):
         
         report.append(
             f"通报一下上周光缆中断情况，上周处理光纤故障共{total_count}次，比上上周{diff_count_str}次，"
-            f"其中自建光缆中断{self_built_count}次，协调和租赁纤芯中断{leased_count}次，"
+            f"其中自控光缆中断{self_controlled_count}次，第三方光缆中断{third_party_count}次，"
             f"中断原因以：{top_reasons}为主。（去除割接报备、线路抖动前三故障原因）"
         )
         report.append("")
@@ -289,7 +290,7 @@ class WeeklyReportText(Script):
         
         report.append(
             f"中断总时长{total_dur:.1f}小时，比上上周{diff_dur_str}小时，"
-            f"其中自建光缆中断{self_built_dur:.1f}小时，协调和租赁纤芯中断{leased_dur:.1f}小时，"
+            f"其中自控光缆中断{self_controlled_dur:.1f}小时，第三方光缆中断{third_party_dur:.1f}小时，"
             f"不含道路施工引起的中断总时长{no_const_dur:.1f}小时。"
         )
         report.append("")

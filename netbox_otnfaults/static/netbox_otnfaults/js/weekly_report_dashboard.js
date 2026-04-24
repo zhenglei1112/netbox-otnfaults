@@ -85,15 +85,15 @@ function renderHeader(data) {
 
 function renderKPIs(data) {
     const summary = data?.summary ?? {};
-    const selfBuilt = summary.self_built ?? {};
-    const leased = summary.leased ?? {};
+    const selfControlled = summary.self_controlled ?? {};
+    const thirdParty = summary.third_party ?? {};
 
     setText("kpi-total-cnt", formatNumber(summary.total_count));
     setHtml("kpi-total-diff", renderTrendBadge(summary.diff_count, " 条"));
     setText("kpi-total-dur", formatDuration(summary.total_duration));
     setHtml("kpi-total-dur-diff", renderTrendBadge(summary.diff_duration, " 小时"));
-    setText("kpi-self-built", `${formatNumber(selfBuilt.count)} 条 / ${formatDuration(selfBuilt.duration)} 小时`);
-    setText("kpi-leased", `${formatNumber(leased.count)} 条 / ${formatDuration(leased.duration)} 小时`);
+    setText("kpi-self-built", `${formatNumber(selfControlled.count)} 条 / ${formatDuration(selfControlled.duration)} 小时`);
+    setText("kpi-leased", `${formatNumber(thirdParty.count)} 条 / ${formatDuration(thirdParty.duration)} 小时`);
 }
 
 function renderChart(dataList) {

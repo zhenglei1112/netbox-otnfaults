@@ -234,6 +234,24 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             self.assertGreater(current_index, previous_index)
             previous_index = current_index
 
+    def test_source_group_treats_self_built_and_coordinated_as_self_controlled(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+
+        helper_block = source.split("def _source_group_for_fault(fault) -> str:", 1)[1].split("def _sorted_count_items", 1)[0]
+
+        self.assertIn(
+            "if fault.resource_type in [ResourceTypeChoices.SELF_BUILT, ResourceTypeChoices.COORDINATED]:",
+            helper_block,
+        )
+        self.assertIn("return '自控'", helper_block)
+        self.assertIn("if fault.resource_type == ResourceTypeChoices.LEASED:", helper_block)
+        self.assertIn("return '第三方'", helper_block)
+        self.assertNotIn("if fault.resource_type == ResourceTypeChoices.SELF_BUILT:", helper_block)
+        self.assertNotIn(
+            "if fault.resource_type in [ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED]:",
+            helper_block,
+        )
+
     def test_repeat_fault_metric_is_embedded_in_cable_break_count_card(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         source = JS_PATH.read_text(encoding="utf-8")

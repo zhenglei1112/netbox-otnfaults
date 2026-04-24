@@ -14,9 +14,9 @@ from .models import (
     FaultCategoryChoices,
     OtnFault,
     OtnFaultImpact,
-    ResourceTypeChoices,
     ServiceTypeChoices,
 )
+from .statistics_views import _source_group_for_fault
 from .weekly_report_summary import build_bare_fiber_summary
 
 
@@ -91,28 +91,26 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
         previous_count = len(previous_faults)
         diff_count = total_count - previous_count
 
-        self_built_count = sum(
-            1 for fault in faults if fault.resource_type == ResourceTypeChoices.SELF_BUILT
+        self_controlled_count = sum(
+            1 for fault in faults if _source_group_for_fault(fault) == "自控"
         )
-        leased_count = sum(
-            1
-            for fault in faults
-            if fault.resource_type in (ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED)
+        third_party_count = sum(
+            1 for fault in faults if _source_group_for_fault(fault) == "第三方"
         )
 
         total_duration = sum(self._get_fault_duration(fault) for fault in faults)
         previous_duration = sum(self._get_fault_duration(fault) for fault in previous_faults)
         diff_duration = total_duration - previous_duration
 
-        self_built_duration = sum(
+        self_controlled_duration = sum(
             self._get_fault_duration(fault)
             for fault in faults
-            if fault.resource_type == ResourceTypeChoices.SELF_BUILT
+            if _source_group_for_fault(fault) == "自控"
         )
-        leased_duration = sum(
+        third_party_duration = sum(
             self._get_fault_duration(fault)
             for fault in faults
-            if fault.resource_type in (ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED)
+            if _source_group_for_fault(fault) == "第三方"
         )
 
         reasons_stats: dict[str, int] = {}
@@ -289,13 +287,13 @@ class WeeklyReportDataAPI(PermissionRequiredMixin, View):
                     "diff_count": diff_count,
                     "total_duration": round(total_duration, 1),
                     "diff_duration": round(diff_duration, 1),
-                    "self_built": {
-                        "count": self_built_count,
-                        "duration": round(self_built_duration, 1),
+                    "self_controlled": {
+                        "count": self_controlled_count,
+                        "duration": round(self_controlled_duration, 1),
                     },
-                    "leased": {
-                        "count": leased_count,
-                        "duration": round(leased_duration, 1),
+                    "third_party": {
+                        "count": third_party_count,
+                        "duration": round(third_party_duration, 1),
                     },
                     "no_const_duration": round(no_const_duration, 1),
                 },

@@ -37,9 +37,9 @@ SOURCE_SUMMARY_ORDER: list[str] = ['自控', '第三方', '其他/未填']
 
 
 def _source_group_for_fault(fault) -> str:
-    if fault.resource_type == ResourceTypeChoices.SELF_BUILT:
+    if fault.resource_type in [ResourceTypeChoices.SELF_BUILT, ResourceTypeChoices.COORDINATED]:
         return '自控'
-    if fault.resource_type in [ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED]:
+    if fault.resource_type == ResourceTypeChoices.LEASED:
         return '第三方'
     return '其他/未填'
 
