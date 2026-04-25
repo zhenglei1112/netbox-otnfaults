@@ -27,6 +27,20 @@ class DashboardCalendarWidgetTestCase(unittest.TestCase):
         self.assertIn("width: 6px; height: 6px;", template_source)
         self.assertNotIn("display: grid;", template_source)
 
+    def test_calendar_widget_builds_fault_list_links_for_each_day(self) -> None:
+        source = DASHBOARD_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("reverse('plugins:netbox_otnfaults:otnfault_list')", source)
+        self.assertIn("'fault_occurrence_time_after':", source)
+        self.assertIn("'fault_occurrence_time_before':", source)
+        self.assertIn("'fault_list_url':", source)
+
+    def test_calendar_widget_template_links_date_cells_to_fault_list(self) -> None:
+        template_source = CALENDAR_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('href="{{ cell.fault_list_url }}"', template_source)
+        self.assertIn("otn-cal-cell-link", template_source)
+
 
 if __name__ == "__main__":
     unittest.main()

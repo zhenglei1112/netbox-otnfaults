@@ -2,7 +2,9 @@
 import traceback
 import calendar
 from datetime import date
+from urllib.parse import urlencode
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from extras.dashboard.widgets import DashboardWidget, register_widget
 from .models import OtnFault, FaultCategoryChoices
@@ -10,7 +12,7 @@ from .models import OtnFault, FaultCategoryChoices
 
 # --- 故障分类 → CSS 颜色映射 ---
 CATEGORY_CSS_COLORS: dict[str, str] = {
-    'fiber_break': '#6f42c1',       # 紫
+    'fiber_break': '#dc3545',       # 红
     'ac_fault': '#20c997',          # 青绿
     'fiber_degradation': '#fd7e14', # 橙
     'fiber_jitter': '#0dcaf0',      # 青蓝
@@ -53,13 +55,20 @@ class OtnFaultsCalendarWidget(DashboardWidget):
 
             # 构造日历网格 (weeks × 7)
             # weekday: 0=Monday, 6=Sunday
+            fault_list_base_url = reverse('plugins:netbox_otnfaults:otnfault_list')
             first_weekday = first_day.weekday()  # 0=周一
             cal_cells: list[dict | None] = [None] * first_weekday
             for d in range(1, days_in_month + 1):
+                day_date = date(year, month, d)
+                fault_list_query = urlencode({
+                    'fault_occurrence_time_after': f'{day_date.isoformat()} 00:00:00',
+                    'fault_occurrence_time_before': f'{day_date.isoformat()} 23:59:59',
+                })
                 cal_cells.append({
                     'day': d,
                     'dots': day_dots.get(d, []),
                     'is_today': d == today_day,
+                    'fault_list_url': f'{fault_list_base_url}?{fault_list_query}',
                 })
             # 补齐最后一行到 7 的倍数
             while len(cal_cells) % 7 != 0:
