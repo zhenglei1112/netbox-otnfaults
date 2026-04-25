@@ -8,6 +8,10 @@ document.addEventListener("DOMContentLoaded", function() {
     let chartReason = echarts.init(document.getElementById('chart-reason'));
     const chartHistogramElement = document.getElementById('chart-cable-break-histogram');
     let chartHistogram = chartHistogramElement ? echarts.init(chartHistogramElement) : null;
+    const chartPhysicalDailyElement = document.getElementById('chart-physical-daily-faults');
+    let chartPhysicalDaily = chartPhysicalDailyElement ? echarts.init(chartPhysicalDailyElement) : null;
+    const chartPhysicalDurationBoxplotElement = document.getElementById('chart-physical-duration-boxplot');
+    let chartPhysicalDurationBoxplot = chartPhysicalDurationBoxplotElement ? echarts.init(chartPhysicalDurationBoxplotElement) : null;
     
     let excludedCategories = {
         resource_type: new Set(),
@@ -29,6 +33,8 @@ document.addEventListener("DOMContentLoaded", function() {
         chartProvince.resize();
         chartReason.resize();
         if (chartHistogram) chartHistogram.resize();
+        if (chartPhysicalDaily) chartPhysicalDaily.resize();
+        if (chartPhysicalDurationBoxplot) chartPhysicalDurationBoxplot.resize();
     }
 
     window.addEventListener('resize', resizeStatisticsCharts);
@@ -38,6 +44,7 @@ document.addEventListener("DOMContentLoaded", function() {
     chartResource.on('click', params => handleChartClick(params, 'resource_type'));
     chartProvince.on('click', params => handleChartClick(params, 'province'));
     chartReason.on('click', params => handleChartClick(params, 'reason'));
+    if (chartHistogram) chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket'));
     
     // 图例切换（过滤剔除）
     chartResource.on('legendselectchanged', params => { updateExcludedSet('resource_type', params.selected); renderDetailsTable(); });
@@ -152,6 +159,8 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         if (currentChartsData) {
             renderCharts(currentChartsData);
+            renderOverallDailyFaultChart(currentChartsData.physical_daily, selFilterType.value);
+            renderPhysicalDurationBoxplot(currentChartsData.physical_daily, selFilterType.value);
         }
     }
 
@@ -536,6 +545,8 @@ document.addEventListener("DOMContentLoaded", function() {
             renderKPIs(data.kpis, data.prev_kpis, selFilterType.value);
             renderOverallSummary(data.kpis, data.charts, data.prev_charts);
             renderOverallOtherSummary(data.other_overview, data.prev_other_overview);
+            renderOverallDailyFaultChart(data.charts && data.charts.physical_daily, selFilterType.value);
+            renderPhysicalDurationBoxplot(data.charts && data.charts.physical_daily, selFilterType.value);
             currentCableBreakOverview = data.cable_break_overview || null;
             currentPrevCableBreakOverview = data.prev_cable_break_overview || null;
             currentChartsData = data.charts || null;
@@ -550,7 +561,8 @@ document.addEventListener("DOMContentLoaded", function() {
     // ---------------- 渲染部分 ----------------
     function renderKPIs(kpis, prevKpis, type) {
         let repeatEl = document.getElementById('kpi-repeat-faults');
-        if (repeatEl) repeatEl.textContent = kpis.repeat_faults_count;
+        if (repeatEl) repeatEl.textContent = formatCardCountValue(kpis.repeat_faults_count);
+        if (repeatEl) renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, true);
         
         const periodStrMap = { 'year': '上年', 'half': '上半年', 'quarter': '上季度', 'month': '上月', 'week': '上周' };
         const label = periodStrMap[type] || '上期';
@@ -560,7 +572,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!el) return;
             if (!prevKpis) { el.innerHTML = ''; return; }
             let diff = current - prev;
-            if (!Number.isInteger(diff)) diff = parseFloat(diff.toFixed(2));
+            diff = parseFloat(diff.toFixed(1));
             
             let style = 'background-color: #f1f3f8; color: #6e7687; border: 1px solid #e6e8eb; border-radius: 20px;';
             let symbol = '';
@@ -580,7 +592,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!prevKpis) { el.innerHTML = ''; return; }
 
             let diff = current - prev;
-            if (!Number.isInteger(diff)) diff = parseFloat(diff.toFixed(2));
+            diff = parseFloat(diff.toFixed(1));
 
             if (diff > 0) {
                 el.innerHTML = `<span class="text-danger fw-bold">⬆${diff}</span>`;
@@ -591,7 +603,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
         
-        renderCompactMetricDiff('kpi-repeat-faults-diff', kpis.repeat_faults_count, prevKpis.repeat_faults_count);
     }
 
     function renderOverallSummary(kpis, chartsData, prevChartsData) {
@@ -599,7 +610,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const categoriesList = document.getElementById('kpi-overall-categories-flex-list');
         if (!overallTotal || !categoriesList) return;
 
-        overallTotal.textContent = kpis.total_count;
+        overallTotal.textContent = formatCardCountValue(kpis.total_count);
 
         let categories = (chartsData && chartsData.category) || [];
         if (categories.length === 0) {
@@ -610,7 +621,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const prevOverallTotal = prevCategories.length > 0
             ? prevCategories.reduce((sum, c) => sum + (c.value || 0), 0)
             : undefined;
-        renderTrendBesideMetric(overallTotal, kpis.total_count, prevOverallTotal);
+        renderTrendBesideMetric(overallTotal, kpis.total_count, prevOverallTotal, true);
 
         let htmlContent = buildFlexGroup(categories, "起", "", "text-indigo", prevCategories);
         categoriesList.innerHTML = htmlContent;
@@ -637,20 +648,235 @@ document.addEventListener("DOMContentLoaded", function() {
         otherList.innerHTML = buildFlexGroup(items, "起", "", "text-indigo", prevItems);
     }
 
-    function formatTrendDiff(currentVal, prevVal) {
+    function isPhysicalDailyLineMode(filterType) {
+        return filterType === 'half' || filterType === 'year';
+    }
+
+    function parsePhysicalDailyLabelDate(value) {
+        const parts = String(value).split('-').map(Number);
+        if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+        return { month: parts[1], day: parts[2] };
+    }
+
+    function formatPhysicalDailyAxisLabel(value, filterType) {
+        const dateParts = parsePhysicalDailyLabelDate(value);
+        if (!dateParts) return value;
+        const { month, day } = dateParts;
+        if (filterType === 'week' || filterType === 'month') {
+            return `${month}/${day}`;
+        }
+        if (filterType === 'quarter') {
+            return day === 1 ? `${month}月` : `${month}/${day}`;
+        }
+        return day === 1 ? `${month}月` : '';
+    }
+
+    function shouldShowPhysicalDailyAxisLabel(index, value, filterType) {
+        const dateParts = parsePhysicalDailyLabelDate(value);
+        if (!dateParts) return true;
+        const day = dateParts.day;
+        if (filterType === 'week') return true;
+        if (filterType === 'month') return index === 0 || day === 1 || day % 3 === 0;
+        if (filterType === 'quarter') return index === 0 || day === 1 || day % 10 === 0;
+        return day === 1;
+    }
+
+    function getPhysicalDurationBoxWidth(filterType) {
+        if (filterType === 'week') return ['18%', '55%'];
+        if (filterType === 'month') return ['10%', '42%'];
+        if (filterType === 'quarter') return ['6%', '30%'];
+        return ['4%', '18%'];
+    }
+
+    function renderOverallDailyFaultChart(dailyData, filterType) {
+        if (!chartPhysicalDaily || !dailyData) return;
+
+        const chartTheme = getChartTheme();
+        const labels = dailyData.labels || [];
+        const durations = dailyData.durations || [];
+        const useLineBars = isPhysicalDailyLineMode(filterType);
+        const fallbackColors = {
+            '光缆中断': '#dc3545',
+            '供电故障': '#6f42c1',
+            '空调故障': '#0d6efd',
+            '设备故障': '#fd7e14',
+        };
+        const series = (dailyData.series || []).map(item => ({
+            name: item.name,
+            type: 'bar',
+            stack: 'physical_faults',
+            barWidth: useLineBars ? 2 : '65%',
+            barMaxWidth: useLineBars ? 2 : 14,
+            emphasis: { focus: 'series' },
+            itemStyle: { color: item.color || fallbackColors[item.name] || chartTheme.primary },
+            data: item.data || [],
+        })).concat([{
+            name: '中断时长',
+            type: 'line',
+            yAxisIndex: 1,
+            smooth: true,
+            showSymbol: false,
+            lineStyle: { width: 2, color: chartTheme.muted, type: 'dashed' },
+            itemStyle: { color: chartTheme.muted },
+            data: durations,
+        }]);
+
+        chartPhysicalDaily.setOption({
+            textStyle: { color: chartTheme.text },
+            color: (dailyData.series || []).map(item => item.color || fallbackColors[item.name] || chartTheme.primary).concat([chartTheme.muted]),
+            tooltip: {
+                ...buildTooltipTheme(chartTheme),
+                trigger: 'axis',
+                axisPointer: { type: useLineBars ? 'line' : 'shadow', lineStyle: { color: chartTheme.axisLine } },
+                formatter: function(params) {
+                    const countParams = params.filter(item => item.seriesType === 'bar');
+                    const durationParam = params.find(item => item.seriesName === '中断时长');
+                    const total = countParams.reduce((sum, item) => sum + Number(item.value || 0), 0);
+                    const rows = params
+                        .filter(item => Number(item.value || 0) > 0)
+                        .map(item => {
+                            const unit = item.seriesName === '中断时长' ? '小时' : '起';
+                            return `${item.marker}${item.seriesName}: ${item.value}${unit}`;
+                        })
+                        .join('<br/>');
+                    const durationText = durationParam ? `<br/><span style="margin-left:14px;">中断时长合计: ${Number(durationParam.value || 0).toFixed(2)}小时</span>` : '';
+                    return `${params[0].axisValue}<br/>${rows || '无物理故障'}<br/><span style="margin-left:14px;">故障合计: ${total}起</span>${durationText}`;
+                }
+            },
+            legend: {
+                top: 8,
+                left: 'center',
+                type: 'scroll',
+                ...buildLegendTheme(chartTheme)
+            },
+            grid: { top: 48, left: 56, right: 56, bottom: 34, containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: labels,
+                axisLabel: {
+                    color: chartTheme.muted,
+                    formatter: function(value) {
+                        return formatPhysicalDailyAxisLabel(value, filterType);
+                    },
+                    interval: function(index, value) {
+                        return shouldShowPhysicalDailyAxisLabel(index, value, filterType);
+                    },
+                },
+                axisLine: { lineStyle: { color: chartTheme.axisLine } },
+                axisTick: { show: false },
+            },
+            yAxis: [
+                {
+                    type: 'value',
+                    name: '物理故障数',
+                    minInterval: 1,
+                    ...buildAxisTheme(chartTheme),
+                    splitLine: { show: true, lineStyle: { color: chartTheme.border, type: 'dashed' } },
+                },
+                {
+                    type: 'value',
+                    name: '中断时长(小时)',
+                    min: 0,
+                    ...buildAxisTheme(chartTheme),
+                    splitLine: { show: false },
+                }
+            ],
+            series
+        }, true);
+    }
+
+    function renderPhysicalDurationBoxplot(dailyData, filterType) {
+        if (!chartPhysicalDurationBoxplot || !dailyData) return;
+
+        const chartTheme = getChartTheme();
+        const labels = dailyData.labels || [];
+        const boxplotData = dailyData.boxplot || [];
+
+        chartPhysicalDurationBoxplot.setOption({
+            textStyle: { color: chartTheme.text },
+            tooltip: {
+                ...buildTooltipTheme(chartTheme),
+                trigger: 'item',
+                formatter: function(params) {
+                    const value = params.data || [];
+                    return `${params.name}<br/>` +
+                        `<span style="margin-left:14px;">最小值: ${value[0] || 0}小时</span><br/>` +
+                        `<span style="margin-left:14px;">Q1: ${value[1] || 0}小时</span><br/>` +
+                        `<span style="margin-left:14px;">中位数: ${value[2] || 0}小时</span><br/>` +
+                        `<span style="margin-left:14px;">Q3: ${value[3] || 0}小时</span><br/>` +
+                        `<span style="margin-left:14px;">最大值: ${value[4] || 0}小时</span>`;
+                }
+            },
+            grid: { top: 46, left: 64, right: 56, bottom: 34, containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: labels,
+                axisLabel: {
+                    color: chartTheme.muted,
+                    formatter: function(value) {
+                        return formatPhysicalDailyAxisLabel(value, filterType);
+                    },
+                    interval: function(index, value) {
+                        return shouldShowPhysicalDailyAxisLabel(index, value, filterType);
+                    },
+                },
+                axisLine: { lineStyle: { color: chartTheme.axisLine } },
+                axisTick: { show: false },
+            },
+            yAxis: {
+                type: 'value',
+                name: '中断时长分布(小时)',
+                nameGap: 12,
+                nameLocation: 'end',
+                min: 0,
+                ...buildAxisTheme(chartTheme),
+                splitLine: { show: true, lineStyle: { color: chartTheme.border, type: 'dashed' } },
+            },
+            series: [{
+                name: '中断时长分布',
+                type: 'boxplot',
+                boxWidth: getPhysicalDurationBoxWidth(filterType),
+                data: boxplotData,
+                itemStyle: {
+                    color: chartTheme.dark ? 'rgba(110, 168, 254, 0.22)' : 'rgba(32, 107, 196, 0.16)',
+                    borderColor: chartTheme.primary,
+                    borderWidth: 1.2,
+                },
+                emphasis: { itemStyle: { borderWidth: 2 } },
+            }]
+        }, true);
+    }
+
+    function formatTrendDiff(currentVal, prevVal, integer = false) {
         const cur = parseFloat(currentVal);
         const prev = parseFloat(prevVal);
         const diff = cur - prev;
-        return Number.isInteger(diff) ? String(diff) : diff.toFixed(2);
+        return integer ? String(Math.round(diff)) : diff.toFixed(1);
     }
 
-    function buildTrendArrow(currentVal, prevVal) {
+    function formatCardMetricValue(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return value === undefined || value === null ? '--' : String(value);
+        return number.toFixed(1);
+    }
+
+    function formatCardCountValue(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return value === undefined || value === null ? '--' : String(value);
+        return String(Math.round(number));
+    }
+
+    function isCountUnit(unit) {
+        return unit === '起' || unit === '次';
+    }
+
+    function buildTrendArrow(currentVal, prevVal, integer = false) {
         if (prevVal === undefined || prevVal === null) return '';
         const cur = parseFloat(currentVal);
         const prev = parseFloat(prevVal);
         if (isNaN(cur) || isNaN(prev) || cur === prev) return '';
         const symbol = cur > prev ? '+' : '';
-        const diffText = `${symbol}${formatTrendDiff(cur, prev)}`;
+        const diffText = `${symbol}${formatTrendDiff(cur, prev, integer)}`;
         if (cur > prev) {
             return `<span class="statistics-trend-diff text-danger">⬆ ${diffText}</span>`;
         } else {
@@ -658,7 +884,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    function renderTrendBesideMetric(metricEl, currentValue, previousValue) {
+    function renderTrendBesideMetric(metricEl, currentValue, previousValue, integer = false) {
         if (!metricEl) return;
         const metricTrendContainer = metricEl.parentElement;
         if (!metricTrendContainer || !metricTrendContainer.parentElement) return;
@@ -669,19 +895,25 @@ document.addEventListener("DOMContentLoaded", function() {
             trendEl.className = 'statistics-metric-trend statistics-kpi-trend-row';
             metricTrendContainer.appendChild(trendEl);
         }
-        trendEl.innerHTML = buildTrendArrow(currentValue, previousValue);
+        trendEl.innerHTML = buildTrendArrow(currentValue, previousValue, integer);
     }
 
-    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue) {
-        const arrow = buildTrendArrow(value, prevValue);
+    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue, filterLabel, valueId, filterExtraField, filterExtraValue, infoTitle, infoLabel) {
+        const countUnit = isCountUnit(unit);
+        const arrow = buildTrendArrow(value, prevValue, countUnit);
+        const displayValue = isCountUnit(unit) ? formatCardCountValue(value) : formatCardMetricValue(value);
+        const infoHtml = infoTitle
+            ? `<span class="statistics-info-button statistics-inline-info" title="${infoTitle}" aria-label="${infoLabel || title + '说明'}"><i class="mdi mdi-information-outline" aria-hidden="true"></i></span>`
+            : "";
         const filterClass = filterField ? " statistics-drill-metric" : "";
         const filterAttrs = filterField
-            ? ` data-filter-field="${filterField}" data-filter-value="${filterValue}" data-filter-label="${title}"`
+            ? ` data-filter-field="${filterField}" data-filter-value="${filterValue}"${filterExtraField ? ` data-filter-extra-field="${filterExtraField}" data-filter-extra-value="${filterExtraValue}"` : ""} data-filter-label="${filterLabel || title}"`
             : "";
+        const valueIdAttr = valueId ? ` id="${valueId}"` : "";
         return `
             <div class="text-center${filterClass}"${filterAttrs}>
-                <div class="statistics-overall-kpi-value fs-3 fw-bold ${colorClass} lh-1">${value}<span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span>${arrow ? `<span class="statistics-metric-trend statistics-kpi-trend-row">${arrow}</span>` : ''}</div>
-                <div class="statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">${title}</div>
+                <div class="statistics-overall-kpi-value fs-3 fw-bold ${colorClass} lh-1"${valueIdAttr}>${displayValue}<span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span>${arrow ? `<span class="statistics-metric-trend statistics-kpi-trend-row">${arrow}</span>` : ''}</div>
+                <div class="statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">${title}${infoHtml}</div>
             </div>
         `;
     }
@@ -700,7 +932,16 @@ document.addEventListener("DOMContentLoaded", function() {
                 const match = prevItems.find(p => (p.name || p.title) === name);
                 if (match) prevVal = match.value;
             }
-            groupHtml += buildFlexItemCore(val, unit, name, colorClass, prevVal, filterField, name);
+            if (item && item.prevValue !== undefined) prevVal = item.prevValue;
+            const itemFilterField = item && item.filterField !== undefined ? item.filterField : filterField;
+            const itemFilterValue = item && item.filterValue !== undefined ? item.filterValue : name;
+            const itemFilterLabel = item && item.filterLabel !== undefined ? item.filterLabel : name;
+            const itemValueId = item && item.id !== undefined ? item.id : undefined;
+            const itemFilterExtraField = item && item.filterExtraField !== undefined ? item.filterExtraField : undefined;
+            const itemFilterExtraValue = item && item.filterExtraValue !== undefined ? item.filterExtraValue : undefined;
+            const itemInfoTitle = item && item.infoTitle !== undefined ? item.infoTitle : undefined;
+            const itemInfoLabel = item && item.infoLabel !== undefined ? item.infoLabel : undefined;
+            groupHtml += buildFlexItemCore(val, unit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel);
         });
         groupHtml += `</div>`;
         if (groupTitle) {
@@ -708,6 +949,27 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         groupHtml += `</div>`;
         return groupHtml;
+    }
+
+    function normalizeTopItems(items, size) {
+        const normalized = items.slice(0, size).map(item => ({
+            name: item.name || item.title || '--',
+            value: item.value !== undefined ? item.value : 0,
+        }));
+        while (normalized.length < size) {
+            normalized.push({name: '--', value: 0});
+        }
+        return normalized;
+    }
+
+    function normalizeNamedItems(items, names) {
+        return names.map(name => {
+            const match = items.find(item => item.name === name || item.title === name);
+            return {
+                name,
+                value: match && match.value !== undefined ? match.value : 0,
+            };
+        });
     }
 
     function buildGroupedFlexLayout(groups) {
@@ -726,32 +988,24 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderCableBreakOverview(overview, prevOverview) {
         const totalEl = document.getElementById('cable-break-total-count');
-        const durationTotalEl = document.getElementById('cable-break-total-duration');
-        const longTotalEl = document.getElementById('cable-break-long-total');
-        const longDurationTotalEl = document.getElementById('cable-break-long-duration-total');
-        if (!totalEl || !longTotalEl) return;
+        if (!totalEl) return;
 
         overview = overview || {};
         prevOverview = prevOverview || {};
-        totalEl.textContent = overview.total_count || 0;
-        if (durationTotalEl) durationTotalEl.textContent = overview.total_duration ? overview.total_duration.toFixed(2) : "0.00";
+        totalEl.textContent = formatCardCountValue(overview.total_count || 0);
 
-        renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count);
+        renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, true);
 
-        // 卡片1: 中断起数
-        let htmlCount = "";
+        // 卡片1-3: 中断起数、原因TOP3、光缆属性
         const prevReasonTop3 = prevOverview.reason_top3 || [];
         const prevSourceCounts = prevOverview.source_counts || [];
-        let reasonTop3 = overview.reason_top3 || [];
-        if (reasonTop3.length === 0) reasonTop3 = [{name: '--', value: 0}];
-        htmlCount += buildFlexGroup(reasonTop3, "起", "原因TOP3", "text-indigo", prevReasonTop3, "reason");
+        const reasonTop3 = normalizeTopItems(overview.reason_top3 || [], 3);
+        const reasonList = document.getElementById('cable-break-reason-top3-flex-list');
+        if (reasonList) reasonList.innerHTML = buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason");
 
-        let sourceCounts = overview.source_counts || [];
-        if (sourceCounts.length === 0) sourceCounts = [{name: '--', value: 0}];
-        htmlCount += buildFlexGroup(sourceCounts, "起", "光缆属性", "text-indigo", prevSourceCounts, "source_group");
-
-        const countList = document.getElementById('cable-break-count-flex-list');
-        if (countList) countList.innerHTML = htmlCount;
+        const sourceCounts = normalizeNamedItems(overview.source_counts || [], ["自控", "第三方", "其他/未填"]);
+        const sourceList = document.getElementById('cable-break-source-flex-list');
+        if (sourceList) sourceList.innerHTML = buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group");
 
         // 卡片2: 长时中断起数
         let htmlLong = "";
@@ -770,17 +1024,33 @@ document.addEventListener("DOMContentLoaded", function() {
             prevLongTotal += count;
             return { value: count, name: b };
         });
-        longTotalEl.textContent = longTotal;
-
-        renderTrendBesideMetric(longTotalEl, longTotal, prevLongTotal);
-
-        if (longItems.length === 0) longItems = [{name: '--', value: 0}];
-        htmlLong += buildFlexGroup(longItems, "起", "历时分布", "text-indigo", prevLongItems, "duration_bucket");
+        longItems = [
+            {
+                name: "起数",
+                value: longTotal,
+                prevValue: prevLongTotal,
+                filterField: "is_long",
+                filterValue: "true",
+                filterLabel: "长时起数",
+                id: "cable-break-long-total",
+            },
+            ...longItems.map((item) => ({
+                ...item,
+                filterField: "duration_bucket",
+                filterValue: item.name,
+                filterLabel: item.name,
+            })),
+        ];
+        prevLongItems = [
+            {name: "起数", value: prevLongTotal},
+            ...prevLongItems,
+        ];
+        htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems);
         
         const longList = document.getElementById('cable-break-long-flex-list');
         if (longList) longList.innerHTML = htmlLong;
 
-        // 卡片3: 长时中断历时
+        // 长时历时
         let htmlLongDuration = "";
         const longDurationBuckets = overview.long_duration_bucket_durations || {};
         const prevLongDurationBuckets = prevOverview.long_duration_bucket_durations || {};
@@ -788,84 +1058,156 @@ document.addEventListener("DOMContentLoaded", function() {
         let prevLongDurationTotal = Number(prevOverview.long_duration_total || 0);
         let longDurationItems = orderedBuckets.map(b => {
             const duration = Number(longDurationBuckets[b] || 0);
-            return { value: duration.toFixed(2), name: b };
+            return { value: duration, name: b };
         });
         let prevLongDurationItems = orderedBuckets.map(b => {
             const duration = Number(prevLongDurationBuckets[b] || 0);
-            return { value: duration.toFixed(2), name: b };
+            return { value: duration, name: b };
         });
-
-        if (longDurationTotalEl) {
-            longDurationTotalEl.textContent = longDurationTotal.toFixed(2);
-            renderTrendBesideMetric(longDurationTotalEl, longDurationTotal, prevLongDurationTotal);
-        }
-
-        if (longDurationItems.length === 0) longDurationItems = [{name: '--', value: "0.00"}];
-        htmlLongDuration += buildFlexGroup(longDurationItems, "时", "历时分布", "text-indigo", prevLongDurationItems, "duration_bucket");
+        longDurationItems = [
+            {
+                name: "总历时",
+                value: longDurationTotal,
+                prevValue: prevLongDurationTotal,
+                filterField: "is_long",
+                filterValue: "true",
+                filterLabel: "长时历时",
+                id: "cable-break-long-duration-total",
+            },
+            ...longDurationItems.map((item) => ({
+                ...item,
+                filterField: "duration_bucket",
+                filterValue: item.name,
+                filterLabel: item.name,
+            })),
+        ];
+        prevLongDurationItems = [
+            {name: "总历时", value: prevLongDurationTotal},
+            ...prevLongDurationItems,
+        ];
+        htmlLongDuration += buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems);
         
         const longDurationList = document.getElementById('cable-break-long-duration-flex-list');
         if (longDurationList) longDurationList.innerHTML = htmlLongDuration;
 
-        // 卡片4: 中断总历时
-        let htmlDur = "";
+        // 中断历时、原因TOP3、光缆属性
         const prevDurReasonTop3 = prevOverview.reason_duration_top3 || [];
         const prevDurSourceCounts = prevOverview.source_duration_counts || [];
-        let durReasonItems = (overview.reason_duration_top3 || []).map(i => ({...i, value: parseFloat(i.value).toFixed(2)}));
-        if (durReasonItems.length === 0) durReasonItems = [{name: '--', value: "0.00"}];
-        
-        let durSourceItems = (overview.source_duration_counts || []).map(i => ({...i, value: parseFloat(i.value).toFixed(2)}));
-        if (durSourceItems.length === 0) durSourceItems = [{name: '--', value: "0.00"}];
-        
-        let prevDurReasonItems = prevDurReasonTop3.map(i => ({...i, value: parseFloat(i.value).toFixed(2)}));
-        let prevDurSourceItems = prevDurSourceCounts.map(i => ({...i, value: parseFloat(i.value).toFixed(2)}));
-
-        if (durationTotalEl) {
-            const currentDuration = overview.total_duration || 0;
-            durationTotalEl.textContent = currentDuration.toFixed(2);
-            renderTrendBesideMetric(durationTotalEl, currentDuration, prevOverview.total_duration);
+        const currentDuration = Number(overview.total_duration || 0);
+        const prevDuration = Number(prevOverview.total_duration || 0);
+        const durationTotalList = document.getElementById('cable-break-duration-total-list');
+        if (durationTotalList) {
+            durationTotalList.innerHTML = buildFlexGroup([{
+                name: "总历时",
+                value: currentDuration,
+                prevValue: prevDuration,
+                filterField: "category",
+                filterValue: "光缆中断",
+                filterLabel: "中断历时",
+                id: "cable-break-total-duration",
+            }], "时", "", "text-indigo", [{name: "总历时", value: prevDuration}]);
         }
 
-        htmlDur += buildFlexGroup(durReasonItems, "时", "原因TOP3", "text-indigo", prevDurReasonItems, "reason");
-        htmlDur += buildFlexGroup(durSourceItems, "时", "光缆属性", "text-indigo", prevDurSourceItems, "source_group");
-        
-        const durList = document.getElementById('cable-break-duration-flex-list');
-        if (durList) durList.innerHTML = htmlDur;
+        const durReasonItems = normalizeTopItems((overview.reason_duration_top3 || []).map(i => ({
+            name: i.name || i.title,
+            value: Number(i.value || 0),
+        })), 3);
+        const prevDurReasonItems = prevDurReasonTop3.map(i => ({...i, value: Number(i.value || 0)}));
+        const durationReasonList = document.getElementById('cable-break-duration-reason-flex-list');
+        if (durationReasonList) {
+            durationReasonList.innerHTML = buildFlexGroup(durReasonItems, "时", "", "text-indigo", prevDurReasonItems, "reason");
+        }
 
-        // 卡片5: 平均历时深度分析
-        const oAvgEl = document.getElementById('cable-break-overall-avg');
+        const durSourceItems = normalizeNamedItems((overview.source_duration_counts || []).map(i => ({
+            name: i.name || i.title,
+            value: Number(i.value || 0),
+        })), ["自控", "第三方", "其他/未填"]);
+        const prevDurSourceItems = prevDurSourceCounts.map(i => ({...i, value: Number(i.value || 0)}));
+        const durationSourceList = document.getElementById('cable-break-duration-source-flex-list');
+        if (durationSourceList) {
+            durationSourceList.innerHTML = buildFlexGroup(durSourceItems, "时", "", "text-indigo", prevDurSourceItems, "source_group");
+        }
+
+        // 平均历时
         const prevMetrics = prevOverview.avg_metrics || {};
-        if (oAvgEl && overview.avg_metrics) {
+        const overallAverageList = document.getElementById('cable-break-average-overall-list');
+        const filteredAverageList = document.getElementById('cable-break-filtered-average-flex-list');
+        if (overview.avg_metrics) {
             const m = overview.avg_metrics;
-            oAvgEl.textContent = m.overall_avg.toFixed(2);
-            renderTrendBesideMetric(oAvgEl, m.overall_avg, prevMetrics.overall_avg);
-            // 子指标（静态 HTML 节点直接填值 + 箭头）
-            const avgFields = [
-                {id: 'cable-break-valid-avg', key: 'valid_avg'},
-                {id: 'cable-break-daytime-avg', key: 'daytime_avg'},
-                {id: 'cable-break-nighttime-avg', key: 'nighttime_avg'},
-                {id: 'cable-break-construction-avg', key: 'construction_avg'},
-                {id: 'cable-break-noncons-avg', key: 'non_construction_avg'},
+            const overallAverageItems = [
+                {
+                    name: "全口径平均",
+                    value: Number(m.overall_avg || 0),
+                    prevValue: prevMetrics.overall_avg,
+                    filterField: "category",
+                    filterValue: "光缆中断",
+                    filterLabel: "全口径平均",
+                    id: "cable-break-overall-avg",
+                },
             ];
-            avgFields.forEach(f => {
-                const el = document.getElementById(f.id);
-                if (el) {
-                    const curV = m[f.key];
-                    const prevV = prevMetrics[f.key];
-                    const arrow = buildTrendArrow(curV, prevV);
-                    el.innerHTML = `${curV.toFixed(2)}`;
-                    
-                    const parentCenter = el.closest('.text-center');
-                    if (parentCenter) {
-                        let trendEl = parentCenter.querySelector('.statistics-kpi-trend-row');
-                        if (!trendEl) {
-                            trendEl = document.createElement('div');
-                            trendEl.className = 'statistics-kpi-trend-row';
-                            parentCenter.appendChild(trendEl);
-                        }
-                        trendEl.innerHTML = arrow;
-                    }
-                }
-            });
+            const filteredAverageItems = [
+                {
+                    name: "有效平均",
+                    value: Number(m.valid_avg || 0),
+                    prevValue: prevMetrics.valid_avg,
+                    filterField: "is_valid_duration",
+                    filterValue: "true",
+                    filterLabel: "有效平均",
+                    id: "cable-break-valid-avg",
+                },
+                {
+                    name: "日间平均",
+                    value: Number(m.daytime_avg || 0),
+                    prevValue: prevMetrics.daytime_avg,
+                    filterField: "occurrence_period",
+                    filterValue: "日间",
+                    filterExtraField: "is_valid_duration",
+                    filterExtraValue: "true",
+                    filterLabel: "日间平均",
+                    id: "cable-break-daytime-avg",
+                },
+                {
+                    name: "夜间平均",
+                    value: Number(m.nighttime_avg || 0),
+                    prevValue: prevMetrics.nighttime_avg,
+                    filterField: "occurrence_period",
+                    filterValue: "夜间",
+                    filterExtraField: "is_valid_duration",
+                    filterExtraValue: "true",
+                    filterLabel: "夜间平均",
+                    id: "cable-break-nighttime-avg",
+                },
+                {
+                    name: "施工类",
+                    value: Number(m.construction_avg || 0),
+                    prevValue: prevMetrics.construction_avg,
+                    filterField: "cause_group",
+                    filterValue: "施工类",
+                    filterExtraField: "is_valid_duration",
+                    filterExtraValue: "true",
+                    filterLabel: "施工类",
+                    id: "cable-break-construction-avg",
+                },
+                {
+                    name: "非施工类",
+                    value: Number(m.non_construction_avg || 0),
+                    prevValue: prevMetrics.non_construction_avg,
+                    filterField: "cause_group",
+                    filterValue: "非施工类",
+                    filterExtraField: "is_valid_duration",
+                    filterExtraValue: "true",
+                    filterLabel: "非施工类",
+                    id: "cable-break-noncons-avg",
+                },
+            ];
+            const prevOverallAverageItems = overallAverageItems.map(item => ({name: item.name, value: item.prevValue}));
+            const prevFilteredAverageItems = filteredAverageItems.map(item => ({name: item.name, value: item.prevValue}));
+            if (overallAverageList) {
+                overallAverageList.innerHTML = buildFlexGroup(overallAverageItems, "时", "", "text-indigo", prevOverallAverageItems);
+            }
+            if (filteredAverageList) {
+                filteredAverageList.innerHTML = buildFlexGroup(filteredAverageItems, "时", "", "text-indigo", prevFilteredAverageItems);
+            }
         }
         
         if (overview.histogram && chartHistogram) {
@@ -896,12 +1238,14 @@ document.addEventListener("DOMContentLoaded", function() {
                     name: '起数',
                     minInterval: 1,
                     max: histogramMaxValue > 0 ? Math.ceil(histogramMaxValue * 1.25) : 1,
-                    ...buildAxisTheme(chartTheme)
+                    ...buildAxisTheme(chartTheme),
+                    splitLine: { show: false }
                 },
                 series: [{
                     type: 'bar',
-                    barWidth: '60%',
-                    itemStyle: { color: chartTheme.primary, borderRadius: [2, 2, 0, 0] },
+                    barCategoryGap: '0%',
+                    barGap: '0%',
+                    itemStyle: { color: chartTheme.primary, borderRadius: [0, 0, 0, 0] },
                     label: {
                         show: true,
                         position: 'top',
@@ -1083,6 +1427,7 @@ document.addEventListener("DOMContentLoaded", function() {
             else if (activeFilterField === 'province') filterName = '省份';
             else if (activeFilterField === 'reason') filterName = '原因';
             else if (activeFilterField === 'duration_bucket') filterName = '历时分布';
+            else if (activeFilterField === 'duration_histogram_bucket') filterName = '故障历时频数';
             else if (activeFilterField === 'category') filterName = '分类';
             else if (activeFilterField === 'occurrence_period') filterName = '发生时段';
             else if (activeFilterField === 'cause_group') filterName = '成因';
@@ -1213,8 +1558,8 @@ document.addEventListener("DOMContentLoaded", function() {
     let serviceDataLoaded = false;
 
     async function loadServiceData() {
-        const container = document.getElementById('service-cards-container');
-        container.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...</div>';
+        setServiceCardsLoading('service-cards-container');
+        setServiceCardsLoading('circuit-service-cards-container');
 
         let url = `${window.SERVICE_STATISTICS_DATA_API}?${buildTimeParams()}`;
 
@@ -1229,12 +1574,31 @@ document.addEventListener("DOMContentLoaded", function() {
                 updatePeriodLabelState(periodEl, data.period);
             }
 
-            renderServiceCards(data.services || [], data.period_total_hours || 0);
+            const services = data.services || [];
+            renderServiceCards(getServicesByType(services, '裸纤业务'), 'service-cards-container', '裸纤业务');
+            renderServiceCards(getServicesByType(services, '电路业务'), 'circuit-service-cards-container', '电路业务');
             serviceDataLoaded = true;
         } catch (error) {
             console.error('Service data fetch error:', error);
-            container.innerHTML = '<div class="col-12 text-center text-danger py-5">数据加载失败，请检查网络或刷新重试</div>';
+            setServiceCardsError('service-cards-container');
+            setServiceCardsError('circuit-service-cards-container');
         }
+    }
+
+    function setServiceCardsLoading(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...</div>';
+    }
+
+    function setServiceCardsError(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '<div class="col-12 text-center text-danger py-5">数据加载失败，请检查网络或刷新重试</div>';
+    }
+
+    function getServicesByType(services, serviceType) {
+        return services.filter(svc => svc.type === serviceType);
     }
 
     function escapeHtml(value) {
@@ -1248,12 +1612,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderStripMetric(metric) {
         const valueClass = metric.valueClass || 'text-indigo';
+        const valueText = isCountUnit(metric.unit) ? formatCardCountValue(metric.value) : formatCardMetricValue(metric.value);
         const unitHtml = metric.unit ? `<span class="statistics-strip-card-unit">${metric.unit}</span>` : '';
         const detailHtml = metric.detail ? `<div class="statistics-strip-card-detail">${metric.detail}</div>` : '';
         return `
             <div class="statistics-strip-card-metric">
                 <div class="statistics-strip-card-value-row">
-                    <span class="statistics-strip-card-value ${valueClass}">${metric.value}</span>
+                    <span class="statistics-strip-card-value ${valueClass}">${valueText}</span>
                     ${unitHtml}
                 </div>
                 ${detailHtml}
@@ -1274,11 +1639,12 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>`;
     }
 
-    function renderServiceCards(services, periodTotalHours) {
-        const container = document.getElementById('service-cards-container');
+    function renderServiceCards(services, containerId, emptyServiceType) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
         if (services.length === 0) {
-            container.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="mdi mdi-information-outline me-1"></i> 当前时间范围内无业务故障记录</div>';
+            container.innerHTML = `<div class="col-12 text-center text-muted py-5"><i class="mdi mdi-information-outline me-1"></i> 当前时间范围内无${emptyServiceType}故障记录</div>`;
             return;
         }
 
@@ -1293,10 +1659,10 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             let catParts = [];
-            if (svc.break_count > 0) catParts.push(`中断 ${svc.break_count}`);
-            if (svc.jitter_count > 0) catParts.push(`抖动 ${svc.jitter_count}`);
-            if (svc.degrade_count > 0) catParts.push(`劣化 ${svc.degrade_count}`);
-            if (svc.other_count > 0) catParts.push(`其他 ${svc.other_count}`);
+            if (svc.break_count > 0) catParts.push(`中断 ${formatCardCountValue(svc.break_count)}`);
+            if (svc.jitter_count > 0) catParts.push(`抖动 ${formatCardCountValue(svc.jitter_count)}`);
+            if (svc.degrade_count > 0) catParts.push(`劣化 ${formatCardCountValue(svc.degrade_count)}`);
+            if (svc.other_count > 0) catParts.push(`其他 ${formatCardCountValue(svc.other_count)}`);
             let catDetail = catParts.length > 0 ? catParts.join(' | ') : svc.type;
 
             return renderStripCard({
@@ -1307,7 +1673,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     { label: '平均时长', value: svc.avg_duration, unit: '小时' },
                     { label: '长时故障', value: svc.long_count, unit: '次', valueClass: svc.long_count > 0 ? 'text-danger' : 'text-indigo' },
                     { label: '重复故障', value: svc.repeat_count, unit: '次', valueClass: svc.repeat_count > 0 ? 'text-purple' : 'text-indigo' },
-                    { label: 'SLA', value: `${svc.sla.toFixed(2)}%`, valueClass: '', detail: `<span style="color:${slaColor};">可用率</span>` },
+                    { label: 'SLA', value: svc.sla, unit: '%', valueClass: '', detail: `<span style="color:${slaColor};">可用率</span>` },
                 ],
             });
         }).join('');
@@ -1318,7 +1684,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // ---------------- Tab 切换联动 ----------------
     function loadActiveTab() {
         const activeTab = document.querySelector('#statisticsTab .nav-link.active');
-        if (activeTab && activeTab.id === 'tab-service-btn') {
+        if (activeTab && (activeTab.id === 'tab-service-btn' || activeTab.id === 'tab-circuit-service-btn')) {
             loadServiceData();
         } else {
             loadData();
@@ -1329,15 +1695,13 @@ document.addEventListener("DOMContentLoaded", function() {
     const tabEl = document.getElementById('statisticsTab');
     if (tabEl) {
         tabEl.addEventListener('shown.bs.tab', function(event) {
-            if (event.target.id === 'tab-service-btn') {
+            if (event.target.id === 'tab-service-btn' || event.target.id === 'tab-circuit-service-btn') {
                 loadServiceData();
-            } else if (event.target.id === 'tab-cable-break-btn') {
+            } else if (event.target.id === 'tab-physical-btn') {
                 loadData();
                 setTimeout(() => {
                     resizeStatisticsCharts();
                 }, 100);
-            } else if (event.target.id === 'tab-physical-btn') {
-                loadData();
             }
         });
     }

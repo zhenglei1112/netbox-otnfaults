@@ -43,25 +43,48 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
         self.assertIn("statistics-cable-break-overview", template)
-        self.assertIn("光缆中断概览", template)
+        self.assertIn("光缆中断情况", template)
         cable_break_header = template.split('<section class="statistics-cable-break-overview', 1)[1].split('<div class="statistics-cable-break-summary-grid', 1)[0]
-        self.assertIn('<h3 class="h4 mb-0 d-inline-flex align-items-center gap-2">', cable_break_header)
-        self.assertIn("光缆中断概览", cable_break_header.split('id="statistics-cable-break-map-btn"', 1)[0])
+        self.assertIn('class="statistics-cable-break-heading-row mb-3"', cable_break_header)
+        self.assertIn('<h3 class="statistics-cable-break-heading mb-0">', cable_break_header)
+        self.assertIn('class="statistics-cable-break-map-action"', cable_break_header)
+        self.assertIn("<span>定位地图</span>", cable_break_header)
+        self.assertIn("光缆中断情况", cable_break_header.split('id="statistics-cable-break-map-btn"', 1)[0])
         self.assertNotIn("justify-content-between", cable_break_header)
         self.assertIn('id="cable-break-total-count"', template)
-        self.assertIn('id="cable-break-count-flex-list"', template)
-        self.assertIn('id="cable-break-duration-flex-list"', template)
-        self.assertIn('id="cable-break-long-total"', template)
+        self.assertNotIn('id="cable-break-count-flex-list"', template)
+        self.assertIn('id="cable-break-reason-top3-flex-list"', template)
+        self.assertIn('id="cable-break-source-flex-list"', template)
+        self.assertNotIn('id="cable-break-duration-flex-list"', template)
+        self.assertIn('id="cable-break-duration-total-list"', template)
+        self.assertIn('id="cable-break-duration-reason-flex-list"', template)
+        self.assertIn('id="cable-break-duration-source-flex-list"', template)
         self.assertIn('id="cable-break-long-flex-list"', template)
-        self.assertIn('id="cable-break-total-duration"', template)
-        self.assertIn('id="cable-break-long-duration-total"', template)
         self.assertIn('id="cable-break-long-duration-flex-list"', template)
-        self.assertIn('id="cable-break-overall-avg"', template)
-        self.assertIn('id="cable-break-valid-avg"', template)
-        self.assertIn('id="cable-break-daytime-avg"', template)
-        self.assertIn('id="cable-break-nighttime-avg"', template)
-        self.assertIn('id="cable-break-construction-avg"', template)
-        self.assertIn('id="cable-break-noncons-avg"', template)
+        self.assertNotIn('id="cable-break-average-flex-list"', template)
+        self.assertIn('id="cable-break-average-overall-list"', template)
+        self.assertIn('id="cable-break-filtered-average-flex-list"', template)
+
+    def test_statistics_page_uses_wide_container(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".page-statistics > .page-wrapper.container-xl", css)
+        self.assertIn("max-width: none;", css)
+        self.assertIn("width: 100%;", css)
+        self.assertNotIn("width: calc(100vw - 3rem);", css)
+
+    def test_cable_break_heading_uses_business_title_style(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".statistics-cable-break-heading", css)
+        self.assertIn("font-size: 1.2rem;", css)
+        self.assertIn("font-weight: 700;", css)
+        self.assertIn("color: var(--statistics-text);", css)
+        self.assertIn(".statistics-cable-break-heading::before", css)
+        self.assertIn("height: 1.25rem;", css)
+        self.assertIn(".statistics-cable-break-map-action", css)
+        self.assertIn("font-size: 1.125rem;", css)
+        self.assertIn("border-radius: 8px;", css)
 
     def test_dashboard_script_renders_cable_break_overview(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -69,15 +92,31 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview);", source)
         self.assertIn("function renderCableBreakOverview(overview, prevOverview)", source)
         self.assertIn("document.getElementById('cable-break-total-count')", source)
-        self.assertIn("document.getElementById('cable-break-count-flex-list')", source)
+        self.assertNotIn("document.getElementById('cable-break-count-flex-list')", source)
+        self.assertIn("document.getElementById('cable-break-reason-top3-flex-list')", source)
+        self.assertIn("document.getElementById('cable-break-source-flex-list')", source)
         self.assertIn("overview.long_duration_buckets || {}", source)
         self.assertIn("overview.long_duration_bucket_durations || {}", source)
-        self.assertIn("document.getElementById('cable-break-long-duration-total')", source)
+        self.assertIn("document.getElementById('cable-break-duration-total-list')", source)
+        self.assertIn("document.getElementById('cable-break-duration-reason-flex-list')", source)
+        self.assertIn("document.getElementById('cable-break-duration-source-flex-list')", source)
         self.assertIn("document.getElementById('cable-break-long-duration-flex-list')", source)
+        self.assertNotIn("durationTotalEl", source)
         self.assertIn("const orderedBuckets = ['6-8小时', '8-10小时', '10-12小时', '12小时以上'];", source)
         self.assertIn("longTotal += count;", source)
-        self.assertIn("longTotalEl.textContent = longTotal;", source)
-        self.assertIn("longDurationTotalEl.textContent = longDurationTotal.toFixed(2);", source)
+        self.assertIn('id: "cable-break-long-total"', source)
+        self.assertIn('name: "起数"', source)
+        self.assertIn('id: "cable-break-total-duration"', source)
+        self.assertIn('id: "cable-break-long-duration-total"', source)
+        self.assertNotIn("document.getElementById('cable-break-average-flex-list')", source)
+        self.assertIn("document.getElementById('cable-break-average-overall-list')", source)
+        self.assertIn("document.getElementById('cable-break-filtered-average-flex-list')", source)
+        self.assertIn('id: "cable-break-overall-avg"', source)
+        self.assertIn('id: "cable-break-valid-avg"', source)
+        self.assertIn('id: "cable-break-daytime-avg"', source)
+        self.assertIn('id: "cable-break-nighttime-avg"', source)
+        self.assertIn('id: "cable-break-construction-avg"', source)
+        self.assertIn('id: "cable-break-noncons-avg"', source)
 
     def test_cable_break_group_layout_uses_bottom_labels_and_short_separators(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -106,7 +145,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".statistics-kpi-group--compact .statistics-kpi-trend-row", css)
         self.assertIn("transform: translateX(-0.5rem);", css)
 
-    def test_cable_break_first_row_uses_asymmetric_two_card_layout(self) -> None:
+    def test_cable_break_rows_use_equal_width_metric_card_layout(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
         cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
@@ -115,27 +154,126 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("statistics-cable-break-summary-card", cable_break_section)
         self.assertIn("statistics-cable-break-summary-card-primary", cable_break_section)
         self.assertIn("statistics-cable-break-summary-card-secondary", cable_break_section)
-        self.assertIn("statistics-cable-break-row", cable_break_section)
-        self.assertIn("statistics-cable-break-main", cable_break_section)
+        self.assertIn("statistics-cable-break-count-grid", cable_break_section)
+        self.assertIn("statistics-cable-break-five-card", cable_break_section)
+        self.assertNotIn("statistics-cable-break-four-card", cable_break_section)
+        self.assertNotIn("statistics-cable-break-main", cable_break_section)
         self.assertNotIn("overflow-auto", cable_break_section)
         self.assertIn(".statistics-cable-break-summary-grid", css)
-        self.assertIn("grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);", css)
+        self.assertIn("minmax(520px, 1.675fr)", css)
         self.assertIn("gap: 1rem;", css)
-        self.assertIn("flex: 0 0 220px;", css)
+        self.assertIn("grid-template-columns: repeat(6, minmax(0, 1fr));", css)
+
+    def test_cable_break_cards_use_overall_summary_card_style_and_copy(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
+
+        for footer in ["中断起数", "原因TOP3", "光缆属性", "长时起数", "中断历时", "长时历时", "平均历时", "重复中断"]:
+            self.assertIn(f'<div class="statistics-strip-card-footer">{footer}</div>', cable_break_section)
+        self.assertIn("<span>滤除短时平均历时</span>", cable_break_section)
+
+        self.assertIn("statistics-cable-break-overview-card", cable_break_section)
+        self.assertIn("statistics-cable-break-count-grid", cable_break_section)
+        self.assertIn("statistics-cable-break-count-card", cable_break_section)
+        self.assertIn("statistics-cable-break-triple-card", cable_break_section)
+        self.assertIn("statistics-cable-break-five-card", cable_break_section)
+        self.assertIn("statistics-cable-break-metrics", cable_break_section)
+        self.assertIn("statistics-overall-kpi-value", cable_break_section)
+        self.assertIn("statistics-overall-kpi-unit", cable_break_section)
+        self.assertIn("statistics-overall-kpi-label", cable_break_section)
+        self.assertNotIn("display-5", cable_break_section)
+        self.assertNotIn("fs-2 fw-bold", cable_break_section)
+        self.assertNotIn("fw-bold text-dark mt-2", cable_break_section)
+        self.assertIn(".statistics-cable-break-count-grid", css)
+        self.assertIn(".statistics-cable-break-count-grid", css)
+        self.assertIn("minmax(520px, 1.675fr)", css)
+        self.assertIn(".statistics-cable-break-overview-card .statistics-overall-kpi-value", css)
+        self.assertIn(".statistics-cable-break-overview-card .statistics-strip-card-body", css)
+
+    def test_cable_break_long_count_card_uses_five_equal_width_metrics(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        source = JS_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
+
+        self.assertIn("statistics-cable-break-five-card", cable_break_section)
+        self.assertIn('id="cable-break-long-flex-list"', cable_break_section)
+        self.assertIn('<div class="statistics-strip-card-footer">长时起数</div>', cable_break_section)
+        long_card = cable_break_section.split('id="cable-break-long-flex-list"', 1)[0].rsplit('<div class="card ', 1)[1]
+        self.assertNotIn('statistics-cable-break-main', long_card)
+        self.assertNotIn('>长时中断<', long_card)
+        self.assertIn('name: "起数"', source)
+        self.assertIn('id: "cable-break-long-total"', source)
+        self.assertIn('filterField: "is_long"', source)
+        self.assertIn('filterField: "duration_bucket"', source)
+        self.assertIn('htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems);', source)
+        self.assertNotIn('buildFlexGroup(longItems, "起", "历时分布"', source)
+        self.assertIn(".statistics-cable-break-five-card .statistics-kpi-group-items", css)
+        self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
+
+    def test_first_four_cable_break_cards_share_one_weighted_row(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
+        first_grid = cable_break_section.split('statistics-cable-break-count-grid', 1)[1].split('<div class="statistics-cable-break-summary-grid statistics-cable-break-count-grid statistics-cable-break-duration-grid', 1)[0]
+
+        self.assertIn('statistics-cable-break-count-card', first_grid)
+        self.assertIn('id="cable-break-reason-top3-flex-list"', first_grid)
+        self.assertIn('id="cable-break-source-flex-list"', first_grid)
+        self.assertIn('statistics-cable-break-five-card', first_grid)
+        self.assertIn('id="cable-break-long-flex-list"', first_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">长时起数</div>', first_grid)
+        self.assertIn("minmax(150px, 0.375fr)", css)
+        self.assertIn("minmax(280px, 0.975fr)", css)
+        self.assertIn("minmax(520px, 1.675fr)", css)
+
+    def test_cable_break_count_reason_and_source_are_separate_equal_width_cards(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        source = JS_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
+        first_grid = cable_break_section.split('statistics-cable-break-count-grid', 1)[1].split('<div class="statistics-cable-break-summary-grid statistics-cable-break-count-grid statistics-cable-break-duration-grid', 1)[0]
+
+        self.assertIn('id="cable-break-total-count"', first_grid)
+        self.assertIn('>总起数<', first_grid)
+        self.assertNotIn('id="kpi-repeat-faults"', first_grid)
+        self.assertNotIn('>重复起数<', first_grid)
+        self.assertIn('id="cable-break-reason-top3-flex-list"', first_grid)
+        self.assertIn('id="cable-break-source-flex-list"', first_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">中断起数</div>', first_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">原因TOP3</div>', first_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">光缆属性</div>', first_grid)
+        self.assertIn("const reasonTop3 = normalizeTopItems(overview.reason_top3 || [], 3);", source)
+        self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason")', source)
+        self.assertIn('const sourceCounts = normalizeNamedItems(overview.source_counts || [], ["自控", "第三方", "其他/未填"]);', source)
+        self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group")', source)
+        self.assertIn("renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, true);", source)
+        self.assertIn(".statistics-cable-break-count-card .statistics-cable-break-static-metrics", css)
+        self.assertIn("grid-template-columns: minmax(0, 1fr);", css)
+        self.assertIn(".statistics-cable-break-triple-card .statistics-kpi-group-items", css)
 
     def test_duration_and_long_duration_cards_share_one_row(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
-        duration_grid = template.split('id="cable-break-total-duration"', 1)[1].split('<div class="card p-0 shadow-sm statistics-cable-break-summary-card mb-4">', 1)[0]
+        cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
+        duration_grid = cable_break_section.split('id="cable-break-duration-total-list"', 1)[1].split('<div class="statistics-cable-break-summary-grid mb-4">', 1)[0]
 
-        self.assertIn('id="cable-break-long-duration-total"', duration_grid)
-        self.assertIn("statistics-cable-break-summary-grid", duration_grid)
+        self.assertIn('id="cable-break-duration-reason-flex-list"', duration_grid)
+        self.assertIn('id="cable-break-duration-source-flex-list"', duration_grid)
+        self.assertIn("statistics-cable-break-summary-grid statistics-cable-break-count-grid statistics-cable-break-duration-grid", cable_break_section)
+        self.assertIn("statistics-cable-break-five-card", duration_grid)
+        self.assertIn('id="cable-break-long-duration-flex-list"', duration_grid)
         self.assertIn(".statistics-cable-break-summary-grid", css)
+        self.assertIn(".statistics-cable-break-duration-grid", css)
+        self.assertIn("minmax(150px, 0.375fr)", css)
+        self.assertIn("minmax(280px, 0.975fr)", css)
+        self.assertIn("minmax(520px, 1.675fr)", css)
 
     def test_dashboard_script_preserves_metric_id_nodes_when_rendering_trends(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("function renderTrendBesideMetric(metricEl, currentValue, previousValue)", source)
+        self.assertIn("function renderTrendBesideMetric(metricEl, currentValue, previousValue, integer = false)", source)
         self.assertNotIn("totalArrowEl.innerHTML", source)
         self.assertNotIn("longArrowEl.innerHTML", source)
         self.assertNotIn("durArrowEl.innerHTML", source)
@@ -144,10 +282,29 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
     def test_dashboard_script_renders_trend_arrows_with_diff_values(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("function formatTrendDiff(currentVal, prevVal)", source)
+        self.assertIn("function formatTrendDiff(currentVal, prevVal, integer = false)", source)
         self.assertIn("const diff = cur - prev;", source)
-        self.assertIn("return Number.isInteger(diff) ? String(diff) : diff.toFixed(2);", source)
-        self.assertIn("${symbol}${formatTrendDiff(cur, prev)}", source)
+        self.assertIn("function formatTrendDiff(currentVal, prevVal, integer = false)", source)
+        self.assertIn("return integer ? String(Math.round(diff)) : diff.toFixed(1);", source)
+        self.assertIn("function formatCardMetricValue(value)", source)
+        self.assertIn("return number.toFixed(1);", source)
+        self.assertIn("function formatCardCountValue(value)", source)
+        self.assertIn("return String(Math.round(number));", source)
+        self.assertIn("function isCountUnit(unit)", source)
+        self.assertIn("return unit === '起' || unit === '次';", source)
+        self.assertIn("${symbol}${formatTrendDiff(cur, prev, integer)}", source)
+        self.assertIn("const displayValue = isCountUnit(unit) ? formatCardCountValue(value) : formatCardMetricValue(value);", source)
+        self.assertIn("const valueText = isCountUnit(metric.unit) ? formatCardCountValue(metric.value) : formatCardMetricValue(metric.value);", source)
+        self.assertIn("repeatEl.textContent = formatCardCountValue(kpis.repeat_faults_count);", source)
+        self.assertIn("overallTotal.textContent = formatCardCountValue(kpis.total_count);", source)
+        self.assertIn("totalEl.textContent = formatCardCountValue(overview.total_count || 0);", source)
+        self.assertIn("renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, true);", source)
+        self.assertIn("renderTrendBesideMetric(overallTotal, kpis.total_count, prevOverallTotal, true);", source)
+        self.assertIn("renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, true);", source)
+        self.assertIn("formatCardCountValue(svc.break_count)", source)
+        self.assertIn("formatCardCountValue(svc.jitter_count)", source)
+        self.assertIn("formatCardCountValue(svc.degrade_count)", source)
+        self.assertIn("formatCardCountValue(svc.other_count)", source)
 
     def test_trend_diff_renders_to_the_right_of_metrics(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -172,14 +329,14 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         source = JS_PATH.read_text(encoding="utf-8")
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn('<div class="statistics-overall-kpi-value fs-3 fw-bold ${colorClass} lh-1">', source)
+        self.assertIn('<div class="statistics-overall-kpi-value fs-3 fw-bold ${colorClass} lh-1"${valueIdAttr}>', source)
         self.assertIn('class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1" id="kpi-overall-total"', template)
         self.assertNotIn('class="display-5 fw-bold text-indigo lh-1" id="kpi-overall-total"', template)
-        self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-valid-avg"', template)
-        self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-daytime-avg"', template)
-        self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-nighttime-avg"', template)
-        self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-construction-avg"', template)
-        self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-noncons-avg"', template)
+        self.assertIn('id: "cable-break-valid-avg"', source)
+        self.assertIn('id: "cable-break-daytime-avg"', source)
+        self.assertIn('id: "cable-break-nighttime-avg"', source)
+        self.assertIn('id: "cable-break-construction-avg"', source)
+        self.assertIn('id: "cable-break-noncons-avg"', source)
 
     def test_overall_total_fault_label_matches_category_label_typography(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -287,26 +444,24 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("justify-content: center;", footer_block)
         self.assertIn("padding: 0 0.75rem;", footer_block)
 
-    def test_cable_break_content_has_its_own_tab(self) -> None:
+    def test_cable_break_content_is_merged_into_overall_tab(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn('id="tab-cable-break-btn"', template)
-        self.assertIn('data-bs-target="#tab-cable-break"', template)
-        self.assertIn('aria-controls="tab-cable-break"', template)
-        self.assertIn('id="tab-cable-break"', template)
-        self.assertIn('aria-labelledby="tab-cable-break-btn"', template)
+        self.assertNotIn('id="tab-cable-break-btn"', template)
+        self.assertNotIn('data-bs-target="#tab-cable-break"', template)
+        self.assertNotIn('aria-controls="tab-cable-break"', template)
+        self.assertNotIn('id="tab-cable-break"', template)
+        self.assertNotIn('aria-labelledby="tab-cable-break-btn"', template)
 
-        physical_tab = template.split('id="tab-physical"', 1)[1].split('id="tab-cable-break"', 1)[0]
-        cable_break_tab = template.split('id="tab-cable-break"', 1)[1].split('id="tab-service"', 1)[0]
+        physical_tab = template.split('id="tab-physical"', 1)[1].split('id="tab-service"', 1)[0]
 
         self.assertIn("statistics-overall-overview", physical_tab)
-        self.assertNotIn("statistics-cable-break-overview", physical_tab)
-        self.assertIn("statistics-cable-break-overview", cable_break_tab)
-        self.assertIn("光缆中断概览", cable_break_tab)
-        self.assertIn('id="chart-cable-break-histogram"', cable_break_tab)
-        self.assertIn('id="chart-province"', cable_break_tab)
-        self.assertIn('id="filtered-kpi-summary"', cable_break_tab)
-        self.assertIn('id="details-tbody"', cable_break_tab)
+        self.assertIn("statistics-cable-break-overview", physical_tab)
+        self.assertIn("光缆中断情况", physical_tab)
+        self.assertIn('id="chart-cable-break-histogram"', physical_tab)
+        self.assertIn('id="chart-province"', physical_tab)
+        self.assertIn('id="filtered-kpi-summary"', physical_tab)
+        self.assertIn('id="details-tbody"', physical_tab)
 
     def test_cable_break_tab_resizes_hidden_echarts_after_shown(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -317,18 +472,21 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("chartProvince.resize();", source)
         self.assertIn("chartReason.resize();", source)
         self.assertIn("if (chartHistogram) chartHistogram.resize();", source)
-        self.assertIn("event.target.id === 'tab-cable-break-btn'", tab_source)
+        self.assertNotIn("event.target.id === 'tab-cable-break-btn'", tab_source)
+        self.assertIn("event.target.id === 'tab-physical-btn'", tab_source)
         self.assertIn("resizeStatisticsCharts();", tab_source)
 
     def test_overall_tab_and_card_labels_match_current_copy(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         nav_source = template.split('<ul class="nav nav-tabs', 1)[1].split('</ul>', 1)[0]
-        physical_tab = template.split('id="tab-physical"', 1)[1].split('id="tab-cable-break"', 1)[0]
+        physical_tab = template.split('id="tab-physical"', 1)[1].split('id="tab-service"', 1)[0]
         overall_section = template.split('<section class="statistics-overall-overview', 1)[1].split('</section>', 1)[0]
 
         self.assertIn('id="tab-physical-btn"', nav_source)
-        self.assertIn(">总体情况", nav_source)
+        self.assertIn(">物理故障", nav_source)
         self.assertNotIn(">物理故障统计", nav_source)
+        self.assertIn('<h3 class="statistics-cable-break-heading mb-0">', overall_section)
+        self.assertIn("<span>总体情况</span>", overall_section)
         self.assertNotIn('<h3 class="h4 mb-0">总体情况</h3>', physical_tab)
         self.assertIn('<div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">故障总数</div>', overall_section)
         self.assertIn('<div class="statistics-strip-card-footer">物理故障</div>', overall_section)
@@ -406,9 +564,13 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
     def test_valid_duration_labels_use_consistent_hover_copy(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        source = JS_PATH.read_text(encoding="utf-8")
         map_source = STATISTICS_MAP_MODE_PATH.read_text(encoding="utf-8")
 
+        self.assertIn('filterExtraField: "is_valid_duration"', source)
         self.assertIn('title="<=30分钟"', template)
+        self.assertIn('aria-label="滤除短时平均历时说明"', template)
+        self.assertIn('filterLabel: "有效平均"', source)
         self.assertIn('title: "<=30分钟"', map_source)
 
     def test_kpi_group_titles_allow_hover_tooltips(self) -> None:
@@ -418,39 +580,67 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn("pointer-events: none;", title_block)
         self.assertIn("pointer-events: auto;", title_block)
 
-    def test_valid_duration_group_renders_hover_info_icon(self) -> None:
+    def test_average_duration_cards_split_overall_and_short_filtered_metrics(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         source = JS_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
+        cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
+        average_row = cable_break_section.split('statistics-cable-break-average-grid', 1)[1].split('<div class="row mt-3">', 1)[0]
+        overall_average_card = cable_break_section.split('id="cable-break-average-overall-list"', 1)[0].rsplit('<div class="card ', 1)[1]
+        filtered_average_card = cable_break_section.split('id="cable-break-filtered-average-flex-list"', 1)[0].rsplit('<div class="card ', 1)[1]
 
-        self.assertIn('class="statistics-kpi-group-title-label">滤除短时</span>', template)
-        self.assertIn('class="statistics-info-button"', template)
-        self.assertIn('title="<=30分钟"', template)
-        self.assertIn('aria-label="滤除短时说明"', template)
-        self.assertNotIn("const infoButton = event.target.closest('.statistics-info-button');", source)
-        self.assertNotIn("toggleStatisticsInfoPopover(infoButton);", source)
-        self.assertNotIn("closeStatisticsInfoPopovers();", source)
-        self.assertIn(".statistics-info-button {", css)
-        self.assertIn(".statistics-kpi-group-title-label {", css)
-        self.assertNotIn(".statistics-info-button::after {", css)
-        self.assertNotIn(".statistics-info-button:hover::after,", css)
-        self.assertNotIn(".statistics-info-button:focus-visible::after {", css)
-        self.assertIn("gap: 0;", css)
-        self.assertIn("margin-right: 0.12rem;", css)
-        self.assertIn("font-size: 0.82rem;", css)
+        self.assertIn("statistics-cable-break-single-card", overall_average_card)
+        self.assertIn("statistics-cable-break-filtered-average-card", filtered_average_card)
+        self.assertIn("statistics-cable-break-five-card", filtered_average_card)
+        self.assertNotIn("statistics-cable-break-four-card", filtered_average_card)
+        self.assertNotIn('id="cable-break-average-flex-list"', cable_break_section)
+        self.assertIn('id="cable-break-average-overall-list"', cable_break_section)
+        self.assertIn('id="cable-break-filtered-average-flex-list"', cable_break_section)
+        self.assertIn('id="card-repeat-faults"', average_row)
+        self.assertIn('id="kpi-repeat-faults"', average_row)
+        self.assertIn('<div class="statistics-strip-card-footer">重复中断</div>', average_row)
+        self.assertIn('>重复起数<', average_row)
+        self.assertIn('<div class="statistics-strip-card-footer">平均历时</div>', average_row)
+        self.assertIn('滤除短时平均历时', average_row)
+        self.assertIn('title="<=30分钟"', average_row)
+        self.assertNotIn("statistics-cable-break-main", overall_average_card)
+        self.assertNotIn("statistics-kpi-group-title-label", cable_break_section)
+        self.assertIn('name: "全口径平均"', source)
+        filtered_average_source = source.split("const filteredAverageItems = [", 1)[1].split("];", 1)[0]
+        self.assertIn('name: "有效平均"', filtered_average_source)
+        self.assertIn('value: Number(m.valid_avg || 0)', filtered_average_source)
+        self.assertIn('prevValue: prevMetrics.valid_avg', filtered_average_source)
+        self.assertIn('filterField: "is_valid_duration"', filtered_average_source)
+        self.assertIn('filterValue: "true"', filtered_average_source)
+        self.assertLess(filtered_average_source.index('name: "有效平均"'), filtered_average_source.index('name: "日间平均"'))
+        self.assertNotIn('infoTitle: "<=30分钟"', source)
+        self.assertNotIn('infoLabel: "有效平均说明"', source)
+        self.assertIn('name: "日间平均"', source)
+        self.assertIn('name: "夜间平均"', source)
+        self.assertIn('name: "施工类"', source)
+        self.assertIn('name: "非施工类"', source)
+        self.assertIn('filterExtraField: "is_valid_duration"', source)
+        self.assertIn('buildFlexGroup(overallAverageItems, "时", "", "text-indigo", prevOverallAverageItems)', source)
+        self.assertIn('buildFlexGroup(filteredAverageItems, "时", "", "text-indigo", prevFilteredAverageItems)', source)
+        self.assertIn(".statistics-cable-break-average-grid", css)
+        self.assertIn("grid-column: span 2;", css)
+        self.assertIn(".statistics-cable-break-five-card .statistics-kpi-group-items", css)
+        self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
+        self.assertIn(".statistics-inline-info", css)
 
     def test_cause_group_title_declares_short_duration_filter(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn('class="statistics-kpi-group-title-label">按成因</span>', template)
-        self.assertIn('aria-label="按成因说明"', template)
-        self.assertIn('data-info-content="按成因统计也滤除历时小于等于 30 分钟的故障"', template)
+        self.assertNotIn('class="statistics-kpi-group-title-label">按成因</span>', template)
+        self.assertNotIn('aria-label="按成因说明"', template)
+        self.assertNotIn('data-info-content="按成因统计也滤除历时小于等于 30 分钟的故障"', template)
 
     def test_occurrence_period_title_renders_info_icon(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn('class="statistics-info-button"', template)
-        self.assertIn('title="6:00-18:00 / 18:00-6:00"', template)
+        self.assertIn('class="statistics-info-button statistics-inline-info"', template)
+        self.assertIn('aria-label="滤除短时平均历时说明"', template)
+        self.assertNotIn('title="6:00-18:00 / 18:00-6:00"', template)
 
     def test_valid_duration_info_button_avoids_native_title_tooltip(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -539,38 +729,42 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             helper_block,
         )
 
-    def test_repeat_fault_metric_is_embedded_in_cable_break_count_card(self) -> None:
+    def test_repeat_fault_metric_is_separate_card_after_average_duration(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         source = JS_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
 
-        count_main = template.split('<div class="statistics-cable-break-main', 1)[1].split('id="cable-break-count-flex-list"', 1)[0]
+        count_card = template.split('statistics-cable-break-count-card', 1)[1].split('<div class="statistics-strip-card-footer">中断起数</div>', 1)[0]
+        repeat_card = template.split('id="card-repeat-faults"', 1)[0].rsplit('<div class="card ', 1)[1].split('<div class="statistics-strip-card-footer">重复中断</div>', 1)[0]
+        average_row = template.split('statistics-cable-break-average-grid', 1)[1].split('<div class="row mt-3">', 1)[0]
 
-        self.assertIn('id="card-repeat-faults"', count_main)
-        self.assertIn('statistics-break-main-metrics', count_main)
-        self.assertIn('statistics-break-main-metric-primary', count_main)
-        self.assertIn('statistics-break-main-metric-secondary', count_main)
-        self.assertIn('statistics-repeat-inline', count_main)
-        self.assertIn('id="kpi-repeat-faults"', count_main)
-        self.assertIn('id="kpi-repeat-faults-diff"', count_main)
-        self.assertIn('statistics-repeat-value-row', count_main)
-        self.assertIn('statistics-repeat-diff-row', count_main)
-        self.assertIn('>重复<', count_main)
-        self.assertNotIn('重复光缆故障', count_main)
-        self.assertIn('class="fs-2 fw-bold text-indigo me-1 lh-1" id="kpi-repeat-faults"', count_main)
-        self.assertNotIn('class="display-5 fw-bold text-indigo lh-1" id="kpi-repeat-faults"', count_main)
-        self.assertNotIn('class="display-6 fw-bold text-indigo me-1 lh-1" id="kpi-repeat-faults"', count_main)
+        self.assertNotIn('id="card-repeat-faults"', count_card)
+        self.assertNotIn('id="kpi-repeat-faults"', count_card)
+        self.assertNotIn('>重复起数<', count_card)
+        self.assertIn('statistics-cable-break-static-metrics', count_card)
+        self.assertNotIn('statistics-break-main-metric-primary', count_card)
+        self.assertNotIn('statistics-break-main-metric-secondary', count_card)
+        self.assertNotIn('statistics-repeat-inline', count_card)
+        self.assertIn('id="card-repeat-faults"', average_row)
+        self.assertIn('id="kpi-repeat-faults"', average_row)
+        self.assertIn('<div class="statistics-strip-card-footer">重复中断</div>', average_row)
+        self.assertIn('statistics-cable-break-repeat-card', repeat_card)
+        self.assertIn('data-filter-label="重复起数"', average_row)
+        self.assertNotIn('id="kpi-repeat-faults-diff"', count_card)
+        self.assertNotIn('statistics-repeat-value-row', count_card)
+        self.assertNotIn('statistics-repeat-diff-row', count_card)
+        self.assertIn('>重复起数<', average_row)
+        self.assertNotIn('重复光缆故障', count_card)
+        self.assertIn('class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="kpi-repeat-faults"', average_row)
+        self.assertNotIn('class="display-5 fw-bold text-indigo lh-1" id="kpi-repeat-faults"', count_card)
+        self.assertNotIn('class="display-6 fw-bold text-indigo me-1 lh-1" id="kpi-repeat-faults"', count_card)
         self.assertNotIn('card p-3 shadow-sm text-start h-100 d-flex flex-column" id="card-repeat-faults"', template)
-        self.assertIn("function renderCompactMetricDiff(elId, current, prev)", source)
-        self.assertIn("renderCompactMetricDiff('kpi-repeat-faults-diff', kpis.repeat_faults_count, prevKpis.repeat_faults_count);", source)
+        self.assertIn("renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, true);", source)
+        self.assertNotIn("renderCompactMetricDiff('kpi-repeat-faults-diff', kpis.repeat_faults_count, prevKpis.repeat_faults_count);", source)
         self.assertNotIn("renderDiff('kpi-repeat-faults-diff', kpis.repeat_faults_count, prevKpis.repeat_faults_count", source)
-        self.assertIn(".statistics-break-main-metrics", css)
-        self.assertIn(".statistics-break-main-metric-secondary", css)
-        self.assertIn(".statistics-repeat-inline", css)
-        self.assertIn(".statistics-repeat-value-row", css)
-        self.assertIn(".statistics-repeat-diff-row", css)
-        self.assertIn("min-height: 14px;", css)
-        self.assertIn("padding-top: 0.95rem;", css)
+        self.assertIn(".statistics-cable-break-static-metrics", css)
+        self.assertNotIn(".statistics-cable-break-count-card .statistics-repeat-inline", css)
+        self.assertNotIn(".statistics-cable-break-count-card .statistics-repeat-value-row", css)
 
     def test_histogram_reserves_headroom_for_top_labels(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -579,6 +773,16 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("const histogramMaxValue = Math.max", histogram_source)
         self.assertIn("grid: { top: 62", histogram_source)
         self.assertIn("max: histogramMaxValue > 0 ? Math.ceil(histogramMaxValue * 1.25) : 1", histogram_source)
+
+    def test_histogram_uses_contiguous_bars_and_hides_y_axis_grid_lines(self) -> None:
+        source = JS_PATH.read_text(encoding="utf-8")
+        histogram_source = source.split("if (overview.histogram && chartHistogram)", 1)[1].split("function renderCharts", 1)[0]
+
+        self.assertIn("barCategoryGap: '0%'", histogram_source)
+        self.assertIn("barGap: '0%'", histogram_source)
+        self.assertIn("borderRadius: [0, 0, 0, 0]", histogram_source)
+        self.assertIn("splitLine: { show: false }", histogram_source)
+        self.assertNotIn("splitLine: { show: true", histogram_source)
 
     def test_histogram_card_header_matches_province_chart_card_spacing(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -589,6 +793,25 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('shadow-sm h-100"', histogram_card)
         self.assertEqual(province_card, histogram_card)
         self.assertNotIn("p-3", histogram_card)
+
+    def test_histogram_reason_and_resource_charts_share_one_row(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
+        chart_area = template.split('<!-- ECharts 图表区 -->', 1)[1].split('<!-- 下钻局部汇总栏 -->', 1)[0]
+
+        self.assertNotIn('id="chart-cable-break-histogram"', cable_break_section)
+        self.assertIn('id="chart-cable-break-histogram"', chart_area)
+        self.assertIn('id="chart-reason"', chart_area)
+        self.assertIn('id="chart-resource"', chart_area)
+        self.assertIn('故障历时频数分布', chart_area)
+        self.assertIn('主要原因分析', chart_area)
+        self.assertIn('光缆属性分布', chart_area)
+        self.assertEqual(chart_area.count('class="col-md-4'), 3)
+        histogram_index = chart_area.index('id="chart-cable-break-histogram"')
+        reason_index = chart_area.index('id="chart-reason"')
+        resource_index = chart_area.index('id="chart-resource"')
+        self.assertLess(histogram_index, reason_index)
+        self.assertLess(reason_index, resource_index)
 
     def test_statistics_cards_use_reference_strip_visual_without_new_categories(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -602,6 +825,17 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".statistics-strip-card {", css)
         self.assertIn(".statistics-strip-card-footer", css)
         self.assertIn(".statistics-strip-card-metric + .statistics-strip-card-metric::before", css)
+        self.assertIn("--statistics-card-shadow: 0 10px 24px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.08);", css)
+        self.assertIn("--statistics-card-hover-shadow: 0 16px 36px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.12);", css)
+        self.assertIn(".page-statistics .card {\n    border: 1px solid var(--statistics-border) !important;", css)
+        self.assertIn("box-shadow: var(--statistics-card-shadow) !important;", css)
+        self.assertIn(".page-statistics .card:hover", css)
+        self.assertIn("box-shadow: var(--statistics-card-hover-shadow) !important;", css)
+        self.assertIn("border: 1px solid var(--statistics-border) !important;", css)
+        self.assertIn(".statistics-strip-card:hover,\n.svc-card:hover", css)
+        self.assertIn("transform: none;", css)
+        self.assertNotIn("border: 1px solid var(--statistics-primary) !important;", css)
+        self.assertNotIn("transform: translateY(-2px);", css)
         self.assertIn("renderStripMetric(metric)", source)
         self.assertIn("renderStripCard(card)", source)
 
@@ -618,11 +852,28 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         css = CSS_PATH.read_text(encoding="utf-8")
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
+        self.assertIn('id="tab-service-btn"', template)
+        self.assertIn('data-bs-target="#tab-service"', template)
+        self.assertIn('裸纤业务故障', template)
+        self.assertIn('id="tab-circuit-service-btn"', template)
+        self.assertIn('data-bs-target="#tab-circuit-service"', template)
+        self.assertIn('电路业务故障', template)
         self.assertIn("service-strip-card-grid", template)
+        self.assertIn('id="service-cards-container"', template)
+        self.assertIn('id="circuit-service-cards-container"', template)
         self.assertIn("function renderStripMetric(metric)", source)
+        self.assertIn("const valueText = isCountUnit(metric.unit) ? formatCardCountValue(metric.value) : formatCardMetricValue(metric.value);", source)
+        self.assertIn('<span class="statistics-strip-card-value ${valueClass}">${valueText}</span>', source)
         self.assertIn("function renderStripCard(card)", source)
         self.assertIn("function escapeHtml(value)", source)
         self.assertIn("const footer = escapeHtml(card.footer);", source)
+        self.assertIn("function getServicesByType(services, serviceType)", source)
+        self.assertIn("return services.filter(svc => svc.type === serviceType);", source)
+        self.assertIn("renderServiceCards(getServicesByType(services, '裸纤业务'), 'service-cards-container', '裸纤业务');", source)
+        self.assertIn("renderServiceCards(getServicesByType(services, '电路业务'), 'circuit-service-cards-container', '电路业务');", source)
+        self.assertIn("function renderServiceCards(services, containerId, emptyServiceType)", source)
+        self.assertIn("document.getElementById(containerId)", source)
+        self.assertIn("当前时间范围内无${emptyServiceType}故障记录", source)
         self.assertIn("metrics: [", source)
         self.assertIn("label: '故障总数'", source)
         self.assertIn("label: '累计时长'", source)
@@ -630,7 +881,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("label: '长时故障'", source)
         self.assertIn("label: '重复故障'", source)
         self.assertIn("label: 'SLA'", source)
+        self.assertIn("value: svc.sla, unit: '%'", source)
         self.assertIn("footer: svc.name", source)
+        self.assertIn("activeTab.id === 'tab-service-btn' || activeTab.id === 'tab-circuit-service-btn'", source)
+        self.assertIn("event.target.id === 'tab-service-btn' || event.target.id === 'tab-circuit-service-btn'", source)
         self.assertIn(".service-strip-card-grid", css)
 
     def test_reason_and_resource_pies_show_count_and_percent_labels(self) -> None:
@@ -660,10 +914,16 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn("occurrence_hour = occ_time.astimezone", views)
         self.assertNotIn("occ_time.strftime('%Y-%m-%d %H:%M')", views)
         self.assertNotIn("fault.fault_recovery_time.strftime('%Y-%m-%d %H:%M')", views)
+        self.assertIn("def _duration_histogram_bucket_index(duration_hours: float) -> int:", views)
+        self.assertIn("def _duration_histogram_bucket_label(bucket: int) -> str:", views)
+        self.assertIn("hist_bucket = _duration_histogram_bucket_index(duration_hours)", views)
+        self.assertIn("label = _duration_histogram_bucket_label(i)", views)
+        self.assertIn("duration_histogram_bucket = _duration_histogram_bucket_label(_duration_histogram_bucket_index(duration_hours))", views)
 
         for detail_field in [
             "'source_group': source_group",
             "'duration_bucket': duration_bucket",
+            "'duration_histogram_bucket': duration_histogram_bucket",
             "'is_valid_duration': duration_hours > 0.5",
             "'occurrence_period': occurrence_period",
             "'cause_group': cause_group",
@@ -673,15 +933,14 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         for static_filter in [
             'data-filter-field="category" data-filter-value="光缆中断"',
             'data-filter-field="is_repeat" data-filter-value="true"',
-            'data-filter-field="is_long" data-filter-value="true"',
-            'data-filter-field="is_valid_duration" data-filter-value="true"',
-            'data-filter-field="occurrence_period" data-filter-value="日间" data-filter-extra-field="is_valid_duration" data-filter-extra-value="true"',
-            'data-filter-field="occurrence_period" data-filter-value="夜间" data-filter-extra-field="is_valid_duration" data-filter-extra-value="true"',
-            'data-filter-field="cause_group" data-filter-value="施工类" data-filter-extra-field="is_valid_duration" data-filter-extra-value="true"',
-            'data-filter-field="cause_group" data-filter-value="非施工类" data-filter-extra-field="is_valid_duration" data-filter-extra-value="true"',
         ]:
             self.assertIn(static_filter, template)
 
+        self.assertIn('filterField: "is_long"', source)
+        self.assertIn('filterField: "is_valid_duration"', source)
+        self.assertIn('filterField: "occurrence_period"', source)
+        self.assertIn('filterField: "cause_group"', source)
+        self.assertIn('filterExtraField: "is_valid_duration"', source)
         self.assertIn("valid_duration = duration_hours > 0.5", views)
         self.assertIn("if valid_duration:", views)
         self.assertIn("if occurrence_period == '日间':", views)
@@ -692,18 +951,21 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("function handleMetricFilterClick(metric)", source)
         self.assertIn("function normalizeFilterValue(fieldName, value)", source)
         self.assertIn("function applyDetailFilter(item, fieldName, value)", source)
+        self.assertIn("chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket'));", source)
+        self.assertIn("else if (activeFilterField === 'duration_histogram_bucket') filterName =", source)
         self.assertIn("let activeFilterExtraField = null;", source)
         self.assertIn("let activeFilterExtraValue = null;", source)
         self.assertIn("metric.dataset.filterExtraField || null", source)
         self.assertIn("normalizeFilterValue(activeFilterExtraField, metric.dataset.filterExtraValue)", source)
         self.assertIn("applyDetailFilter(item, activeFilterExtraField, activeFilterExtraValue)", source)
         self.assertIn("附加：有效历时>30分钟", source)
-        self.assertIn("buildFlexItemCore(val, unit, name, colorClass, prevVal, filterField, name)", source)
-        self.assertIn('buildFlexGroup(reasonTop3, "起", "原因TOP3", "text-indigo", prevReasonTop3, "reason")', source)
-        self.assertIn('buildFlexGroup(sourceCounts, "起", "光缆属性", "text-indigo", prevSourceCounts, "source_group")', source)
-        self.assertIn('buildFlexGroup(longItems, "起", "历时分布", "text-indigo", prevLongItems, "duration_bucket")', source)
-        self.assertIn('buildFlexGroup(durReasonItems, "时", "原因TOP3", "text-indigo", prevDurReasonItems, "reason")', source)
-        self.assertIn('buildFlexGroup(durSourceItems, "时", "光缆属性", "text-indigo", prevDurSourceItems, "source_group")', source)
+        self.assertIn("buildFlexItemCore(val, unit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel)", source)
+        self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason")', source)
+        self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group")', source)
+        self.assertIn('buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems)', source)
+        self.assertIn('buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems)', source)
+        self.assertIn('buildFlexGroup(durReasonItems, "时", "", "text-indigo", prevDurReasonItems, "reason")', source)
+        self.assertIn('buildFlexGroup(durSourceItems, "时", "", "text-indigo", prevDurSourceItems, "source_group")', source)
 
     def test_statistics_cards_disable_text_selection_but_keep_tables_selectable(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -816,7 +1078,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         css = CSS_PATH.read_text(encoding="utf-8")
 
         self.assertIn("window.STATISTICS_CABLE_BREAK_MAP_URL", template)
-        self.assertIn("statistics_dashboard.css' %}?v=4", template)
+        self.assertIn("statistics_dashboard.css' %}?v=5", template)
         self.assertIn("statistics-cable-break-map-btn", template)
         self.assertIn("statisticsCableBreakMapModal", template)
         self.assertIn("modal-dialog modal-dialog-centered statistics-cable-break-map-dialog", template)
@@ -866,7 +1128,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn(".statistics-cable-break-map-period-actions", css)
         self.assertIn("statistics-cable-break-map-frame-wrap", css)
         self.assertIn("height: calc(85vh - 46px);", css)
-        self.assertIn("statistics_dashboard.js' %}?v=7", template)
+        self.assertIn("statistics_dashboard.js' %}?v=8", template)
 
     def test_unified_map_preserves_embedded_map_query_params(self) -> None:
         unified_map_template = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults" / "unified_map.html"
@@ -1001,6 +1263,108 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("this.showStatuses ? `", legend_source)
         self.assertIn("new FaultLegendControl({ showCategories: false, showStatuses: true })", statistics_source)
         self.assertIn("new FaultLegendControl();", fault_mode_source)
+
+    def test_overall_physical_fault_card_has_daily_category_line_chart(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        source = JS_PATH.read_text(encoding="utf-8")
+        views_source = VIEWS_PATH.read_text(encoding="utf-8")
+
+        overall_section = template.split('<section class="statistics-overall-overview', 1)[1].split('</section>', 1)[0]
+        self.assertIn('id="chart-physical-daily-faults"', overall_section)
+        self.assertIn('id="chart-physical-duration-boxplot"', overall_section)
+        self.assertLess(overall_section.index("statistics-overall-card-grid"), overall_section.index('id="chart-physical-daily-faults"'))
+        self.assertLess(overall_section.index('id="chart-physical-daily-faults"'), overall_section.index('id="chart-physical-duration-boxplot"'))
+        self.assertIn("statistics-physical-daily-chart-card", overall_section)
+        self.assertIn("statistics-physical-daily-chart", css)
+        self.assertIn("statistics-physical-duration-boxplot", css)
+        self.assertIn(".statistics-physical-daily-chart {\n    width: 100%;\n    height: 220px;", css)
+        self.assertIn(".statistics-physical-duration-boxplot {\n    width: 100%;\n    height: 220px;", css)
+
+        self.assertIn("const chartPhysicalDailyElement = document.getElementById('chart-physical-daily-faults');", source)
+        self.assertIn("let chartPhysicalDaily = chartPhysicalDailyElement ? echarts.init(chartPhysicalDailyElement) : null;", source)
+        self.assertIn("const chartPhysicalDurationBoxplotElement = document.getElementById('chart-physical-duration-boxplot');", source)
+        self.assertIn("let chartPhysicalDurationBoxplot = chartPhysicalDurationBoxplotElement ? echarts.init(chartPhysicalDurationBoxplotElement) : null;", source)
+        self.assertIn("if (chartPhysicalDaily) chartPhysicalDaily.resize();", source)
+        self.assertIn("if (chartPhysicalDurationBoxplot) chartPhysicalDurationBoxplot.resize();", source)
+        self.assertIn("renderOverallDailyFaultChart(data.charts && data.charts.physical_daily, selFilterType.value);", source)
+        self.assertIn("renderPhysicalDurationBoxplot(data.charts && data.charts.physical_daily, selFilterType.value);", source)
+        self.assertIn("function renderOverallDailyFaultChart(dailyData, filterType)", source)
+        self.assertIn("function renderPhysicalDurationBoxplot(dailyData, filterType)", source)
+        self.assertIn("const boxplotData = dailyData.boxplot || [];", source)
+        self.assertIn("type: 'boxplot'", source)
+        self.assertIn("function getPhysicalDurationBoxWidth(filterType)", source)
+        self.assertIn("if (filterType === 'week') return ['18%', '55%'];", source)
+        self.assertIn("if (filterType === 'month') return ['10%', '42%'];", source)
+        self.assertIn("if (filterType === 'quarter') return ['6%', '30%'];", source)
+        self.assertIn("return ['4%', '18%'];", source)
+        self.assertIn("boxWidth: getPhysicalDurationBoxWidth(filterType)", source)
+        self.assertIn("name: '中断时长分布'", source)
+        self.assertIn("data: boxplotData", source)
+        self.assertIn("grid: { top: 46, left: 64, right: 56, bottom: 34, containLabel: true }", source)
+        self.assertIn("nameGap: 12", source)
+        self.assertIn("nameLocation: 'end'", source)
+        self.assertNotIn("nameRotate: 90", source)
+        self.assertIn("return shouldShowPhysicalDailyAxisLabel(index, value, filterType);", source)
+        self.assertIn("function isPhysicalDailyLineMode(filterType)", source)
+        self.assertIn("return filterType === 'half' || filterType === 'year';", source)
+        self.assertIn("function formatPhysicalDailyAxisLabel(value, filterType)", source)
+        self.assertIn("if (filterType === 'week' || filterType === 'month')", source)
+        self.assertIn("if (filterType === 'quarter')", source)
+        self.assertIn("return day === 1 ? `${month}", source)
+        self.assertIn("function shouldShowPhysicalDailyAxisLabel(index, value, filterType)", source)
+        self.assertIn("if (filterType === 'week') return true;", source)
+        self.assertIn("if (filterType === 'month') return index === 0 || day === 1 || day % 3 === 0;", source)
+        self.assertIn("if (filterType === 'quarter') return index === 0 || day === 1 || day % 10 === 0;", source)
+        self.assertIn("return day === 1;", source)
+        self.assertIn("const useLineBars = isPhysicalDailyLineMode(filterType);", source)
+        self.assertIn("barWidth: useLineBars ? 2 : '65%'", source)
+        self.assertIn("barMaxWidth: useLineBars ? 2 : 14", source)
+        self.assertIn("axisPointer: { type: useLineBars ? 'line' : 'shadow'", source)
+        self.assertIn("stack: 'physical_faults'", source)
+        self.assertIn("legend: {\n                top: 8,\n                left: 'center',", source)
+        self.assertIn("grid: { top: 48, left: 56, right: 56, bottom: 34, containLabel: true }", source)
+        self.assertIn("name: '中断时长'", source)
+        self.assertIn("type: 'line'", source)
+        self.assertIn("yAxisIndex: 1", source)
+        self.assertIn("lineStyle: { width: 2, color: chartTheme.muted, type: 'dashed' }", source)
+        self.assertIn("itemStyle: { color: chartTheme.muted }", source)
+        self.assertIn("name: '中断时长(小时)'", source)
+        self.assertIn("dailyData.durations || []", source)
+        self.assertIn("光缆中断", source)
+        self.assertIn("供电故障", source)
+        self.assertIn("空调故障", source)
+        self.assertIn("设备故障", source)
+        self.assertIn("'设备故障': '#fd7e14'", source)
+
+        self.assertIn("def _resolve_physical_daily_range(start_date, end_date, filter_type) -> tuple:", views_source)
+        self.assertIn("if filter_type == 'week':", views_source)
+        self.assertIn("return start_date - timedelta(days=5), end_date + timedelta(days=5)", views_source)
+        self.assertIn("return start_date, end_date", views_source)
+        self.assertIn("def _build_physical_daily_fault_series(period_start, period_end, faults: list, now=None) -> dict[str, list]:", views_source)
+        self.assertIn("def _calculate_boxplot_values(values: list[float]) -> list[float]:", views_source)
+        self.assertIn("def _percentile(sorted_values: list[float], percentile: float) -> float:", views_source)
+        self.assertIn("duration_samples: dict[str, list[float]] = {day: [] for day in labels}", views_source)
+        self.assertIn("duration_samples[day_key].append(duration_hours)", views_source)
+        self.assertIn("'boxplot': [_calculate_boxplot_values(duration_samples[day]) for day in labels]", views_source)
+        self.assertIn("cursor = period_start.date()", views_source)
+        self.assertIn("end_day = period_end.date()", views_source)
+        self.assertIn("def _add_fault_duration_to_daily_buckets(", views_source)
+        self.assertIn("overlap_start = max(current_start, day_start)", views_source)
+        self.assertIn("overlap_end = min(fault_end, day_end)", views_source)
+        self.assertIn("duration_hours = (overlap_end - overlap_start).total_seconds() / 3600.0", views_source)
+        self.assertIn("duration_buckets[day_key] += duration_hours", views_source)
+        self.assertIn("FaultCategoryChoices.FIBER_BREAK", views_source)
+        self.assertIn("FaultCategoryChoices.POWER_FAULT", views_source)
+        self.assertIn("FaultCategoryChoices.AC_FAULT", views_source)
+        self.assertIn("FaultCategoryChoices.DEVICE_FAULT", views_source)
+        self.assertIn("(FaultCategoryChoices.DEVICE_FAULT, '设备故障', '#fd7e14')", views_source)
+        self.assertIn("'durations': [round(duration_buckets[day], 2) for day in labels]", views_source)
+        self.assertIn("physical_daily_start, physical_daily_end = _resolve_physical_daily_range(start_date, end_date, filter_type)", views_source)
+        self.assertIn("fault_occurrence_time__lt=physical_daily_end", views_source)
+        self.assertIn("Q(fault_recovery_time__isnull=True) | Q(fault_recovery_time__gt=physical_daily_start)", views_source)
+        self.assertIn("physical_daily_stats = _build_physical_daily_fault_series(physical_daily_start, physical_daily_end, physical_daily_faults, now)", views_source)
+        self.assertIn("'physical_daily': physical_daily_stats", views_source)
 
 
 if __name__ == "__main__":

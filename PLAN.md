@@ -1,3 +1,44 @@
+## 2026-04-25 统一统计卡片与 ECharts 图卡片立体效果
+### 实施步骤
+- [x] 补源码级回归测试，锁定指标卡片、业务卡片使用与 ECharts 图卡片一致的边框、阴影和 hover 阴影。
+- [x] 调整统计页 CSS，去除指标卡片专用边框/悬浮偏移差异，统一卡片 3D 效果。
+- [x] 运行统计页定向测试。
+
+## 2026-04-25 物理故障每日图下方增加盒线图
+### 实施步骤
+- [x] 补源码级回归测试，锁定盒线图容器、后端每日盒线数据和前端渲染入口。
+- [x] 后端按与物理每日图相同日期范围，计算每日物理故障中断时长样本的 min/Q1/median/Q3/max。
+- [x] 前端新增 ECharts 盒线图实例，复用相同 X 轴标签策略并随筛选周期重绘。
+- [x] 运行统计页定向测试、JS 语法检查和 Python 语法校验。
+
+## 2026-04-25 物理故障每日图按周期调整坐标和柱线形态
+### 实施步骤
+- [x] 补源码级回归测试，锁定周/月/季度使用柱状、半年/年使用细竖线，并按周期格式化 X 轴标签。
+- [x] 调整前端每日物理故障图配置，根据当前筛选类型选择柱宽、坐标轴指针和标签显示密度。
+- [x] 运行统计页定向测试和 JS 语法检查。
+
+## 2026-04-25 物理故障每日图横坐标跟随筛选范围
+### 实施步骤
+- [x] 补源码级回归测试，锁定周视图横坐标为当前周前后各 5 天，月/季度/半年/年视图为当前周期完整天。
+- [x] 将后端每日物理故障图范围从固定全年改为基于 `_parse_time_range()` 的当前周期范围。
+- [x] 调整每日故障数与中断时长查询窗口，按图表横坐标范围筛选并保留跨日/跨范围故障的时长重叠计算。
+- [x] 运行统计页定向测试、JS 语法检查和 Python 语法校验。
+
+## 2026-04-25 总体情况物理故障每日中断时长折线
+### 实施步骤
+- [x] 先补源码级回归测试，锁定年度每日物理故障图包含中断时长折线、右侧 Y 轴和按自然日重叠拆分时长的后端 helper。
+- [x] 扩展后端 `physical_daily` 响应，返回每日累计中断时长数组，时长按故障发生至恢复时间与每个自然日的重叠小时数累计。
+- [x] 扩展前端 ECharts 配置，在现有每日故障数堆叠竖线图上叠加中断时长折线并使用双 Y 轴。
+- [x] 运行定向源码测试、JS 语法检查和 Python 语法校验。
+
+## 2026-04-25 总体情况物理故障按天竖线图
+### 实施步骤
+- [x] 先补源码级回归测试，锁定总体情况卡片下方年度每日物理故障分类竖线图容器、后端响应字段和前端渲染入口。
+- [x] 在统计 API 中按所选年份生成 1 月 1 日至 12 月 31 日每日物理故障分类计数，仅包含光缆中断、供电故障、空调故障、设备故障。
+- [x] 在总体情况指标卡片下方新增图表卡片，使用 ECharts 堆叠细柱表现每日每类故障数量。
+- [x] 补充图表样式、主题色和资源版本号。
+- [x] 运行定向源码测试与 JS 语法检查。
+
 ## 2026-04-25 平均历时有效平均说明图标恢复
 ### 实施步骤
 - [x] 在动态指标渲染 helper 中支持单个指标标签内展示说明图标。
@@ -1127,3 +1168,87 @@
 - [x] Reduce the first duration card column to half of the previous proportional width.
 - [x] Distribute the saved width across the remaining three cards in the row.
 - [x] Add source-level assertions for the dedicated duration-row grid.
+
+## 2026-04-25 Fault duration histogram style
+### Steps
+- [x] Add a failing source-level regression test for contiguous histogram bars and Y-axis horizontal grid lines.
+- [x] Update the cable-break duration frequency chart ECharts options.
+- [x] Run the targeted regression test and JS syntax check.
+
+## 2026-04-25 Hide fault duration histogram Y-axis grid lines
+### Steps
+- [x] Update the histogram regression test to require hidden Y-axis horizontal grid lines.
+- [x] Set the histogram Y-axis `splitLine` to `show: false` while preserving contiguous bars.
+- [x] Run the targeted statistics dashboard tests and JS syntax check.
+
+## 2026-04-25 Separate repeat interruption metric card
+### Steps
+- [x] Add failing source-level assertions for moving repeat count out of the interruption count card.
+- [x] Move the repeat count metric into an independent `重复中断` card to the right of average duration.
+- [x] Align the interruption count row column widths with the interruption duration row.
+
+## 2026-04-25 Split average duration cards
+### Steps
+- [x] Add failing source-level assertions for splitting the average duration card into overall and short-filtered cards.
+- [x] Move the short-duration info icon from the removed valid-average metric to the filtered-average card footer.
+- [x] Render overall average separately from daytime, nighttime, construction, and non-construction filtered averages.
+
+## 2026-04-25 Move duration histogram into chart row
+### Steps
+- [x] Add a failing source-level assertion that histogram, reason, and resource charts share one row.
+- [x] Move the duration histogram card from the cable-break overview section into the ECharts chart section.
+- [x] Change the histogram, reason, and resource chart columns to three equal `col-md-4` cards.
+
+## 2026-04-25 Duration histogram click filtering
+### Steps
+- [x] Add source-level regression coverage for duration histogram click filtering.
+- [x] Add a detail-list histogram bucket field matching the chart labels.
+- [x] Bind histogram bar clicks to the same local detail filtering flow as other charts.
+- [x] Run the targeted dashboard tests and syntax checks.
+
+## 2026-04-25 Restore filtered average valid metric
+### Steps
+- [x] Add source-level regression coverage requiring the filtered-average card to include valid average first.
+- [x] Restore the valid average metric in the filtered-average card while keeping the footer info icon.
+- [x] Switch the filtered-average card layout from four to five equal metric columns.
+- [x] Run the targeted dashboard tests and JS syntax check.
+
+## 2026-04-25 Count metrics integer formatting
+### Steps
+- [x] Add source-level regression coverage requiring count metrics and count deltas to use integer formatting.
+- [x] Split count formatting from duration/percent formatting in the dashboard script.
+- [x] Apply integer formatting to `起`/`次` metrics, top-level count KPIs, and service count details.
+- [x] Run the targeted dashboard tests and JS syntax check.
+
+## 2026-04-25 Split service fault statistics tabs
+### Steps
+- [x] Add source-level regression coverage for separate bare-fiber and circuit service fault tabs.
+- [x] Rename the existing service tab to bare-fiber service fault statistics and add a circuit service fault statistics tab.
+- [x] Render bare-fiber and circuit service cards into separate containers by service type.
+- [x] Load service statistics data when either service tab is selected.
+- [x] Run the targeted dashboard tests and JS syntax check.
+
+## 2026-04-25 Rename fault statistics tabs
+### Steps
+- [x] Rename the overall tab display text to physical faults.
+- [x] Shorten bare-fiber and circuit service tab display text by removing the statistics suffix.
+- [x] Update source-level assertions for the new tab labels.
+
+## 2026-04-25 Polish cable break overview heading
+### Steps
+- [x] Replace the compact Bootstrap title/button pairing with dedicated dashboard heading classes.
+- [x] Increase the cable-break overview title and map action text size while keeping the existing theme colors.
+- [x] Rename the map action text to `定位地图` and update source-level assertions.
+
+## 2026-04-25 Refine cable break overview section title
+### Steps
+- [x] Keep the map action button unchanged.
+- [x] Reduce the section title below the page title hierarchy.
+- [x] Add a subtle teal accent marker so the title reads as a designed section header.
+- [x] Update source-level assertions for the refined title style.
+
+## 2026-04-25 Add overall section heading
+### Steps
+- [x] Add a `总体情况` section heading above the physical fault cards using the same refined section title style.
+- [x] Rename the cable-break section heading from `光缆中断概览` to `光缆中断情况`.
+- [x] Update source-level assertions for the new and renamed section headings.

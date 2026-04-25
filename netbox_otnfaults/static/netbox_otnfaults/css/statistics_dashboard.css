@@ -10,14 +10,19 @@
     --statistics-heading: var(--bs-emphasis-color, #111827);
     --statistics-primary: var(--tblr-primary, #206bc4);
     --statistics-primary-strong: #1555a0;
-    --statistics-card-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
-    --statistics-card-hover-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+    --statistics-card-shadow: 0 10px 24px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.08);
+    --statistics-card-hover-shadow: 0 16px 36px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.12);
     --statistics-divider: rgba(31, 41, 55, 0.14);
     --statistics-loading-start: #f3f4f6;
     --statistics-loading-mid: #e9ecef;
     background-color: var(--statistics-page-bg);
     color: var(--statistics-text);
     min-height: 100vh;
+}
+
+.page-statistics > .page-wrapper.container-xl {
+    max-width: none;
+    width: 100%;
 }
 
 .statistics-cable-break-map-dialog {
@@ -30,12 +35,19 @@
     --statistics-heading: var(--bs-emphasis-color, #111827);
     --statistics-primary: var(--tblr-primary, #206bc4);
     --statistics-primary-strong: #1555a0;
-    --statistics-card-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
-    --statistics-card-hover-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+    --statistics-card-shadow: 0 10px 24px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.08);
+    --statistics-card-hover-shadow: 0 16px 36px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.12);
     --statistics-divider: rgba(31, 41, 55, 0.14);
     --statistics-loading-start: #f3f4f6;
     --statistics-loading-mid: #e9ecef;
     color: var(--statistics-text);
+}
+
+@media (max-width: 767.98px) {
+    .page-statistics > .page-wrapper.container-xl {
+        max-width: 100%;
+        width: 100%;
+    }
 }
 
 [data-bs-theme="dark"] .page-statistics,
@@ -122,7 +134,8 @@
 }
 
 .page-statistics .card {
-    border: none;
+    border: 1px solid var(--statistics-border) !important;
+    box-shadow: var(--statistics-card-shadow) !important;
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -130,8 +143,6 @@
 .statistics-cable-break-map-dialog .modal-content {
     background-color: var(--statistics-surface);
     color: var(--statistics-text);
-    border: 1px solid var(--statistics-border);
-    box-shadow: var(--statistics-card-shadow);
 }
 
 .page-statistics .card {
@@ -159,9 +170,15 @@
     min-width: 0;
     overflow: hidden;
     background: var(--statistics-surface);
-    border: 1px solid var(--statistics-primary) !important;
+    border: 1px solid var(--statistics-border) !important;
     border-radius: 6px !important;
-    box-shadow: var(--statistics-card-shadow);
+    box-shadow: var(--statistics-card-shadow) !important;
+}
+
+.statistics-strip-card:hover,
+.svc-card:hover {
+    transform: none;
+    box-shadow: var(--statistics-card-hover-shadow) !important;
 }
 
 .statistics-strip-card-body {
@@ -307,18 +324,21 @@
 }
 
 .statistics-overall-card .statistics-overall-kpi-value,
-.statistics-overall-other-card .statistics-overall-kpi-value {
+.statistics-overall-other-card .statistics-overall-kpi-value,
+.statistics-cable-break-overview-card .statistics-overall-kpi-value {
     font-size: 1.35rem !important;
 }
 
 .statistics-overall-card .statistics-overall-kpi-unit,
-.statistics-overall-other-card .statistics-overall-kpi-unit {
+.statistics-overall-other-card .statistics-overall-kpi-unit,
+.statistics-cable-break-overview-card .statistics-overall-kpi-unit {
     font-size: 13px !important;
     line-height: 1.2;
 }
 
 .statistics-overall-card .statistics-overall-kpi-label,
-.statistics-overall-other-card .statistics-overall-kpi-label {
+.statistics-overall-other-card .statistics-overall-kpi-label,
+.statistics-cable-break-overview-card .statistics-overall-kpi-label {
     font-size: 12px !important;
     line-height: 1.2;
 }
@@ -450,18 +470,35 @@
     height: 3.25rem;
 }
 
+.statistics-physical-daily-chart-card {
+    border-radius: 6px !important;
+}
+
+.statistics-physical-daily-chart {
+    width: 100%;
+    height: 220px;
+}
+
+.statistics-physical-duration-boxplot {
+    width: 100%;
+    height: 220px;
+}
+
 .statistics-overall-card .statistics-kpi-group--compact .fs-3,
-.statistics-overall-other-card .statistics-kpi-group--compact .fs-3 {
+.statistics-overall-other-card .statistics-kpi-group--compact .fs-3,
+.statistics-cable-break-overview-card .statistics-kpi-group--compact .fs-3 {
     font-size: 1.35rem !important;
 }
 
 .statistics-overall-card .statistics-kpi-group--compact .text-muted,
-.statistics-overall-other-card .statistics-kpi-group--compact .text-muted {
+.statistics-overall-other-card .statistics-kpi-group--compact .text-muted,
+.statistics-cable-break-overview-card .statistics-kpi-group--compact .text-muted {
     font-size: 12px !important;
 }
 
 .statistics-overall-card .statistics-kpi-group--compact .statistics-kpi-trend-row,
-.statistics-overall-other-card .statistics-kpi-group--compact .statistics-kpi-trend-row {
+.statistics-overall-other-card .statistics-kpi-group--compact .statistics-kpi-trend-row,
+.statistics-cable-break-overview-card .statistics-kpi-group--compact .statistics-kpi-trend-row {
     font-size: 12px;
 }
 
@@ -487,10 +524,102 @@
     color: var(--statistics-border);
 }
 
+.statistics-cable-break-heading-row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.statistics-cable-break-heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--statistics-text);
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: 0;
+}
+
+.statistics-cable-break-heading::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 4px;
+    height: 1.25rem;
+    background: #237f9c;
+    border-radius: 999px;
+    box-shadow: 0 0 0 3px rgba(35, 127, 156, 0.1);
+}
+
+.statistics-cable-break-map-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 2.5rem;
+    padding: 0.35rem 0.9rem;
+    color: var(--statistics-primary);
+    background: rgba(var(--tblr-primary-rgb), 0.06);
+    border: 1px solid var(--statistics-primary);
+    border-radius: 8px;
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0;
+    white-space: nowrap;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.statistics-cable-break-map-action:hover,
+.statistics-cable-break-map-action:focus {
+    color: #ffffff;
+    background: var(--statistics-primary);
+    border-color: var(--statistics-primary);
+    box-shadow: 0 8px 18px rgba(32, 107, 196, 0.18);
+}
+
+.statistics-cable-break-map-action:focus-visible {
+    outline: 2px solid rgba(var(--tblr-primary-rgb), 0.35);
+    outline-offset: 2px;
+}
+
+.statistics-cable-break-map-action .mdi {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
 .statistics-cable-break-summary-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
     gap: 1rem;
+}
+
+.statistics-cable-break-count-grid {
+    grid-template-columns:
+        minmax(150px, 0.375fr)
+        minmax(280px, 0.975fr)
+        minmax(280px, 0.975fr)
+        minmax(520px, 1.675fr);
+}
+
+.statistics-cable-break-duration-grid {
+    grid-template-columns:
+        minmax(150px, 0.375fr)
+        minmax(280px, 0.975fr)
+        minmax(280px, 0.975fr)
+        minmax(520px, 1.675fr);
+}
+
+.statistics-cable-break-average-grid {
+    grid-template-columns:
+        minmax(150px, 0.375fr)
+        minmax(280px, 0.975fr)
+        minmax(280px, 0.975fr)
+        minmax(520px, 1.675fr);
+}
+
+.statistics-cable-break-filtered-average-card {
+    grid-column: span 2;
 }
 
 .statistics-cable-break-summary-card {
@@ -521,6 +650,142 @@
 
 .statistics-cable-break-summary-card-secondary .statistics-cable-break-main {
     flex-basis: 180px;
+}
+
+.statistics-cable-break-overview-card .statistics-strip-card-body {
+    min-height: 3.75rem;
+}
+
+.statistics-cable-break-overview-card .statistics-strip-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 1.75rem;
+    padding: 0 0.75rem;
+    font-size: 12px;
+}
+
+.statistics-cable-break-overview-card .statistics-cable-break-metrics {
+    align-items: center;
+    min-height: 3.75rem;
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+}
+
+.statistics-cable-break-count-card .statistics-cable-break-static-metrics,
+.statistics-cable-break-repeat-card .statistics-cable-break-static-metrics {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    justify-content: center;
+    column-gap: 0;
+}
+
+.statistics-cable-break-count-card .statistics-cable-break-static-metrics > .text-center,
+.statistics-cable-break-repeat-card .statistics-cable-break-static-metrics > .text-center,
+.statistics-cable-break-single-card .statistics-kpi-group-items > .text-center,
+.statistics-cable-break-triple-card .statistics-kpi-group-items > .text-center,
+.statistics-cable-break-four-card .statistics-kpi-group-items > .text-center,
+.statistics-cable-break-five-card .statistics-kpi-group-items > .text-center,
+.statistics-cable-break-six-card .statistics-kpi-group-items > .text-center {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    width: 100%;
+    padding: 0 0.5rem;
+    text-align: center;
+}
+
+.statistics-cable-break-count-card .statistics-cable-break-static-metrics > .text-center + .text-center::before,
+.statistics-cable-break-triple-card .statistics-kpi-group-items > .text-center + .text-center::before,
+.statistics-cable-break-four-card .statistics-kpi-group-items > .text-center + .text-center::before,
+.statistics-cable-break-five-card .statistics-kpi-group-items > .text-center + .text-center::before,
+.statistics-cable-break-six-card .statistics-kpi-group-items > .text-center + .text-center::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 1px;
+    height: 3.25rem;
+    background: var(--statistics-divider);
+    transform: translateY(-50%);
+}
+
+.statistics-cable-break-single-card .statistics-kpi-grouped-list,
+.statistics-cable-break-triple-card .statistics-kpi-grouped-list,
+.statistics-cable-break-four-card .statistics-kpi-grouped-list,
+.statistics-cable-break-five-card .statistics-kpi-grouped-list,
+.statistics-cable-break-six-card .statistics-kpi-grouped-list {
+    align-items: center;
+    align-content: center;
+    justify-content: center;
+    min-height: 3.75rem;
+    margin-top: 0;
+    transform: none;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.statistics-cable-break-single-card .statistics-kpi-group,
+.statistics-cable-break-triple-card .statistics-kpi-group,
+.statistics-cable-break-four-card .statistics-kpi-group,
+.statistics-cable-break-five-card .statistics-kpi-group,
+.statistics-cable-break-six-card .statistics-kpi-group {
+    display: contents;
+}
+
+.statistics-cable-break-single-card .statistics-kpi-group-items {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    width: 100%;
+    gap: 0;
+}
+
+.statistics-cable-break-triple-card .statistics-kpi-group-items {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    width: 100%;
+    gap: 0;
+}
+
+.statistics-cable-break-four-card .statistics-kpi-group-items {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: center;
+    width: 100%;
+    gap: 0;
+}
+
+.statistics-cable-break-five-card .statistics-kpi-group-items {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: center;
+    width: 100%;
+    gap: 0;
+}
+
+.statistics-cable-break-six-card .statistics-kpi-group-items {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    align-items: center;
+    width: 100%;
+    gap: 0;
+}
+
+.statistics-cable-break-triple-card .statistics-kpi-group-items > .text-center > .fs-3,
+.statistics-cable-break-four-card .statistics-kpi-group-items > .text-center > .fs-3,
+.statistics-cable-break-five-card .statistics-kpi-group-items > .text-center > .fs-3,
+.statistics-cable-break-six-card .statistics-kpi-group-items > .text-center > .fs-3 {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    width: 100%;
+    white-space: nowrap;
 }
 
 .statistics-break-main-metrics {
@@ -713,6 +978,11 @@
     line-height: 1;
 }
 
+.statistics-inline-info {
+    margin-left: 0.18rem;
+    vertical-align: -0.08rem;
+}
+
 .statistics-kpi-trend-row {
     display: inline-flex;
     align-items: baseline;
@@ -744,6 +1014,18 @@
 
 
 @media (max-width: 767.98px) {
+    .statistics-cable-break-heading {
+        gap: 0.75rem;
+        font-size: 1.1rem;
+        flex-wrap: wrap;
+    }
+
+    .statistics-cable-break-map-action {
+        min-height: 2.25rem;
+        padding: 0.3rem 0.75rem;
+        font-size: 1rem;
+    }
+
     .statistics-cable-break-summary-grid {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -803,10 +1085,7 @@
     border: 1px solid var(--statistics-border);
     border-radius: 10px;
     transition: transform 0.2s, box-shadow 0.2s;
-}
-.svc-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--statistics-card-hover-shadow) !important;
+    box-shadow: var(--statistics-card-shadow) !important;
 }
 
 @media (min-width: 768px) and (max-width: 1199.98px) {

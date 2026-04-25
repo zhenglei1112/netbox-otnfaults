@@ -31,6 +31,13 @@ FAULT_CATEGORY_SUMMARY_ORDER: list[tuple[str, str]] = [
     (FaultCategoryChoices.DEVICE_FAULT, '设备故障'),
 ]
 
+PHYSICAL_DAILY_CATEGORY_ORDER: list[tuple[str, str, str]] = [
+    (FaultCategoryChoices.FIBER_BREAK, '光缆中断', '#dc3545'),
+    (FaultCategoryChoices.POWER_FAULT, '供电故障', '#6f42c1'),
+    (FaultCategoryChoices.AC_FAULT, '空调故障', '#0d6efd'),
+    (FaultCategoryChoices.DEVICE_FAULT, '设备故障', '#fd7e14'),
+]
+
 OVERALL_EXCLUDED_TOTAL_CATEGORIES: set[str] = {
     FaultCategoryChoices.FIBER_DEGRADATION,
     FaultCategoryChoices.FIBER_JITTER,
@@ -90,6 +97,117 @@ def _build_fault_category_summary(faults: list, now) -> list[dict[str, str | int
     ]
 
 
+def _add_fault_duration_to_daily_buckets(
+    fault,
+    duration_buckets: dict[str, float],
+    period_start,
+    period_end,
+    now,
+    duration_samples: dict[str, list[float]] | None = None,
+) -> None:
+    if not fault.fault_occurrence_time:
+        return
+
+    fault_start = timezone.localtime(fault.fault_occurrence_time)
+    fault_end = timezone.localtime(fault.fault_recovery_time) if fault.fault_recovery_time else now
+    if fault_end <= period_start or fault_start >= period_end:
+        return
+
+    current_start = max(fault_start, period_start)
+    while current_start < min(fault_end, period_end):
+        day_start = timezone.datetime.combine(
+            current_start.date(),
+            timezone.datetime.min.time(),
+            tzinfo=timezone.get_current_timezone(),
+        )
+        day_end = day_start + timedelta(days=1)
+        day_key = day_start.date().isoformat()
+        overlap_start = max(current_start, day_start)
+        overlap_end = min(fault_end, day_end)
+        if day_key in duration_buckets and overlap_end > overlap_start:
+            duration_hours = (overlap_end - overlap_start).total_seconds() / 3600.0
+            duration_buckets[day_key] += duration_hours
+            if duration_samples is not None:
+                duration_samples[day_key].append(duration_hours)
+        current_start = day_end
+
+
+def _percentile(sorted_values: list[float], percentile: float) -> float:
+    if not sorted_values:
+        return 0.0
+    if len(sorted_values) == 1:
+        return sorted_values[0]
+    rank = (len(sorted_values) - 1) * percentile
+    lower = int(rank)
+    upper = min(lower + 1, len(sorted_values) - 1)
+    weight = rank - lower
+    return sorted_values[lower] + ((sorted_values[upper] - sorted_values[lower]) * weight)
+
+
+def _calculate_boxplot_values(values: list[float]) -> list[float]:
+    if not values:
+        return [0, 0, 0, 0, 0]
+    sorted_values = sorted(values)
+    return [
+        round(sorted_values[0], 2),
+        round(_percentile(sorted_values, 0.25), 2),
+        round(_percentile(sorted_values, 0.5), 2),
+        round(_percentile(sorted_values, 0.75), 2),
+        round(sorted_values[-1], 2),
+    ]
+
+
+def _resolve_physical_daily_range(start_date, end_date, filter_type) -> tuple:
+    if filter_type == 'week':
+        return start_date - timedelta(days=5), end_date + timedelta(days=5)
+    return start_date, end_date
+
+
+def _build_physical_daily_fault_series(period_start, period_end, faults: list, now=None) -> dict[str, list]:
+    now = now or timezone.localtime()
+
+    labels: list[str] = []
+    cursor = period_start.date()
+    end_day = period_end.date()
+    while cursor < end_day:
+        labels.append(cursor.isoformat())
+        cursor += timedelta(days=1)
+
+    category_labels = {
+        category: label
+        for category, label, _color in PHYSICAL_DAILY_CATEGORY_ORDER
+    }
+    counts: dict[str, dict[str, int]] = {
+        label: {day: 0 for day in labels}
+        for _category, label, _color in PHYSICAL_DAILY_CATEGORY_ORDER
+    }
+    duration_buckets: dict[str, float] = {day: 0.0 for day in labels}
+    duration_samples: dict[str, list[float]] = {day: [] for day in labels}
+
+    for fault in faults:
+        label = category_labels.get(fault.fault_category)
+        if not label or not fault.fault_occurrence_time:
+            continue
+        local_day = timezone.localtime(fault.fault_occurrence_time).date().isoformat()
+        if local_day in counts[label]:
+            counts[label][local_day] += 1
+        _add_fault_duration_to_daily_buckets(fault, duration_buckets, period_start, period_end, now, duration_samples)
+
+    return {
+        'labels': labels,
+        'durations': [round(duration_buckets[day], 2) for day in labels],
+        'boxplot': [_calculate_boxplot_values(duration_samples[day]) for day in labels],
+        'series': [
+            {
+                'name': label,
+                'color': color,
+                'data': [counts[label][day] for day in labels],
+            }
+            for _category, label, color in PHYSICAL_DAILY_CATEGORY_ORDER
+        ],
+    }
+
+
 def _build_other_fault_summary(faults: list) -> dict[str, int]:
     return {
         'fiber_degradation': sum(1 for f in faults if f.fault_category == FaultCategoryChoices.FIBER_DEGRADATION),
@@ -124,6 +242,14 @@ def _occurrence_period_for_fault(fault) -> str:
 def _format_local_datetime(value) -> str:
     """Format a timezone-aware datetime in the active local timezone."""
     return timezone.localtime(value).strftime('%Y-%m-%d %H:%M')
+
+
+def _duration_histogram_bucket_index(duration_hours: float) -> int:
+    return min(12, int(duration_hours))
+
+
+def _duration_histogram_bucket_label(bucket: int) -> str:
+    return f"[{bucket}, {bucket + 1})" if bucket < 12 else "≥12"
 
 
 def _compute_cable_break_overview(faults: list, now) -> dict:
@@ -168,7 +294,7 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
         end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
         duration_hours = (end_t - fault.fault_occurrence_time).total_seconds() / 3600.0
 
-        hist_bucket = min(12, int(duration_hours))
+        hist_bucket = _duration_histogram_bucket_index(duration_hours)
         histogram[hist_bucket] += 1
 
         total_duration += duration_hours
@@ -225,7 +351,7 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
 
     hist_data = []
     for i in range(13):
-        label = f"[{i}, {i+1})" if i < 12 else "≥12"
+        label = _duration_histogram_bucket_label(i)
         count = histogram[i]
         pct = round(count * 100.0 / cb_count, 1) if cb_count > 0 else 0.0
         hist_data.append({'label': label, 'value': count, 'percent': pct})
@@ -387,6 +513,16 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         overall_total_count = len(overall_faults)
         overall_category_stats = _build_fault_category_summary(overall_faults, now)
         other_overview = _build_other_fault_summary(all_faults)
+        physical_daily_start, physical_daily_end = _resolve_physical_daily_range(start_date, end_date, filter_type)
+        physical_daily_faults = list(
+            qs_all.filter(
+                fault_occurrence_time__lt=physical_daily_end,
+                fault_category__in=[category for category, _label, _color in PHYSICAL_DAILY_CATEGORY_ORDER],
+            ).filter(
+                Q(fault_recovery_time__isnull=True) | Q(fault_recovery_time__gt=physical_daily_start)
+            )
+        )
+        physical_daily_stats = _build_physical_daily_fault_series(physical_daily_start, physical_daily_end, physical_daily_faults, now)
 
         # 提取当前期光缆中断故障
         faults = list(get_cable_break_base_queryset(start_date, end_date))
@@ -555,6 +691,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
 
             occurrence_period = _occurrence_period_for_fault(fault)
             cause_group = '施工类' if reason == '施工' else '非施工类'
+            duration_histogram_bucket = _duration_histogram_bucket_label(_duration_histogram_bucket_index(duration_hours))
 
             
             # 明细存储（仅返回精简信息给前端作本地过滤或列表展示)
@@ -572,6 +709,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'province': prov_name,
                 'reason': reason,
                 'duration_bucket': duration_bucket,
+                'duration_histogram_bucket': duration_histogram_bucket,
                 'is_valid_duration': duration_hours > 0.5,
                 'occurrence_period': occurrence_period,
                 'cause_group': cause_group,
@@ -633,6 +771,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'province': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(province_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
                 'reason': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(reason_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
                 'category': overall_category_stats,
+                'physical_daily': physical_daily_stats,
             },
             'prev_charts': {
                 'category': prev_overall_category_stats,
