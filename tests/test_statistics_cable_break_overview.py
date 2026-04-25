@@ -93,8 +93,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("statistics-kpi-group-separator", source)
         self.assertNotIn("badge bg-light text-secondary border px-2 py-1 statistics-kpi-group-title", source)
         self.assertNotIn("badge bg-light text-secondary border px-2 py-1 statistics-kpi-group-title", template)
-        self.assertIn("letter-spacing: 0.08em;", css)
-        self.assertIn("pointer-events: none;", css)
+        self.assertIn("letter-spacing: 0;", css)
+        self.assertIn("pointer-events: auto;", css)
         self.assertIn("margin-top: 0.45rem;", css)
         self.assertIn("gap: 0.85rem;", css)
         self.assertIn("justify-content: center;", css)
@@ -149,31 +149,266 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("return Number.isInteger(diff) ? String(diff) : diff.toFixed(2);", source)
         self.assertIn("${symbol}${formatTrendDiff(cur, prev)}", source)
 
-    def test_trend_diff_renders_below_metrics_to_reduce_width(self) -> None:
+    def test_trend_diff_renders_to_the_right_of_metrics(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
 
-        self.assertIn('class="statistics-kpi-trend-row', source)
+        self.assertIn('class="statistics-metric-trend statistics-kpi-trend-row"', source)
         self.assertIn("metricTrendContainer", source)
-        self.assertIn("metricTrendContainer.parentElement.insertBefore(trendEl, metricTrendContainer.nextSibling);", source)
+        self.assertIn("metricTrendContainer.appendChild(trendEl);", source)
+        self.assertNotIn("metricTrendContainer.parentElement.insertBefore(trendEl, metricTrendContainer.nextSibling);", source)
         self.assertIn(".statistics-kpi-trend-row", css)
+        self.assertIn("display: inline-flex;", css)
+        self.assertIn("margin-left: 0.35rem;", css)
+
+    def test_flex_item_trend_arrows_render_inline_with_values(self) -> None:
+        source = JS_PATH.read_text(encoding="utf-8")
+        flex_item_source = source.split("function buildFlexItemCore", 1)[1].split("function buildFlexGroup", 1)[0]
+
+        self.assertIn('${arrow ? `<span class="statistics-metric-trend statistics-kpi-trend-row">${arrow}</span>` : \'\'}', flex_item_source)
+        self.assertNotIn('${arrow ? `<div class="statistics-kpi-trend-row">${arrow}</div>` : \'\'}', flex_item_source)
 
     def test_submetric_numbers_use_larger_font_size(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn('<div class="fs-3 fw-bold ${colorClass} lh-1">', source)
+        self.assertIn('<div class="statistics-overall-kpi-value fs-3 fw-bold ${colorClass} lh-1">', source)
+        self.assertIn('class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1" id="kpi-overall-total"', template)
+        self.assertNotIn('class="display-5 fw-bold text-indigo lh-1" id="kpi-overall-total"', template)
         self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-valid-avg"', template)
         self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-daytime-avg"', template)
         self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-nighttime-avg"', template)
         self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-construction-avg"', template)
         self.assertIn('class="fs-3 fw-bold text-indigo lh-1" id="cable-break-noncons-avg"', template)
 
+    def test_overall_total_fault_label_matches_category_label_typography(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        label_block = template.split('id="kpi-overall-total"', 1)[1].split('id="kpi-overall-categories-flex-list"', 1)[0]
+
+        self.assertIn('<div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">故障总数</div>', label_block)
+        self.assertNotIn('<div class="fw-bold text-dark mt-2 text-nowrap">物理故障</div>', label_block)
+
+    def test_overall_summary_uses_consistent_metric_ui_without_group_title(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        source = JS_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        overall_section = template.split('<section class="statistics-overall-overview', 1)[1].split('</section>', 1)[0]
+        overall_source = source.split("function renderOverallSummary", 1)[1].split("function formatTrendDiff", 1)[0]
+
+        self.assertIn("statistics-overall-main", overall_section)
+        self.assertNotIn('style="flex: 0 0 220px; border-right: 1px solid rgba(0,0,0,0.08);"', overall_section)
+        self.assertIn('buildFlexGroup(categories, "起", "", "text-indigo", prevCategories)', overall_source)
+        self.assertNotIn('buildFlexGroup(categories, "起", "故障分类"', overall_source)
+        self.assertIn(".statistics-overall-main", css)
+        self.assertIn(".statistics-kpi-group-items > .text-center + .text-center::before", css)
+        self.assertIn("height: 4.25rem;", css)
+
+    def test_overall_card_uses_second_mockup_spacing_and_proportions(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        overall_section = template.split('<section class="statistics-overall-overview', 1)[1].split('</section>', 1)[0]
+
+        self.assertIn("statistics-overall-card", overall_section)
+        self.assertIn("statistics-overall-metrics", overall_section)
+        self.assertIn("statistics-overall-categories-list", overall_section)
+
+        self.assertIn(".statistics-overall-card .statistics-strip-card-body", css)
+        self.assertIn("min-height: 3.75rem;", css)
+        self.assertIn(".statistics-overall-card .statistics-overall-metrics", css)
+        self.assertIn("justify-content: center;", css)
+        self.assertIn("column-gap: 0;", css)
+        self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
+        self.assertNotIn("padding-right: 1.15rem;", css)
+        self.assertIn(".statistics-overall-categories-list", css)
+        self.assertIn("flex: 0 1 auto;", css)
+        self.assertIn("transform: none;", css)
+        self.assertIn(".statistics-overall-card .statistics-kpi-group-items", css)
+        self.assertIn("gap: 0;", css)
+        self.assertIn(".statistics-overall-card .statistics-kpi-group-items > .text-center", css)
+        self.assertIn("width: auto;", css)
+        self.assertIn(".statistics-overall-card .statistics-strip-card-footer", css)
+        self.assertIn("min-height: 1.75rem;", css)
+
+    def test_overall_card_uses_compact_equal_metric_sizing(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        overall_section = template.split('<section class="statistics-overall-overview', 1)[1].split('</section>', 1)[0]
+
+        self.assertIn("statistics-overall-value", overall_section)
+        self.assertIn("statistics-overall-label", overall_section)
+        self.assertIn("statistics-overall-unit", overall_section)
+        self.assertIn("statistics-overall-card .statistics-overall-kpi-value", css)
+        self.assertIn("font-size: 1.35rem !important;", css)
+        self.assertIn("font-size: 12px;", css)
+        self.assertIn("min-height: 3.75rem;", css)
+        self.assertIn("min-height: 1.75rem;", css)
+        self.assertIn("height: 3.25rem;", css)
+        self.assertNotIn("min-height: 6.9rem;", css)
+        self.assertNotIn("min-height: 2.9rem;", css)
+
+    def test_overall_metrics_use_fixed_width_centered_slots(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        overall_section = template.split('<section class="statistics-overall-overview', 1)[1].split('</section>', 1)[0]
+
+        self.assertIn("statistics-overall-metric-slot", overall_section)
+        self.assertIn("statistics-overall-value-row", overall_section)
+        self.assertIn(".statistics-overall-card .statistics-overall-metric-slot", css)
+        self.assertIn("width: auto;", css)
+        self.assertIn("min-width: 0;", css)
+        self.assertIn("max-width: none;", css)
+        self.assertIn("justify-content: center;", css)
+        self.assertIn("text-align: center;", css)
+        self.assertIn(".statistics-overall-card .statistics-kpi-group-items > .text-center", css)
+        self.assertIn("display: flex;", css)
+        self.assertIn("flex-direction: column;", css)
+        self.assertIn("align-items: center;", css)
+        self.assertIn("width: auto;", css)
+        self.assertNotIn("width: 5.1rem;", css)
+
+    def test_overall_metrics_share_one_equal_width_grid(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
+        self.assertIn(".statistics-overall-card .statistics-overall-categories-list", css)
+        self.assertIn("display: contents;", css)
+        self.assertIn(".statistics-overall-card .statistics-kpi-group-items", css)
+        self.assertIn(".statistics-overall-card .statistics-overall-main::after", css)
+        self.assertIn("right: 0;", css)
+        self.assertIn("max-width: none;", css)
+        self.assertIn("min-width: 0;", css)
+
+    def test_overall_footer_title_is_vertically_centered(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+        footer_block = css.split(".statistics-overall-card .statistics-strip-card-footer,", 1)[1].split("}", 1)[0]
+
+        self.assertIn("display: flex;", footer_block)
+        self.assertIn("align-items: center;", footer_block)
+        self.assertIn("justify-content: center;", footer_block)
+        self.assertIn("padding: 0 0.75rem;", footer_block)
+
+    def test_cable_break_content_has_its_own_tab(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('id="tab-cable-break-btn"', template)
+        self.assertIn('data-bs-target="#tab-cable-break"', template)
+        self.assertIn('aria-controls="tab-cable-break"', template)
+        self.assertIn('id="tab-cable-break"', template)
+        self.assertIn('aria-labelledby="tab-cable-break-btn"', template)
+
+        physical_tab = template.split('id="tab-physical"', 1)[1].split('id="tab-cable-break"', 1)[0]
+        cable_break_tab = template.split('id="tab-cable-break"', 1)[1].split('id="tab-service"', 1)[0]
+
+        self.assertIn("statistics-overall-overview", physical_tab)
+        self.assertNotIn("statistics-cable-break-overview", physical_tab)
+        self.assertIn("statistics-cable-break-overview", cable_break_tab)
+        self.assertIn("光缆中断概览", cable_break_tab)
+        self.assertIn('id="chart-cable-break-histogram"', cable_break_tab)
+        self.assertIn('id="chart-province"', cable_break_tab)
+        self.assertIn('id="filtered-kpi-summary"', cable_break_tab)
+        self.assertIn('id="details-tbody"', cable_break_tab)
+
+    def test_cable_break_tab_resizes_hidden_echarts_after_shown(self) -> None:
+        source = JS_PATH.read_text(encoding="utf-8")
+        tab_source = source.split("// ---------------- Tab", 1)[1].split("// ---------------- 初始化启动", 1)[0]
+
+        self.assertIn("function resizeStatisticsCharts()", source)
+        self.assertIn("chartResource.resize();", source)
+        self.assertIn("chartProvince.resize();", source)
+        self.assertIn("chartReason.resize();", source)
+        self.assertIn("if (chartHistogram) chartHistogram.resize();", source)
+        self.assertIn("event.target.id === 'tab-cable-break-btn'", tab_source)
+        self.assertIn("resizeStatisticsCharts();", tab_source)
+
+    def test_overall_tab_and_card_labels_match_current_copy(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        nav_source = template.split('<ul class="nav nav-tabs', 1)[1].split('</ul>', 1)[0]
+        physical_tab = template.split('id="tab-physical"', 1)[1].split('id="tab-cable-break"', 1)[0]
+        overall_section = template.split('<section class="statistics-overall-overview', 1)[1].split('</section>', 1)[0]
+
+        self.assertIn('id="tab-physical-btn"', nav_source)
+        self.assertIn(">总体情况", nav_source)
+        self.assertNotIn(">物理故障统计", nav_source)
+        self.assertNotIn('<h3 class="h4 mb-0">总体情况</h3>', physical_tab)
+        self.assertIn('<div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">故障总数</div>', overall_section)
+        self.assertIn('<div class="statistics-strip-card-footer">物理故障</div>', overall_section)
+        self.assertNotIn('<div class="statistics-strip-card-footer">总体情况</div>', overall_section)
+
+    def test_overall_total_excludes_degradation_and_jitter_with_other_card_data(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("OVERALL_EXCLUDED_TOTAL_CATEGORIES", source)
+        self.assertIn("FaultCategoryChoices.FIBER_DEGRADATION", source)
+        self.assertIn("FaultCategoryChoices.FIBER_JITTER", source)
+        self.assertIn("overall_faults = [", source)
+        self.assertIn("if f.fault_category not in OVERALL_EXCLUDED_TOTAL_CATEGORIES", source)
+        self.assertIn("overall_total_count = len(overall_faults)", source)
+        self.assertIn("overall_category_stats = _build_fault_category_summary(overall_faults, now)", source)
+        self.assertIn("other_overview = _build_other_fault_summary(all_faults)", source)
+        self.assertIn("prev_other_overview = _build_other_fault_summary(prev_all_faults)", source)
+        self.assertIn("'other_overview': other_overview", source)
+        self.assertIn("'prev_other_overview': prev_other_overview", source)
+
+    def test_overall_other_card_renders_degradation_jitter_and_suspended_faults(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        source = JS_PATH.read_text(encoding="utf-8")
+        overall_section = template.split('<section class="statistics-overall-overview', 1)[1].split('</section>', 1)[0]
+
+        self.assertIn("statistics-overall-card-grid", overall_section)
+        self.assertIn('id="kpi-overall-other-flex-list"', overall_section)
+        self.assertIn('<div class="statistics-strip-card-footer">其他</div>', overall_section)
+        self.assertIn("renderOverallOtherSummary(data.other_overview, data.prev_other_overview);", source)
+        self.assertIn("function renderOverallOtherSummary(otherOverview, prevOtherOverview)", source)
+        self.assertIn("{ name: '光缆劣化', value: otherOverview.fiber_degradation || 0 }", source)
+        self.assertIn("{ name: '光缆抖动', value: otherOverview.fiber_jitter || 0 }", source)
+        self.assertIn("{ name: '挂起的故障', value: otherOverview.suspended_faults || 0 }", source)
+        self.assertIn('buildFlexGroup(items, "起", "", "text-indigo", prevItems)', source)
+
+    def test_physical_fault_card_does_not_render_degradation_or_jitter_categories(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        summary_order = source.split("FAULT_CATEGORY_SUMMARY_ORDER", 1)[1].split("]", 1)[0]
+
+        self.assertNotIn("FaultCategoryChoices.FIBER_DEGRADATION", summary_order)
+        self.assertNotIn("FaultCategoryChoices.FIBER_JITTER", summary_order)
+
+    def test_overall_cards_use_compact_column_counts_after_category_split(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".statistics-overall-card-grid", css)
+        self.assertIn(".statistics-overall-card .statistics-overall-metrics", css)
+        self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
+        self.assertIn(".statistics-overall-other-card .statistics-kpi-group-items", css)
+        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr));", css)
+        self.assertIn(".statistics-overall-card .statistics-strip-card-body,\n.statistics-overall-other-card .statistics-strip-card-body", css)
+        self.assertIn("min-height: 3.75rem;", css)
+        self.assertNotIn("grid-template-columns: repeat(7, minmax(0, 1fr));", css)
+
+    def test_overall_card_submetrics_do_not_use_compact_smaller_font(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".statistics-overall-card .statistics-kpi-group--compact .fs-3", css)
+        self.assertIn("font-size: 1.35rem !important;", css)
+        self.assertIn(".statistics-overall-card .statistics-kpi-group--compact .text-muted", css)
+        self.assertIn("font-size: 12px !important;", css)
+
+    def test_overall_cards_share_other_card_metric_typography(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        overall_section = template.split('<section class="statistics-overall-overview', 1)[1].split('</section>', 1)[0]
+
+        self.assertIn("statistics-overall-kpi-value", overall_section)
+        self.assertIn("statistics-overall-kpi-unit", overall_section)
+        self.assertIn("statistics-overall-kpi-label", overall_section)
+        self.assertIn(".statistics-overall-card .statistics-overall-kpi-value,\n.statistics-overall-other-card .statistics-overall-kpi-value", css)
+        self.assertIn(".statistics-overall-card .statistics-overall-kpi-unit,\n.statistics-overall-other-card .statistics-overall-kpi-unit", css)
+        self.assertIn(".statistics-overall-card .statistics-overall-kpi-label,\n.statistics-overall-other-card .statistics-overall-kpi-label", css)
+        self.assertNotIn(".statistics-overall-card .fs-3 {\n    font-size: 1.35rem !important;\n}", css)
+
     def test_valid_duration_labels_use_consistent_hover_copy(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         map_source = STATISTICS_MAP_MODE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn('data-info-content="<=30分钟"', template)
+        self.assertIn('title="<=30分钟"', template)
         self.assertIn('title: "<=30分钟"', map_source)
 
     def test_kpi_group_titles_allow_hover_tooltips(self) -> None:
@@ -234,8 +469,6 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
         expected_order = [
             "FaultCategoryChoices.FIBER_BREAK, '光缆中断'",
-            "FaultCategoryChoices.FIBER_DEGRADATION, '光缆劣化'",
-            "FaultCategoryChoices.FIBER_JITTER, '光缆抖动'",
             "FaultCategoryChoices.AC_FAULT, '空调故障'",
             "FaultCategoryChoices.POWER_FAULT, '供电故障'",
             "FaultCategoryChoices.DEVICE_FAULT, '设备故障'",
@@ -261,7 +494,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         source = JS_PATH.read_text(encoding="utf-8")
         overall_source = source.split("function renderOverallSummary", 1)[1].split("function formatTrendDiff", 1)[0]
 
-        self.assertIn('buildFlexGroup(categories, "起", "故障分类", "text-indigo", prevCategories)', overall_source)
+        self.assertIn('buildFlexGroup(categories, "起", "", "text-indigo", prevCategories)', overall_source)
+        self.assertNotIn('buildFlexGroup(categories, "起", "故障分类", "text-indigo", prevCategories)', overall_source)
         self.assertNotIn('buildFlexGroup(categories, "起", "故障分类", "text-secondary", prevCategories)', overall_source)
 
     def test_cable_attribute_groups_use_fixed_source_order(self) -> None:
@@ -355,6 +589,49 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('shadow-sm h-100"', histogram_card)
         self.assertEqual(province_card, histogram_card)
         self.assertNotIn("p-3", histogram_card)
+
+    def test_statistics_cards_use_reference_strip_visual_without_new_categories(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        source = JS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("statistics-strip-card", template)
+        self.assertIn("statistics-strip-card-body", template)
+        self.assertIn("statistics-strip-card-metrics", template)
+        self.assertIn("statistics-strip-card-footer", template)
+        self.assertIn(".statistics-strip-card {", css)
+        self.assertIn(".statistics-strip-card-footer", css)
+        self.assertIn(".statistics-strip-card-metric + .statistics-strip-card-metric::before", css)
+        self.assertIn("renderStripMetric(metric)", source)
+        self.assertIn("renderStripCard(card)", source)
+
+        forbidden_example_labels = ["隐患排查", "整改推进", "局方整改项", "局方预落实"]
+        for label in forbidden_example_labels:
+            self.assertNotIn(label, template)
+            self.assertNotIn(label, source)
+
+        self.assertNotIn("summary_cards", source)
+        self.assertNotIn("summary_cards", template)
+
+    def test_service_cards_render_existing_metrics_in_strip_card_layout(self) -> None:
+        source = JS_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("service-strip-card-grid", template)
+        self.assertIn("function renderStripMetric(metric)", source)
+        self.assertIn("function renderStripCard(card)", source)
+        self.assertIn("function escapeHtml(value)", source)
+        self.assertIn("const footer = escapeHtml(card.footer);", source)
+        self.assertIn("metrics: [", source)
+        self.assertIn("label: '故障总数'", source)
+        self.assertIn("label: '累计时长'", source)
+        self.assertIn("label: '平均时长'", source)
+        self.assertIn("label: '长时故障'", source)
+        self.assertIn("label: '重复故障'", source)
+        self.assertIn("label: 'SLA'", source)
+        self.assertIn("footer: svc.name", source)
+        self.assertIn(".service-strip-card-grid", css)
 
     def test_reason_and_resource_pies_show_count_and_percent_labels(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -539,7 +816,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         css = CSS_PATH.read_text(encoding="utf-8")
 
         self.assertIn("window.STATISTICS_CABLE_BREAK_MAP_URL", template)
-        self.assertIn("statistics_dashboard.css' %}?v=2", template)
+        self.assertIn("statistics_dashboard.css' %}?v=4", template)
         self.assertIn("statistics-cable-break-map-btn", template)
         self.assertIn("statisticsCableBreakMapModal", template)
         self.assertIn("modal-dialog modal-dialog-centered statistics-cable-break-map-dialog", template)
@@ -589,7 +866,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn(".statistics-cable-break-map-period-actions", css)
         self.assertIn("statistics-cable-break-map-frame-wrap", css)
         self.assertIn("height: calc(85vh - 46px);", css)
-        self.assertIn("statistics_dashboard.js' %}?v=5", template)
+        self.assertIn("statistics_dashboard.js' %}?v=7", template)
 
     def test_unified_map_preserves_embedded_map_query_params(self) -> None:
         unified_map_template = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults" / "unified_map.html"

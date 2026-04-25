@@ -24,12 +24,14 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    window.addEventListener('resize', () => {
+    function resizeStatisticsCharts() {
         chartResource.resize();
         chartProvince.resize();
         chartReason.resize();
         if (chartHistogram) chartHistogram.resize();
-    });
+    }
+
+    window.addEventListener('resize', resizeStatisticsCharts);
 
     // ---------------- 统一事件绑定 ----------------
     // 点击下钻
@@ -533,6 +535,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             renderKPIs(data.kpis, data.prev_kpis, selFilterType.value);
             renderOverallSummary(data.kpis, data.charts, data.prev_charts);
+            renderOverallOtherSummary(data.other_overview, data.prev_other_overview);
             currentCableBreakOverview = data.cable_break_overview || null;
             currentPrevCableBreakOverview = data.prev_cable_break_overview || null;
             currentChartsData = data.charts || null;
@@ -609,8 +612,29 @@ document.addEventListener("DOMContentLoaded", function() {
             : undefined;
         renderTrendBesideMetric(overallTotal, kpis.total_count, prevOverallTotal);
 
-        let htmlContent = buildFlexGroup(categories, "起", "故障分类", "text-indigo", prevCategories);
+        let htmlContent = buildFlexGroup(categories, "起", "", "text-indigo", prevCategories);
         categoriesList.innerHTML = htmlContent;
+    }
+
+    function renderOverallOtherSummary(otherOverview, prevOtherOverview) {
+        const otherList = document.getElementById('kpi-overall-other-flex-list');
+        if (!otherList) return;
+
+        otherOverview = otherOverview || {};
+        prevOtherOverview = prevOtherOverview || {};
+
+        const items = [
+            { name: '光缆劣化', value: otherOverview.fiber_degradation || 0 },
+            { name: '光缆抖动', value: otherOverview.fiber_jitter || 0 },
+            { name: '挂起的故障', value: otherOverview.suspended_faults || 0 },
+        ];
+        const prevItems = [
+            { name: '光缆劣化', value: prevOtherOverview.fiber_degradation || 0 },
+            { name: '光缆抖动', value: prevOtherOverview.fiber_jitter || 0 },
+            { name: '挂起的故障', value: prevOtherOverview.suspended_faults || 0 },
+        ];
+
+        otherList.innerHTML = buildFlexGroup(items, "起", "", "text-indigo", prevItems);
     }
 
     function formatTrendDiff(currentVal, prevVal) {
@@ -643,7 +667,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!trendEl) {
             trendEl = document.createElement('span');
             trendEl.className = 'statistics-metric-trend statistics-kpi-trend-row';
-            metricTrendContainer.parentElement.insertBefore(trendEl, metricTrendContainer.nextSibling);
+            metricTrendContainer.appendChild(trendEl);
         }
         trendEl.innerHTML = buildTrendArrow(currentValue, previousValue);
     }
@@ -656,9 +680,8 @@ document.addEventListener("DOMContentLoaded", function() {
             : "";
         return `
             <div class="text-center${filterClass}"${filterAttrs}>
-                <div class="fs-3 fw-bold ${colorClass} lh-1">${value}<span class="ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span></div>
-                <div class="text-muted mt-1" style="font-size: 12px;">${title}</div>
-                ${arrow ? `<div class="statistics-kpi-trend-row">${arrow}</div>` : ''}
+                <div class="statistics-overall-kpi-value fs-3 fw-bold ${colorClass} lh-1">${value}<span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span>${arrow ? `<span class="statistics-metric-trend statistics-kpi-trend-row">${arrow}</span>` : ''}</div>
+                <div class="statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">${title}</div>
             </div>
         `;
     }
@@ -1214,6 +1237,43 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderStripMetric(metric) {
+        const valueClass = metric.valueClass || 'text-indigo';
+        const unitHtml = metric.unit ? `<span class="statistics-strip-card-unit">${metric.unit}</span>` : '';
+        const detailHtml = metric.detail ? `<div class="statistics-strip-card-detail">${metric.detail}</div>` : '';
+        return `
+            <div class="statistics-strip-card-metric">
+                <div class="statistics-strip-card-value-row">
+                    <span class="statistics-strip-card-value ${valueClass}">${metric.value}</span>
+                    ${unitHtml}
+                </div>
+                ${detailHtml}
+                <div class="statistics-strip-card-label">${metric.label}</div>
+            </div>`;
+    }
+
+    function renderStripCard(card) {
+        const footer = escapeHtml(card.footer);
+        return `
+            <div class="statistics-strip-card service-strip-card">
+                <div class="statistics-strip-card-body">
+                    <div class="statistics-strip-card-metrics">
+                        ${card.metrics.map(renderStripMetric).join('')}
+                    </div>
+                </div>
+                <div class="statistics-strip-card-footer" title="${footer}">${footer}</div>
+            </div>`;
+    }
+
     function renderServiceCards(services, periodTotalHours) {
         const container = document.getElementById('service-cards-container');
 
@@ -1223,95 +1283,33 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const html = services.map(svc => {
-            // SLA 颜色
             let slaColor = '#16a34a'; // green
-            let slaBg = '#dcfce7';
             if (svc.sla < 99) {
-                slaColor = '#dc2626'; slaBg = '#fee2e2';
+                slaColor = '#dc2626';
             } else if (svc.sla < 99.9) {
-                slaColor = '#ea580c'; slaBg = '#fff7ed';
+                slaColor = '#ea580c';
             } else if (svc.sla < 99.99) {
-                slaColor = '#ca8a04'; slaBg = '#fefce8';
+                slaColor = '#ca8a04';
             }
-            let slaPercent = Math.min(100, svc.sla);
 
-            // 分类明细
             let catParts = [];
-            if (svc.break_count > 0) catParts.push(`中断 <strong class="text-danger">${svc.break_count}</strong>`);
-            if (svc.jitter_count > 0) catParts.push(`抖动 <strong class="text-info">${svc.jitter_count}</strong>`);
-            if (svc.degrade_count > 0) catParts.push(`劣化 <strong class="text-warning">${svc.degrade_count}</strong>`);
-            if (svc.other_count > 0) catParts.push(`其他 <strong>${svc.other_count}</strong>`);
-            let catDetail = catParts.length > 0 ? `（${catParts.join(' | ')}）` : '';
+            if (svc.break_count > 0) catParts.push(`中断 ${svc.break_count}`);
+            if (svc.jitter_count > 0) catParts.push(`抖动 ${svc.jitter_count}`);
+            if (svc.degrade_count > 0) catParts.push(`劣化 ${svc.degrade_count}`);
+            if (svc.other_count > 0) catParts.push(`其他 ${svc.other_count}`);
+            let catDetail = catParts.length > 0 ? catParts.join(' | ') : svc.type;
 
-            // 类型 badge
-            let typeBadge = svc.type === '裸纤业务'
-                ? '<span class="badge bg-blue text-white">裸纤</span>'
-                : '<span class="badge bg-green text-white">电路</span>';
-
-            return `<div class="col">
-                <div class="card svc-card shadow-sm h-100">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-3">
-                            <div class="d-flex align-items-center" style="min-width: 0;">
-                                ${typeBadge}
-                                <strong class="ms-2 text-truncate" title="${svc.name}">${svc.name}</strong>
-                            </div>
-                            <div class="sla-badge text-nowrap" style="background:${slaBg}; color:${slaColor}; border: 1px solid ${slaColor}30; border-radius:20px; padding: 4px 12px; font-size:13px; font-weight:600;">
-                                SLA ${svc.sla.toFixed(2)}%
-                            </div>
-                        </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-12">
-                                <div class="svc-stat-row">
-                                    <span class="text-muted">故障总数</span>
-                                    <span><strong class="text-primary fs-5">${svc.count}</strong> 次 ${catDetail}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <div class="svc-stat-row">
-                                    <span class="text-muted">累计时长</span>
-                                    <span><strong>${svc.total_duration}</strong> 小时</span>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="svc-stat-row">
-                                    <span class="text-muted">平均时长</span>
-                                    <span><strong>${svc.avg_duration}</strong> 小时</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <div class="svc-stat-row">
-                                    <span class="text-muted">长时故障(≥6h)</span>
-                                    <span><strong class="${svc.long_count > 0 ? 'text-danger' : ''}">${svc.long_count}</strong></span>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="svc-stat-row">
-                                    <span class="text-muted">重复故障</span>
-                                    <span><strong class="${svc.repeat_count > 0 ? 'text-purple' : ''}">${svc.repeat_count}</strong></span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="svc-sla-bar">
-                            <div class="d-flex justify-content-between mb-1">
-                                <small class="text-muted">可用率</small>
-                                <small style="color:${slaColor}; font-weight:600;">${svc.sla.toFixed(2)}%</small>
-                            </div>
-                            <div class="progress" style="height: 6px; border-radius: 3px;">
-                                <div class="progress-bar" role="progressbar" style="width: ${slaPercent}%; background-color: ${slaColor}; border-radius: 3px;" aria-valuenow="${slaPercent}" aria-valuemin="0" aria-valuemax="100"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>`;
+            return renderStripCard({
+                footer: svc.name,
+                metrics: [
+                    { label: '故障总数', value: svc.count, unit: '次', detail: catDetail },
+                    { label: '累计时长', value: svc.total_duration, unit: '小时' },
+                    { label: '平均时长', value: svc.avg_duration, unit: '小时' },
+                    { label: '长时故障', value: svc.long_count, unit: '次', valueClass: svc.long_count > 0 ? 'text-danger' : 'text-indigo' },
+                    { label: '重复故障', value: svc.repeat_count, unit: '次', valueClass: svc.repeat_count > 0 ? 'text-purple' : 'text-indigo' },
+                    { label: 'SLA', value: `${svc.sla.toFixed(2)}%`, valueClass: '', detail: `<span style="color:${slaColor};">可用率</span>` },
+                ],
+            });
         }).join('');
 
         container.innerHTML = html;
@@ -1333,14 +1331,13 @@ document.addEventListener("DOMContentLoaded", function() {
         tabEl.addEventListener('shown.bs.tab', function(event) {
             if (event.target.id === 'tab-service-btn') {
                 loadServiceData();
+            } else if (event.target.id === 'tab-cable-break-btn') {
+                loadData();
+                setTimeout(() => {
+                    resizeStatisticsCharts();
+                }, 100);
             } else if (event.target.id === 'tab-physical-btn') {
                 loadData();
-                // 切回时需要 resize echarts
-                setTimeout(() => {
-                    chartResource.resize();
-                    chartProvince.resize();
-                    chartReason.resize();
-                }, 100);
             }
         });
     }
