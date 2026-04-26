@@ -1311,3 +1311,21 @@
 - [x] Add a `总体情况` section heading above the physical fault cards using the same refined section title style.
 - [x] Rename the cable-break section heading from `光缆中断概览` to `光缆中断情况`.
 - [x] Update source-level assertions for the new and renamed section headings.
+
+## 2026-04-26 Restore histogram axis label and spacing regressions
+### Steps
+- [x] Restore the duration histogram x-axis name positioning and bump the dashboard JS cache version.
+- [x] Keep the duration histogram as contiguous histogram bars while preventing the axis name from clipping.
+- [x] Restore source-level template spacing classes and CSS selector formatting used by regression tests.
+- [x] Re-verify the statistics dashboard tests and JavaScript syntax.
+## 2026-04-26 增加物理故障图与盒须图底部留白
+### 实施步骤
+- [x] 更新源码级回归测试，锁定两张图继续共享 grid 且底部留白增加。
+- [x] 调整共享 ECharts grid bottom，保持 X 轴对齐同时改善下边距。
+- [x] 运行统计页定向测试与 JS 语法检查。
+
+## 2026-04-26 对齐物理故障图与中断时长盒须图 X 轴
+### 实施步骤
+- [x] 定位两张 ECharts 图的 grid/containLabel 差异，确认右侧 Y 轴导致绘图区宽度不一致。
+- [x] 将物理故障数图和中断时长分布盒须图改为共享固定 grid，避免各自 Y 轴标签重新压缩 X 轴。
+- [x] 更新统计页源码级回归测试并运行 JS 语法检查、定向测试。

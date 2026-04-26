@@ -22,7 +22,7 @@
     min-height: 100vh;
 }
 
-.page-statistics>.page-wrapper.container-xl {
+.page-statistics > .page-wrapper.container-xl {
     max-width: none;
     width: 100%;
 }
@@ -48,7 +48,7 @@
 }
 
 @media (max-width: 767.98px) {
-    .page-statistics>.page-wrapper.container-xl {
+    .page-statistics > .page-wrapper.container-xl {
         max-width: 100%;
         width: 100%;
     }
@@ -220,7 +220,7 @@
     text-align: center;
 }
 
-.statistics-strip-card-metric+.statistics-strip-card-metric::before {
+.statistics-strip-card-metric + .statistics-strip-card-metric::before {
     content: "";
     position: absolute;
     left: 0;
@@ -307,11 +307,11 @@
     gap: var(--statistics-section-gap);
 }
 
-.page-statistics #tab-physical.show.active>.statistics-overall-overview,
-.page-statistics #tab-physical.show.active>.statistics-cable-break-overview,
-.page-statistics #tab-physical.show.active>.statistics-chart-area,
-.page-statistics #tab-physical.show.active>#filtered-kpi-summary,
-.page-statistics #tab-physical.show.active>.card {
+.page-statistics #tab-physical.show.active > .statistics-overall-overview,
+.page-statistics #tab-physical.show.active > .statistics-cable-break-overview,
+.page-statistics #tab-physical.show.active > .statistics-chart-area,
+.page-statistics #tab-physical.show.active > #filtered-kpi-summary,
+.page-statistics #tab-physical.show.active > .card {
     margin-top: 0 !important;
     margin-bottom: 0 !important;
 }
@@ -333,8 +333,20 @@
     margin-bottom: 0 !important;
 }
 
-.statistics-overall-overview>*,
-.statistics-cable-break-overview>* {
+.statistics-overall-overview > *,
+.statistics-cable-break-overview > * {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.statistics-overall-overview > .statistics-overall-card-grid,
+.statistics-overall-overview > .statistics-physical-daily-chart-card {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.statistics-cable-break-overview > .statistics-cable-break-heading-row,
+.statistics-cable-break-overview > .statistics-cable-break-summary-grid {
     margin-top: 0 !important;
     margin-bottom: 0 !important;
 }
@@ -345,7 +357,7 @@
     margin-bottom: 0 !important;
 }
 
-.statistics-chart-area>[class*="col-"] {
+.statistics-chart-area > [class*="col-"] {
     margin-bottom: 0 !important;
 }
 
@@ -448,7 +460,7 @@
     gap: 0;
 }
 
-.statistics-overall-card .statistics-kpi-group-items>.text-center {
+.statistics-overall-card .statistics-kpi-group-items > .text-center {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -460,7 +472,7 @@
     text-align: center;
 }
 
-.statistics-overall-card .statistics-kpi-group-items>.text-center>.fs-3 {
+.statistics-overall-card .statistics-kpi-group-items > .text-center > .fs-3 {
     display: flex;
     align-items: baseline;
     justify-content: center;
@@ -469,7 +481,7 @@
     white-space: nowrap;
 }
 
-.statistics-overall-card .statistics-kpi-group-items>.text-center+.text-center::before {
+.statistics-overall-card .statistics-kpi-group-items > .text-center + .text-center::before {
     left: 0;
     height: 3.25rem;
 }
@@ -497,7 +509,7 @@
     gap: 0;
 }
 
-.statistics-overall-other-card .statistics-kpi-group-items>.text-center {
+.statistics-overall-other-card .statistics-kpi-group-items > .text-center {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -509,7 +521,7 @@
     text-align: center;
 }
 
-.statistics-overall-other-card .statistics-kpi-group-items>.text-center>.fs-3 {
+.statistics-overall-other-card .statistics-kpi-group-items > .text-center > .fs-3 {
     display: flex;
     align-items: baseline;
     justify-content: center;
@@ -517,7 +529,7 @@
     white-space: nowrap;
 }
 
-.statistics-overall-other-card .statistics-kpi-group-items>.text-center+.text-center::before {
+.statistics-overall-other-card .statistics-kpi-group-items > .text-center + .text-center::before {
     left: 0;
     height: 3.25rem;
 }
@@ -527,7 +539,7 @@
 }
 
 /* 视觉补偿：两个纯白卡片相邻时，阴影会使得 flex gap 显得比带色带的卡片要小。这里增加 0.5rem (8px) 补偿 */
-.statistics-physical-daily-chart-card+.statistics-physical-daily-chart-card {
+.statistics-physical-daily-chart-card + .statistics-physical-daily-chart-card {
     margin-top: 0.5rem !important;
 }
 
@@ -760,13 +772,13 @@
     column-gap: 0;
 }
 
-.statistics-cable-break-count-card .statistics-cable-break-static-metrics>.text-center,
-.statistics-cable-break-repeat-card .statistics-cable-break-static-metrics>.text-center,
-.statistics-cable-break-single-card .statistics-kpi-group-items>.text-center,
-.statistics-cable-break-triple-card .statistics-kpi-group-items>.text-center,
-.statistics-cable-break-four-card .statistics-kpi-group-items>.text-center,
-.statistics-cable-break-five-card .statistics-kpi-group-items>.text-center,
-.statistics-cable-break-six-card .statistics-kpi-group-items>.text-center {
+.statistics-cable-break-count-card .statistics-cable-break-static-metrics > .text-center,
+.statistics-cable-break-repeat-card .statistics-cable-break-static-metrics > .text-center,
+.statistics-cable-break-single-card .statistics-kpi-group-items > .text-center,
+.statistics-cable-break-triple-card .statistics-kpi-group-items > .text-center,
+.statistics-cable-break-four-card .statistics-kpi-group-items > .text-center,
+.statistics-cable-break-five-card .statistics-kpi-group-items > .text-center,
+.statistics-cable-break-six-card .statistics-kpi-group-items > .text-center {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -778,11 +790,11 @@
     text-align: center;
 }
 
-.statistics-cable-break-count-card .statistics-cable-break-static-metrics>.text-center+.text-center::before,
-.statistics-cable-break-triple-card .statistics-kpi-group-items>.text-center+.text-center::before,
-.statistics-cable-break-four-card .statistics-kpi-group-items>.text-center+.text-center::before,
-.statistics-cable-break-five-card .statistics-kpi-group-items>.text-center+.text-center::before,
-.statistics-cable-break-six-card .statistics-kpi-group-items>.text-center+.text-center::before {
+.statistics-cable-break-count-card .statistics-cable-break-static-metrics > .text-center + .text-center::before,
+.statistics-cable-break-triple-card .statistics-kpi-group-items > .text-center + .text-center::before,
+.statistics-cable-break-four-card .statistics-kpi-group-items > .text-center + .text-center::before,
+.statistics-cable-break-five-card .statistics-kpi-group-items > .text-center + .text-center::before,
+.statistics-cable-break-six-card .statistics-kpi-group-items > .text-center + .text-center::before {
     content: "";
     position: absolute;
     left: 0;
@@ -856,10 +868,10 @@
     gap: 0;
 }
 
-.statistics-cable-break-triple-card .statistics-kpi-group-items>.text-center>.fs-3,
-.statistics-cable-break-four-card .statistics-kpi-group-items>.text-center>.fs-3,
-.statistics-cable-break-five-card .statistics-kpi-group-items>.text-center>.fs-3,
-.statistics-cable-break-six-card .statistics-kpi-group-items>.text-center>.fs-3 {
+.statistics-cable-break-triple-card .statistics-kpi-group-items > .text-center > .fs-3,
+.statistics-cable-break-four-card .statistics-kpi-group-items > .text-center > .fs-3,
+.statistics-cable-break-five-card .statistics-kpi-group-items > .text-center > .fs-3,
+.statistics-cable-break-six-card .statistics-kpi-group-items > .text-center > .fs-3 {
     display: flex;
     align-items: baseline;
     justify-content: center;
@@ -936,11 +948,11 @@
     min-width: 0;
 }
 
-.statistics-kpi-group+.statistics-kpi-group {
+.statistics-kpi-group + .statistics-kpi-group {
     position: relative;
 }
 
-.statistics-kpi-group+.statistics-kpi-group::before {
+.statistics-kpi-group + .statistics-kpi-group::before {
     content: "";
     position: absolute;
     left: 0;
@@ -959,14 +971,14 @@
     gap: 1rem;
 }
 
-.statistics-kpi-group-items>.text-center {
+.statistics-kpi-group-items > .text-center {
     position: relative;
     flex: 0 0 auto;
     min-width: max-content;
     white-space: nowrap;
 }
 
-.statistics-kpi-group-items>.text-center+.text-center::before {
+.statistics-kpi-group-items > .text-center + .text-center::before {
     content: "";
     position: absolute;
     left: -0.5rem;
@@ -986,7 +998,7 @@
     gap: 0.65rem;
 }
 
-.statistics-kpi-group--compact .statistics-kpi-group-items>.text-center {
+.statistics-kpi-group--compact .statistics-kpi-group-items > .text-center {
     min-width: 0;
 }
 
@@ -1137,12 +1149,12 @@
         align-items: flex-start;
     }
 
-    .statistics-kpi-group+.statistics-kpi-group {
+    .statistics-kpi-group + .statistics-kpi-group {
         margin-left: 0;
         padding-left: 0;
     }
 
-    .statistics-kpi-group+.statistics-kpi-group::before {
+    .statistics-kpi-group + .statistics-kpi-group::before {
         display: none;
     }
 
@@ -1348,7 +1360,7 @@
     color: var(--statistics-text);
 }
 
-.page-statistics .statistics-kpi-group-items>.text-center,
+.page-statistics .statistics-kpi-group-items > .text-center,
 .page-statistics .statistics-drill-metric,
 .page-statistics .statistics-repeat-inline {
     color: var(--statistics-text);

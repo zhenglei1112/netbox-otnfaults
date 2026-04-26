@@ -1133,7 +1133,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn(".statistics-cable-break-map-period-actions", css)
         self.assertIn("statistics-cable-break-map-frame-wrap", css)
         self.assertIn("height: calc(85vh - 46px);", css)
-        self.assertIn("statistics_dashboard.js' %}?v=8", template)
+        self.assertIn("statistics_dashboard.js' %}?v=9", template)
 
     def test_unified_map_preserves_embedded_map_query_params(self) -> None:
         unified_map_template = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults" / "unified_map.html"
@@ -1336,7 +1336,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("boxWidth: getPhysicalDurationBoxWidth(filterType)", source)
         self.assertIn("name: '中断时长分布'", source)
         self.assertIn("data: boxplotData", source)
-        self.assertIn("grid: { top: 58, left: 64, right: 56, bottom: 22, containLabel: true }", source)
+        self.assertIn("function buildPhysicalDailyChartGrid()", source)
+        self.assertIn("return { top: 58, left: 64, right: 64, bottom: 36, containLabel: false };", source)
+        self.assertIn("grid: buildPhysicalDailyChartGrid()", source)
         self.assertIn("nameGap: 12", source)
         self.assertIn("nameLocation: 'end'", source)
         self.assertNotIn("nameRotate: 90", source)
@@ -1358,7 +1360,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("axisPointer: { type: useLineBars ? 'line' : 'shadow'", source)
         self.assertIn("stack: 'physical_faults'", source)
         self.assertIn("legend: {\n                top: 8,\n                left: 'center',", source)
-        self.assertIn("grid: { top: 58, left: 56, right: 56, bottom: 22, containLabel: true }", source)
+        self.assertEqual(source.count("grid: buildPhysicalDailyChartGrid()"), 2)
         self.assertIn("name: '中断时长'", source)
         self.assertIn("type: 'line'", source)
         self.assertIn("yAxisIndex: 1", source)

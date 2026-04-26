@@ -62,13 +62,13 @@
             <div class="tab-pane fade show active" id="tab-physical" role="tabpanel" aria-labelledby="tab-physical-btn">
 
                 <!-- 总体情况 -->
-                <section class="statistics-overall-overview">
-                    <div class="statistics-cable-break-heading-row">
+                <section class="statistics-overall-overview mb-4">
+                    <div class="statistics-cable-break-heading-row mb-3">
                         <h3 class="statistics-cable-break-heading mb-0">
                             <span>总体情况</span>
                         </h3>
                     </div>
-                    <div class="statistics-cable-break-summary-grid statistics-overall-card-grid">
+                    <div class="statistics-cable-break-summary-grid statistics-overall-card-grid mb-3">
                         <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-card">
                             <div class="statistics-strip-card-body">
                             <div class="statistics-overall-metrics d-flex flex-row align-items-center w-100 py-1 statistics-strip-card-metrics">
@@ -100,7 +100,7 @@
                             <div id="chart-physical-daily-faults" class="statistics-physical-daily-chart"></div>
                         </div>
                     </div>
-                    <div class="card shadow-sm statistics-physical-daily-chart-card">
+                    <div class="card shadow-sm statistics-physical-daily-chart-card mt-3">
                         <div class="card-body p-0">
                             <div class="statistics-boxplot-filter-controls" aria-label="中断时长分布筛选">
                                 <label class="form-check form-switch statistics-boxplot-filter-option mb-0">
@@ -118,8 +118,8 @@
                 </section>
 
                 <!-- 光缆中断 -->
-                <section class="statistics-cable-break-overview">
-                    <div class="statistics-cable-break-heading-row">
+                <section class="statistics-cable-break-overview mb-4">
+                    <div class="statistics-cable-break-heading-row mb-3">
                         <h3 class="statistics-cable-break-heading mb-0">
                             <span>光缆中断情况</span>
                             <button type="button" class="statistics-cable-break-map-action" id="statistics-cable-break-map-btn" title="打开光缆中断地图" aria-label="打开光缆中断地图">
@@ -127,7 +127,7 @@
                             </button>
                         </h3>
                     </div>
-                    <div class="statistics-cable-break-summary-grid statistics-cable-break-count-grid">
+                    <div class="statistics-cable-break-summary-grid statistics-cable-break-count-grid mb-3">
                         <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-count-card statistics-cable-break-single-card statistics-strip-card">
                             <div class="statistics-strip-card-body">
                                 <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
@@ -170,7 +170,7 @@
                         </div>
                     </div>
 
-                    <div class="statistics-cable-break-summary-grid statistics-cable-break-count-grid statistics-cable-break-duration-grid">
+                    <div class="statistics-cable-break-summary-grid statistics-cable-break-count-grid statistics-cable-break-duration-grid mb-3">
                         <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-primary statistics-cable-break-overview-card statistics-cable-break-single-card statistics-strip-card">
                             <div class="statistics-strip-card-body">
                                 <div id="cable-break-duration-total-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
@@ -208,7 +208,7 @@
                         </div>
                     </div>
 
-                    <div class="statistics-cable-break-summary-grid statistics-cable-break-average-grid">
+                    <div class="statistics-cable-break-summary-grid statistics-cable-break-average-grid mb-4">
                         <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-single-card statistics-strip-card">
                             <div class="statistics-strip-card-body">
                                 <div id="cable-break-average-overall-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
@@ -246,7 +246,7 @@
                 </section>
 
                 <!-- ECharts 图表区 -->
-                <div class="row statistics-chart-area">
+                <div class="row statistics-chart-area mb-4">
                     <!-- 省份图表：独占一行 -->
                     <div class="col-12 mb-4">
                         <div class="card shadow-sm h-100">
@@ -284,11 +284,11 @@
                 </div>
 
                 <!-- 下钻局部汇总栏 -->
-                <div id="filtered-kpi-summary" class="alert alert-info d-none shadow-sm" role="alert" style="font-size: 15px;">
+                <div id="filtered-kpi-summary" class="alert alert-info d-none shadow-sm mb-4" role="alert" style="font-size: 15px;">
                 </div>
 
                 <!-- 下钻明细表格区 -->
-                <div class="card shadow-sm">
+                <div class="card shadow-sm mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h3 class="card-title mb-0">
                             故障明细
@@ -374,5 +374,5 @@
     window.SERVICE_STATISTICS_DATA_API = "{{ statistics_service_data_api_url }}";
     window.STATISTICS_CABLE_BREAK_MAP_URL = "{{ statistics_cable_break_map_url }}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=8"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=9"></script>
 {% endblock %}

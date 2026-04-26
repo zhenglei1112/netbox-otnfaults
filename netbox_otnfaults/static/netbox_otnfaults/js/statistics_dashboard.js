@@ -155,6 +155,10 @@ document.addEventListener("DOMContentLoaded", function() {
         };
     }
 
+    function buildPhysicalDailyChartGrid() {
+        return { top: 58, left: 64, right: 64, bottom: 36, containLabel: false };
+    }
+
     function buildPieLabelTheme(theme) {
         return {
             color: theme.text,
@@ -742,10 +746,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     const durationParam = params.find(item => item.seriesName === '中断时长');
                     const total = countParams.reduce((sum, item) => sum + Number(item.value || 0), 0);
                     const rows = params
-                        .filter(item => Number(item.value || 0) > 0)
+                        .filter(item => item.seriesType === 'bar' && Number(item.value || 0) > 0)
                         .map(item => {
-                            const unit = item.seriesName === '中断时长' ? '小时' : '起';
-                            return `${item.marker}${item.seriesName}: ${item.value}${unit}`;
+                            return `${item.marker}${item.seriesName}: ${item.value}起`;
                         })
                         .join('<br/>');
                     const durationText = durationParam ? `<br/><span style="margin-left:14px;">中断时长合计: ${Number(durationParam.value || 0).toFixed(2)}小时</span>` : '';
@@ -758,7 +761,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 type: 'scroll',
                 ...buildLegendTheme(chartTheme)
             },
-            grid: { top: 48, left: 56, right: 56, bottom: 34, containLabel: true },
+            grid: buildPhysicalDailyChartGrid(),
             xAxis: {
                 type: 'category',
                 data: labels,
@@ -829,7 +832,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         `<span style="margin-left:14px;">最小值: ${value[0] || 0}小时</span>`;
                 }
             },
-            grid: { top: 45, left: 50, right: 45, bottom: 10, containLabel: true },
+            grid: buildPhysicalDailyChartGrid(),
             xAxis: {
                 type: 'category',
                 data: labels,
@@ -1248,11 +1251,13 @@ document.addEventListener("DOMContentLoaded", function() {
                         return `${p.name} 小时<br/>数量：${p.value}起 (${p.data._percent}%)`;
                     }
                 },
-                grid: { top: 62, left: '3%', right: '4%', bottom: '10%', containLabel: true },
+                grid: { top: 62, left: '3%', right: '4%', bottom: 42, containLabel: true },
                 xAxis: { 
                     type: 'category', 
                     data: histLabels,
                     name: '历时(小时)',
+                    nameLocation: 'middle',
+                    nameGap: 30,
                     ...buildAxisTheme(chartTheme, { interval: 0, fontSize: 11 })
                 },
                 yAxis: {
