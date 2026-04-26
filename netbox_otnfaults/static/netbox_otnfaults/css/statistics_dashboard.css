@@ -272,23 +272,75 @@
 
 .service-strip-card-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(12.75rem, 13.5rem));
+    justify-content: start;
+    align-items: stretch;
+    gap: 0.9rem;
 }
 
 .service-strip-card {
-    min-height: 10.25rem;
+    width: 100%;
+    max-width: 13.5rem;
+    min-height: 21.25rem;
 }
 
 .service-strip-card .statistics-strip-card-metrics {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-items: center;
-    min-height: 8rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 18rem;
+    padding: 0.45rem 0;
 }
 
-.service-strip-card .statistics-strip-card-metric:nth-child(3n + 1)::before {
-    display: none;
+.service-strip-card .statistics-strip-card-metric {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0.25rem;
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+    text-align: left;
+}
+
+.service-strip-card .statistics-strip-card-metric + .statistics-strip-card-metric::before {
+    left: 0.75rem;
+    right: 0.75rem;
+    top: 0;
+    width: auto;
+    height: 1px;
+    transform: none;
+}
+
+.service-strip-card .statistics-strip-card-label {
+    font-size: 0.82rem;
+    margin-top: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.service-strip-card .statistics-strip-card-value-row {
+    justify-content: flex-end;
+}
+
+.service-strip-card .statistics-strip-card-value {
+    font-size: 1.28rem;
+}
+
+.service-strip-card .statistics-strip-card-detail {
+    grid-column: 1 / -1;
+    min-height: 0.9rem;
+    margin-top: 0;
+    text-align: right;
+}
+
+.service-strip-card .statistics-strip-card-footer {
+    min-height: 3.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: normal;
+    line-height: 1.2;
 }
 
 .statistics-overall-main {
@@ -1182,7 +1234,7 @@
 
 @media (min-width: 768px) and (max-width: 1199.98px) {
     .service-strip-card-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(12.75rem, 13.5rem));
     }
 }
 

@@ -195,6 +195,12 @@ const StatisticsCableBreakModePlugin = {
       cluster: true,
       clusterMaxZoom: 12,
       clusterRadius: 50,
+      clusterProperties: {
+        hasProcessing: ["max", ["case", ["==", ["get", "statusKey"], "processing"], 1, 0]],
+        hasSuspended: ["max", ["case", ["==", ["get", "statusKey"], "suspended"], 1, 0]],
+        hasTemporaryRecovery: ["max", ["case", ["==", ["get", "statusKey"], "temporary_recovery"], 1, 0]],
+        hasClosed: ["max", ["case", ["==", ["get", "statusKey"], "closed"], 1, 0]],
+      },
     });
 
     // ── A. 聚合圆圈层 ──
@@ -204,12 +210,14 @@ const StatisticsCableBreakModePlugin = {
       source: "cable-break-faults",
       filter: ["has", "point_count"],
       paint: {
-        // 根据聚合数量渐变大小和颜色
+        // Cluster color follows the highest-priority fault status in the cluster.
         "circle-color": [
-          "step", ["get", "point_count"],
-          "#51bbd6",   // < 5: 浅蓝
-          5, "#f1a340", // 5-10: 橙色
-          10, "#e04040", // ≥ 10: 红色
+          "case",
+          ["==", ["get", "hasProcessing"], 1], FAULT_STATUS_COLORS.processing || "#dc3545",
+          ["==", ["get", "hasSuspended"], 1], FAULT_STATUS_COLORS.suspended || "#ffc107",
+          ["==", ["get", "hasTemporaryRecovery"], 1], FAULT_STATUS_COLORS.temporary_recovery || "#0d6efd",
+          ["==", ["get", "hasClosed"], 1], FAULT_STATUS_COLORS.closed || "#198754",
+          "#51bbd6",
         ],
         "circle-radius": [
           "step", ["get", "point_count"],

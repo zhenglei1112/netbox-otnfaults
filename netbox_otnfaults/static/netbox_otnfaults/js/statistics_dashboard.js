@@ -1640,16 +1640,17 @@ document.addEventListener("DOMContentLoaded", function() {
     function renderStripMetric(metric) {
         const valueClass = metric.valueClass || 'text-indigo';
         const valueText = isCountUnit(metric.unit) ? formatCardCountValue(metric.value) : formatCardMetricValue(metric.value);
+        const valueStyle = metric.color ? ` style="color:${metric.color};"` : '';
         const unitHtml = metric.unit ? `<span class="statistics-strip-card-unit">${metric.unit}</span>` : '';
         const detailHtml = metric.detail ? `<div class="statistics-strip-card-detail">${metric.detail}</div>` : '';
         return `
             <div class="statistics-strip-card-metric">
+                <div class="statistics-strip-card-label">${metric.label}</div>
                 <div class="statistics-strip-card-value-row">
-                    <span class="statistics-strip-card-value ${valueClass}">${valueText}</span>
+                    <span class="statistics-strip-card-value ${valueClass}"${valueStyle}>${valueText}</span>
                     ${unitHtml}
                 </div>
                 ${detailHtml}
-                <div class="statistics-strip-card-label">${metric.label}</div>
             </div>`;
     }
 
@@ -1700,7 +1701,8 @@ document.addEventListener("DOMContentLoaded", function() {
                     { label: '平均时长', value: svc.avg_duration, unit: '小时' },
                     { label: '长时故障', value: svc.long_count, unit: '次', valueClass: svc.long_count > 0 ? 'text-danger' : 'text-indigo' },
                     { label: '重复故障', value: svc.repeat_count, unit: '次', valueClass: svc.repeat_count > 0 ? 'text-purple' : 'text-indigo' },
-                    { label: 'SLA', value: svc.sla, unit: '%', valueClass: '', detail: `<span style="color:${slaColor};">可用率</span>` },
+                    { label: '千公里故障率', value: '-', unit: '' },
+                    { label: 'SLA（可用率）', value: svc.sla, unit: '%', valueClass: '', color: slaColor },
                 ],
             });
         }).join('');

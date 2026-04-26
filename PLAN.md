@@ -1329,3 +1329,9 @@
 - [x] 定位两张 ECharts 图的 grid/containLabel 差异，确认右侧 Y 轴导致绘图区宽度不一致。
 - [x] 将物理故障数图和中断时长分布盒须图改为共享固定 grid，避免各自 Y 轴标签重新压缩 X 轴。
 - [x] 更新统计页源码级回归测试并运行 JS 语法检查、定向测试。
+
+## 2026-04-26 Cable break cluster status color
+### Steps
+- [x] Add regression coverage requiring cable-break map clusters to aggregate processing status.
+- [x] Change cable-break cluster color to prioritize processing status instead of point count.
+- [x] Re-run the targeted statistics dashboard test and JavaScript syntax check.

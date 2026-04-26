@@ -868,7 +868,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id="circuit-service-cards-container"', template)
         self.assertIn("function renderStripMetric(metric)", source)
         self.assertIn("const valueText = isCountUnit(metric.unit) ? formatCardCountValue(metric.value) : formatCardMetricValue(metric.value);", source)
-        self.assertIn('<span class="statistics-strip-card-value ${valueClass}">${valueText}</span>', source)
+        self.assertIn('const valueStyle = metric.color ? ` style="color:${metric.color};"` : \'\';', source)
+        self.assertIn('<span class="statistics-strip-card-value ${valueClass}"${valueStyle}>${valueText}</span>', source)
         self.assertIn("function renderStripCard(card)", source)
         self.assertIn("function escapeHtml(value)", source)
         self.assertIn("const footer = escapeHtml(card.footer);", source)
@@ -885,9 +886,21 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("label: '平均时长'", source)
         self.assertIn("label: '长时故障'", source)
         self.assertIn("label: '重复故障'", source)
-        self.assertIn("label: 'SLA'", source)
-        self.assertIn("value: svc.sla, unit: '%'", source)
+        self.assertIn("label: '千公里故障率', value: '-', unit: ''", source)
+        self.assertIn("label: 'SLA（可用率）'", source)
+        self.assertIn("value: svc.sla, unit: '%', valueClass: '', color: slaColor", source)
+        self.assertNotIn("detail: `<span style=\"color:${slaColor};\">可用率</span>`", source)
         self.assertIn("footer: svc.name", source)
+        self.assertIn("grid-template-columns: repeat(auto-fill, minmax(12.75rem, 13.5rem));", css)
+        self.assertIn("min-height: 21.25rem;", css)
+        self.assertIn("min-height: 18rem;", css)
+        self.assertIn(".service-strip-card .statistics-strip-card-metrics {\n    display: flex;\n    flex-direction: column;", css)
+        self.assertIn(".service-strip-card .statistics-strip-card-metric {\n    display: grid;\n    grid-template-columns: minmax(0, 1fr) auto;", css)
+        self.assertIn("gap: 0.25rem;", css)
+        self.assertIn("font-size: 0.82rem;", css)
+        self.assertIn("font-size: 1.28rem;", css)
+        self.assertIn(".service-strip-card .statistics-strip-card-footer", css)
+        self.assertIn("display: flex;\n    align-items: center;\n    justify-content: center;", css)
         self.assertIn("activeTab.id === 'tab-service-btn' || activeTab.id === 'tab-circuit-service-btn'", source)
         self.assertIn("event.target.id === 'tab-service-btn' || event.target.id === 'tab-circuit-service-btn'", source)
         self.assertIn(".service-strip-card-grid", css)
@@ -1268,6 +1281,16 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("this.showStatuses ? `", legend_source)
         self.assertIn("new FaultLegendControl({ showCategories: false, showStatuses: true })", statistics_source)
         self.assertIn("new FaultLegendControl();", fault_mode_source)
+
+    def test_statistics_cable_break_clusters_prioritize_processing_status_color(self) -> None:
+        source = STATISTICS_MAP_MODE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("clusterProperties: {", source)
+        self.assertIn('hasProcessing: ["max", ["case", ["==", ["get", "statusKey"], "processing"], 1, 0]]', source)
+        self.assertIn('["==", ["get", "hasProcessing"], 1], FAULT_STATUS_COLORS.processing || "#dc3545"', source)
+
+        cluster_color_block = source.split('"circle-color": [', 1)[1].split('"circle-radius": [', 1)[0]
+        self.assertNotIn('["get", "point_count"]', cluster_color_block)
 
     def test_overall_physical_fault_card_has_daily_category_line_chart(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
