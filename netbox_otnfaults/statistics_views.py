@@ -195,7 +195,7 @@ def _build_physical_daily_fault_series(period_start, period_end, faults: list, n
             fault_end = timezone.localtime(fault.fault_recovery_time) if fault.fault_recovery_time else now
             total_duration = (fault_end - fault_start).total_seconds() / 3600.0
             duration_samples[local_day].append(total_duration)
-        _add_fault_duration_to_daily_buckets(fault, duration_buckets, period_start, period_end, now)
+            duration_buckets[local_day] += total_duration
 
     return {
         'labels': labels,
