@@ -821,10 +821,13 @@ document.addEventListener("DOMContentLoaded", function() {
             textStyle: { color: chartTheme.text },
             tooltip: {
                 ...buildTooltipTheme(chartTheme),
-                trigger: 'item',
+                trigger: 'axis',
+                axisPointer: { type: 'shadow', shadowStyle: { color: chartTheme.dark ? 'rgba(110, 168, 254, 0.14)' : 'rgba(32, 107, 196, 0.1)' } },
                 formatter: function(params) {
-                    const value = getBoxplotTooltipValues(params);
-                    return `${params.name}<br/>` +
+                    const axisParams = Array.isArray(params) ? params : [params];
+                    const boxplotParam = axisParams.find(item => item.seriesType === 'boxplot') || axisParams[0] || { value: [] };
+                    const value = getBoxplotTooltipValues(boxplotParam);
+                    return `${boxplotParam.axisValue || boxplotParam.name || ''}<br/>` +
                         `<span style="margin-left:14px;">最大值: ${value[4] || 0}小时</span><br/>` +
                         `<span style="margin-left:14px;">Q3: ${value[3] || 0}小时</span><br/>` +
                         `<span style="margin-left:14px;">中位数: ${value[2] || 0}小时</span><br/>` +

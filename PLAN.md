@@ -1,3 +1,10 @@
+## 2026-04-26 调整中断时长分布图 tooltip 命中区域
+### 实施步骤
+- [x] 补充故障统计页源码级回归测试，锁定盒线图 tooltip 使用 `axis` 触发、全天 `shadow` 选中，并从 boxplot series 参数读取五数。
+- [x] 先运行定向测试，确认当前 `item` tooltip 只命中盒线导致测试失败。
+- [x] 调整 `statistics_dashboard.js` 的中断时长分布盒线图 tooltip 配置，复用物理故障数图的全天矩形阴影交互。
+- [x] 运行定向 unittest 和 `node --check` 验证前端语法。
+
 ## 2026-04-26 修正移动端统计页顶层垂直间距叠加
 ### 实施步骤
 - [x] 定位移动端仍不一致的根因：`#tab-physical` 直接子块仍保留各自 `mb-4`，与 section 内部 gap 叠加。
