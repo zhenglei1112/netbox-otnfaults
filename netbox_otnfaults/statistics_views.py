@@ -188,10 +188,14 @@ def _build_physical_daily_fault_series(period_start, period_end, faults: list, n
         label = category_labels.get(fault.fault_category)
         if not label or not fault.fault_occurrence_time:
             continue
-        local_day = timezone.localtime(fault.fault_occurrence_time).date().isoformat()
+        fault_start = timezone.localtime(fault.fault_occurrence_time)
+        local_day = fault_start.date().isoformat()
         if local_day in counts[label]:
             counts[label][local_day] += 1
-        _add_fault_duration_to_daily_buckets(fault, duration_buckets, period_start, period_end, now, duration_samples)
+            fault_end = timezone.localtime(fault.fault_recovery_time) if fault.fault_recovery_time else now
+            total_duration = (fault_end - fault_start).total_seconds() / 3600.0
+            duration_samples[local_day].append(total_duration)
+        _add_fault_duration_to_daily_buckets(fault, duration_buckets, period_start, period_end, now)
 
     return {
         'labels': labels,
