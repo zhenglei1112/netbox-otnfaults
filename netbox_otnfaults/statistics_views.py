@@ -183,6 +183,12 @@ def _build_physical_daily_fault_series(period_start, period_end, faults: list, n
     }
     duration_buckets: dict[str, float] = {day: 0.0 for day in labels}
     duration_samples: dict[str, list[float]] = {day: [] for day in labels}
+    boxplot_samples: dict[str, dict[str, list[float]]] = {
+        'all': {day: [] for day in labels},
+        'exclude_short': {day: [] for day in labels},
+        'exclude_rectification': {day: [] for day in labels},
+        'exclude_short_rectification': {day: [] for day in labels},
+    }
 
     for fault in faults:
         label = category_labels.get(fault.fault_category)
@@ -194,13 +200,28 @@ def _build_physical_daily_fault_series(period_start, period_end, faults: list, n
             counts[label][local_day] += 1
             fault_end = timezone.localtime(fault.fault_recovery_time) if fault.fault_recovery_time else now
             total_duration = (fault_end - fault_start).total_seconds() / 3600.0
+            duration_hours = total_duration
             duration_samples[local_day].append(total_duration)
             duration_buckets[local_day] += total_duration
+            reason = fault.get_interruption_reason_display() if fault.interruption_reason else ''
+            boxplot_samples['all'][local_day].append(total_duration)
+            if duration_hours > 0.5:
+                boxplot_samples['exclude_short'][local_day].append(total_duration)
+            if reason != '光缆整改':
+                boxplot_samples['exclude_rectification'][local_day].append(total_duration)
+            if duration_hours > 0.5 and reason != '光缆整改':
+                boxplot_samples['exclude_short_rectification'][local_day].append(total_duration)
 
     return {
         'labels': labels,
         'durations': [round(duration_buckets[day], 2) for day in labels],
         'boxplot': [_calculate_boxplot_values(duration_samples[day]) for day in labels],
+        'boxplot_options': {
+            'all': [_calculate_boxplot_values(boxplot_samples['all'][day]) for day in labels],
+            'exclude_short': [_calculate_boxplot_values(boxplot_samples['exclude_short'][day]) for day in labels],
+            'exclude_rectification': [_calculate_boxplot_values(boxplot_samples['exclude_rectification'][day]) for day in labels],
+            'exclude_short_rectification': [_calculate_boxplot_values(boxplot_samples['exclude_short_rectification'][day]) for day in labels],
+        },
         'series': [
             {
                 'name': label,

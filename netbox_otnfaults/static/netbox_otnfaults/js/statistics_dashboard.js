@@ -12,6 +12,8 @@ document.addEventListener("DOMContentLoaded", function() {
     let chartPhysicalDaily = chartPhysicalDailyElement ? echarts.init(chartPhysicalDailyElement) : null;
     const chartPhysicalDurationBoxplotElement = document.getElementById('chart-physical-duration-boxplot');
     let chartPhysicalDurationBoxplot = chartPhysicalDurationBoxplotElement ? echarts.init(chartPhysicalDurationBoxplotElement) : null;
+    const physicalBoxplotFilterShort = document.getElementById('physical-boxplot-filter-short');
+    const physicalBoxplotFilterRectification = document.getElementById('physical-boxplot-filter-rectification');
     
     let excludedCategories = {
         resource_type: new Set(),
@@ -66,6 +68,13 @@ document.addEventListener("DOMContentLoaded", function() {
     let activeFilterExtraField = null;
     let activeFilterExtraValue = null;
     let activeFilterLabel = null;
+
+    if (physicalBoxplotFilterShort) {
+        physicalBoxplotFilterShort.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_daily, selFilterType.value));
+    }
+    if (physicalBoxplotFilterRectification) {
+        physicalBoxplotFilterRectification.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_daily, selFilterType.value));
+    }
 
     // ---------------- DOM 元素 ----------------
     const selFilterType = document.getElementById('filterType');
@@ -785,12 +794,25 @@ document.addEventListener("DOMContentLoaded", function() {
         }, true);
     }
 
+    function getBoxplotTooltipValues(params) {
+        const rawValue = Array.isArray(params.value) ? params.value : (params.data || []);
+        return rawValue.length >= 6 ? rawValue.slice(1, 6) : rawValue.slice(0, 5);
+    }
+
+    function getSelectedPhysicalBoxplotData(dailyData) {
+        const shortChecked = Boolean(physicalBoxplotFilterShort && physicalBoxplotFilterShort.checked);
+        const rectificationChecked = Boolean(physicalBoxplotFilterRectification && physicalBoxplotFilterRectification.checked);
+        const key = shortChecked && rectificationChecked ? 'exclude_short_rectification' : shortChecked ? 'exclude_short' : rectificationChecked ? 'exclude_rectification' : 'all';
+        const options = dailyData.boxplot_options || {};
+        return options[key] || dailyData.boxplot || [];
+    }
+
     function renderPhysicalDurationBoxplot(dailyData, filterType) {
         if (!chartPhysicalDurationBoxplot || !dailyData) return;
 
         const chartTheme = getChartTheme();
         const labels = dailyData.labels || [];
-        const boxplotData = dailyData.boxplot || [];
+        const boxplotData = getSelectedPhysicalBoxplotData(dailyData);
 
         chartPhysicalDurationBoxplot.setOption({
             textStyle: { color: chartTheme.text },
@@ -798,16 +820,16 @@ document.addEventListener("DOMContentLoaded", function() {
                 ...buildTooltipTheme(chartTheme),
                 trigger: 'item',
                 formatter: function(params) {
-                    const value = params.data || [];
+                    const value = getBoxplotTooltipValues(params);
                     return `${params.name}<br/>` +
-                        `<span style="margin-left:14px;">最小值: ${value[0] || 0}小时</span><br/>` +
-                        `<span style="margin-left:14px;">Q1: ${value[1] || 0}小时</span><br/>` +
-                        `<span style="margin-left:14px;">中位数: ${value[2] || 0}小时</span><br/>` +
+                        `<span style="margin-left:14px;">最大值: ${value[4] || 0}小时</span><br/>` +
                         `<span style="margin-left:14px;">Q3: ${value[3] || 0}小时</span><br/>` +
-                        `<span style="margin-left:14px;">最大值: ${value[4] || 0}小时</span>`;
+                        `<span style="margin-left:14px;">中位数: ${value[2] || 0}小时</span><br/>` +
+                        `<span style="margin-left:14px;">Q1: ${value[1] || 0}小时</span><br/>` +
+                        `<span style="margin-left:14px;">最小值: ${value[0] || 0}小时</span>`;
                 }
             },
-            grid: { top: 46, left: 64, right: 56, bottom: 34, containLabel: true },
+            grid: { top: 45, left: 50, right: 45, bottom: 10, containLabel: true },
             xAxis: {
                 type: 'category',
                 data: labels,

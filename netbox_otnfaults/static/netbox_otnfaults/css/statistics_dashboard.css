@@ -15,12 +15,14 @@
     --statistics-divider: rgba(31, 41, 55, 0.14);
     --statistics-loading-start: #f3f4f6;
     --statistics-loading-mid: #e9ecef;
+    --statistics-block-gap: 1rem;
+    --statistics-section-gap: 1rem;
     background-color: var(--statistics-page-bg);
     color: var(--statistics-text);
     min-height: 100vh;
 }
 
-.page-statistics > .page-wrapper.container-xl {
+.page-statistics>.page-wrapper.container-xl {
     max-width: none;
     width: 100%;
 }
@@ -40,11 +42,13 @@
     --statistics-divider: rgba(31, 41, 55, 0.14);
     --statistics-loading-start: #f3f4f6;
     --statistics-loading-mid: #e9ecef;
+    --statistics-block-gap: 1rem;
+    --statistics-section-gap: 1rem;
     color: var(--statistics-text);
 }
 
 @media (max-width: 767.98px) {
-    .page-statistics > .page-wrapper.container-xl {
+    .page-statistics>.page-wrapper.container-xl {
         max-width: 100%;
         width: 100%;
     }
@@ -216,7 +220,7 @@
     text-align: center;
 }
 
-.statistics-strip-card-metric + .statistics-strip-card-metric::before {
+.statistics-strip-card-metric+.statistics-strip-card-metric::before {
     content: "";
     position: absolute;
     left: 0;
@@ -295,6 +299,54 @@
 .statistics-overall-card-grid {
     grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
     align-items: stretch;
+}
+
+.page-statistics #tab-physical.show.active {
+    display: flex;
+    flex-direction: column;
+    gap: var(--statistics-section-gap);
+}
+
+.page-statistics #tab-physical.show.active>.statistics-overall-overview,
+.page-statistics #tab-physical.show.active>.statistics-cable-break-overview,
+.page-statistics #tab-physical.show.active>.statistics-chart-area,
+.page-statistics #tab-physical.show.active>#filtered-kpi-summary,
+.page-statistics #tab-physical.show.active>.card {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.statistics-overall-overview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--statistics-block-gap);
+}
+
+.statistics-cable-break-overview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--statistics-block-gap);
+}
+
+.statistics-overall-overview,
+.statistics-cable-break-overview {
+    margin-bottom: 0 !important;
+}
+
+.statistics-overall-overview>*,
+.statistics-cable-break-overview>* {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.statistics-chart-area {
+    row-gap: var(--statistics-block-gap);
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.statistics-chart-area>[class*="col-"] {
+    margin-bottom: 0 !important;
 }
 
 .statistics-overall-card .statistics-strip-card-body,
@@ -396,7 +448,7 @@
     gap: 0;
 }
 
-.statistics-overall-card .statistics-kpi-group-items > .text-center {
+.statistics-overall-card .statistics-kpi-group-items>.text-center {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -408,7 +460,7 @@
     text-align: center;
 }
 
-.statistics-overall-card .statistics-kpi-group-items > .text-center > .fs-3 {
+.statistics-overall-card .statistics-kpi-group-items>.text-center>.fs-3 {
     display: flex;
     align-items: baseline;
     justify-content: center;
@@ -417,7 +469,7 @@
     white-space: nowrap;
 }
 
-.statistics-overall-card .statistics-kpi-group-items > .text-center + .text-center::before {
+.statistics-overall-card .statistics-kpi-group-items>.text-center+.text-center::before {
     left: 0;
     height: 3.25rem;
 }
@@ -445,7 +497,7 @@
     gap: 0;
 }
 
-.statistics-overall-other-card .statistics-kpi-group-items > .text-center {
+.statistics-overall-other-card .statistics-kpi-group-items>.text-center {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -457,7 +509,7 @@
     text-align: center;
 }
 
-.statistics-overall-other-card .statistics-kpi-group-items > .text-center > .fs-3 {
+.statistics-overall-other-card .statistics-kpi-group-items>.text-center>.fs-3 {
     display: flex;
     align-items: baseline;
     justify-content: center;
@@ -465,13 +517,22 @@
     white-space: nowrap;
 }
 
-.statistics-overall-other-card .statistics-kpi-group-items > .text-center + .text-center::before {
+.statistics-overall-other-card .statistics-kpi-group-items>.text-center+.text-center::before {
     left: 0;
     height: 3.25rem;
 }
 
 .statistics-physical-daily-chart-card {
     border-radius: 6px !important;
+}
+
+/* 视觉补偿：两个纯白卡片相邻时，阴影会使得 flex gap 显得比带色带的卡片要小。这里增加 0.5rem (8px) 补偿 */
+.statistics-physical-daily-chart-card+.statistics-physical-daily-chart-card {
+    margin-top: 0.5rem !important;
+}
+
+.statistics-physical-daily-chart-card .card-body {
+    position: relative;
 }
 
 .statistics-physical-daily-chart {
@@ -482,6 +543,33 @@
 .statistics-physical-duration-boxplot {
     width: 100%;
     height: 220px;
+}
+
+.statistics-boxplot-filter-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.25rem;
+    position: absolute;
+    top: 0.5rem;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    color: var(--statistics-muted);
+    font-size: 12px;
+}
+
+.statistics-boxplot-filter-option {
+    min-height: 1.25rem;
+}
+
+.statistics-boxplot-filter-option .form-check-input {
+    cursor: pointer;
+}
+
+.statistics-boxplot-filter-option .form-check-label {
+    cursor: pointer;
+    white-space: nowrap;
 }
 
 .statistics-overall-card .statistics-kpi-group--compact .fs-3,
@@ -596,26 +684,17 @@
 
 .statistics-cable-break-count-grid {
     grid-template-columns:
-        minmax(150px, 0.375fr)
-        minmax(280px, 0.975fr)
-        minmax(280px, 0.975fr)
-        minmax(520px, 1.675fr);
+        minmax(150px, 0.375fr) minmax(280px, 0.975fr) minmax(280px, 0.975fr) minmax(520px, 1.675fr);
 }
 
 .statistics-cable-break-duration-grid {
     grid-template-columns:
-        minmax(150px, 0.375fr)
-        minmax(280px, 0.975fr)
-        minmax(280px, 0.975fr)
-        minmax(520px, 1.675fr);
+        minmax(150px, 0.375fr) minmax(280px, 0.975fr) minmax(280px, 0.975fr) minmax(520px, 1.675fr);
 }
 
 .statistics-cable-break-average-grid {
     grid-template-columns:
-        minmax(150px, 0.375fr)
-        minmax(280px, 0.975fr)
-        minmax(280px, 0.975fr)
-        minmax(520px, 1.675fr);
+        minmax(150px, 0.375fr) minmax(280px, 0.975fr) minmax(280px, 0.975fr) minmax(520px, 1.675fr);
 }
 
 .statistics-cable-break-filtered-average-card {
@@ -681,13 +760,13 @@
     column-gap: 0;
 }
 
-.statistics-cable-break-count-card .statistics-cable-break-static-metrics > .text-center,
-.statistics-cable-break-repeat-card .statistics-cable-break-static-metrics > .text-center,
-.statistics-cable-break-single-card .statistics-kpi-group-items > .text-center,
-.statistics-cable-break-triple-card .statistics-kpi-group-items > .text-center,
-.statistics-cable-break-four-card .statistics-kpi-group-items > .text-center,
-.statistics-cable-break-five-card .statistics-kpi-group-items > .text-center,
-.statistics-cable-break-six-card .statistics-kpi-group-items > .text-center {
+.statistics-cable-break-count-card .statistics-cable-break-static-metrics>.text-center,
+.statistics-cable-break-repeat-card .statistics-cable-break-static-metrics>.text-center,
+.statistics-cable-break-single-card .statistics-kpi-group-items>.text-center,
+.statistics-cable-break-triple-card .statistics-kpi-group-items>.text-center,
+.statistics-cable-break-four-card .statistics-kpi-group-items>.text-center,
+.statistics-cable-break-five-card .statistics-kpi-group-items>.text-center,
+.statistics-cable-break-six-card .statistics-kpi-group-items>.text-center {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -699,11 +778,11 @@
     text-align: center;
 }
 
-.statistics-cable-break-count-card .statistics-cable-break-static-metrics > .text-center + .text-center::before,
-.statistics-cable-break-triple-card .statistics-kpi-group-items > .text-center + .text-center::before,
-.statistics-cable-break-four-card .statistics-kpi-group-items > .text-center + .text-center::before,
-.statistics-cable-break-five-card .statistics-kpi-group-items > .text-center + .text-center::before,
-.statistics-cable-break-six-card .statistics-kpi-group-items > .text-center + .text-center::before {
+.statistics-cable-break-count-card .statistics-cable-break-static-metrics>.text-center+.text-center::before,
+.statistics-cable-break-triple-card .statistics-kpi-group-items>.text-center+.text-center::before,
+.statistics-cable-break-four-card .statistics-kpi-group-items>.text-center+.text-center::before,
+.statistics-cable-break-five-card .statistics-kpi-group-items>.text-center+.text-center::before,
+.statistics-cable-break-six-card .statistics-kpi-group-items>.text-center+.text-center::before {
     content: "";
     position: absolute;
     left: 0;
@@ -777,10 +856,10 @@
     gap: 0;
 }
 
-.statistics-cable-break-triple-card .statistics-kpi-group-items > .text-center > .fs-3,
-.statistics-cable-break-four-card .statistics-kpi-group-items > .text-center > .fs-3,
-.statistics-cable-break-five-card .statistics-kpi-group-items > .text-center > .fs-3,
-.statistics-cable-break-six-card .statistics-kpi-group-items > .text-center > .fs-3 {
+.statistics-cable-break-triple-card .statistics-kpi-group-items>.text-center>.fs-3,
+.statistics-cable-break-four-card .statistics-kpi-group-items>.text-center>.fs-3,
+.statistics-cable-break-five-card .statistics-kpi-group-items>.text-center>.fs-3,
+.statistics-cable-break-six-card .statistics-kpi-group-items>.text-center>.fs-3 {
     display: flex;
     align-items: baseline;
     justify-content: center;
@@ -857,11 +936,11 @@
     min-width: 0;
 }
 
-.statistics-kpi-group + .statistics-kpi-group {
+.statistics-kpi-group+.statistics-kpi-group {
     position: relative;
 }
 
-.statistics-kpi-group + .statistics-kpi-group::before {
+.statistics-kpi-group+.statistics-kpi-group::before {
     content: "";
     position: absolute;
     left: 0;
@@ -880,14 +959,14 @@
     gap: 1rem;
 }
 
-.statistics-kpi-group-items > .text-center {
+.statistics-kpi-group-items>.text-center {
     position: relative;
     flex: 0 0 auto;
     min-width: max-content;
     white-space: nowrap;
 }
 
-.statistics-kpi-group-items > .text-center + .text-center::before {
+.statistics-kpi-group-items>.text-center+.text-center::before {
     content: "";
     position: absolute;
     left: -0.5rem;
@@ -907,7 +986,7 @@
     gap: 0.65rem;
 }
 
-.statistics-kpi-group--compact .statistics-kpi-group-items > .text-center {
+.statistics-kpi-group--compact .statistics-kpi-group-items>.text-center {
     min-width: 0;
 }
 
@@ -1058,12 +1137,12 @@
         align-items: flex-start;
     }
 
-    .statistics-kpi-group + .statistics-kpi-group {
+    .statistics-kpi-group+.statistics-kpi-group {
         margin-left: 0;
         padding-left: 0;
     }
 
-    .statistics-kpi-group + .statistics-kpi-group::before {
+    .statistics-kpi-group+.statistics-kpi-group::before {
         display: none;
     }
 
@@ -1075,7 +1154,8 @@
 
 
 /* 覆盖表格在深色主题下的表现 (如果有深色主题) */
-.table-vcenter td, .table-vcenter th {
+.table-vcenter td,
+.table-vcenter th {
     vertical-align: middle;
 }
 
@@ -1172,6 +1252,7 @@
     0% {
         background-position: 100% 50%;
     }
+
     100% {
         background-position: 0 50%;
     }
@@ -1267,7 +1348,7 @@
     color: var(--statistics-text);
 }
 
-.page-statistics .statistics-kpi-group-items > .text-center,
+.page-statistics .statistics-kpi-group-items>.text-center,
 .page-statistics .statistics-drill-metric,
 .page-statistics .statistics-repeat-inline {
     color: var(--statistics-text);
