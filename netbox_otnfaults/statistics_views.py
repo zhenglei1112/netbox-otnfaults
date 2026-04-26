@@ -524,6 +524,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 fault_category__in=[category for category, _label, _color in PHYSICAL_DAILY_CATEGORY_ORDER],
             ).filter(
                 Q(fault_recovery_time__isnull=True) | Q(fault_recovery_time__gt=physical_daily_start)
+            ).exclude(
+                fault_status=FaultStatusChoices.SUSPENDED
             )
         )
         physical_daily_stats = _build_physical_daily_fault_series(physical_daily_start, physical_daily_end, physical_daily_faults, now)
