@@ -37,6 +37,42 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn(".page-statistics .text-dark", css)
         self.assertIn(".page-statistics .table", css)
 
+    def test_statistics_dashboard_filter_controls_group_period_controls_with_smaller_gap(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".statistics-period-control-group {", css)
+        filter_controls_block = css.split(".filter-controls {", 1)[1].split("}", 1)[0]
+        period_controls_block = css.split(".statistics-period-control-group {", 1)[1].split("}", 1)[0]
+
+        self.assertIn("statistics-period-control-group", template)
+        self.assertIn("gap: 0.75rem;", filter_controls_block)
+        self.assertIn("gap: 0.25rem;", period_controls_block)
+        self.assertNotIn('id="filterType" class="form-select mx-2"', template)
+        self.assertNotIn('id="filterDate" class="form-control mx-2"', template)
+
+    def test_statistics_dashboard_period_select_has_stable_width(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('id="filterType" class="form-select statistics-period-type-select"', template)
+        self.assertNotIn('id="filterType" class="form-select" style="width: auto;"', template)
+        self.assertIn(".statistics-period-type-select,", css)
+        self.assertIn(".statistics-period-control-group .ts-wrapper", css)
+        self.assertIn("width: 8.5rem !important;", css)
+        self.assertIn("flex: 0 0 8.5rem;", css)
+
+    def test_statistics_dashboard_period_select_has_stable_tomselect_height(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".statistics-period-control-group .ts-control", css)
+        self.assertIn("height: 2.75rem;", css)
+        self.assertIn("min-height: 2.75rem;", css)
+        self.assertIn("flex-wrap: nowrap;", css)
+        self.assertIn(".statistics-period-control-group .ts-control > input", css)
+        self.assertIn("min-width: 1px !important;", css)
+        self.assertIn("width: 1px !important;", css)
+
     def test_statistics_dashboard_js_uses_theme_aware_chart_options(self) -> None:
         script = JS_PATH.read_text(encoding="utf-8")
 

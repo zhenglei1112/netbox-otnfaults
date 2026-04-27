@@ -22,21 +22,23 @@
                 <button type="button" id="statistics-metric-help-btn" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#statisticsMetricHelpModal">
                     <i class="mdi mdi-information-outline me-1" aria-hidden="true"></i>指标说明
                 </button>
-                <button type="button" id="btn-prev-period" class="btn btn-outline-secondary btn-icon" title="上一周期" aria-label="上一周期">
-                    <i class="mdi mdi-chevron-left"></i>
-                </button>
-                <select id="filterType" class="form-select mx-2" style="width: auto;">
-                    <option value="year" {% if default_filter_type == 'year' %}selected{% endif %}>按年</option>
-                    <option value="half" {% if default_filter_type == 'half' %}selected{% endif %}>按半年</option>
-                    <option value="quarter" {% if default_filter_type == 'quarter' %}selected{% endif %}>按季度</option>
-                    <option value="month" {% if default_filter_type == 'month' %}selected{% endif %}>按月</option>
-                    <option value="week" {% if default_filter_type == 'week' %}selected{% endif %}>按周</option>
-                </select>
+                <div class="d-flex align-items-center statistics-period-control-group">
+                    <button type="button" id="btn-prev-period" class="btn btn-outline-secondary btn-icon" title="上一周期" aria-label="上一周期">
+                        <i class="mdi mdi-chevron-left"></i>
+                    </button>
+                    <select id="filterType" class="form-select statistics-period-type-select">
+                        <option value="year" {% if default_filter_type == 'year' %}selected{% endif %}>按年</option>
+                        <option value="half" {% if default_filter_type == 'half' %}selected{% endif %}>按半年</option>
+                        <option value="quarter" {% if default_filter_type == 'quarter' %}selected{% endif %}>按季度</option>
+                        <option value="month" {% if default_filter_type == 'month' %}selected{% endif %}>按月</option>
+                        <option value="week" {% if default_filter_type == 'week' %}selected{% endif %}>按周</option>
+                    </select>
 
-                <input type="date" id="filterDate" class="form-control mx-2" style="width: auto;" value="{{ default_date }}">
-                <button type="button" id="btn-next-period" class="btn btn-outline-secondary btn-icon" title="下一周期" aria-label="下一周期">
-                    <i class="mdi mdi-chevron-right"></i>
-                </button>
+                    <input type="date" id="filterDate" class="form-control" style="width: auto;" value="{{ default_date }}">
+                    <button type="button" id="btn-next-period" class="btn btn-outline-secondary btn-icon" title="下一周期" aria-label="下一周期">
+                        <i class="mdi mdi-chevron-right"></i>
+                    </button>
+                </div>
             </div>
         </header>
 
