@@ -1342,3 +1342,10 @@
 - [x] Add regression coverage requiring cable-break map clusters to aggregate processing status.
 - [x] Change cable-break cluster color to prioritize processing status instead of point count.
 - [x] Re-run the targeted statistics dashboard test and JavaScript syntax check.
+## 2026-04-27 故障统计页面增加指标说明
+### 实施步骤
+- [x] 梳理 `statistics_views.py`、`statistics_dashboard.html`、`statistics_dashboard.js` 中现有统计指标和口径。
+- [x] 增加源码级回归测试，锁定指标说明按钮、模态窗口和主要统计逻辑文案。
+- [x] 在统计页头部增加“指标说明”按钮，并使用 Bootstrap 5 模态窗口展示说明。
+- [x] 在模态窗口中覆盖总体情况、光缆中断、图表下钻和业务故障统计口径。
+- [x] 运行统计页定向测试、统计页相关测试和前端脚本语法检查。

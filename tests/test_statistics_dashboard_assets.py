@@ -46,6 +46,22 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn("buildLegendTheme(chartTheme)", script)
         self.assertIn("new MutationObserver(refreshChartsForTheme)", script)
 
+    def test_statistics_dashboard_exposes_metric_explanation_modal(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('id="statistics-metric-help-btn"', template)
+        self.assertIn('data-bs-target="#statisticsMetricHelpModal"', template)
+        self.assertIn('id="statisticsMetricHelpModal"', template)
+        self.assertIn("指标说明", template)
+        self.assertIn("统计周期", template)
+        self.assertIn("不纳入总体故障总数", template)
+        self.assertIn("光缆中断统计仅包含故障类型为“光缆中断”且未挂起的物理故障", template)
+        self.assertIn("长时故障", template)
+        self.assertIn("历时大于 0.5 小时", template)
+        self.assertIn("同一 A 端站点与任一 Z 端站点", template)
+        self.assertIn("SLA", template)
+        self.assertIn("合并重叠不可用时段", template)
+
 
 if __name__ == "__main__":
     unittest.main()

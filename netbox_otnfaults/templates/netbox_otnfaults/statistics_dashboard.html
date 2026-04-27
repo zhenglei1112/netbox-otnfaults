@@ -19,6 +19,9 @@
             
             <div class="d-flex gx-2 align-items-center filter-controls">
 
+                <button type="button" id="statistics-metric-help-btn" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#statisticsMetricHelpModal">
+                    <i class="mdi mdi-information-outline me-1" aria-hidden="true"></i>指标说明
+                </button>
                 <button type="button" id="btn-prev-period" class="btn btn-outline-secondary btn-icon" title="上一周期" aria-label="上一周期">
                     <i class="mdi mdi-chevron-left"></i>
                 </button>
@@ -336,6 +339,74 @@
                         <i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="statisticsMetricHelpModal" tabindex="-1" aria-labelledby="statisticsMetricHelpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="statisticsMetricHelpModalLabel">
+                    <i class="mdi mdi-information-outline me-1" aria-hidden="true"></i>指标说明
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <div class="border rounded p-3 h-100">
+                            <h6 class="fw-bold mb-2">统计周期与总体情况</h6>
+                            <ul class="mb-0">
+                                <li>统计周期由页面右上角的年、半年、季度、月、周和日期共同决定，后端按故障发生时间落入周期统计。</li>
+                                <li>故障总数统计物理故障中除“光缆劣化”“光缆抖动”以外的故障；这两类展示在“其他”卡片中，不纳入总体故障总数。</li>
+                                <li>分类统计展示光缆中断、空调故障、供电故障、设备故障的起数与累计历时。</li>
+                                <li>每日物理故障图按自然日统计光缆中断、供电故障、空调故障、设备故障，并叠加中断时长合计。</li>
+                                <li>中断时长箱线图展示每日故障历时的最小值、Q1、中位数、Q3、最大值；“滤除短时”表示仅保留历时大于 0.5 小时的样本，“滤除整改”表示排除一级原因为“光缆整改”的样本。</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="border rounded p-3 h-100">
+                            <h6 class="fw-bold mb-2">光缆中断情况</h6>
+                            <ul class="mb-0">
+                                <li>光缆中断统计仅包含故障类型为“光缆中断”且未挂起的物理故障。</li>
+                                <li>中断历时从故障发生时间计算到故障恢复时间；未恢复故障按当前时间计算。</li>
+                                <li>长时故障指历时大于等于 6 小时的光缆中断，并按 6-8 小时、8-10 小时、10-12 小时、12 小时以上分桶统计。</li>
+                                <li>有效平均历时只统计历时大于 0.5 小时的光缆中断；日间为 06:00 至 18:00，夜间为其他时段。</li>
+                                <li>施工类平均历时按一级原因为“施工”统计，非施工类为其他一级原因。</li>
+                                <li>光缆属性汇总规则：自建、协调归为“自控”，租赁归为“第三方”，未填或其他取值归为“其他/未填”。</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="border rounded p-3 h-100">
+                            <h6 class="fw-bold mb-2">图表、下钻与重复故障</h6>
+                            <ul class="mb-0">
+                                <li>省份、主要原因、光缆属性、历时频数图均基于当前周期内的光缆中断明细聚合。</li>
+                                <li>点击图表或指标卡会过滤下方故障明细，并同步显示过滤后的局部起数、累计历时、平均历时、长时故障和重复故障。</li>
+                                <li>重复故障判断范围为光纤类故障；当前故障发生前 60 天内，如存在同一 A 端站点与任一 Z 端站点相同的历史故障，则当前故障计为重复。</li>
+                                <li>图例取消选中会作为排除条件参与明细表过滤；“清除图表过滤”会清空下钻和图例排除条件。</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="border rounded p-3 h-100">
+                            <h6 class="fw-bold mb-2">业务故障统计</h6>
+                            <ul class="mb-0">
+                                <li>裸纤业务故障和电路业务故障基于故障影响记录统计，按业务中断时间落入当前周期筛选。</li>
+                                <li>每个业务卡片按业务聚合影响次数，并拆分中断、抖动、劣化和其他故障类型。</li>
+                                <li>业务累计时长从业务中断时间计算到业务恢复时间；未恢复影响按当前时间计算，平均时长为累计时长除以影响次数。</li>
+                                <li>业务长时故障指单次业务影响历时大于等于 6 小时；业务重复故障指同一业务相邻两次影响时间间隔不超过 60 天。</li>
+                                <li>SLA 使用统计周期总小时数计算，先合并重叠不可用时段，再按“(周期小时数 - 不可用小时数) / 周期小时数”得到可用率。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">知道了</button>
             </div>
         </div>
     </div>
