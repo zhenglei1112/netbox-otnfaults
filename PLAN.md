@@ -1422,3 +1422,9 @@
 - [x] 扩展业务故障统计 API，为每条影响记录返回所属业务 key、业务类型、故障编号、业务中断/恢复时间、历时、分类和跳转 URL。
 - [x] 调整业务卡片渲染，让点击业务卡片时设置当前业务过滤条件并刷新下方明细表。
 - [x] 运行定向测试、统计页相关测试和 JS/Python 语法检查。
+
+## 2026-04-28 Fix OtnFaultImpact secondary fault export
+### Steps
+- [x] Add regression coverage requiring `OtnFaultImpactTable.secondary_faults` exports to use plain text.
+- [x] Add a `value_secondary_faults()` export value method matching the existing fault-table `value_*` pattern.
+- [x] Run the targeted export regression test and Python syntax check.

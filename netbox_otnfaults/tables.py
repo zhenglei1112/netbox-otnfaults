@@ -503,6 +503,9 @@ class OtnFaultImpactTable(NetBoxTable):
     def value_service_type(self, value: str | None, record: OtnFaultImpact) -> str:
         return _display_or_empty(record.get_service_type_display())
 
+    def value_secondary_faults(self, value: object, record: OtnFaultImpact) -> str:
+        return ', '.join(str(fault) for fault in record.secondary_faults.all())
+
     def render_service_duration(self, record):
         """渲染业务中断历时为可视化进度条（使用内联样式）"""
         info = record.service_duration_info
