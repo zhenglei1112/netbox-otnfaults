@@ -291,7 +291,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn("durArrowEl.innerHTML", source)
         self.assertNotIn("avgArrowEl.innerHTML", source)
 
-    def test_dashboard_script_renders_trend_arrows_with_diff_values(self) -> None:
+    def test_dashboard_script_renders_trend_diffs_without_arrows_and_colors_values(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
 
         self.assertIn("function formatTrendDiff(currentVal, prevVal, integer = false)", source)
@@ -305,6 +305,16 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("function isCountUnit(unit)", source)
         self.assertIn("return unit === '起' || unit === '次';", source)
         self.assertIn("${symbol}${formatTrendDiff(cur, prev, integer)}", source)
+        self.assertIn("function getTrendValueClass(currentVal, prevVal)", source)
+        self.assertIn("function applyTrendValueColor(metricEl, currentValue, previousValue)", source)
+        self.assertIn("metricEl.classList.remove('text-danger', 'text-success', 'text-dark', 'text-indigo', 'text-primary', 'text-purple');", source)
+        self.assertIn("if (prevVal === undefined || prevVal === null) return 'text-dark';", source)
+        self.assertIn("if (isNaN(cur) || isNaN(prev)) return 'text-dark';", source)
+        self.assertIn("if (cur > prev) return 'text-danger';", source)
+        self.assertIn("if (cur < prev) return 'text-success';", source)
+        self.assertIn("return 'text-dark';", source)
+        self.assertIn("applyTrendValueColor(metricEl, currentValue, previousValue);", source)
+        self.assertIn("const effectiveColorClass = getTrendValueClass(value, prevValue);", source)
         self.assertIn("const displayValue = isCountUnit(unit) ? formatCardCountValue(value) : formatCardMetricValue(value);", source)
         self.assertIn("const valueText = isCountUnit(metric.unit) ? formatCardCountValue(metric.value) : formatCardMetricValue(metric.value);", source)
         self.assertIn("repeatEl.textContent = formatCardCountValue(kpis.repeat_faults_count);", source)
@@ -317,6 +327,11 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("formatCardCountValue(svc.jitter_count)", source)
         self.assertIn("formatCardCountValue(svc.degrade_count)", source)
         self.assertIn("formatCardCountValue(svc.other_count)", source)
+
+        trend_source = source.split("function buildTrendArrow", 1)[1].split("function renderTrendBesideMetric", 1)[0]
+        self.assertNotIn("猬?", trend_source)
+        self.assertNotIn("⬆", trend_source)
+        self.assertNotIn("⬇", trend_source)
 
     def test_trend_diff_renders_to_the_right_of_metrics(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -341,7 +356,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         source = JS_PATH.read_text(encoding="utf-8")
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn('<div class="statistics-overall-kpi-value fs-3 fw-bold ${colorClass} lh-1"${valueIdAttr}>', source)
+        self.assertIn('<div class="statistics-overall-kpi-value fs-3 fw-bold ${effectiveColorClass} lh-1"${valueIdAttr}>', source)
         self.assertIn('class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1" id="kpi-overall-total"', template)
         self.assertNotIn('class="display-5 fw-bold text-indigo lh-1" id="kpi-overall-total"', template)
         self.assertIn('id: "cable-break-valid-avg"', source)

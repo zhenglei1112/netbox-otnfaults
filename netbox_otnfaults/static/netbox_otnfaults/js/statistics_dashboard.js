@@ -975,6 +975,25 @@ document.addEventListener("DOMContentLoaded", function() {
         return unit === '起' || unit === '次';
     }
 
+    function getTrendValueClass(currentVal, prevVal) {
+        if (prevVal === undefined || prevVal === null) return 'text-dark';
+        const cur = parseFloat(currentVal);
+        const prev = parseFloat(prevVal);
+        if (isNaN(cur) || isNaN(prev)) return 'text-dark';
+        if (cur > prev) return 'text-danger';
+        if (cur < prev) return 'text-success';
+        return 'text-dark';
+    }
+
+    function applyTrendValueColor(metricEl, currentValue, previousValue) {
+        if (!metricEl) return;
+        const trendValueClass = getTrendValueClass(currentValue, previousValue);
+        metricEl.classList.remove('text-danger', 'text-success', 'text-dark', 'text-indigo', 'text-primary', 'text-purple');
+        if (trendValueClass) {
+            metricEl.classList.add(trendValueClass);
+        }
+    }
+
     function buildTrendArrow(currentVal, prevVal, integer = false) {
         if (prevVal === undefined || prevVal === null) return '';
         const cur = parseFloat(currentVal);
@@ -983,14 +1002,15 @@ document.addEventListener("DOMContentLoaded", function() {
         const symbol = cur > prev ? '+' : '';
         const diffText = `${symbol}${formatTrendDiff(cur, prev, integer)}`;
         if (cur > prev) {
-            return `<span class="statistics-trend-diff text-danger">⬆ ${diffText}</span>`;
+            return `<span class="statistics-trend-diff text-danger">${diffText}</span>`;
         } else {
-            return `<span class="statistics-trend-diff text-success">⬇ ${diffText}</span>`;
+            return `<span class="statistics-trend-diff text-success">${diffText}</span>`;
         }
     }
 
     function renderTrendBesideMetric(metricEl, currentValue, previousValue, integer = false) {
         if (!metricEl) return;
+        applyTrendValueColor(metricEl, currentValue, previousValue);
         const metricTrendContainer = metricEl.parentElement;
         if (!metricTrendContainer || !metricTrendContainer.parentElement) return;
 
@@ -1007,6 +1027,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const countUnit = isCountUnit(unit);
         const arrow = buildTrendArrow(value, prevValue, countUnit);
         const displayValue = isCountUnit(unit) ? formatCardCountValue(value) : formatCardMetricValue(value);
+        const effectiveColorClass = getTrendValueClass(value, prevValue);
         const infoHtml = infoTitle
             ? `<span class="statistics-info-button statistics-inline-info" title="${infoTitle}" aria-label="${infoLabel || title + '说明'}"><i class="mdi mdi-information-outline" aria-hidden="true"></i></span>`
             : "";
@@ -1017,7 +1038,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const valueIdAttr = valueId ? ` id="${valueId}"` : "";
         return `
             <div class="text-center${filterClass}"${filterAttrs}>
-                <div class="statistics-overall-kpi-value fs-3 fw-bold ${colorClass} lh-1"${valueIdAttr}>${displayValue}<span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span>${arrow ? `<span class="statistics-metric-trend statistics-kpi-trend-row">${arrow}</span>` : ''}</div>
+                <div class="statistics-overall-kpi-value fs-3 fw-bold ${effectiveColorClass} lh-1"${valueIdAttr}>${displayValue}<span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span>${arrow ? `<span class="statistics-metric-trend statistics-kpi-trend-row">${arrow}</span>` : ''}</div>
                 <div class="statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">${title}${infoHtml}</div>
             </div>
         `;
