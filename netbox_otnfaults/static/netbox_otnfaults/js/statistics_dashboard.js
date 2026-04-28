@@ -654,12 +654,12 @@ document.addEventListener("DOMContentLoaded", function() {
         const items = [
             { name: '光缆劣化', value: otherOverview.fiber_degradation || 0 },
             { name: '光缆抖动', value: otherOverview.fiber_jitter || 0 },
-            { name: '挂起的故障', value: otherOverview.suspended_faults || 0 },
+            { name: '挂起的故障（所有）', value: otherOverview.suspended_faults || 0 },
         ];
         const prevItems = [
             { name: '光缆劣化', value: prevOtherOverview.fiber_degradation || 0 },
             { name: '光缆抖动', value: prevOtherOverview.fiber_jitter || 0 },
-            { name: '挂起的故障', value: prevOtherOverview.suspended_faults || 0 },
+            { name: '挂起的故障（所有）', value: prevOtherOverview.suspended_faults || 0 },
         ];
 
         otherList.innerHTML = buildFlexGroup(items, "起", "", "text-indigo", prevItems);

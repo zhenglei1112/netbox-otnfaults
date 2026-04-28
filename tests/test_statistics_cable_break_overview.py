@@ -514,8 +514,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("if f.fault_category not in OVERALL_EXCLUDED_TOTAL_CATEGORIES", source)
         self.assertIn("overall_total_count = len(overall_faults)", source)
         self.assertIn("overall_category_stats = _build_fault_category_summary(overall_faults, now)", source)
-        self.assertIn("other_overview = _build_other_fault_summary(all_faults)", source)
-        self.assertIn("prev_other_overview = _build_other_fault_summary(prev_all_faults)", source)
+        self.assertIn("all_suspended_faults_count = qs_all.filter(fault_status=FaultStatusChoices.SUSPENDED).count()", source)
+        self.assertIn("other_overview = _build_other_fault_summary(all_faults, all_suspended_faults_count)", source)
+        self.assertIn("prev_other_overview = _build_other_fault_summary(prev_all_faults, all_suspended_faults_count)", source)
         self.assertIn("'other_overview': other_overview", source)
         self.assertIn("'prev_other_overview': prev_other_overview", source)
 
@@ -531,7 +532,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("function renderOverallOtherSummary(otherOverview, prevOtherOverview)", source)
         self.assertIn("{ name: '光缆劣化', value: otherOverview.fiber_degradation || 0 }", source)
         self.assertIn("{ name: '光缆抖动', value: otherOverview.fiber_jitter || 0 }", source)
-        self.assertIn("{ name: '挂起的故障', value: otherOverview.suspended_faults || 0 }", source)
+        self.assertIn("{ name: '挂起的故障（所有）', value: otherOverview.suspended_faults || 0 }", source)
         self.assertIn('buildFlexGroup(items, "起", "", "text-indigo", prevItems)', source)
 
     def test_physical_fault_card_does_not_render_degradation_or_jitter_categories(self) -> None:
@@ -635,7 +636,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('buildFlexGroup(overallAverageItems, "时", "", "text-indigo", prevOverallAverageItems)', source)
         self.assertIn('buildFlexGroup(filteredAverageItems, "时", "", "text-indigo", prevFilteredAverageItems)', source)
         self.assertIn(".statistics-cable-break-average-grid", css)
-        self.assertIn("grid-column: span 2;", css)
+        self.assertNotIn(".statistics-cable-break-filtered-average-card {\n    grid-column: span 2;\n}", css)
         self.assertIn(".statistics-cable-break-five-card .statistics-kpi-group-items", css)
         self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
         self.assertIn(".statistics-inline-info", css)
@@ -1182,7 +1183,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         css = CSS_PATH.read_text(encoding="utf-8")
 
         self.assertIn("window.STATISTICS_CABLE_BREAK_MAP_URL", template)
-        self.assertIn("statistics_dashboard.css' %}?v=5", template)
+        self.assertIn("statistics_dashboard.css' %}?v=6", template)
         self.assertIn("statistics-cable-break-map-btn", template)
         self.assertIn("statisticsCableBreakMapModal", template)
         self.assertIn("modal-dialog modal-dialog-centered statistics-cable-break-map-dialog", template)

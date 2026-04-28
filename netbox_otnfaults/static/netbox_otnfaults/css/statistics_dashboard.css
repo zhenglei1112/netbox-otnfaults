@@ -793,10 +793,6 @@
         minmax(150px, 0.375fr) minmax(320px, 1fr) minmax(520px, 1.675fr) minmax(150px, 0.375fr);
 }
 
-.statistics-cable-break-filtered-average-card {
-    grid-column: span 2;
-}
-
 .statistics-cable-break-average-grid .statistics-cable-break-filtered-average-card {
     grid-column: auto;
 }

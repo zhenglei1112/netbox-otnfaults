@@ -264,11 +264,11 @@ def _build_physical_daily_fault_series(period_start, period_end, faults: list, n
     }
 
 
-def _build_other_fault_summary(faults: list) -> dict[str, int]:
+def _build_other_fault_summary(faults: list, suspended_faults_count: int) -> dict[str, int]:
     return {
         'fiber_degradation': sum(1 for f in faults if f.fault_category == FaultCategoryChoices.FIBER_DEGRADATION),
         'fiber_jitter': sum(1 for f in faults if f.fault_category == FaultCategoryChoices.FIBER_JITTER),
-        'suspended_faults': sum(1 for f in faults if f.fault_status == FaultStatusChoices.SUSPENDED),
+        'suspended_faults': suspended_faults_count,
     }
 
 
@@ -570,6 +570,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         qs_all = OtnFault.objects.select_related('province', 'interruption_location_a').prefetch_related('interruption_location')
         all_current_qs = qs_all.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
         all_faults = list(all_current_qs)
+        all_suspended_faults_count = qs_all.filter(fault_status=FaultStatusChoices.SUSPENDED).count()
 
         overall_faults = [
             f for f in all_faults
@@ -577,7 +578,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         ]
         overall_total_count = len(overall_faults)
         overall_category_stats = _build_fault_category_summary(overall_faults, now)
-        other_overview = _build_other_fault_summary(all_faults)
+        other_overview = _build_other_fault_summary(all_faults, all_suspended_faults_count)
         physical_daily_start, physical_daily_end = _resolve_physical_daily_range(start_date, end_date, filter_type)
         physical_daily_faults = list(
             qs_all.filter(
@@ -795,7 +796,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         # 计算上周期的全维度对比数据
         prev_overall_category_stats = _build_fault_category_summary([], now)
         prev_cable_break_overview = {}
-        prev_other_overview = _build_other_fault_summary([])
+        prev_other_overview = _build_other_fault_summary([], all_suspended_faults_count)
         if prev_start_date and prev_end_date:
             # 上周期全量故障（用于总体情况分类对比）
             prev_all_qs = qs_all.filter(fault_occurrence_time__gte=prev_start_date, fault_occurrence_time__lt=prev_end_date)
@@ -805,7 +806,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 if f.fault_category not in OVERALL_EXCLUDED_TOTAL_CATEGORIES
             ]
             prev_overall_category_stats = _build_fault_category_summary(prev_overall_faults, now)
-            prev_other_overview = _build_other_fault_summary(prev_all_faults)
+            prev_other_overview = _build_other_fault_summary(prev_all_faults, all_suspended_faults_count)
 
             # 上周期光缆中断概览（用于各子指标趋势对比）
             prev_cable_break_overview = _compute_cable_break_overview(prev_faults, now)

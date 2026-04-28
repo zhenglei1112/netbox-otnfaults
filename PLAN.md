@@ -1,3 +1,9 @@
+## 2026-04-28 故障统计挂起故障改为全量统计
+### 实施步骤
+- [x] 更新源码级回归测试，锁定“其他”卡片中的挂起故障使用全量挂起数量，并显示为“挂起的故障（所有）”。
+- [x] 调整统计 API 的 `other_overview` / `prev_other_overview` 挂起故障口径。
+- [x] 修改前端指标名称并运行相关测试。
+
 ## 2026-04-26 调整中断时长分布图 tooltip 命中区域
 ### 实施步骤
 - [x] 补充故障统计页源码级回归测试，锁定盒线图 tooltip 使用 `axis` 触发、全天 `shadow` 选中，并从 boxplot series 参数读取五数。
@@ -1428,3 +1434,9 @@
 - [x] Add regression coverage requiring `OtnFaultImpactTable.secondary_faults` exports to use plain text.
 - [x] Add a `value_secondary_faults()` export value method matching the existing fault-table `value_*` pattern.
 - [x] Run the targeted export regression test and Python syntax check.
+
+## 2026-04-28 修复正式环境平均历时行折行
+### 实施步骤
+- [x] 增加回归测试，要求统计页 CSS 缓存版本号更新，并锁定平均历时行不再继承旧的双列跨度。
+- [x] 调整统计页模板/CSS，让正式环境发布后重新拉取样式并避免“重复中断”被挤到第二行。
+- [x] 运行统计页定向测试验证。
