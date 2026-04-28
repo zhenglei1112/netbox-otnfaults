@@ -26,7 +26,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
         self.assertIn("statistics_dashboard.css' %}?v=5", template)
-        self.assertIn("statistics_dashboard.js' %}?v=9", template)
+        self.assertIn("statistics_dashboard.js' %}?v=12", template)
 
     def test_statistics_dashboard_css_covers_light_and_dark_theme_surfaces(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -88,12 +88,17 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn('id="statistics-metric-help-btn"', template)
         self.assertIn('data-bs-target="#statisticsMetricHelpModal"', template)
         self.assertIn('id="statisticsMetricHelpModal"', template)
+        self.assertIn('class="modal-dialog modal-xl modal-dialog-scrollable"', template)
         self.assertIn("指标说明", template)
         self.assertIn("统计周期", template)
         self.assertIn("不纳入总体故障总数", template)
         self.assertIn("光缆中断统计仅包含故障类型为“光缆中断”且未挂起的物理故障", template)
         self.assertIn("长时故障", template)
         self.assertIn("历时大于 0.5 小时", template)
+        self.assertIn("P50修复时长", template)
+        self.assertIn("P90修复时长", template)
+        self.assertIn("超时率", template)
+        self.assertIn("历时大于等于 4 小时", template)
         self.assertIn("同一 A 端站点与任一 Z 端站点", template)
         self.assertIn("SLA", template)
         self.assertIn("合并重叠不可用时段", template)

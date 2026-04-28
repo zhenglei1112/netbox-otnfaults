@@ -116,6 +116,10 @@
                                     <input class="form-check-input" type="checkbox" id="physical-boxplot-filter-rectification">
                                     <span class="form-check-label">滤除整改</span>
                                 </label>
+                                <label class="form-check form-switch statistics-boxplot-filter-option mb-0">
+                                    <input class="form-check-input" type="checkbox" id="physical-boxplot-log-scale" checked>
+                                    <span class="form-check-label">对数刻度</span>
+                                </label>
                             </div>
                             <div id="chart-physical-duration-boxplot" class="statistics-physical-duration-boxplot"></div>
                         </div>
@@ -221,6 +225,14 @@
                                 </div>
                             </div>
                             <div class="statistics-strip-card-footer">平均历时</div>
+                        </div>
+                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-strip-card">
+                            <div class="statistics-strip-card-body">
+                                <div id="cable-break-duration-metrics-flex-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                    <div class="text-muted small">数据加载中...</div>
+                                </div>
+                            </div>
+                            <div class="statistics-strip-card-footer">历时指标</div>
                         </div>
                         <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-filtered-average-card statistics-cable-break-five-card statistics-strip-card">
                             <div class="statistics-strip-card-body">
@@ -332,6 +344,34 @@
                         <i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...
                     </div>
                 </div>
+                <div class="card shadow-sm mt-4 mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0">
+                            故障明细
+                            <span class="badge bg-success text-white ms-2" id="service-detail-filter-badge" style="display:none"></span>
+                        </h3>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-service-detail-filter" style="display:none">清除业务过滤</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-vcenter card-table">
+                            <thead>
+                                <tr>
+                                    <th>故障编号</th>
+                                    <th>业务名称</th>
+                                    <th>中断时间</th>
+                                    <th>恢复时间</th>
+                                    <th>历时(小时)</th>
+                                    <th>分类</th>
+                                    <th>影响记录</th>
+                                    <th>标签</th>
+                                </tr>
+                            </thead>
+                            <tbody id="service-details-tbody">
+                                <tr><td colspan="8" class="text-center text-muted py-4">数据加载中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <!-- ===== 电路业务故障 Tab ===== -->
@@ -341,13 +381,41 @@
                         <i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...
                     </div>
                 </div>
+                <div class="card shadow-sm mt-4 mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0">
+                            故障明细
+                            <span class="badge bg-success text-white ms-2" id="circuit-service-detail-filter-badge" style="display:none"></span>
+                        </h3>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-circuit-service-detail-filter" style="display:none">清除业务过滤</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-vcenter card-table">
+                            <thead>
+                                <tr>
+                                    <th>故障编号</th>
+                                    <th>业务名称</th>
+                                    <th>中断时间</th>
+                                    <th>恢复时间</th>
+                                    <th>历时(小时)</th>
+                                    <th>分类</th>
+                                    <th>影响记录</th>
+                                    <th>标签</th>
+                                </tr>
+                            </thead>
+                            <tbody id="circuit-service-details-tbody">
+                                <tr><td colspan="8" class="text-center text-muted py-4">数据加载中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <div class="modal fade" id="statisticsMetricHelpModal" tabindex="-1" aria-labelledby="statisticsMetricHelpModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="statisticsMetricHelpModalLabel">
@@ -377,6 +445,8 @@
                                 <li>中断历时从故障发生时间计算到故障恢复时间；未恢复故障按当前时间计算。</li>
                                 <li>长时故障指历时大于等于 6 小时的光缆中断，并按 6-8 小时、8-10 小时、10-12 小时、12 小时以上分桶统计。</li>
                                 <li>有效平均历时只统计历时大于 0.5 小时的光缆中断；日间为 06:00 至 18:00，夜间为其他时段。</li>
+                                <li>P50修复时长为当前周期光缆中断历时的中位数；P90修复时长为 90 分位修复时长，用于观察较长尾部故障。</li>
+                                <li>超时率按历时大于等于 4 小时的光缆中断起数 / 光缆中断总起数计算。</li>
                                 <li>施工类平均历时按一级原因为“施工”统计，非施工类为其他一级原因。</li>
                                 <li>光缆属性汇总规则：自建、协调归为“自控”，租赁归为“第三方”，未填或其他取值归为“其他/未填”。</li>
                             </ul>
@@ -447,5 +517,5 @@
     window.SERVICE_STATISTICS_DATA_API = "{{ statistics_service_data_api_url }}";
     window.STATISTICS_CABLE_BREAK_MAP_URL = "{{ statistics_cable_break_map_url }}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=9"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=12"></script>
 {% endblock %}

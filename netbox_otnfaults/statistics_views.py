@@ -148,12 +148,36 @@ def _calculate_boxplot_values(values: list[float]) -> list[float]:
     if not values:
         return [0, 0, 0, 0, 0]
     sorted_values = sorted(values)
+    q1 = _percentile(sorted_values, 0.25)
+    median = _percentile(sorted_values, 0.5)
+    q3 = _percentile(sorted_values, 0.75)
+    iqr = q3 - q1
+    upper_whisker = q3 + (1.5 * iqr)
     return [
         round(sorted_values[0], 2),
-        round(_percentile(sorted_values, 0.25), 2),
-        round(_percentile(sorted_values, 0.5), 2),
-        round(_percentile(sorted_values, 0.75), 2),
-        round(sorted_values[-1], 2),
+        round(q1, 2),
+        round(median, 2),
+        round(q3, 2),
+        round(upper_whisker, 2),
+    ]
+
+
+def _calculate_boxplot_outliers(values: list[float]) -> list[float]:
+    if not values:
+        return []
+    sorted_values = sorted(values)
+    q1 = _percentile(sorted_values, 0.25)
+    q3 = _percentile(sorted_values, 0.75)
+    iqr = q3 - q1
+    upper_whisker = q3 + (1.5 * iqr)
+    return [round(value, 2) for value in sorted_values if value > upper_whisker]
+
+
+def _build_boxplot_outlier_points(labels: list[str], samples: dict[str, list[float]]) -> list[list[str | float]]:
+    return [
+        [day, value]
+        for day in labels
+        for value in _calculate_boxplot_outliers(samples[day])
     ]
 
 
@@ -216,11 +240,18 @@ def _build_physical_daily_fault_series(period_start, period_end, faults: list, n
         'labels': labels,
         'durations': [round(duration_buckets[day], 2) for day in labels],
         'boxplot': [_calculate_boxplot_values(duration_samples[day]) for day in labels],
+        'boxplot_outliers': _build_boxplot_outlier_points(labels, duration_samples),
         'boxplot_options': {
             'all': [_calculate_boxplot_values(boxplot_samples['all'][day]) for day in labels],
             'exclude_short': [_calculate_boxplot_values(boxplot_samples['exclude_short'][day]) for day in labels],
             'exclude_rectification': [_calculate_boxplot_values(boxplot_samples['exclude_rectification'][day]) for day in labels],
             'exclude_short_rectification': [_calculate_boxplot_values(boxplot_samples['exclude_short_rectification'][day]) for day in labels],
+        },
+        'boxplot_outlier_options': {
+            'all': _build_boxplot_outlier_points(labels, boxplot_samples['all']),
+            'exclude_short': _build_boxplot_outlier_points(labels, boxplot_samples['exclude_short']),
+            'exclude_rectification': _build_boxplot_outlier_points(labels, boxplot_samples['exclude_rectification']),
+            'exclude_short_rectification': _build_boxplot_outlier_points(labels, boxplot_samples['exclude_short_rectification']),
         },
         'series': [
             {
@@ -308,6 +339,8 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
     cb_cons_dur = 0.0
     cb_noncons_count = 0
     cb_noncons_dur = 0.0
+    duration_values: list[float] = []
+    timeout_count = 0
     histogram: dict[int, int] = {i: 0 for i in range(13)}
 
     for fault in cable_break_faults:
@@ -318,6 +351,9 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
 
         end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
         duration_hours = (end_t - fault.fault_occurrence_time).total_seconds() / 3600.0
+        duration_values.append(duration_hours)
+        if duration_hours >= 4.0:
+            timeout_count += 1
 
         hist_bucket = _duration_histogram_bucket_index(duration_hours)
         histogram[hist_bucket] += 1
@@ -365,8 +401,12 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
                 cb_noncons_dur += duration_hours
 
     cb_count = len(cable_break_faults)
+    duration_values = sorted(duration_values)
     avg_metrics = {
         'overall_avg': round(total_duration / cb_count if cb_count > 0 else 0.0, 2),
+        'p50_repair_duration': round(_percentile(duration_values, 0.5), 2),
+        'p90_repair_duration': round(_percentile(duration_values, 0.9), 2),
+        'timeout_rate': round(timeout_count * 100.0 / cb_count if cb_count > 0 else 0.0, 1),
         'valid_avg': round(cb_valid_dur / cb_valid_count if cb_valid_count > 0 else 0.0, 2),
         'daytime_avg': round(cb_day_dur / cb_day_count if cb_day_count > 0 else 0.0, 2),
         'nighttime_avg': round(cb_night_dur / cb_night_count if cb_night_count > 0 else 0.0, 2),
@@ -840,6 +880,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
 
         # 按业务 key 聚合
         service_map: dict = {}  # key -> stats dict
+        service_details: list[dict[str, str | int | float | bool]] = []
 
         for imp in impacts:
             # 确定业务标识和名称
@@ -897,6 +938,21 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
 
             if dur_hours >= 6.0:
                 stats['long_count'] += 1
+
+            service_details.append({
+                'id': imp.id,
+                'service_key': svc_key,
+                'service_name': svc_name,
+                'service_type': svc_type_label,
+                'fault_number': imp.otn_fault.fault_number if imp.otn_fault else '',
+                'fault_category': imp.otn_fault.get_fault_category_display() if imp.otn_fault else '未知',
+                'service_interruption_time': _format_local_datetime(svc_start),
+                'service_recovery_time': _format_local_datetime(imp.service_recovery_time) if imp.service_recovery_time else '未恢复',
+                'duration': round(dur_hours, 2),
+                'is_long': dur_hours >= 6.0,
+                'impact_url': imp.get_absolute_url(),
+                'fault_url': imp.otn_fault.get_absolute_url() if imp.otn_fault else '',
+            })
 
             # 记录时段供 SLA 计算（合并重叠）
             stats['intervals'].append((svc_start, svc_end))
@@ -963,4 +1019,5 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             'period': build_period_display(start_date, end_date, now),
             'period_total_hours': round(period_total_hours, 2),
             'services': services_result,
+            'details': service_details,
         })

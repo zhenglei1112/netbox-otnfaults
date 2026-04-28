@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let chartPhysicalDurationBoxplot = chartPhysicalDurationBoxplotElement ? echarts.init(chartPhysicalDurationBoxplotElement) : null;
     const physicalBoxplotFilterShort = document.getElementById('physical-boxplot-filter-short');
     const physicalBoxplotFilterRectification = document.getElementById('physical-boxplot-filter-rectification');
+    const physicalBoxplotLogScale = document.getElementById('physical-boxplot-log-scale');
     
     let excludedCategories = {
         resource_type: new Set(),
@@ -74,6 +75,9 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     if (physicalBoxplotFilterRectification) {
         physicalBoxplotFilterRectification.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_daily, selFilterType.value));
+    }
+    if (physicalBoxplotLogScale) {
+        physicalBoxplotLogScale.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_daily, selFilterType.value));
     }
 
     // ---------------- DOM 元素 ----------------
@@ -798,8 +802,45 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function getBoxplotTooltipValues(params) {
-        const rawValue = Array.isArray(params.value) ? params.value : (params.data || []);
+        const rawValue = Array.isArray(params.data && params.data.rawValue) ? params.data.rawValue : (Array.isArray(params.value) ? params.value : (params.data || []));
         return rawValue.length >= 6 ? rawValue.slice(1, 6) : rawValue.slice(0, 5);
+    }
+
+    function getBoxplotOutlierTooltipValues(params) {
+        const rawValue = Array.isArray(params.data && params.data.rawValue) ? params.data.rawValue : (Array.isArray(params.value) ? params.value : (params.data || []));
+        return rawValue.length >= 2 ? rawValue[1] : null;
+    }
+
+    const LOG_SCALE_MIN_VALUE = 0.01;
+
+    function clampDurationForLogScale(value) {
+        const number = Number(value);
+        return Number.isFinite(number) && number > 0 ? number : LOG_SCALE_MIN_VALUE;
+    }
+
+    function isEmptyBoxplotSample(item) {
+        return Array.isArray(item) && item.every(value => Number(value) <= 0);
+    }
+
+    function normalizeBoxplotDataForLogScale(boxplotData) {
+        return (boxplotData || []).map(item => {
+            if (!Array.isArray(item)) return item;
+            if (isEmptyBoxplotSample(item)) return { value: [null, null, null, null, null], rawValue: item };
+            return {
+                value: item.map(clampDurationForLogScale),
+                rawValue: item,
+            };
+        });
+    }
+
+    function normalizeOutlierDataForLogScale(outlierData) {
+        return (outlierData || []).map(item => {
+            if (!Array.isArray(item)) return item;
+            return {
+                value: [item[0], clampDurationForLogScale(item[1])],
+                rawValue: item,
+            };
+        });
     }
 
     function getSelectedPhysicalBoxplotData(dailyData) {
@@ -810,12 +851,24 @@ document.addEventListener("DOMContentLoaded", function() {
         return options[key] || dailyData.boxplot || [];
     }
 
+    function getSelectedPhysicalBoxplotOutliers(dailyData) {
+        const shortChecked = Boolean(physicalBoxplotFilterShort && physicalBoxplotFilterShort.checked);
+        const rectificationChecked = Boolean(physicalBoxplotFilterRectification && physicalBoxplotFilterRectification.checked);
+        const key = shortChecked && rectificationChecked ? 'exclude_short_rectification' : shortChecked ? 'exclude_short' : rectificationChecked ? 'exclude_rectification' : 'all';
+        const options = dailyData.boxplot_outlier_options || {};
+        return options[key] || dailyData.boxplot_outliers || [];
+    }
+
     function renderPhysicalDurationBoxplot(dailyData, filterType) {
         if (!chartPhysicalDurationBoxplot || !dailyData) return;
 
         const chartTheme = getChartTheme();
         const labels = dailyData.labels || [];
         const boxplotData = getSelectedPhysicalBoxplotData(dailyData);
+        const outlierData = getSelectedPhysicalBoxplotOutliers(dailyData);
+        const useLogScale = Boolean(physicalBoxplotLogScale && physicalBoxplotLogScale.checked);
+        const renderedBoxplotData = useLogScale ? normalizeBoxplotDataForLogScale(boxplotData) : boxplotData;
+        const renderedOutlierData = useLogScale ? normalizeOutlierDataForLogScale(outlierData) : outlierData;
 
         chartPhysicalDurationBoxplot.setOption({
             textStyle: { color: chartTheme.text },
@@ -826,13 +879,19 @@ document.addEventListener("DOMContentLoaded", function() {
                 formatter: function(params) {
                     const axisParams = Array.isArray(params) ? params : [params];
                     const boxplotParam = axisParams.find(item => item.seriesType === 'boxplot') || axisParams[0] || { value: [] };
+                    const outlierParams = axisParams.filter(item => item.seriesType === 'scatter');
                     const value = getBoxplotTooltipValues(boxplotParam);
+                    const outlierValues = outlierParams.map(getBoxplotOutlierTooltipValues).filter(value => value !== null);
+                    const outlierHtml = outlierValues.length > 0
+                        ? `<br/><span style="margin-left:14px;">超出上须: ${outlierValues.join('、')}小时</span>`
+                        : '';
                     return `${boxplotParam.axisValue || boxplotParam.name || ''}<br/>` +
                         `<span style="margin-left:14px;">最大值: ${value[4] || 0}小时</span><br/>` +
                         `<span style="margin-left:14px;">Q3: ${value[3] || 0}小时</span><br/>` +
                         `<span style="margin-left:14px;">中位数: ${value[2] || 0}小时</span><br/>` +
                         `<span style="margin-left:14px;">Q1: ${value[1] || 0}小时</span><br/>` +
-                        `<span style="margin-left:14px;">最小值: ${value[0] || 0}小时</span>`;
+                        `<span style="margin-left:14px;">最小值: ${value[0] || 0}小时</span>` +
+                        outlierHtml;
                 }
             },
             grid: buildPhysicalDailyChartGrid(),
@@ -852,25 +911,43 @@ document.addEventListener("DOMContentLoaded", function() {
                 axisTick: { show: false },
             },
             yAxis: {
-                type: 'value',
+                type: useLogScale ? 'log' : 'value',
                 name: '中断时长分布(小时)',
                 nameGap: 12,
                 nameLocation: 'end',
-                min: 0,
+                min: useLogScale ? 0.01 : 0,
                 ...buildAxisTheme(chartTheme),
+                axisLabel: {
+                    color: chartTheme.muted,
+                    formatter: function(value) {
+                        if (useLogScale && Math.abs(Number(value) - LOG_SCALE_MIN_VALUE) < 0.000001) return '0.01';
+                        return String(value);
+                    },
+                },
                 splitLine: { show: true, lineStyle: { color: chartTheme.border, type: 'dashed' } },
             },
             series: [{
                 name: '中断时长分布',
                 type: 'boxplot',
                 boxWidth: getPhysicalDurationBoxWidth(filterType),
-                data: boxplotData,
+                data: renderedBoxplotData,
                 itemStyle: {
                     color: chartTheme.dark ? 'rgba(110, 168, 254, 0.22)' : 'rgba(32, 107, 196, 0.16)',
                     borderColor: chartTheme.primary,
                     borderWidth: 1.2,
                 },
                 emphasis: { itemStyle: { borderWidth: 2 } },
+            }, {
+                name: '超出上须',
+                type: 'scatter',
+                symbol: 'circle',
+                symbolSize: 5,
+                data: renderedOutlierData,
+                itemStyle: {
+                    color: chartTheme.dark ? '#ff8787' : '#d63939',
+                    opacity: 0.86,
+                },
+                emphasis: { scale: 1.4 },
             }]
         }, true);
     }
@@ -969,7 +1046,8 @@ document.addEventListener("DOMContentLoaded", function() {
             const itemFilterExtraValue = item && item.filterExtraValue !== undefined ? item.filterExtraValue : undefined;
             const itemInfoTitle = item && item.infoTitle !== undefined ? item.infoTitle : undefined;
             const itemInfoLabel = item && item.infoLabel !== undefined ? item.infoLabel : undefined;
-            groupHtml += buildFlexItemCore(val, unit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel);
+            const itemUnit = item && item.unit !== undefined ? item.unit : unit;
+            groupHtml += buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel);
         });
         groupHtml += `</div>`;
         if (groupTitle) {
@@ -1159,6 +1237,7 @@ document.addEventListener("DOMContentLoaded", function() {
         // 平均历时
         const prevMetrics = prevOverview.avg_metrics || {};
         const overallAverageList = document.getElementById('cable-break-average-overall-list');
+        const durationMetricsList = document.getElementById('cable-break-duration-metrics-flex-list');
         const filteredAverageList = document.getElementById('cable-break-filtered-average-flex-list');
         if (overview.avg_metrics) {
             const m = overview.avg_metrics;
@@ -1171,6 +1250,38 @@ document.addEventListener("DOMContentLoaded", function() {
                     filterValue: "光缆中断",
                     filterLabel: "全口径平均",
                     id: "cable-break-overall-avg",
+                },
+            ];
+            const durationMetricItems = [
+                {
+                    name: "P50修复时长",
+                    value: Number(m.p50_repair_duration || 0),
+                    prevValue: prevMetrics.p50_repair_duration,
+                    unit: "时",
+                    filterField: "duration_max",
+                    filterValue: m.p50_repair_duration,
+                    filterLabel: "P50修复时长",
+                    id: "cable-break-p50-repair-duration",
+                },
+                {
+                    name: "P90修复时长",
+                    value: Number(m.p90_repair_duration || 0),
+                    prevValue: prevMetrics.p90_repair_duration,
+                    unit: "时",
+                    filterField: "duration_min",
+                    filterValue: m.p90_repair_duration,
+                    filterLabel: "P90修复时长",
+                    id: "cable-break-p90-repair-duration",
+                },
+                {
+                    name: "超时率",
+                    value: Number(m.timeout_rate || 0),
+                    prevValue: prevMetrics.timeout_rate,
+                    unit: "%",
+                    filterField: "duration_min",
+                    filterValue: "4",
+                    filterLabel: "超时率",
+                    id: "cable-break-timeout-rate",
                 },
             ];
             const filteredAverageItems = [
@@ -1229,9 +1340,13 @@ document.addEventListener("DOMContentLoaded", function() {
                 },
             ];
             const prevOverallAverageItems = overallAverageItems.map(item => ({name: item.name, value: item.prevValue}));
+            const prevDurationMetricItems = durationMetricItems.map(item => ({name: item.name, value: item.prevValue}));
             const prevFilteredAverageItems = filteredAverageItems.map(item => ({name: item.name, value: item.prevValue}));
             if (overallAverageList) {
                 overallAverageList.innerHTML = buildFlexGroup(overallAverageItems, "时", "", "text-indigo", prevOverallAverageItems);
+            }
+            if (durationMetricsList) {
+                durationMetricsList.innerHTML = buildFlexGroup(durationMetricItems, "", "", "text-indigo", prevDurationMetricItems);
             }
             if (filteredAverageList) {
                 filteredAverageList.innerHTML = buildFlexGroup(filteredAverageItems, "时", "", "text-indigo", prevFilteredAverageItems);
@@ -1417,6 +1532,12 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function applyDetailFilter(item, fieldName, value) {
+        if (fieldName === 'duration_min') {
+            return Number(item.duration || 0) >= Number(value || 0);
+        }
+        if (fieldName === 'duration_max') {
+            return Number(item.duration || 0) <= Number(value || 0);
+        }
         return item[fieldName] === value;
     }
 
@@ -1457,6 +1578,8 @@ document.addEventListener("DOMContentLoaded", function() {
             else if (activeFilterField === 'province') filterName = '省份';
             else if (activeFilterField === 'reason') filterName = '原因';
             else if (activeFilterField === 'duration_bucket') filterName = '历时分布';
+            else if (activeFilterField === 'duration_max') { filterName = '历时指标'; filterValueDisp = `<=${formatCardMetricValue(activeFilterValue)}小时`; }
+            else if (activeFilterField === 'duration_min') { filterName = '历时指标'; filterValueDisp = `>=${formatCardMetricValue(activeFilterValue)}小时`; }
             else if (activeFilterField === 'duration_histogram_bucket') filterName = '故障历时频数';
             else if (activeFilterField === 'category') filterName = '分类';
             else if (activeFilterField === 'occurrence_period') filterName = '发生时段';
@@ -1586,10 +1709,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ---------------- 业务故障统计 ----------------
     let serviceDataLoaded = false;
+    let currentServiceDetails = [];
+    let activeServiceDetailFilterKey = null;
+    let activeServiceDetailFilterName = null;
+    let activeServiceDetailFilterType = null;
 
     async function loadServiceData() {
         setServiceCardsLoading('service-cards-container');
         setServiceCardsLoading('circuit-service-cards-container');
+        setServiceDetailsLoading('service-details-tbody');
+        setServiceDetailsLoading('circuit-service-details-tbody');
 
         let url = `${window.SERVICE_STATISTICS_DATA_API}?${buildTimeParams()}`;
 
@@ -1605,13 +1734,21 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             const services = data.services || [];
+            currentServiceDetails = data.details || [];
+            activeServiceDetailFilterKey = null;
+            activeServiceDetailFilterName = null;
+            activeServiceDetailFilterType = null;
             renderServiceCards(getServicesByType(services, '裸纤业务'), 'service-cards-container', '裸纤业务');
             renderServiceCards(getServicesByType(services, '电路业务'), 'circuit-service-cards-container', '电路业务');
+            renderServiceDetailsTable('裸纤业务', 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
+            renderServiceDetailsTable('电路业务', 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
             serviceDataLoaded = true;
         } catch (error) {
             console.error('Service data fetch error:', error);
             setServiceCardsError('service-cards-container');
             setServiceCardsError('circuit-service-cards-container');
+            setServiceDetailsError('service-details-tbody');
+            setServiceDetailsError('circuit-service-details-tbody');
         }
     }
 
@@ -1625,6 +1762,18 @@ document.addEventListener("DOMContentLoaded", function() {
         const container = document.getElementById(containerId);
         if (!container) return;
         container.innerHTML = '<div class="col-12 text-center text-danger py-5">数据加载失败，请检查网络或刷新重试</div>';
+    }
+
+    function setServiceDetailsLoading(tbodyId) {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">数据加载中...</td></tr>';
+    }
+
+    function setServiceDetailsError(tbodyId) {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="8" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
     }
 
     function getServicesByType(services, serviceType) {
@@ -1659,8 +1808,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderStripCard(card) {
         const footer = escapeHtml(card.footer);
+        const serviceAttrs = card.serviceKey
+            ? ` data-service-key="${escapeHtml(card.serviceKey)}" data-service-name="${footer}" role="button" tabindex="0"`
+            : '';
         return `
-            <div class="statistics-strip-card service-strip-card">
+            <div class="statistics-strip-card service-strip-card"${serviceAttrs}>
                 <div class="statistics-strip-card-body">
                     <div class="statistics-strip-card-metrics">
                         ${card.metrics.map(renderStripMetric).join('')}
@@ -1697,6 +1849,7 @@ document.addEventListener("DOMContentLoaded", function() {
             let catDetail = catParts.length > 0 ? catParts.join(' | ') : svc.type;
 
             return renderStripCard({
+                serviceKey: svc.key,
                 footer: svc.name,
                 metrics: [
                     { label: '故障总数', value: svc.count, unit: '次', detail: catDetail },
@@ -1711,6 +1864,87 @@ document.addEventListener("DOMContentLoaded", function() {
         }).join('');
 
         container.innerHTML = html;
+        container.querySelectorAll('.service-strip-card[data-service-key]').forEach(card => {
+            card.addEventListener('click', () => handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName));
+            card.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName);
+                }
+            });
+        });
+    }
+
+    function renderServiceDetailsTable(serviceType, tbodyId, badgeId, clearButtonId) {
+        const tbody = document.getElementById(tbodyId);
+        const badge = document.getElementById(badgeId);
+        const clearButton = document.getElementById(clearButtonId);
+        if (!tbody) return;
+
+        let details = currentServiceDetails.filter(item => item.service_type === serviceType);
+        if (activeServiceDetailFilterKey && activeServiceDetailFilterType === serviceType) {
+            details = details.filter(item => item.service_key === activeServiceDetailFilterKey);
+            if (badge) {
+                badge.textContent = activeServiceDetailFilterName || activeServiceDetailFilterKey;
+                badge.className = 'badge bg-success text-white ms-2';
+                badge.style.display = 'inline-block';
+            }
+            if (clearButton) clearButton.style.display = 'inline-block';
+        } else {
+            if (badge) badge.style.display = 'none';
+            if (clearButton) clearButton.style.display = 'none';
+        }
+
+        if (clearButton) {
+            clearButton.onclick = () => {
+                activeServiceDetailFilterKey = null;
+                activeServiceDetailFilterName = null;
+                activeServiceDetailFilterType = null;
+                renderServiceDetailsTable('裸纤业务', 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
+                renderServiceDetailsTable('电路业务', 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
+            };
+        }
+
+        if (details.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">当前条件下无可展示的业务故障明细</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = details.map(item => {
+            const badges = item.is_long ? '<span class="badge bg-warning text-dark ms-1">≥6h</span>' : '';
+            const faultLink = item.fault_url
+                ? `<a href="${escapeHtml(item.fault_url)}" target="_blank">${escapeHtml(item.fault_number)}</a>`
+                : escapeHtml(item.fault_number || '-');
+            const impactLink = item.impact_url
+                ? `<a href="${escapeHtml(item.impact_url)}" target="_blank">查看</a>`
+                : '-';
+            return `<tr>
+                <td>${faultLink}</td>
+                <td>${escapeHtml(item.service_name || '-')}</td>
+                <td>${escapeHtml(item.service_interruption_time || '-')}</td>
+                <td>${escapeHtml(item.service_recovery_time || '-')}</td>
+                <td><strong class="${item.is_long ? 'text-danger' : ''}">${escapeHtml(item.duration || 0)}</strong></td>
+                <td>${escapeHtml(item.fault_category || '-')}</td>
+                <td>${impactLink}</td>
+                <td>${badges}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function handleServiceCardClick(serviceKey, serviceName) {
+        if (!serviceKey) return;
+        const detail = currentServiceDetails.find(item => item.service_key === serviceKey);
+        activeServiceDetailFilterKey = serviceKey;
+        activeServiceDetailFilterName = serviceName;
+        activeServiceDetailFilterType = detail ? detail.service_type : null;
+        renderServiceDetailsTable('裸纤业务', 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
+        renderServiceDetailsTable('电路业务', 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
+
+        const tbodyId = activeServiceDetailFilterType === '电路业务' ? 'circuit-service-details-tbody' : 'service-details-tbody';
+        const tbody = document.getElementById(tbodyId);
+        if (tbody) {
+            tbody.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     }
 
     // ---------------- Tab 切换联动 ----------------

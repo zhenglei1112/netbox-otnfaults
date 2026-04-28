@@ -371,6 +371,10 @@
     line-height: 1.2;
 }
 
+.service-strip-card[data-service-key] {
+    cursor: pointer;
+}
+
 .statistics-overall-main {
     flex: 0 0 220px;
     border-right: 1px solid var(--statistics-divider);
@@ -786,11 +790,15 @@
 
 .statistics-cable-break-average-grid {
     grid-template-columns:
-        minmax(150px, 0.375fr) minmax(280px, 0.975fr) minmax(280px, 0.975fr) minmax(520px, 1.675fr);
+        minmax(150px, 0.375fr) minmax(320px, 1fr) minmax(520px, 1.675fr) minmax(150px, 0.375fr);
 }
 
 .statistics-cable-break-filtered-average-card {
     grid-column: span 2;
+}
+
+.statistics-cable-break-average-grid .statistics-cable-break-filtered-average-card {
+    grid-column: auto;
 }
 
 .statistics-cable-break-summary-card {
