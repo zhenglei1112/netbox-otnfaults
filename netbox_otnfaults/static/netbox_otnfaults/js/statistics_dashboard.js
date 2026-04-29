@@ -1499,12 +1499,16 @@ document.addEventListener("DOMContentLoaded", function() {
         const chartTheme = getChartTheme();
         // 1. 光缆属性 (Pie)
         const resourceColorMap = {
-            '自建': chartTheme.chartPalette[0],
-            '协调': chartTheme.chartPalette[1],
-            '租赁': chartTheme.chartPalette[2],
-            '未指定': chartTheme.dark ? '#697386' : '#cbd5e1'
+            '自建光缆': chartTheme.chartPalette[0],
+            '协调资源': chartTheme.chartPalette[1],
+            '租赁纤芯': chartTheme.chartPalette[2],
+            '未填写': chartTheme.dark ? '#697386' : '#cbd5e1'
         };
-        const resourceData = chartsData.resource.map(item => ({name: item.name, value: item.value, _duration: item.duration}));
+        const resourceTypeOrder = ['自建光缆', '协调资源', '租赁纤芯', '未填写'];
+        const resourceTypeRank = new Map(resourceTypeOrder.map((name, index) => [name, index]));
+        const resourceData = chartsData.resource
+            .map(item => ({name: item.name, value: item.value, _duration: item.duration}))
+            .sort((a, b) => (resourceTypeRank.get(a.name) ?? resourceTypeOrder.length) - (resourceTypeRank.get(b.name) ?? resourceTypeOrder.length));
         const resourceTotal = resourceData.reduce((sum, item) => sum + item.value, 0);
         function formatResourceMetricLabel(params) {
             const item = resourceData.find(resourceItem => resourceItem.name === params.name);
@@ -1539,6 +1543,7 @@ document.addEventListener("DOMContentLoaded", function() {
             yAxis: {
                 type: 'category',
                 data: resourceData.map(item => item.name),
+                inverse: true,
                 axisLabel: { show: false },
                 axisLine: { show: false },
                 axisTick: { show: false },
@@ -1549,11 +1554,17 @@ document.addEventListener("DOMContentLoaded", function() {
                 label: {
                     show: true,
                     position: 'bottom',
+                    align: 'left',
+                    distance: 8,
                     formatter: formatResourceMetricLabel,
                     color: chartTheme.heading,
                     fontSize: 11,
                     lineHeight: 15
                 },
+                labelLayout: params => ({
+                    x: params.rect.x,
+                    align: 'left',
+                }),
                 itemStyle: { borderRadius: [0, 4, 4, 0] },
                 data: resourceData.map(item => ({value: item.value, _duration: item._duration, itemStyle: { color: resourceColorMap[item.name] || chartTheme.primary }}))
             }]

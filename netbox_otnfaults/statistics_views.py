@@ -61,6 +61,13 @@ OVERALL_EXCLUDED_TOTAL_CATEGORIES: set[str] = {
 
 SOURCE_SUMMARY_ORDER: list[str] = ['自控', '第三方', '其他/未填']
 
+RESOURCE_TYPE_ORDER = [
+    ResourceTypeChoices.SELF_BUILT,
+    ResourceTypeChoices.COORDINATED,
+    ResourceTypeChoices.LEASED,
+    'unfilled',
+]
+
 
 def _source_group_for_fault(fault) -> str:
     if fault.resource_type in [ResourceTypeChoices.SELF_BUILT, ResourceTypeChoices.COORDINATED]:
@@ -81,6 +88,24 @@ def _ordered_source_items(counts: dict[str, int | float]) -> list[dict[str, int 
     return [
         {'name': name, 'value': counts.get(name, 0)}
         for name in SOURCE_SUMMARY_ORDER
+    ]
+
+
+def _build_resource_chart_data(resource_stats: dict[str, dict[str, object]]) -> list[dict[str, object]]:
+    resource_by_key = {
+        str(stats['id']): (name, stats)
+        for name, stats in resource_stats.items()
+    }
+    return [
+        {
+            'name': name,
+            'value': stats['count'],
+            'duration': round(float(stats['duration']), 2),
+            'key': stats['id'],
+        }
+        for resource_key in RESOURCE_TYPE_ORDER
+        if resource_key in resource_by_key
+        for name, stats in [resource_by_key[resource_key]]
     ]
 
 
@@ -768,9 +793,9 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                     repeat_faults_count += 1
 
             # 填充图表分配
-            # 1. 属性 (自建/租赁/协调)
-            r_type = fault.resource_type or '未指定'
-            r_type_display = fault.get_resource_type_display() if fault.resource_type else '未指定'
+            # 1. 属性 (自建/协调/租赁/未填写)
+            r_type = fault.resource_type or 'unfilled'
+            r_type_display = fault.get_resource_type_display() if fault.resource_type else '未填写'
             if r_type_display not in resource_stats:
                 resource_stats[r_type_display] = {'id': r_type, 'count': 0, 'duration': 0.0}
             resource_stats[r_type_display]['count'] += 1
@@ -880,7 +905,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'repeat_faults_count': prev_repeat_faults,
             },
             'charts': {
-                'resource': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2), 'key': v['id']} for k, v in resource_stats.items()],
+                'resource': _build_resource_chart_data(resource_stats),
                 'province': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(province_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
                 'reason': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(reason_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
                 'category': overall_category_stats,
