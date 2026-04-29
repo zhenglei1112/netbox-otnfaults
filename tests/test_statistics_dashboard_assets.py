@@ -26,7 +26,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
         self.assertIn("statistics_dashboard.css' %}?v=11", template)
-        self.assertIn("statistics_dashboard.js' %}?v=16", template)
+        self.assertIn("statistics_dashboard.js' %}?v=17", template)
 
     def test_statistics_dashboard_css_covers_light_and_dark_theme_surfaces(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -81,6 +81,18 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn("buildAxisTheme(chartTheme", script)
         self.assertIn("buildLegendTheme(chartTheme)", script)
         self.assertIn("new MutationObserver(refreshChartsForTheme)", script)
+
+    def test_statistics_dashboard_chart_grid_lines_are_not_dashed(self) -> None:
+        script = JS_PATH.read_text(encoding="utf-8")
+
+        split_line_fragments = [
+            fragment.split("}", 1)[0]
+            for fragment in script.split("splitLine:")[1:]
+        ]
+
+        self.assertGreater(len(split_line_fragments), 0)
+        for fragment in split_line_fragments:
+            self.assertNotIn("type: 'dashed'", fragment)
 
     def test_statistics_dashboard_exposes_metric_explanation_modal(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")

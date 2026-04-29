@@ -199,7 +199,7 @@ document.addEventListener("DOMContentLoaded", function() {
             axisTick: { lineStyle: { color: theme.axisLine } },
             axisLabel: Object.assign({ color: theme.muted }, axisLabelOverrides),
             nameTextStyle: { color: theme.muted },
-            splitLine: { lineStyle: { color: theme.border, type: 'dashed' } }
+            splitLine: { show: false }
         };
     }
 
@@ -843,7 +843,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     name: '次数',
                     minInterval: 1,
                     ...buildAxisTheme(chartTheme),
-                    splitLine: { show: true, lineStyle: { color: chartTheme.border, type: 'dashed' } },
+                    splitLine: { show: false },
                 },
                 {
                     type: 'value',
@@ -980,7 +980,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         return String(value);
                     },
                 },
-                splitLine: { show: true, lineStyle: { color: chartTheme.border, type: 'dashed' } },
+                splitLine: { show: false },
             },
             series: [{
                 name: '中断时长分布',
