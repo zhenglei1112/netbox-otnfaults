@@ -28,6 +28,7 @@ from django.conf import settings
 from django.urls import reverse
 from urllib.parse import urlencode
 from .map_modes import get_mode_config
+from .statistics_period import build_period_display
 from .statistics_views import _parse_time_range, get_cable_break_base_queryset
 from .utils import build_fault_colors_config, get_hex_color
 from .services.fault_map_data import (
@@ -41,6 +42,29 @@ from .view_mixins import ExcelFriendlyCSVExportMixin
 def get_plugin_settings():
     """获取插件配置"""
     return settings.PLUGINS_CONFIG.get('netbox_otnfaults', {})
+
+
+def _format_statistics_map_period_label(filter_type, start_date, end_date, now) -> str:
+    period = build_period_display(start_date, end_date, now)
+    start_text = period.get('start', '').replace('-', '.')
+    end_value = period.get('end', '')
+    end_text = end_value.replace('-', '.') if end_value else ''
+
+    if filter_type == 'month':
+        title = f"月统计 {start_date.year}年{start_date.month}月"
+    elif filter_type == 'quarter':
+        quarter = ((start_date.month - 1) // 3) + 1
+        title = f"季度统计 {start_date.year}年第{quarter}季度"
+    elif filter_type == 'half':
+        half_label = '上半年' if start_date.month <= 6 else '下半年'
+        title = f"半年统计 {start_date.year}年{half_label}"
+    elif filter_type == 'week':
+        title = f"周统计 {start_date.year}年{start_date.month}月{start_date.day}日"
+    else:
+        title = f"年统计 {start_date.year}年"
+
+    return f"{title}（{start_text}至{end_text}）"
+
 
 class OtnFaultListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
     """OTN故障列表视图"""
@@ -148,6 +172,8 @@ class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
             map_data_url = f"{map_data_url}?{urlencode(time_params)}"
 
         is_embedded_map = request.GET.get('modal') == 'true'
+        start_date, end_date, _prev_start_date, _prev_end_date, filter_type = _parse_time_range(request)
+        now = timezone.localtime()
 
         return render(request, 'netbox_otnfaults/unified_map.html', {
             'map_mode': 'statistics_cable_break',
@@ -156,6 +182,7 @@ class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
             'layers_config': json.dumps(mode_config.get('layers', {})),
             'projection': mode_config.get('projection', 'mercator'),
             'map_data_url': map_data_url,
+            'map_period_label': _format_statistics_map_period_label(filter_type, start_date, end_date, now),
             'apikey': plugin_settings.get('map_api_key', ''),
             'map_center': json.dumps(plugin_settings.get('map_default_center', [112.53, 33.00])),
             'map_zoom': plugin_settings.get('map_default_zoom', 4.2),

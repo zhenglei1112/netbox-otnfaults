@@ -13,6 +13,7 @@ from django.views import View
 from datetime import timedelta, date
 from django.db.models.functions import TruncDate, Coalesce, Cast
 from decimal import Decimal
+import math
 from urllib.parse import quote
 
 from .models import (
@@ -37,6 +38,21 @@ PHYSICAL_DAILY_CATEGORY_ORDER: list[tuple[str, str, str]] = [
     (FaultCategoryChoices.AC_FAULT, '空调故障', '#0d6efd'),
     (FaultCategoryChoices.DEVICE_FAULT, '设备故障', '#fd7e14'),
 ]
+
+PHYSICAL_WEEK_MONTH_LABELS: dict[int, str] = {
+    1: '一月',
+    2: '二月',
+    3: '三月',
+    4: '四月',
+    5: '五月',
+    6: '六月',
+    7: '七月',
+    8: '八月',
+    9: '九月',
+    10: '十月',
+    11: '十一月',
+    12: '十二月',
+}
 
 OVERALL_EXCLUDED_TOTAL_CATEGORIES: set[str] = {
     FaultCategoryChoices.FIBER_DEGRADATION,
@@ -181,52 +197,75 @@ def _build_boxplot_outlier_points(labels: list[str], samples: dict[str, list[flo
     ]
 
 
-def _resolve_physical_daily_range(start_date, end_date, filter_type) -> tuple:
-    if filter_type == 'week':
-        return start_date - timedelta(days=5), end_date + timedelta(days=5)
-    return start_date, end_date
+def _resolve_physical_daily_range(now) -> tuple:
+    current_timezone = timezone.get_current_timezone()
+    year_start = timezone.datetime(now.year, 1, 1, tzinfo=current_timezone)
+    year_end = timezone.datetime(now.year + 1, 1, 1, tzinfo=current_timezone)
+    return year_start, year_end
+
+
+def _format_physical_week_label(week_start: date, month_week_counts: dict[int, int]) -> str:
+    month_week_counts[week_start.month] = month_week_counts.get(week_start.month, 0) + 1
+    return f"{PHYSICAL_WEEK_MONTH_LABELS[week_start.month]}第{month_week_counts[week_start.month]}周"
+
+
+def _build_physical_week_ranges(period_start, period_end) -> list[dict[str, str]]:
+    ranges: list[dict[str, str]] = []
+    month_week_counts: dict[int, int] = {}
+    cursor = period_start.date()
+    end_day = period_end.date()
+    while cursor < end_day:
+        week_end = min(cursor + timedelta(days=7), end_day)
+        label_end = week_end - timedelta(days=1)
+        ranges.append({
+            'key': cursor.isoformat(),
+            'label': _format_physical_week_label(cursor, month_week_counts),
+            'start': cursor.isoformat(),
+            'end': label_end.isoformat(),
+        })
+        cursor = week_end
+    return ranges
 
 
 def _build_physical_daily_fault_series(period_start, period_end, faults: list, now=None) -> dict[str, list]:
     now = now or timezone.localtime()
 
-    labels: list[str] = []
+    day_labels: list[str] = []
     cursor = period_start.date()
     end_day = period_end.date()
     while cursor < end_day:
-        labels.append(cursor.isoformat())
+        day_labels.append(cursor.isoformat())
         cursor += timedelta(days=1)
+    week_ranges = _build_physical_week_ranges(period_start, period_end)
 
-    category_labels = {
-        category: label
-        for category, label, _color in PHYSICAL_DAILY_CATEGORY_ORDER
-    }
-    counts: dict[str, dict[str, int]] = {
-        label: {day: 0 for day in labels}
-        for _category, label, _color in PHYSICAL_DAILY_CATEGORY_ORDER
-    }
-    duration_buckets: dict[str, float] = {day: 0.0 for day in labels}
-    duration_samples: dict[str, list[float]] = {day: [] for day in labels}
+    daily_counts: dict[str, int] = {day: 0 for day in day_labels}
+    weekly_counts: dict[str, int] = {week['key']: 0 for week in week_ranges}
+    daily_durations: dict[str, float] = {day: 0.0 for day in day_labels}
+    weekly_durations: dict[str, float] = {week['key']: 0.0 for week in week_ranges}
+    duration_samples: dict[str, list[float]] = {day: [] for day in day_labels}
     boxplot_samples: dict[str, dict[str, list[float]]] = {
-        'all': {day: [] for day in labels},
-        'exclude_short': {day: [] for day in labels},
-        'exclude_rectification': {day: [] for day in labels},
-        'exclude_short_rectification': {day: [] for day in labels},
+        'all': {day: [] for day in day_labels},
+        'exclude_short': {day: [] for day in day_labels},
+        'exclude_rectification': {day: [] for day in day_labels},
+        'exclude_short_rectification': {day: [] for day in day_labels},
     }
 
     for fault in faults:
-        label = category_labels.get(fault.fault_category)
-        if not label or not fault.fault_occurrence_time:
+        if not fault.fault_occurrence_time:
             continue
         fault_start = timezone.localtime(fault.fault_occurrence_time)
         local_day = fault_start.date().isoformat()
-        if local_day in counts[label]:
-            counts[label][local_day] += 1
+        if local_day in daily_counts:
+            daily_counts[local_day] += 1
             fault_end = timezone.localtime(fault.fault_recovery_time) if fault.fault_recovery_time else now
             total_duration = (fault_end - fault_start).total_seconds() / 3600.0
             duration_hours = total_duration
             duration_samples[local_day].append(total_duration)
-            duration_buckets[local_day] += total_duration
+            daily_durations[local_day] += total_duration
+            week_key = next((week['key'] for week in week_ranges if week['start'] <= local_day <= week['end']), None)
+            if week_key:
+                weekly_counts[week_key] += 1
+                weekly_durations[week_key] += total_duration
             reason = fault.get_interruption_reason_display() if fault.interruption_reason else ''
             boxplot_samples['all'][local_day].append(total_duration)
             if duration_hours > 0.5:
@@ -237,29 +276,34 @@ def _build_physical_daily_fault_series(period_start, period_end, faults: list, n
                 boxplot_samples['exclude_short_rectification'][local_day].append(total_duration)
 
     return {
-        'labels': labels,
-        'durations': [round(duration_buckets[day], 2) for day in labels],
-        'boxplot': [_calculate_boxplot_values(duration_samples[day]) for day in labels],
-        'boxplot_outliers': _build_boxplot_outlier_points(labels, duration_samples),
+        'labels': day_labels,
+        'day_labels': day_labels,
+        'week_labels': [week['label'] for week in week_ranges],
+        'day_counts': [daily_counts[day] for day in day_labels],
+        'week_counts': [weekly_counts[week['key']] for week in week_ranges],
+        'day_durations': [round(daily_durations[day], 2) for day in day_labels],
+        'week_durations': [round(weekly_durations[week['key']], 2) for week in week_ranges],
+        'durations': [round(daily_durations[day], 2) for day in day_labels],
+        'boxplot': [_calculate_boxplot_values(duration_samples[day]) for day in day_labels],
+        'boxplot_outliers': _build_boxplot_outlier_points(day_labels, duration_samples),
         'boxplot_options': {
-            'all': [_calculate_boxplot_values(boxplot_samples['all'][day]) for day in labels],
-            'exclude_short': [_calculate_boxplot_values(boxplot_samples['exclude_short'][day]) for day in labels],
-            'exclude_rectification': [_calculate_boxplot_values(boxplot_samples['exclude_rectification'][day]) for day in labels],
-            'exclude_short_rectification': [_calculate_boxplot_values(boxplot_samples['exclude_short_rectification'][day]) for day in labels],
+            'all': [_calculate_boxplot_values(boxplot_samples['all'][day]) for day in day_labels],
+            'exclude_short': [_calculate_boxplot_values(boxplot_samples['exclude_short'][day]) for day in day_labels],
+            'exclude_rectification': [_calculate_boxplot_values(boxplot_samples['exclude_rectification'][day]) for day in day_labels],
+            'exclude_short_rectification': [_calculate_boxplot_values(boxplot_samples['exclude_short_rectification'][day]) for day in day_labels],
         },
         'boxplot_outlier_options': {
-            'all': _build_boxplot_outlier_points(labels, boxplot_samples['all']),
-            'exclude_short': _build_boxplot_outlier_points(labels, boxplot_samples['exclude_short']),
-            'exclude_rectification': _build_boxplot_outlier_points(labels, boxplot_samples['exclude_rectification']),
-            'exclude_short_rectification': _build_boxplot_outlier_points(labels, boxplot_samples['exclude_short_rectification']),
+            'all': _build_boxplot_outlier_points(day_labels, boxplot_samples['all']),
+            'exclude_short': _build_boxplot_outlier_points(day_labels, boxplot_samples['exclude_short']),
+            'exclude_rectification': _build_boxplot_outlier_points(day_labels, boxplot_samples['exclude_rectification']),
+            'exclude_short_rectification': _build_boxplot_outlier_points(day_labels, boxplot_samples['exclude_short_rectification']),
         },
         'series': [
             {
-                'name': label,
-                'color': color,
-                'data': [counts[label][day] for day in labels],
+                'name': '光缆中断',
+                'color': '#dc3545',
+                'data': [daily_counts[day] for day in day_labels],
             }
-            for _category, label, color in PHYSICAL_DAILY_CATEGORY_ORDER
         ],
     }
 
@@ -301,11 +345,11 @@ def _format_local_datetime(value) -> str:
 
 
 def _duration_histogram_bucket_index(duration_hours: float) -> int:
-    return min(12, int(duration_hours))
+    return min(25, max(1, math.ceil(duration_hours)))
 
 
 def _duration_histogram_bucket_label(bucket: int) -> str:
-    return f"[{bucket}, {bucket + 1})" if bucket < 12 else "≥12"
+    return str(bucket) if bucket <= 24 else '>24'
 
 
 def _compute_cable_break_overview(faults: list, now) -> dict:
@@ -341,7 +385,7 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
     cb_noncons_dur = 0.0
     duration_values: list[float] = []
     timeout_count = 0
-    histogram: dict[int, int] = {i: 0 for i in range(13)}
+    histogram: dict[int, int] = {i: 0 for i in range(1, 26)}
 
     for fault in cable_break_faults:
         reason = fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知'
@@ -415,7 +459,7 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
     }
 
     hist_data = []
-    for i in range(13):
+    for i in range(1, 26):
         label = _duration_histogram_bucket_label(i)
         count = histogram[i]
         pct = round(count * 100.0 / cb_count, 1) if cb_count > 0 else 0.0
@@ -579,13 +623,12 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         overall_total_count = len(overall_faults)
         overall_category_stats = _build_fault_category_summary(overall_faults, now)
         other_overview = _build_other_fault_summary(all_faults, all_suspended_faults_count)
-        physical_daily_start, physical_daily_end = _resolve_physical_daily_range(start_date, end_date, filter_type)
+        physical_daily_start, physical_daily_end = _resolve_physical_daily_range(now)
         physical_daily_faults = list(
             qs_all.filter(
+                fault_occurrence_time__gte=physical_daily_start,
                 fault_occurrence_time__lt=physical_daily_end,
-                fault_category__in=[category for category, _label, _color in PHYSICAL_DAILY_CATEGORY_ORDER],
-            ).filter(
-                Q(fault_recovery_time__isnull=True) | Q(fault_recovery_time__gt=physical_daily_start)
+                fault_category=FaultCategoryChoices.FIBER_BREAK,
             ).exclude(
                 fault_status=FaultStatusChoices.SUSPENDED
             )
@@ -593,7 +636,9 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         physical_daily_stats = _build_physical_daily_fault_series(physical_daily_start, physical_daily_end, physical_daily_faults, now)
 
         # 提取当前期光缆中断故障
-        faults = list(get_cable_break_base_queryset(start_date, end_date))
+        physical_duration_boxplot_faults = list(get_cable_break_base_queryset(start_date, end_date))
+        physical_duration_boxplot_stats = _build_physical_daily_fault_series(start_date, end_date, physical_duration_boxplot_faults, now)
+        faults = physical_duration_boxplot_faults
         
         # 提取上一期故障并计算其 KPI
         prev_total_count = 0
@@ -840,6 +885,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'reason': [{'name': k, 'value': v['count'], 'duration': round(v['duration'], 2)} for k, v in sorted(reason_stats.items(), key=lambda item: item[1]['count'], reverse=True)],
                 'category': overall_category_stats,
                 'physical_daily': physical_daily_stats,
+                'physical_duration_boxplot': physical_duration_boxplot_stats,
             },
             'prev_charts': {
                 'category': prev_overall_category_stats,

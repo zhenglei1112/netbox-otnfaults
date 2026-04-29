@@ -152,6 +152,7 @@
     layers: {{ layers_config|safe }},
     projection: '{{ projection }}',
     mapDataUrl: '{{ map_data_url|escapejs }}',
+    mapPeriodLabel: '{{ map_period_label|default_if_none:""|escapejs }}',
     disable3dBuildings: {{ disable_3d_buildings|yesno:"true,false" }},
     userGeojsonUrl: '{% static "netbox_otnfaults/data/中国_省.geojson" %}',
     {% if colors_config %}colorsConfig: {{ colors_config|safe }},{% endif %}

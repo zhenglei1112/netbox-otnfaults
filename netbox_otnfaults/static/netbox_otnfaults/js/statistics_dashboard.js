@@ -12,9 +12,15 @@ document.addEventListener("DOMContentLoaded", function() {
     let chartPhysicalDaily = chartPhysicalDailyElement ? echarts.init(chartPhysicalDailyElement) : null;
     const chartPhysicalDurationBoxplotElement = document.getElementById('chart-physical-duration-boxplot');
     let chartPhysicalDurationBoxplot = chartPhysicalDurationBoxplotElement ? echarts.init(chartPhysicalDurationBoxplotElement) : null;
+    const physicalDailyMetricInputs = Array.from(document.querySelectorAll('input[name="physicalDailyMetric"]'));
+    const physicalDailyGranularityInputs = Array.from(document.querySelectorAll('input[name="physicalDailyGranularity"]'));
     const physicalBoxplotFilterShort = document.getElementById('physical-boxplot-filter-short');
     const physicalBoxplotFilterRectification = document.getElementById('physical-boxplot-filter-rectification');
     const physicalBoxplotLogScale = document.getElementById('physical-boxplot-log-scale');
+    const cableBreakMetricsToggle = document.getElementById('cable-break-metrics-toggle');
+    const cableBreakDeferredMetrics = document.getElementById('cable-break-deferred-metrics');
+    const statisticsPage = document.querySelector('.page-statistics');
+    const btnStatisticsFullscreen = document.getElementById('statistics-fullscreen-btn');
     
     let excludedCategories = {
         resource_type: new Set(),
@@ -40,7 +46,43 @@ document.addEventListener("DOMContentLoaded", function() {
         if (chartPhysicalDurationBoxplot) chartPhysicalDurationBoxplot.resize();
     }
 
+    function isStatisticsFullscreen() {
+        return document.fullscreenElement === statisticsPage;
+    }
+
+    function syncStatisticsFullscreenState() {
+        const active = isStatisticsFullscreen();
+        if (statisticsPage) {
+            statisticsPage.classList.toggle('is-statistics-fullscreen', active);
+        }
+        if (btnStatisticsFullscreen) {
+            const icon = btnStatisticsFullscreen.querySelector('.mdi');
+            const label = active ? '退出故障统计全屏' : '最大化故障统计页面';
+            btnStatisticsFullscreen.setAttribute('aria-pressed', active ? 'true' : 'false');
+            btnStatisticsFullscreen.setAttribute('aria-label', label);
+            btnStatisticsFullscreen.setAttribute('title', label);
+            if (icon) {
+                icon.classList.toggle('mdi-fullscreen', !active);
+                icon.classList.toggle('mdi-fullscreen-exit', active);
+            }
+        }
+        setTimeout(resizeStatisticsCharts, 150);
+    }
+
+    function toggleStatisticsFullscreen() {
+        if (!statisticsPage || !document.fullscreenEnabled) return;
+        if (isStatisticsFullscreen()) {
+            document.exitFullscreen();
+            return;
+        }
+        statisticsPage.requestFullscreen().catch(() => {});
+    }
+
     window.addEventListener('resize', resizeStatisticsCharts);
+    document.addEventListener('fullscreenchange', syncStatisticsFullscreenState);
+    if (btnStatisticsFullscreen) {
+        btnStatisticsFullscreen.addEventListener('click', toggleStatisticsFullscreen);
+    }
 
     // ---------------- 统一事件绑定 ----------------
     // 点击下钻
@@ -71,15 +113,27 @@ document.addEventListener("DOMContentLoaded", function() {
     let activeFilterLabel = null;
 
     if (physicalBoxplotFilterShort) {
-        physicalBoxplotFilterShort.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_daily, selFilterType.value));
+        physicalBoxplotFilterShort.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_duration_boxplot, selFilterType.value));
     }
     if (physicalBoxplotFilterRectification) {
-        physicalBoxplotFilterRectification.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_daily, selFilterType.value));
+        physicalBoxplotFilterRectification.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_duration_boxplot, selFilterType.value));
     }
     if (physicalBoxplotLogScale) {
-        physicalBoxplotLogScale.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_daily, selFilterType.value));
+        physicalBoxplotLogScale.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_duration_boxplot, selFilterType.value));
     }
+    physicalDailyMetricInputs.forEach(input => input.addEventListener('change', () => renderOverallDailyFaultChart(currentChartsData && currentChartsData.physical_daily)));
+    physicalDailyGranularityInputs.forEach(input => input.addEventListener('change', () => renderOverallDailyFaultChart(currentChartsData && currentChartsData.physical_daily)));
 
+    if (cableBreakMetricsToggle && cableBreakDeferredMetrics) {
+        cableBreakMetricsToggle.addEventListener('click', () => {
+            const expanded = cableBreakMetricsToggle.getAttribute('aria-expanded') !== 'true';
+            cableBreakDeferredMetrics.classList.toggle('d-none', !expanded);
+            cableBreakMetricsToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            cableBreakMetricsToggle.textContent = expanded
+                ? cableBreakMetricsToggle.dataset.expandedLabel
+                : cableBreakMetricsToggle.dataset.collapsedLabel;
+        });
+    }
     // ---------------- DOM 元素 ----------------
     const selFilterType = document.getElementById('filterType');
     const inputDate = document.getElementById('filterDate');
@@ -176,8 +230,8 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         if (currentChartsData) {
             renderCharts(currentChartsData);
-            renderOverallDailyFaultChart(currentChartsData.physical_daily, selFilterType.value);
-            renderPhysicalDurationBoxplot(currentChartsData.physical_daily, selFilterType.value);
+            renderOverallDailyFaultChart(currentChartsData.physical_daily);
+            renderPhysicalDurationBoxplot(currentChartsData.physical_duration_boxplot, selFilterType.value);
         }
     }
 
@@ -562,8 +616,8 @@ document.addEventListener("DOMContentLoaded", function() {
             renderKPIs(data.kpis, data.prev_kpis, selFilterType.value);
             renderOverallSummary(data.kpis, data.charts, data.prev_charts);
             renderOverallOtherSummary(data.other_overview, data.prev_other_overview);
-            renderOverallDailyFaultChart(data.charts && data.charts.physical_daily, selFilterType.value);
-            renderPhysicalDurationBoxplot(data.charts && data.charts.physical_daily, selFilterType.value);
+            renderOverallDailyFaultChart(data.charts && data.charts.physical_daily);
+            renderPhysicalDurationBoxplot(data.charts && data.charts.physical_duration_boxplot, selFilterType.value);
             currentCableBreakOverview = data.cable_break_overview || null;
             currentPrevCableBreakOverview = data.prev_cable_break_overview || null;
             currentChartsData = data.charts || null;
@@ -665,21 +719,22 @@ document.addEventListener("DOMContentLoaded", function() {
         otherList.innerHTML = buildFlexGroup(items, "起", "", "text-indigo", prevItems);
     }
 
-    function isPhysicalDailyLineMode(filterType) {
-        return filterType === 'half' || filterType === 'year';
-    }
-
     function parsePhysicalDailyLabelDate(value) {
         const parts = String(value).split('-').map(Number);
         if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
         return { month: parts[1], day: parts[2] };
     }
 
+    function formatPhysicalWeeklyAxisLabel(value) {
+        return String(value).split('第', 1)[0];
+    }
+
     function formatPhysicalDailyAxisLabel(value, filterType) {
+        if (filterType === 'week') return formatPhysicalWeeklyAxisLabel(value);
         const dateParts = parsePhysicalDailyLabelDate(value);
         if (!dateParts) return value;
         const { month, day } = dateParts;
-        if (filterType === 'week' || filterType === 'month') {
+        if (filterType === 'month') {
             return `${month}/${day}`;
         }
         if (filterType === 'quarter') {
@@ -689,10 +744,10 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function shouldShowPhysicalDailyAxisLabel(index, value, filterType) {
+        if (filterType === 'week') return String(value).includes('第1周');
         const dateParts = parsePhysicalDailyLabelDate(value);
         if (!dateParts) return true;
         const day = dateParts.day;
-        if (filterType === 'week') return true;
         if (filterType === 'month') return index === 0 || day === 1 || day % 3 === 0;
         if (filterType === 'quarter') return index === 0 || day === 1 || day % 10 === 0;
         return day === 1;
@@ -705,77 +760,78 @@ document.addEventListener("DOMContentLoaded", function() {
         return ['4%', '18%'];
     }
 
-    function renderOverallDailyFaultChart(dailyData, filterType) {
+    function getSelectedPhysicalDailyMetric() {
+        const checked = physicalDailyMetricInputs.find(input => input.checked);
+        return checked ? checked.value : 'count';
+    }
+
+    function getSelectedPhysicalDailyGranularity() {
+        const checked = physicalDailyGranularityInputs.find(input => input.checked);
+        return checked ? checked.value : 'day';
+    }
+
+    function getSelectedPhysicalDailySeriesData(dailyData) {
+        const selectedMetric = getSelectedPhysicalDailyMetric();
+        const selectedGranularity = getSelectedPhysicalDailyGranularity();
+        const labels = selectedGranularity === 'week' ? (dailyData.week_labels || []) : (dailyData.day_labels || dailyData.labels || []);
+        const values = selectedMetric === 'duration'
+            ? (selectedGranularity === 'week' ? (dailyData.week_durations || []) : (dailyData.day_durations || dailyData.durations || []))
+            : (selectedGranularity === 'week' ? (dailyData.week_counts || []) : (dailyData.day_counts || ((dailyData.series || [])[0] || {}).data || []));
+        return { labels, values };
+    }
+
+    function renderOverallDailyFaultChart(dailyData) {
         if (!chartPhysicalDaily || !dailyData) return;
 
         const chartTheme = getChartTheme();
-        const labels = dailyData.labels || [];
-        const durations = dailyData.durations || [];
-        const useLineBars = isPhysicalDailyLineMode(filterType);
-        const fallbackColors = {
-            '光缆中断': '#dc3545',
-            '供电故障': '#6f42c1',
-            '空调故障': '#0d6efd',
-            '设备故障': '#fd7e14',
-        };
-        const series = (dailyData.series || []).map(item => ({
-            name: item.name,
-            type: 'bar',
-            stack: 'physical_faults',
-            barWidth: useLineBars ? 2 : '65%',
-            barMaxWidth: useLineBars ? 2 : 14,
-            emphasis: { focus: 'series' },
-            itemStyle: { color: item.color || fallbackColors[item.name] || chartTheme.primary },
-            data: item.data || [],
-        })).concat([{
-            name: '中断时长',
-            type: 'line',
-            yAxisIndex: 1,
-            smooth: true,
+        const selectedMetric = getSelectedPhysicalDailyMetric();
+        const selectedGranularity = getSelectedPhysicalDailyGranularity();
+        const selectedData = getSelectedPhysicalDailySeriesData(dailyData);
+        const isCountMetric = selectedMetric === 'count';
+        const isWeekGranularity = selectedGranularity === 'week';
+        const seriesName = isCountMetric ? '中断数量' : '中断时长';
+        const seriesColor = isCountMetric ? '#dc3545' : chartTheme.muted;
+        const series = [{
+            name: seriesName,
+            type: isCountMetric ? 'bar' : 'line',
+            yAxisIndex: isCountMetric ? 0 : 1,
+            smooth: !isCountMetric,
             showSymbol: false,
-            lineStyle: { width: 2, color: chartTheme.muted, type: 'dashed' },
-            itemStyle: { color: chartTheme.muted },
-            data: durations,
-        }]);
+            barWidth: isCountMetric ? (isWeekGranularity ? '65%' : 2) : undefined,
+            barMaxWidth: isCountMetric ? (isWeekGranularity ? 18 : 2) : undefined,
+            emphasis: { focus: 'series' },
+            lineStyle: { width: isCountMetric ? 1.5 : 2, color: seriesColor, type: 'solid' },
+            itemStyle: { color: seriesColor },
+            data: selectedData.values || [],
+        }];
 
         chartPhysicalDaily.setOption({
             textStyle: { color: chartTheme.text },
-            color: (dailyData.series || []).map(item => item.color || fallbackColors[item.name] || chartTheme.primary).concat([chartTheme.muted]),
+            color: [seriesColor],
             tooltip: {
                 ...buildTooltipTheme(chartTheme),
                 trigger: 'axis',
-                axisPointer: { type: useLineBars ? 'line' : 'shadow', lineStyle: { color: chartTheme.axisLine } },
+                axisPointer: { type: isCountMetric && isWeekGranularity ? 'shadow' : 'line', lineStyle: { color: chartTheme.axisLine } },
                 formatter: function(params) {
-                    const countParams = params.filter(item => item.seriesType === 'bar');
-                    const durationParam = params.find(item => item.seriesName === '中断时长');
-                    const total = countParams.reduce((sum, item) => sum + Number(item.value || 0), 0);
-                    const rows = params
-                        .filter(item => item.seriesType === 'bar' && Number(item.value || 0) > 0)
-                        .map(item => {
-                            return `${item.marker}${item.seriesName}: ${item.value}起`;
-                        })
-                        .join('<br/>');
-                    const durationText = durationParam ? `<br/><span style="margin-left:14px;">中断时长合计: ${Number(durationParam.value || 0).toFixed(2)}小时</span>` : '';
-                    return `${params[0].axisValue}<br/>${rows || '无物理故障'}<br/><span style="margin-left:14px;">故障合计: ${total}起</span>${durationText}`;
+                    const item = Array.isArray(params) ? params[0] : params;
+                    const value = Number(item.value || 0);
+                    const unit = isCountMetric ? '次' : '小时';
+                    const displayValue = isCountMetric ? String(Math.round(value)) : value.toFixed(2);
+                    return `${item.axisValue}<br/>${item.marker}${item.seriesName}: ${displayValue}${unit}`;
                 }
             },
-            legend: {
-                top: 8,
-                left: 'center',
-                type: 'scroll',
-                ...buildLegendTheme(chartTheme)
-            },
+            legend: { show: false },
             grid: buildPhysicalDailyChartGrid(),
             xAxis: {
                 type: 'category',
-                data: labels,
+                data: selectedData.labels || [],
                 axisLabel: {
                     color: chartTheme.muted,
                     formatter: function(value) {
-                        return formatPhysicalDailyAxisLabel(value, filterType);
+                        return formatPhysicalDailyAxisLabel(value, selectedGranularity);
                     },
                     interval: function(index, value) {
-                        return shouldShowPhysicalDailyAxisLabel(index, value, filterType);
+                        return shouldShowPhysicalDailyAxisLabel(index, value, selectedGranularity);
                     },
                 },
                 axisLine: { lineStyle: { color: chartTheme.axisLine } },
@@ -784,7 +840,7 @@ document.addEventListener("DOMContentLoaded", function() {
             yAxis: [
                 {
                     type: 'value',
-                    name: '物理故障数',
+                    name: '次数',
                     minInterval: 1,
                     ...buildAxisTheme(chartTheme),
                     splitLine: { show: true, lineStyle: { color: chartTheme.border, type: 'dashed' } },
@@ -1223,17 +1279,6 @@ document.addEventListener("DOMContentLoaded", function() {
         const currentDuration = Number(overview.total_duration || 0);
         const prevDuration = Number(prevOverview.total_duration || 0);
         const durationTotalList = document.getElementById('cable-break-duration-total-list');
-        if (durationTotalList) {
-            durationTotalList.innerHTML = buildFlexGroup([{
-                name: "总历时",
-                value: currentDuration,
-                prevValue: prevDuration,
-                filterField: "category",
-                filterValue: "光缆中断",
-                filterLabel: "中断历时",
-                id: "cable-break-total-duration",
-            }], "时", "", "text-indigo", [{name: "总历时", value: prevDuration}]);
-        }
 
         const durReasonItems = normalizeTopItems((overview.reason_duration_top3 || []).map(i => ({
             name: i.name || i.title,
@@ -1257,7 +1302,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // 平均历时
         const prevMetrics = prevOverview.avg_metrics || {};
-        const overallAverageList = document.getElementById('cable-break-average-overall-list');
         const durationMetricsList = document.getElementById('cable-break-duration-metrics-flex-list');
         const filteredAverageList = document.getElementById('cable-break-filtered-average-flex-list');
         if (overview.avg_metrics) {
@@ -1363,14 +1407,34 @@ document.addEventListener("DOMContentLoaded", function() {
             const prevOverallAverageItems = overallAverageItems.map(item => ({name: item.name, value: item.prevValue}));
             const prevDurationMetricItems = durationMetricItems.map(item => ({name: item.name, value: item.prevValue}));
             const prevFilteredAverageItems = filteredAverageItems.map(item => ({name: item.name, value: item.prevValue}));
-            if (overallAverageList) {
-                overallAverageList.innerHTML = buildFlexGroup(overallAverageItems, "时", "", "text-indigo", prevOverallAverageItems);
+            const durationSummaryItems = [
+                {
+                    name: "总历时",
+                    value: currentDuration,
+                    prevValue: prevDuration,
+                    unit: "时",
+                    filterField: "category",
+                    filterValue: "光缆中断",
+                    filterLabel: "中断历时",
+                    id: "cable-break-total-duration",
+                },
+                ...overallAverageItems,
+                ...filteredAverageItems.slice(0, 1),
+                ...durationMetricItems.slice(2),
+            ];
+            const prevDurationSummaryItems = durationSummaryItems.map(item => ({name: item.name, value: item.prevValue}));
+            const remainingFilteredAverageItems = filteredAverageItems.slice(1);
+            const prevRemainingFilteredAverageItems = prevFilteredAverageItems.slice(1);
+            const repairPercentileItems = durationMetricItems.slice(0, 2);
+            const prevRepairPercentileItems = prevDurationMetricItems.slice(0, 2);
+            if (durationTotalList) {
+                durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems);
             }
             if (durationMetricsList) {
-                durationMetricsList.innerHTML = buildFlexGroup(durationMetricItems, "", "", "text-indigo", prevDurationMetricItems);
+                durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems);
             }
             if (filteredAverageList) {
-                filteredAverageList.innerHTML = buildFlexGroup(filteredAverageItems, "时", "", "text-indigo", prevFilteredAverageItems);
+                filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems);
             }
         }
         
@@ -1390,13 +1454,13 @@ document.addEventListener("DOMContentLoaded", function() {
                         return `${p.name} 小时<br/>数量：${p.value}起 (${p.data._percent}%)`;
                     }
                 },
-                grid: { top: 62, left: '3%', right: '4%', bottom: 42, containLabel: true },
+                grid: { top: 32, left: 12, right: 12, bottom: 30, containLabel: true },
                 xAxis: { 
                     type: 'category', 
                     data: histLabels,
                     name: '历时(小时)',
                     nameLocation: 'middle',
-                    nameGap: 30,
+                    nameGap: 24,
                     ...buildAxisTheme(chartTheme, { interval: 0, fontSize: 11 })
                 },
                 yAxis: {
@@ -1440,38 +1504,58 @@ document.addEventListener("DOMContentLoaded", function() {
             '租赁': chartTheme.chartPalette[2],
             '未指定': chartTheme.dark ? '#697386' : '#cbd5e1'
         };
+        const resourceData = chartsData.resource.map(item => ({name: item.name, value: item.value, _duration: item.duration}));
+        const resourceTotal = resourceData.reduce((sum, item) => sum + item.value, 0);
+        function formatResourceMetricLabel(params) {
+            const item = resourceData.find(resourceItem => resourceItem.name === params.name);
+            if (!item) return params.name;
+            const percent = resourceTotal > 0 ? ((item.value / resourceTotal) * 100).toFixed(2) : "0.00";
+            return `${params.name}\n${params.value}次 ${percent}%`;
+        }
         chartResource.setOption({
             textStyle: { color: chartTheme.text },
             tooltip: { 
                 ...buildTooltipTheme(chartTheme),
-                trigger: 'item', 
+                trigger: 'axis',
+                axisPointer: { type: 'shadow', shadowStyle: { color: chartTheme.dark ? 'rgba(110, 168, 254, 0.14)' : 'rgba(32, 107, 196, 0.1)' } },
                 formatter: params => {
-                    let avg = params.value > 0 ? (params.data._duration / params.value).toFixed(2) : "0.00";
-                    return `${params.marker}${params.name}: ${params.value}次 (${params.percent}%)<br/>` +
-                           `<span style="margin-left:14px;">总历时: ${params.data._duration} 小时</span><br/>` +
+                    let p = params[0];
+                    let percent = resourceTotal > 0 ? ((p.value / resourceTotal) * 100).toFixed(2) : "0.00";
+                    let avg = p.value > 0 ? (p.data._duration / p.value).toFixed(2) : "0.00";
+                    return `${p.marker || ''}${p.name}: ${p.value}次 (${percent}%)<br/>` +
+                           `<span style="margin-left:14px;">总历时: ${p.data._duration} 小时</span><br/>` +
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
             },
-            legend: { bottom: 0, type: 'scroll', ...buildLegendTheme(chartTheme) },
+            grid: { top: 12, left: 16, right: 16, bottom: 12, containLabel: false },
+            xAxis: {
+                type: 'value',
+                minInterval: 1,
+                axisLabel: { show: false },
+                axisLine: { show: false },
+                axisTick: { show: false },
+                splitLine: { show: false },
+            },
+            yAxis: {
+                type: 'category',
+                data: resourceData.map(item => item.name),
+                axisLabel: { show: false },
+                axisLine: { show: false },
+                axisTick: { show: false },
+            },
             series: [{
-                type: 'pie',
-                radius: ['45%', '75%'],
-                center: ['50%', '45%'],
+                type: 'bar',
+                barMaxWidth: 28,
                 label: {
                     show: true,
-                    ...buildPieLabelTheme(chartTheme),
-                    formatter: formatPieSliceLabel,
-                    alignTo: 'edge',
-                    edgeDistance: 10,
-                    lineHeight: 15,
-                    fontSize: 11
+                    position: 'bottom',
+                    formatter: formatResourceMetricLabel,
+                    color: chartTheme.heading,
+                    fontSize: 11,
+                    lineHeight: 15
                 },
-                labelLine: { lineStyle: { color: chartTheme.border } },
-                itemStyle: {
-                    color: function(params) { return resourceColorMap[params.name] || '#5470c6'; },
-                    borderRadius: 5, borderColor: chartTheme.surface, borderWidth: 2
-                },
-                data: chartsData.resource.map(item => ({name: item.name, value: item.value, _duration: item.duration}))
+                itemStyle: { borderRadius: [0, 4, 4, 0] },
+                data: resourceData.map(item => ({value: item.value, _duration: item._duration, itemStyle: { color: resourceColorMap[item.name] || chartTheme.primary }}))
             }]
         });
 
@@ -1491,7 +1575,7 @@ document.addEventListener("DOMContentLoaded", function() {
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
             },
-            grid: { top: 30, left: '3%', right: '4%', bottom: '15%', containLabel: true },
+            grid: { top: 18, left: 12, right: 12, bottom: 42, containLabel: true },
             xAxis: { 
                 type: 'category', 
                 data: provData.map(item => item.name),
@@ -1507,9 +1591,22 @@ document.addEventListener("DOMContentLoaded", function() {
         });
 
         // 3. 一级原因 (Pie)
+        const reasonData = chartsData.reason.map(item => ({name: item.name, value: item.value, _duration: item.duration}));
+        const reasonTotal = reasonData.reduce((sum, item) => sum + item.value, 0);
+        const reasonLegendByName = new Map(reasonData.map(item => [item.name, item]));
+        const reasonColorPalette = [
+            '#2563eb',
+            '#16a34a',
+            '#f97316',
+            '#dc2626',
+            '#9333ea',
+            '#0891b2',
+            '#64748b',
+            '#eab308'
+        ];
         chartReason.setOption({
             textStyle: { color: chartTheme.text },
-            color: chartTheme.chartPalette,
+            color: reasonColorPalette,
             tooltip: { 
                 ...buildTooltipTheme(chartTheme),
                 trigger: 'item', 
@@ -1520,23 +1617,20 @@ document.addEventListener("DOMContentLoaded", function() {
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
             },
-            legend: { bottom: 0, type: 'scroll', ...buildLegendTheme(chartTheme) },
+            legend: {
+                bottom: 0,
+                left: 'center',
+                formatter: name => formatLegendMetricLabel(name, reasonLegendByName, reasonTotal),
+                ...buildLegendTheme(chartTheme)
+            },
             series: [{
                 type: 'pie',
-                radius: '65%',
-                center: ['50%', '45%'],
-                label: {
-                    show: true,
-                    ...buildPieLabelTheme(chartTheme),
-                    formatter: formatPieSliceLabel,
-                    alignTo: 'edge',
-                    edgeDistance: 10,
-                    lineHeight: 15,
-                    fontSize: 11
-                },
-                labelLine: { lineStyle: { color: chartTheme.border } },
+                radius: ['38%', '62%'],
+                center: ['50%', '34%'],
+                label: { show: false },
+                labelLine: { show: false },
                 itemStyle: { borderColor: chartTheme.surface, borderWidth: 2 },
-                data: chartsData.reason.map(item => ({name: item.name, value: item.value, _duration: item.duration})),
+                data: reasonData,
                 emphasis: {
                     itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: chartTheme.dark ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.3)' }
                 }
@@ -1673,6 +1767,13 @@ document.addEventListener("DOMContentLoaded", function() {
     function formatPieSliceLabel(params) {
         if (!params.value) return params.name;
         return `${params.name}\n${params.value}次 ${params.percent}%`;
+    }
+
+    function formatLegendMetricLabel(name, dataByName, total) {
+        const item = dataByName.get(name);
+        if (!item) return name;
+        const percent = total > 0 ? ((item.value / total) * 100).toFixed(2) : "0.00";
+        return `${name}  ${item.value}次 ${percent}%`;
     }
 
     // ---------------- 下钻事件处理 ----------------
@@ -1997,3 +2098,4 @@ document.addEventListener("DOMContentLoaded", function() {
     updateDateSelectors();
     loadData();
 });
+

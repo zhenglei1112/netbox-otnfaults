@@ -1,3 +1,105 @@
+## 2026-04-29 故障统计页增加内容区全屏按钮
+### 实施步骤
+- [x] 增加源码级回归测试，锁定顶部筛选区全屏按钮、全屏 CSS、Fullscreen API 绑定和图表 resize。
+- [x] 在故障统计模板顶部控制区加入最大化按钮，并更新静态资源版本号。
+- [x] 补充 `.page-statistics` 全屏态样式，确保只放大插件内容区且可滚动。
+- [x] 增加 JS 全屏切换、退出状态同步和图表尺寸刷新逻辑。
+- [x] 运行定向测试与 JS 语法检查。
+
+## 2026-04-29 统一三张纵向图高度并补充标题
+### 实施步骤
+- [x] 增加源码级回归测试，锁定物理中断图、省份图、箱线图均使用 340px 图表高度。
+- [x] 给中断数量（中断时长）图和中断时长分布图补充与其他图一致的 card header 标题。
+- [x] 调整相关 CSS 高度。
+- [x] 运行定向测试。
+
+## 2026-04-29 统一三张物理统计图高度和窄边距
+### 实施步骤
+- [x] 增加源码级回归测试，锁定省份图与物理中断图、箱线图使用相同高度和窄 grid 边距。
+- [x] 调整省份图模板与 CSS，移除内联高度并统一为 220px 图表容器。
+- [x] 调整省份图 ECharts grid，使用固定窄边距。
+- [x] 运行定向测试和 JS 语法检查。
+
+## 2026-04-29 恢复中断时长分布箱线图跟随顶部时段
+### 实施步骤
+- [x] 增加源码级回归测试，锁定箱线图使用独立的 `physical_duration_boxplot` 当前时段数据。
+- [x] 后端在保留 `physical_daily` 固定本年的同时，额外生成当前顶部时段的箱线图数据。
+- [x] 前端渲染和筛选事件改用 `charts.physical_duration_boxplot`。
+- [x] 运行定向测试、Python 语法检查和 JS 语法检查。
+
+## 2026-04-29 精简物理中断图周粒度横坐标为月份
+### 实施步骤
+- [x] 增加源码级回归测试，锁定周粒度横坐标只显示月份且只在每月第一周显示。
+- [x] 调整 `statistics_dashboard.js` 的周粒度轴标签 formatter 与 interval 逻辑。
+- [x] 运行定向测试和脚本语法检查。
+
+## 2026-04-29 调整物理中断图周粒度横坐标标签
+### 实施步骤
+- [x] 增加源码级回归测试，锁定周粒度标签使用“X月第N周”而不是日期范围。
+- [x] 调整后端 `_build_physical_week_ranges()` 的周标签生成逻辑，按月份内周序号输出中文月份标签。
+- [x] 运行定向测试和脚本语法检查。
+
+## 2026-04-29 修复物理中断图切换控件与灰色提示重叠
+### 实施步骤
+- [x] 增加源码级回归测试，锁定物理中断图在自定义切换控件存在时不再显示顶部图例提示。
+- [x] 调整 `statistics_dashboard.js` 的物理中断图 ECharts 配置，隐藏与切换控件重叠的图例文字。
+- [x] 运行定向测试和脚本语法检查。
+
+## 2026-04-29 修复物理中断图切换控件文字重叠
+### 实施步骤
+- [x] 增加源码级样式断言，锁定物理中断图控件允许换行并保留最小间距。
+- [x] 调整 `statistics_dashboard.css` 中 `.statistics-physical-daily-controls` 和按钮组样式，防止两个设置项在窄宽度下重叠。
+- [x] 运行定向测试。
+
+## 2026-04-29 恢复按日中断数量竖线图
+### 实施步骤
+- [x] 更新源码级回归测试，锁定按日中断数量使用细竖线柱图而不是折线图。
+- [x] 调整 `statistics_dashboard.js` 的物理中断图 series 类型与柱宽条件：数量指标始终为柱图，按日细柱、按周宽柱；时长指标保持平滑折线。
+- [x] 运行定向测试和 JS 语法检查。
+
+## 2026-04-29 调整物理故障中断时长图口径与切换
+### 实施步骤
+- [x] 增加源码级回归测试，锁定物理故障每日图固定显示本年未挂起光缆中断数据，不再跟随顶部时段范围。
+- [x] 后端将 `charts.physical_daily` 改为按本年光缆中断生成日/周两套数量与中断时长序列，并复用未挂起光缆中断口径。
+- [x] 模板增加“数量/时长”和“按天/按周”两组切换控件，保留原图表容器位置。
+- [x] 前端按切换项渲染：按天数量为细线、按周数量为柱状图，中断时长始终为平滑折线，并配置左次数轴、右时长轴。
+- [x] 运行故障统计页定向测试、JS 语法检查和 Python 语法检查。
+
+## 2026-04-29 调整光缆中断展开指标三行布局
+### 实施步骤
+- [x] 更新回归测试，锁定展开区按 2/3/2 三行顺序展示光缆属性、长时起数、历时分布与平均指标。
+- [x] 调整模板中展开区卡片顺序，将长时历时移动到第三行右侧。
+- [x] 调整 CSS 为 6 列栅格，第一行两张卡各占 3 列，第二行三张卡各占 2 列，第三行两张卡各占 3 列。
+- [x] 运行定向测试和 JS 语法检查。
+
+## 2026-04-29 合并光缆中断首行历时指标卡
+### 实施步骤
+- [x] 更新源码级回归测试，要求总历时、全口径平均、有效平均、超时率合并到同一张“中断历时”卡片。
+- [x] 调整统计页模板，移除三张独立平均/超时卡片，保留原指标 id 与下钻语义在合并卡内渲染。
+- [x] 调整前端渲染入口，将四项指标作为同一组写入 `cable-break-duration-total-list`。
+- [x] 运行定向测试和 JS 语法检查。
+
+## 2026-04-29 光缆中断指标展开收起
+### 实施步骤
+- [x] 增加回归断言，锁定单行指标下方的展开分割线、默认收起状态和展开/收起脚本入口。
+- [x] 在首行指标后增加居中箭头分割线，默认隐藏剩余指标，点击后展开到完整指标模式。
+- [x] 调整展开区样式与首行/图表的相对位置，保持统计与点击过滤逻辑不变。
+- [x] 运行定向测试和前端脚本语法检查。
+## 2026-04-29 调整故障统计物理故障页布局
+### 实施步骤
+- [x] 增加源码级回归测试，锁定物理故障页按示意图顺序摆放总体情况、光缆中断情况、三张分布图、每日图、省份图和盒线图。
+- [x] 调整 `statistics_dashboard.html` 的物理故障 Tab DOM 顺序，只移动布局容器，不改统计字段、DOM id 和点击过滤入口。
+- [x] 调整 `statistics_dashboard.css` 的直接子块间距与图表卡片选择器，保持现有对齐和响应式要求。
+- [x] 运行故障统计页定向测试与 JS 语法检查。
+
+## 2026-04-29 拆分光缆中断首行指标
+### 实施步骤
+- [x] 增加源码级回归测试，锁定光缆中断首行只包含示意图中的 7 张指标卡，未展示指标位于箱线图下方。
+- [x] 调整统计页模板，将有效平均和超时率拆为独立首行卡片，P50/P90、长时、属性和分项平均等指标移到箱线图下方。
+- [x] 调整前端渲染入口，把原有 `avg_metrics` 拆分渲染到首行和下方剩余指标容器，保持下钻字段不变。
+- [x] 调整 CSS 首行 7 卡布局和下方剩余指标布局。
+- [x] 运行统计页回归测试与 JS 语法检查。
+
 ## 2026-04-28 故障统计挂起故障改为全量统计
 ### 实施步骤
 - [x] 更新源码级回归测试，锁定“其他”卡片中的挂起故障使用全量挂起数量，并显示为“挂起的故障（所有）”。
@@ -1440,3 +1542,34 @@
 - [x] 增加回归测试，要求统计页 CSS 缓存版本号更新，并锁定平均历时行不再继承旧的双列跨度。
 - [x] 调整统计页模板/CSS，让正式环境发布后重新拉取样式并避免“重复中断”被挤到第二行。
 - [x] 运行统计页定向测试验证。
+## 2026-04-29 Move cable break metric divider below cards
+### Steps
+- [x] Move the cable-break expand divider after the deferred metric cards so it sits below all numeric cards.
+- [x] Update source-level regression coverage for the new DOM order.
+- [x] Run the targeted statistics dashboard tests and JS syntax check.
+## 2026-04-29 Keep statistics period visible in fullscreen
+### Steps
+- [x] Add a source regression test that requires the statistics header and period display to remain visible while the statistics page is fullscreen.
+- [x] Scope fullscreen CSS so the header is pinned inside the fullscreen page and the content keeps its existing position after exit.
+- [x] Run the targeted statistics asset test and CSS/JS syntax checks.
+## 2026-04-29 Keep period label visible in fullscreen window
+### Steps
+- [x] Add a regression test for a fullscreen-only period overlay synchronized from `#period-display`.
+- [x] Add overlay markup, fullscreen-only CSS, and JS synchronization during period updates and fullscreen state changes.
+- [x] Bump static asset versions and run targeted tests plus JS syntax check.
+## 2026-04-29 Show statistics map period inside map fullscreen
+### Steps
+- [x] Add source regression coverage for a top-center in-map period control on the statistics cable-break map.
+- [x] Pass the formatted statistics period label from the map view into `OTNMapConfig`.
+- [x] Render the period label as a MapLibre control inside the iframe, centered at the top and styled like the existing skipped-count notice.
+- [x] Run the targeted map/statistics asset tests and JS syntax check.
+## 2026-04-29 Remove statistics parent fullscreen period overlay
+### Steps
+- [x] Update the statistics dashboard asset regression test to require no parent-page fullscreen period overlay.
+- [x] Remove the parent-page overlay markup, CSS, and JavaScript synchronization while keeping the in-map period control.
+- [x] Bump the affected statistics dashboard asset versions and run targeted tests plus JS syntax checks.
+## 2026-04-29 Hide statistics map period label after fullscreen exit
+### Steps
+- [x] Add source regression coverage requiring the in-map period label to be hidden outside map fullscreen.
+- [x] Update `CableBreakPeriodControl` to listen for fullscreen changes and show only when the map container is fullscreen.
+- [x] Run the targeted map regression test and JavaScript syntax check.

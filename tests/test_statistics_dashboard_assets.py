@@ -25,8 +25,8 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
     def test_statistics_dashboard_loads_bumped_theme_assets(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("statistics_dashboard.css' %}?v=6", template)
-        self.assertIn("statistics_dashboard.js' %}?v=12", template)
+        self.assertIn("statistics_dashboard.css' %}?v=11", template)
+        self.assertIn("statistics_dashboard.js' %}?v=16", template)
 
     def test_statistics_dashboard_css_covers_light_and_dark_theme_surfaces(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -102,6 +102,46 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn("同一 A 端站点与任一 Z 端站点", template)
         self.assertIn("SLA", template)
         self.assertIn("合并重叠不可用时段", template)
+
+    def test_statistics_dashboard_exposes_content_fullscreen_control(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        script = JS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('id="statistics-fullscreen-btn"', template)
+        self.assertIn('aria-label="最大化故障统计页面"', template)
+        self.assertIn('mdi-fullscreen', template)
+        self.assertIn(".page-statistics:fullscreen", css)
+        self.assertIn(".page-statistics.is-statistics-fullscreen", css)
+        self.assertIn("const btnStatisticsFullscreen = document.getElementById('statistics-fullscreen-btn');", script)
+        self.assertIn("statisticsPage.requestFullscreen()", script)
+        self.assertIn("document.exitFullscreen()", script)
+        self.assertIn("document.addEventListener('fullscreenchange', syncStatisticsFullscreenState);", script)
+        self.assertIn("setTimeout(resizeStatisticsCharts, 150);", script)
+
+    def test_statistics_dashboard_fullscreen_keeps_period_header_visible(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".page-statistics:fullscreen header", css)
+        self.assertIn(".page-statistics.is-statistics-fullscreen header", css)
+        fullscreen_header_block = css.split(".page-statistics:fullscreen header", 1)[1].split("}", 1)[0]
+        self.assertIn("position: sticky;", fullscreen_header_block)
+        self.assertIn("top: 0;", fullscreen_header_block)
+        self.assertIn("z-index: 30;", fullscreen_header_block)
+        self.assertIn(".page-statistics:fullscreen #statisticsTab", css)
+        self.assertIn(".page-statistics.is-statistics-fullscreen #statisticsTab", css)
+        fullscreen_tab_block = css.split(".page-statistics:fullscreen #statisticsTab", 1)[1].split("}", 1)[0]
+        self.assertIn("padding-top: 0.25rem;", fullscreen_tab_block)
+
+    def test_statistics_dashboard_does_not_render_parent_fullscreen_period_overlay(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+        script = JS_PATH.read_text(encoding="utf-8")
+
+        self.assertNotIn('id="statistics-fullscreen-period-display"', template)
+        self.assertNotIn(".statistics-fullscreen-period-display", css)
+        self.assertNotIn("fullscreenPeriodDisplay", script)
+        self.assertNotIn("syncFullscreenPeriodDisplay", script)
 
 
 if __name__ == "__main__":

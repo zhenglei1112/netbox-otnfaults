@@ -43,6 +43,49 @@ class CableBreakSkippedCountControl {
   }
 }
 
+class CableBreakPeriodControl {
+  constructor(periodLabel) {
+    this.periodLabel = periodLabel || "";
+    this.container = null;
+    this.fullscreenChangeHandler = null;
+  }
+
+  onAdd(map) {
+    this.map = map;
+    this.container = document.createElement("div");
+    this.container.className = "maplibregl-ctrl statistics-cable-break-period-control";
+
+    if (this.periodLabel) {
+      this.container.textContent = this.periodLabel;
+    } else {
+      this.container.style.display = "none";
+    }
+    this.fullscreenChangeHandler = () => this.updateVisibility();
+    document.addEventListener("fullscreenchange", this.fullscreenChangeHandler);
+    this.updateVisibility();
+
+    return this.container;
+  }
+
+  updateVisibility() {
+    if (!this.container || !this.map || !this.periodLabel) return;
+    const fullscreenElement = document.fullscreenElement;
+    const isMapFullscreen = Boolean(fullscreenElement && this.map.getContainer().contains(fullscreenElement));
+    this.container.style.display = isMapFullscreen ? "block" : "none";
+  }
+
+  onRemove() {
+    if (this.fullscreenChangeHandler) {
+      document.removeEventListener("fullscreenchange", this.fullscreenChangeHandler);
+      this.fullscreenChangeHandler = null;
+    }
+    if (this.container && this.container.parentNode) {
+      this.container.parentNode.removeChild(this.container);
+    }
+    this.map = undefined;
+  }
+}
+
 class CableBreakQuickFilterControl {
   constructor(plugin) {
     this.plugin = plugin;
@@ -118,6 +161,7 @@ const StatisticsCableBreakModePlugin = {
   currentPopup: null,
   popupCloseTimer: null,
   skippedCountControl: null,
+  periodControl: null,
   legendControl: null,
   quickFilterControl: null,
 
@@ -373,6 +417,9 @@ const StatisticsCableBreakModePlugin = {
     }
 
     const map = this.map;
+    this.periodControl = new CableBreakPeriodControl(this.config.mapPeriodLabel);
+    map.addControl(this.periodControl, "top-left");
+
     this.quickFilterControl = new CableBreakQuickFilterControl(this);
     map.addControl(this.quickFilterControl, "top-left");
 
@@ -500,6 +547,27 @@ statisticsCableBreakStyle.textContent = `
     font-size: 12px;
     line-height: 1.45;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  }
+
+  .maplibregl-ctrl-top-left .statistics-cable-break-period-control {
+    display: none;
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: min(620px, calc(100vw - 96px));
+    margin: 0;
+    padding: 10px 16px;
+    border-radius: 4px;
+    background: rgba(33, 37, 41, 0.88);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.4;
+    text-align: center;
+    white-space: normal;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
   }
 
   .statistics-cable-break-quick-filters.maplibregl-ctrl {
