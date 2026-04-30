@@ -15,3 +15,13 @@ def test_service_statistics_sorts_bare_fiber_before_circuit_by_count_then_name()
     assert "services_result.sort(key=lambda x: (x['sort_rank'], -x['count'], x['name']))" in source
     assert "result.pop('sort_rank', None)" in source
     assert "services_result.sort(key=lambda x: x['count'], reverse=True)" not in source
+
+
+def test_service_statistics_payload_exposes_group_label_for_bare_fiber_and_circuit() -> None:
+    source = VIEWS_PATH.read_text(encoding="utf-8")
+
+    assert "'bare_fiber_service__tenant_group'" in source
+    assert "svc_group_label = imp.bare_fiber_service.tenant_group.name if imp.bare_fiber_service.tenant_group else '未分组'" in source
+    assert "svc_group_label = imp.circuit_service.get_business_category_display() if imp.circuit_service.business_category else '未分组'" in source
+    assert "'group_label': svc_group_label" in source
+    assert "'group_label': stats['group_label']" in source

@@ -974,21 +974,21 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
 
         # 查询当前期的所有 FaultImpact
         impacts_qs = OtnFaultImpact.objects.select_related(
-            'otn_fault', 'bare_fiber_service', 'circuit_service'
+            'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
         ).filter(
             service_interruption_time__gte=start_date,
             service_interruption_time__lt=end_date
         )
         impacts = list(impacts_qs)
         yearly_impacts_qs = OtnFaultImpact.objects.select_related(
-            'otn_fault', 'bare_fiber_service', 'circuit_service'
+            'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
         ).filter(
             service_interruption_time__gte=year_start,
             service_interruption_time__lt=year_end
         )
         yearly_impacts = list(yearly_impacts_qs)
         calendar_impacts_qs = OtnFaultImpact.objects.select_related(
-            'otn_fault', 'bare_fiber_service', 'circuit_service'
+            'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
         ).filter(
             service_interruption_time__gte=calendar_start,
             service_interruption_time__lt=calendar_end
@@ -1008,16 +1008,19 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 svc_key = f'bf_{imp.bare_fiber_service_id}'
                 svc_name = imp.bare_fiber_service.name
                 svc_type_label = '裸纤业务'
+                svc_group_label = imp.bare_fiber_service.tenant_group.name if imp.bare_fiber_service.tenant_group else '未分组'
                 svc_sort_rank = 0
             elif imp.service_type == ServiceTypeChoices.CIRCUIT and imp.circuit_service:
                 svc_key = f'cs_{imp.circuit_service_id}'
                 svc_name = imp.circuit_service.special_line_name or imp.circuit_service.name
                 svc_type_label = '电路业务'
+                svc_group_label = imp.circuit_service.get_business_category_display() if imp.circuit_service.business_category else '未分组'
                 svc_sort_rank = 1
             else:
                 svc_key = f'unknown_{imp.id}'
                 svc_name = str(imp)
                 svc_type_label = '未知'
+                svc_group_label = '未分组'
                 svc_sort_rank = 2
 
             if svc_key not in service_map:
@@ -1025,6 +1028,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 service_map[svc_key] = {
                     'name': svc_name,
                     'type': svc_type_label,
+                    'group_label': svc_group_label,
                     'sort_rank': svc_sort_rank,
                     'count': 0,
                     'break_count': 0,   # 中断
@@ -1206,6 +1210,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'key': svc_key,
                 'name': stats['name'],
                 'type': stats['type'],
+                'group_label': stats['group_label'],
                 'sort_rank': stats['sort_rank'],
                 'count': count,
                 'break_count': stats['break_count'],

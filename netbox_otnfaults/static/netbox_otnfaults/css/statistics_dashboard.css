@@ -344,6 +344,42 @@
     gap: 1.25rem;
 }
 
+.service-group-section {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+.service-group-section + .service-group-section {
+    margin-top: 0.35rem;
+}
+
+.service-group-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.75rem;
+    color: var(--statistics-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.service-group-title::before {
+    content: "";
+    width: 0.28rem;
+    height: 1rem;
+    border-radius: 999px;
+    background: #078087;
+}
+
+.service-group-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(21rem, 22.5rem));
+    justify-content: start;
+    align-items: stretch;
+    gap: 1.25rem;
+}
+
 .service-strip-card {
     width: 100%;
     max-width: 22.5rem;

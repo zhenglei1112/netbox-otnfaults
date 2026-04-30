@@ -2075,9 +2075,10 @@ document.addEventListener("DOMContentLoaded", function() {
         serviceCalendarCharts.forEach(chart => chart.resize());
     }
 
-    function initServiceRuntimeCalendarCharts(container, services) {
-        container.querySelectorAll('.service-runtime-calendar-chart').forEach((element, index) => {
-            const svc = services[index] || {};
+    function initServiceRuntimeCalendarCharts(container, servicesByKey) {
+        container.querySelectorAll('.service-runtime-calendar-chart').forEach(element => {
+            const card = element.closest('.service-strip-card[data-service-key]');
+            const svc = card ? servicesByKey.get(card.dataset.serviceKey) || {} : {};
             const monthlyStats = Array.isArray(svc.monthly_stats) ? svc.monthly_stats : [];
             const monthLabels = Array.from({ length: 12 }, (_item, index) => `${index + 1}月`);
             const countValues = monthLabels.map((_label, index) => Number(monthlyStats[index] && monthlyStats[index].count || 0));
@@ -2196,6 +2197,21 @@ document.addEventListener("DOMContentLoaded", function() {
         );
     }
 
+    function groupServicesByLabel(services) {
+        const groups = [];
+        const groupMap = new Map();
+        services.forEach(svc => {
+            const groupLabel = svc.group_label || '未分组';
+            if (!groupMap.has(groupLabel)) {
+                const group = { label: groupLabel, services: [] };
+                groupMap.set(groupLabel, group);
+                groups.push(group);
+            }
+            groupMap.get(groupLabel).services.push(svc);
+        });
+        return groups;
+    }
+
     function renderServiceCards(services, containerId, emptyServiceType) {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -2206,17 +2222,26 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const interruptCalendarMaxCount = getMaxServiceInterruptCalendarCount(services);
-        const html = services.map(svc => {
-            return renderStripCard({
-                serviceKey: svc.key,
-                footer: svc.name,
-                service: svc,
-                interruptCalendarMaxCount,
-            });
+        const servicesByKey = new Map(services.map(svc => [svc.key, svc]));
+        const groupedServices = groupServicesByLabel(services);
+        const html = groupedServices.map(group => {
+            const cardsHtml = group.services.map(svc => {
+                return renderStripCard({
+                    serviceKey: svc.key,
+                    footer: svc.name,
+                    service: svc,
+                    interruptCalendarMaxCount,
+                });
+            }).join('');
+            return `
+                <section class="service-group-section">
+                    <div class="service-group-title">${escapeHtml(group.label)}</div>
+                    <div class="service-group-card-grid">${cardsHtml}</div>
+                </section>`;
         }).join('');
 
         container.innerHTML = html;
-        initServiceRuntimeCalendarCharts(container, services);
+        initServiceRuntimeCalendarCharts(container, servicesByKey);
         container.querySelectorAll('.service-strip-card[data-service-key]').forEach(card => {
             card.addEventListener('click', () => handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName));
             card.addEventListener('keydown', event => {
