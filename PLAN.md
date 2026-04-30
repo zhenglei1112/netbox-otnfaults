@@ -1694,3 +1694,8 @@
 - [x] Add source regression coverage requiring the in-map period label to be hidden outside map fullscreen.
 - [x] Update `CableBreakPeriodControl` to listen for fullscreen changes and show only when the map container is fullscreen.
 - [x] Run the targeted map regression test and JavaScript syntax check.
+## 2026-04-30 修复业务卡片年度累计同值
+- [x] 增加源码级回归测试，锁定年度累计不再使用硬编码值，而是从每个业务的 `annual_summary` 渲染。
+- [x] 后端按业务分别计算年度累计 SLA、年度中断时长和年度中断起数，并写入统计 API 响应。
+- [x] 前端将年度累计渲染改为读取当前业务数据，标题年份跟随接口选择年份。
+- [x] 运行定向测试和 JS 语法检查。

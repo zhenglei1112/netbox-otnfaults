@@ -997,6 +997,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
 
         # 计算周期总小时数（用于 SLA）
         period_total_hours: float = (end_date - start_date).total_seconds() / 3600.0
+        annual_total_hours: float = (year_end - year_start).total_seconds() / 3600.0
 
         # 按业务 key 聚合
         service_map: dict = {}  # key -> stats dict
@@ -1043,6 +1044,11 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                         for _value, label, *_rest in FaultCategoryChoices.CHOICES
                     },
                     'monthly_stats': monthly_stats,
+                    'annual_summary': {
+                        'count': 0,
+                        'total_duration': 0.0,
+                        'intervals': [],
+                    },
                     'interrupt_calendar': {
                         month_info['key']: {day: 0 for day in range(1, month_info['days'] + 1)}
                         for month_info in calendar_months
@@ -1120,6 +1126,9 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             stats = service_map[svc_key]
             stats['monthly_stats'][month_index]['count'] += 1
             stats['monthly_stats'][month_index]['duration'] += month_dur_hours
+            stats['annual_summary']['count'] += 1
+            stats['annual_summary']['total_duration'] += month_dur_hours
+            stats['annual_summary']['intervals'].append((year_imp.service_interruption_time, month_end))
 
         for calendar_imp in calendar_impacts:
             if calendar_imp.service_type == ServiceTypeChoices.BARE_FIBER and calendar_imp.bare_fiber_service:
@@ -1164,6 +1173,18 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             )
             sla = ((period_total_hours - unavailable_hours) / period_total_hours * 100.0) if period_total_hours > 0 else 100.0
             sla = max(0.0, sla)  # 防止负值
+            annual_intervals = sorted(stats['annual_summary']['intervals'], key=lambda x: x[0])
+            annual_merged: list = []
+            for s, e in annual_intervals:
+                if annual_merged and s <= annual_merged[-1][1]:
+                    annual_merged[-1] = (annual_merged[-1][0], max(annual_merged[-1][1], e))
+                else:
+                    annual_merged.append((s, e))
+            annual_unavailable_hours = sum(
+                (e - s).total_seconds() / 3600.0 for s, e in annual_merged
+            )
+            annual_sla = ((annual_total_hours - annual_unavailable_hours) / annual_total_hours * 100.0) if annual_total_hours > 0 else 100.0
+            annual_sla = max(0.0, annual_sla)
 
             category_order = {
                 label: index for index, (_value, label, *_rest) in enumerate(FaultCategoryChoices.CHOICES)
@@ -1188,6 +1209,12 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 }
                 for month, month_stats in stats['monthly_stats'].items()
             ]
+            annual_summary_payload = {
+                'year': selected_year,
+                'count': stats['annual_summary']['count'],
+                'total_duration': round(stats['annual_summary']['total_duration'], 2),
+                'sla': round(annual_sla, 4),
+            }
             interrupt_calendar_payload = [
                 {
                     'key': month_info['key'],
@@ -1218,6 +1245,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'degrade_count': stats['degrade_count'],
                 'other_count': stats['other_count'],
                 'category_stats': category_stats_payload,
+                'annual_summary': annual_summary_payload,
                 'monthly_stats': monthly_stats_payload,
                 'interrupt_calendar': interrupt_calendar_payload,
                 'total_duration': round(total_dur, 2),

@@ -1943,27 +1943,29 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>`;
     }
 
-    function renderServiceAnnualSummary() {
+    function renderServiceAnnualSummary(svc) {
+        const annualSummary = svc && svc.annual_summary ? svc.annual_summary : {};
+        const annualYear = annualSummary.year || new Date().getFullYear();
         return `
                     <div class="service-annual-summary">
                         <div class="service-annual-header">
                             <div class="service-annual-title-group">
                                 <span class="service-annual-icon"><i class="mdi mdi-calendar-range-outline"></i></span>
-                                <div class="service-annual-summary-title">年度累计（2026年）</div>
+                                <div class="service-annual-summary-title">年度累计（${annualYear}年）</div>
                             </div>
                             <span class="service-status-pill"><span class="service-status-dot"></span>正常</span>
                         </div>
                         <div class="service-annual-summary-grid">
                             <div class="service-annual-summary-item">
-                                <div class="service-annual-summary-value">98.8%</div>
+                                <div class="service-annual-summary-value">${formatCardMetricValue(annualSummary.sla)}%</div>
                                 <div class="service-annual-summary-label">SLA</div>
                             </div>
                             <div class="service-annual-summary-item">
-                                <div class="service-annual-summary-value">56.7时</div>
+                                <div class="service-annual-summary-value">${formatCardMetricValue(annualSummary.total_duration)}时</div>
                                 <div class="service-annual-summary-label">中断时长</div>
                             </div>
                             <div class="service-annual-summary-item">
-                                <div class="service-annual-summary-value">7起</div>
+                                <div class="service-annual-summary-value">${formatCardCountValue(annualSummary.count)}起</div>
                                 <div class="service-annual-summary-label">中断起数</div>
                             </div>
                         </div>
@@ -2179,7 +2181,7 @@ document.addEventListener("DOMContentLoaded", function() {
             <div class="statistics-strip-card service-strip-card"${serviceAttrs}>
                 <div class="service-strip-card-title" title="${title}">${title}</div>
                 <div class="statistics-strip-card-body">
-                    ${renderServiceAnnualSummary()}
+                    ${renderServiceAnnualSummary(card.service)}
                     ${renderServiceCurrentPeriod(card.service)}
                     ${renderServiceRuntimeCalendar()}
                     ${renderServiceInterruptCalendar(card.service, card.interruptCalendarMaxCount)}
