@@ -44,6 +44,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (chartHistogram) chartHistogram.resize();
         if (chartPhysicalDaily) chartPhysicalDaily.resize();
         if (chartPhysicalDurationBoxplot) chartPhysicalDurationBoxplot.resize();
+        resizeServiceCalendarCharts();
     }
 
     function isStatisticsFullscreen() {
@@ -1846,14 +1847,17 @@ document.addEventListener("DOMContentLoaded", function() {
     let activeServiceDetailFilterKey = null;
     let activeServiceDetailFilterName = null;
     let activeServiceDetailFilterType = null;
+    let serviceCalendarCharts = [];
 
     async function loadServiceData() {
+        disposeServiceCalendarCharts();
         setServiceCardsLoading('service-cards-container');
         setServiceCardsLoading('circuit-service-cards-container');
         setServiceDetailsLoading('service-details-tbody');
         setServiceDetailsLoading('circuit-service-details-tbody');
 
-        let url = `${window.SERVICE_STATISTICS_DATA_API}?${buildTimeParams()}`;
+        const selectedDateParts = inputDate.value.split('-').map(Number);
+        let url = `${window.SERVICE_STATISTICS_DATA_API}?${buildTimeParams()}&calendar_year=${selectedDateParts[0]}&calendar_month=${selectedDateParts[1]}`;
 
         try {
             const response = await fetch(url);
@@ -1939,20 +1943,257 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>`;
     }
 
+    function renderServiceAnnualSummary() {
+        return `
+                    <div class="service-annual-summary">
+                        <div class="service-annual-header">
+                            <div class="service-annual-title-group">
+                                <span class="service-annual-icon"><i class="mdi mdi-calendar-range-outline"></i></span>
+                                <div class="service-annual-summary-title">年度累计（2026年）</div>
+                            </div>
+                            <span class="service-status-pill"><span class="service-status-dot"></span>正常</span>
+                        </div>
+                        <div class="service-annual-summary-grid">
+                            <div class="service-annual-summary-item">
+                                <div class="service-annual-summary-value">98.8%</div>
+                                <div class="service-annual-summary-label">SLA</div>
+                            </div>
+                            <div class="service-annual-summary-item">
+                                <div class="service-annual-summary-value">56.7时</div>
+                                <div class="service-annual-summary-label">中断时长</div>
+                            </div>
+                            <div class="service-annual-summary-item">
+                                <div class="service-annual-summary-value">7起</div>
+                                <div class="service-annual-summary-label">中断起数</div>
+                            </div>
+                        </div>
+                    </div>`;
+    }
+
+    function renderServiceCurrentPeriodTable(categoryStats) {
+        categoryStats = Array.isArray(categoryStats) ? categoryStats : [];
+        const totalCount = categoryStats.reduce((sum, item) => sum + Number(item.count || 0), 0);
+        const totalDuration = categoryStats.reduce((sum, item) => sum + Number(item.duration || 0), 0);
+        return `
+                        <div class="service-period-summary-list" aria-label="本期间业务故障分类统计">
+                            ${renderServicePeriodSummaryMetric('故障总数', totalCount, '次', categoryStats, 'count')}
+                            ${renderServicePeriodSummaryMetric('故障时长', totalDuration, '时', categoryStats, 'duration')}
+                        </div>`;
+    }
+
+    function renderServicePeriodSummaryMetric(title, total, unit, categoryStats, field) {
+        const totalValue = field === 'count'
+            ? formatCardCountValue(total)
+            : formatCardMetricValue(total);
+        const parts = Array.isArray(categoryStats)
+            ? categoryStats
+                .map(item => {
+                    const rawValue = Number(item[field] || 0);
+                    if (rawValue <= 0) {
+                        return '';
+                    }
+                    const value = field === 'count'
+                        ? formatCardCountValue(rawValue)
+                        : formatCardMetricValue(rawValue);
+                    return `<span class="service-period-detail-item">${escapeHtml(item.label || '-')} ${value}</span>`;
+                })
+                .filter(Boolean)
+            : [];
+        const detail = parts.length > 0
+            ? parts.join('<span class="service-period-detail-separator">|</span>')
+            : '<span class="service-period-detail-empty">暂无</span>';
+        return `
+                            <div class="service-period-summary-card">
+                                <div class="service-period-summary-main">
+                                    <span class="service-period-summary-title">${title}</span>
+                                    <span class="service-period-summary-total">
+                                        <span class="service-period-summary-number">${totalValue}</span>
+                                        <span class="service-period-summary-unit">${unit}</span>
+                                    </span>
+                                </div>
+                                <div class="service-period-summary-detail">${detail}</div>
+                            </div>`;
+    }
+
+    function renderServiceCurrentPeriod(svc) {
+        return `
+                    <div class="service-current-period">
+                        <div class="service-current-period-heading">
+                            <span class="service-current-period-icon"><i class="mdi mdi-chart-bar"></i></span>
+                            <div class="service-current-period-title">本期间</div>
+                        </div>
+                        ${renderServiceCurrentPeriodTable(svc.category_stats)}
+                    </div>`;
+    }
+
+    function renderServiceRuntimeCalendar() {
+        return `
+                    <div class="service-runtime-calendar">
+                        <div class="service-runtime-calendar-heading">
+                            <span class="service-runtime-calendar-icon"><i class="mdi mdi-calendar-month-outline"></i></span>
+                            <div class="service-runtime-calendar-title">运行月历</div>
+                        </div>
+                        <div class="service-runtime-calendar-chart" aria-label="本年业务故障月度统计"></div>
+                    </div>`;
+    }
+
+    function getInterruptCalendarLevel(count, maxCount) {
+        if (count <= 0 || maxCount <= 0) return 0;
+        return Math.min(4, Math.max(1, Math.ceil((count / maxCount) * 4)));
+    }
+
+    function renderServiceInterruptCalendar(svc, interruptCalendarMaxCount) {
+        const months = Array.isArray(svc.interrupt_calendar) ? svc.interrupt_calendar : [];
+        const maxCount = Number(interruptCalendarMaxCount || 0);
+        const monthHtml = months.map(month => {
+            const days = Array.isArray(month.days) ? month.days : [];
+            const leadingBlanks = Array.from({ length: Number(month.weekday_offset || 0) }, () => '<span class="service-interrupt-calendar-day service-interrupt-calendar-day--blank"></span>').join('');
+            const dayHtml = days.map(day => {
+                const count = Number(day.count || 0);
+                const level = getInterruptCalendarLevel(count, maxCount);
+                const title = `${escapeHtml(month.label || '')}${escapeHtml(day.day || '')}日：${count}次`;
+                return `<span class="service-interrupt-calendar-day service-interrupt-calendar-day--level-${level}" title="${title}"></span>`;
+            }).join('');
+            return `
+                            <div class="service-interrupt-calendar-month">
+                                <div class="service-interrupt-calendar-month-label">${escapeHtml(month.label || '-')}</div>
+                                <div class="service-interrupt-calendar-days">${leadingBlanks}${dayHtml}</div>
+                            </div>`;
+        }).join('');
+        return `
+                    <div class="service-interrupt-calendar" aria-label="近三个月业务中断日历">
+                        <div class="service-interrupt-calendar-months">${monthHtml}</div>
+                    </div>`;
+    }
+
+    function disposeServiceCalendarCharts() {
+        serviceCalendarCharts.forEach(chart => chart.dispose());
+        serviceCalendarCharts = [];
+    }
+
+    function resizeServiceCalendarCharts() {
+        serviceCalendarCharts.forEach(chart => chart.resize());
+    }
+
+    function initServiceRuntimeCalendarCharts(container, services) {
+        container.querySelectorAll('.service-runtime-calendar-chart').forEach((element, index) => {
+            const svc = services[index] || {};
+            const monthlyStats = Array.isArray(svc.monthly_stats) ? svc.monthly_stats : [];
+            const monthLabels = Array.from({ length: 12 }, (_item, index) => `${index + 1}月`);
+            const countValues = monthLabels.map((_label, index) => Number(monthlyStats[index] && monthlyStats[index].count || 0));
+            const durationValues = monthLabels.map((_label, index) => Number(monthlyStats[index] && monthlyStats[index].duration || 0));
+            const maxCount = Math.max(...countValues, 0);
+            const maxDuration = Math.max(...durationValues, 0);
+            const countAxisMax = Math.max(1, Math.ceil(maxCount * 2.6));
+            const durationAxisMin = -Math.max(1, Math.ceil(maxDuration * 1.5));
+            const durationAxisMax = Math.max(1, Math.ceil(maxDuration * 1.15));
+            const theme = getChartTheme();
+            const chart = echarts.init(element);
+            chart.setOption({
+                animation: false,
+                backgroundColor: 'transparent',
+                grid: { top: 8, left: 4, right: 4, bottom: 20, containLabel: false },
+                tooltip: Object.assign({
+                    trigger: 'axis',
+                    confine: true,
+                    formatter(params) {
+                        const label = params && params[0] ? params[0].axisValue : '';
+                        const labelIndex = monthLabels.indexOf(label);
+                        const count = countValues[labelIndex] || 0;
+                        const duration = durationValues[labelIndex] || 0;
+                        return `${label}<br/>故障数：${count}次<br/>故障时长：${formatCardMetricValue(duration)}时`;
+                    }
+                }, buildTooltipTheme(theme)),
+                xAxis: {
+                    type: 'category',
+                    data: monthLabels,
+                    axisLine: { show: true, lineStyle: { color: 'rgba(154, 168, 186, 0.45)', width: 1 } },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: theme.muted,
+                        fontSize: 10,
+                        interval: 0,
+                        margin: 8,
+                        hideOverlap: false
+                    },
+                    splitLine: { show: false }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        minInterval: 1,
+                        min: 0,
+                        max: countAxisMax,
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        axisLabel: { show: false },
+                        splitLine: { show: false }
+                    },
+                    {
+                        type: 'value',
+                        min: durationAxisMin,
+                        max: durationAxisMax,
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        axisLabel: { show: false },
+                        splitLine: { show: false }
+                    }
+                ],
+                series: [
+                    {
+                        name: '故障时长',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: durationValues,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 4,
+                        lineStyle: { width: 1.8, color: '#078087' },
+                        itemStyle: { color: '#078087' },
+                        areaStyle: { color: 'rgba(7, 128, 135, 0.08)' }
+                    },
+                    {
+                        name: '故障数',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        data: countValues,
+                        barWidth: 8,
+                        itemStyle: {
+                            color: 'rgba(32, 107, 196, 0.55)',
+                            borderRadius: [3, 3, 0, 0]
+                        }
+                    }
+                ]
+            });
+            serviceCalendarCharts.push(chart);
+        });
+    }
+
     function renderStripCard(card) {
-        const footer = escapeHtml(card.footer);
+        const title = escapeHtml(card.footer);
         const serviceAttrs = card.serviceKey
-            ? ` data-service-key="${escapeHtml(card.serviceKey)}" data-service-name="${footer}" role="button" tabindex="0"`
+            ? ` data-service-key="${escapeHtml(card.serviceKey)}" data-service-name="${title}" role="button" tabindex="0"`
             : '';
         return `
             <div class="statistics-strip-card service-strip-card"${serviceAttrs}>
+                <div class="service-strip-card-title" title="${title}">${title}</div>
                 <div class="statistics-strip-card-body">
-                    <div class="statistics-strip-card-metrics">
-                        ${card.metrics.map(renderStripMetric).join('')}
-                    </div>
+                    ${renderServiceAnnualSummary()}
+                    ${renderServiceCurrentPeriod(card.service)}
+                    ${renderServiceRuntimeCalendar()}
+                    ${renderServiceInterruptCalendar(card.service, card.interruptCalendarMaxCount)}
                 </div>
-                <div class="statistics-strip-card-footer" title="${footer}">${footer}</div>
             </div>`;
+    }
+
+    function getMaxServiceInterruptCalendarCount(services) {
+        return Math.max(
+            ...services.flatMap(svc =>
+                (Array.isArray(svc.interrupt_calendar) ? svc.interrupt_calendar : [])
+                    .flatMap(month => Array.isArray(month.days) ? month.days.map(day => Number(day.count || 0)) : [])
+            ),
+            0
+        );
     }
 
     function renderServiceCards(services, containerId, emptyServiceType) {
@@ -1964,39 +2205,18 @@ document.addEventListener("DOMContentLoaded", function() {
             return;
         }
 
+        const interruptCalendarMaxCount = getMaxServiceInterruptCalendarCount(services);
         const html = services.map(svc => {
-            let slaColor = '#16a34a'; // green
-            if (svc.sla < 99) {
-                slaColor = '#dc2626';
-            } else if (svc.sla < 99.9) {
-                slaColor = '#ea580c';
-            } else if (svc.sla < 99.99) {
-                slaColor = '#ca8a04';
-            }
-
-            let catParts = [];
-            if (svc.break_count > 0) catParts.push(`中断 ${formatCardCountValue(svc.break_count)}`);
-            if (svc.jitter_count > 0) catParts.push(`抖动 ${formatCardCountValue(svc.jitter_count)}`);
-            if (svc.degrade_count > 0) catParts.push(`劣化 ${formatCardCountValue(svc.degrade_count)}`);
-            if (svc.other_count > 0) catParts.push(`其他 ${formatCardCountValue(svc.other_count)}`);
-            let catDetail = catParts.length > 0 ? catParts.join(' | ') : svc.type;
-
             return renderStripCard({
                 serviceKey: svc.key,
                 footer: svc.name,
-                metrics: [
-                    { label: '故障总数', value: svc.count, unit: '次', detail: catDetail },
-                    { label: '累计时长', value: svc.total_duration, unit: '小时' },
-                    { label: '平均时长', value: svc.avg_duration, unit: '小时' },
-                    { label: '长时故障', value: svc.long_count, unit: '次', valueClass: svc.long_count > 0 ? 'text-danger' : 'text-indigo' },
-                    { label: '重复故障', value: svc.repeat_count, unit: '次', valueClass: svc.repeat_count > 0 ? 'text-purple' : 'text-indigo' },
-                    { label: '千公里故障率', value: '-', unit: '' },
-                    { label: 'SLA（可用率）', value: svc.sla, unit: '%', valueClass: '', color: slaColor },
-                ],
+                service: svc,
+                interruptCalendarMaxCount,
             });
         }).join('');
 
         container.innerHTML = html;
+        initServiceRuntimeCalendarCharts(container, services);
         container.querySelectorAll('.service-strip-card[data-service-key]').forEach(card => {
             card.addEventListener('click', () => handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName));
             card.addEventListener('keydown', event => {

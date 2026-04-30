@@ -338,73 +338,324 @@
 
 .service-strip-card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(12.75rem, 13.5rem));
+    grid-template-columns: repeat(auto-fill, minmax(21rem, 22.5rem));
     justify-content: start;
     align-items: stretch;
-    gap: 0.9rem;
+    gap: 1.25rem;
 }
 
 .service-strip-card {
     width: 100%;
-    max-width: 13.5rem;
-    min-height: 21.25rem;
+    max-width: 22.5rem;
+    min-height: 20rem;
+    overflow: hidden;
+    border-radius: 8px;
 }
 
-.service-strip-card .statistics-strip-card-metrics {
+.service-annual-summary {
+    padding: 0.95rem 1.25rem 0.82rem;
+    border-bottom: 1px solid var(--statistics-divider);
+    text-align: center;
+}
+
+.service-annual-header {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 18rem;
-    padding: 0.45rem 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-width: 0;
 }
 
-.service-strip-card .statistics-strip-card-metric {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: baseline;
-    gap: 0.25rem;
-    flex: 0 0 auto;
+.service-annual-title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.72rem;
     min-width: 0;
-    padding: 0.55rem 0.65rem;
+}
+
+.service-annual-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    color: #078087;
+    font-size: 1.45rem;
+    line-height: 1;
+}
+
+.service-annual-summary-title {
+    color: var(--statistics-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.service-status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    flex: 0 0 auto;
+    min-height: 1.65rem;
+    padding: 0.22rem 0.68rem;
+    border: 1px solid rgba(0, 128, 87, 0.12);
+    border-radius: 999px;
+    background: rgba(0, 128, 87, 0.08);
+    color: var(--statistics-heading);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.service-status-dot {
+    display: inline-block;
+    width: 0.48rem;
+    height: 0.48rem;
+    border-radius: 999px;
+    background: #00a870;
+}
+
+.service-annual-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin-top: 1.05rem;
+}
+
+.service-annual-summary-item {
+    position: relative;
+    min-width: 0;
+}
+
+.service-annual-summary-item + .service-annual-summary-item {
+    border-left: 1px solid var(--statistics-divider);
+}
+
+.service-annual-summary-value {
+    color: #078087;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.service-annual-summary-label {
+    margin-top: 0.35rem;
+    color: #263854;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+
+.service-current-period {
+    padding: 0.95rem 1.25rem 0.8rem;
+    border-bottom: 1px solid var(--statistics-divider);
+}
+
+.service-current-period-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.62rem;
+    margin-bottom: 0.7rem;
+}
+
+.service-current-period-icon {
+    color: #078087;
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.service-current-period-title {
+    color: var(--statistics-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.2;
     text-align: left;
 }
 
-.service-strip-card .statistics-strip-card-metric + .statistics-strip-card-metric::before {
-    left: 0.75rem;
-    right: 0.75rem;
-    top: 0;
-    width: auto;
-    height: 1px;
-    transform: none;
+.service-period-summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
 }
 
-.service-strip-card .statistics-strip-card-label {
-    font-size: 0.82rem;
-    margin-top: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.service-period-summary-card {
+    padding: 0.72rem 0;
 }
 
-.service-strip-card .statistics-strip-card-value-row {
+.service-period-summary-card + .service-period-summary-card {
+    border-top: 1px solid var(--statistics-divider);
+}
+
+.service-period-summary-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.85rem;
+    min-width: 0;
+}
+
+.service-period-summary-title {
+    min-width: 0;
+    color: #65758d;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.service-period-summary-total {
+    display: inline-flex;
+    align-items: baseline;
     justify-content: flex-end;
+    flex: 0 0 auto;
+    color: #078087;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
 }
 
-.service-strip-card .statistics-strip-card-value {
-    font-size: 1.28rem;
+.service-period-summary-number {
+    font-size: 1.35rem;
+    line-height: 1;
 }
 
-.service-strip-card .statistics-strip-card-detail {
-    grid-column: 1 / -1;
-    min-height: 0.9rem;
-    margin-top: 0;
+.service-period-summary-unit {
+    margin-left: 0.18rem;
+    color: #263854;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.service-period-summary-detail {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.2rem 0.45rem;
+    min-height: 1rem;
+    margin-top: 0.28rem;
+    color: #263854;
+    font-size: 0.78rem;
+    font-weight: 400;
+    line-height: 1.2;
     text-align: right;
 }
 
-.service-strip-card .statistics-strip-card-footer {
-    min-height: 3.25rem;
+.service-period-detail-separator {
+    color: #9aa8ba;
+}
+
+.service-period-detail-empty {
+    color: #9aa8ba;
+}
+
+.service-runtime-calendar {
+    padding: 0.72rem 1.25rem 0.95rem;
+    border-top: 1px solid var(--statistics-divider);
+    background: transparent;
+}
+
+.service-runtime-calendar-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.62rem;
+    margin-bottom: 0.35rem;
+}
+
+.service-runtime-calendar-icon {
+    color: #078087;
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.service-runtime-calendar-title {
+    color: var(--statistics-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: left;
+}
+
+.service-runtime-calendar-chart {
+    width: 100%;
+    height: 8.75rem;
+    margin-top: 0;
+    background: transparent;
+}
+
+.service-interrupt-calendar {
+    padding: 0.65rem 1.25rem 0.95rem;
+    border-top: 1px solid var(--statistics-divider);
+    background: transparent;
+}
+
+.service-interrupt-calendar-months {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.9rem;
+    align-items: start;
+}
+
+.service-interrupt-calendar-month {
+    min-width: 0;
+}
+
+.service-interrupt-calendar-month-label {
+    color: var(--statistics-heading);
+    font-size: 0.86rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.service-interrupt-calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 0.62rem);
+    grid-auto-rows: 0.62rem;
+    gap: 0.22rem;
+    margin-top: 0.42rem;
+}
+
+.service-interrupt-calendar-day {
+    width: 0.62rem;
+    height: 0.62rem;
+    border-radius: 2px;
+    background: rgba(226, 232, 240, 0.7);
+}
+
+.service-interrupt-calendar-day--blank {
+    background: transparent;
+}
+
+.service-interrupt-calendar-day--level-1 {
+    background: rgba(254, 202, 202, 0.85);
+}
+
+.service-interrupt-calendar-day--level-2 {
+    background: rgba(248, 113, 113, 0.68);
+}
+
+.service-interrupt-calendar-day--level-3 {
+    background: rgba(239, 68, 68, 0.78);
+}
+
+.service-interrupt-calendar-day--level-4 {
+    background: rgba(185, 28, 28, 0.88);
+}
+
+.service-strip-card-title {
+    min-height: 2.35rem;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0.48rem 0.85rem;
+    background: #078087;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 700;
     white-space: normal;
     line-height: 1.2;
 }
@@ -1420,10 +1671,6 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .service-strip-card .statistics-strip-card-metrics {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .statistics-strip-card-metric:nth-child(odd)::before {
         display: none;
     }
@@ -1477,7 +1724,7 @@
 
 @media (min-width: 768px) and (max-width: 1199.98px) {
     .service-strip-card-grid {
-        grid-template-columns: repeat(auto-fill, minmax(12.75rem, 13.5rem));
+        grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
     }
 }
 

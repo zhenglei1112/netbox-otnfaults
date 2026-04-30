@@ -5,7 +5,7 @@
 {% block title %}故障统计{% endblock %}
 
 {% block content %}
-<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=11" rel="stylesheet">
+<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=28" rel="stylesheet">
 
 <div class="page page-statistics">
     <div class="page-wrapper container-xl" style="padding-top: 20px;">
@@ -479,7 +479,7 @@
                             <h6 class="fw-bold mb-2">业务故障统计</h6>
                             <ul class="mb-0">
                                 <li>裸纤业务故障和电路业务故障基于故障影响记录统计，按业务中断时间落入当前周期筛选。</li>
-                                <li>每个业务卡片按业务聚合影响次数，并拆分中断、抖动、劣化和其他故障类型。</li>
+                                <li>每个业务卡片按业务聚合影响次数，并按故障分类全量列示本期间次数与时长。</li>
                                 <li>业务累计时长从业务中断时间计算到业务恢复时间；未恢复影响按当前时间计算，平均时长为累计时长除以影响次数。</li>
                                 <li>业务长时故障指单次业务影响历时大于等于 6 小时；业务重复故障指同一业务相邻两次影响时间间隔不超过 60 天。</li>
                                 <li>SLA 使用统计周期总小时数计算，先合并重叠不可用时段，再按“(周期小时数 - 不可用小时数) / 周期小时数”得到可用率。</li>
@@ -528,5 +528,5 @@
     window.SERVICE_STATISTICS_DATA_API = "{{ statistics_service_data_api_url }}";
     window.STATISTICS_CABLE_BREAK_MAP_URL = "{{ statistics_cable_break_map_url }}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=17"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=33"></script>
 {% endblock %}

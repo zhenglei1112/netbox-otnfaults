@@ -583,6 +583,31 @@ def _parse_time_range(request):
     return start_date, end_date, prev_start_date, prev_end_date, filter_type
 
 
+def _build_recent_calendar_months(year: int, month: int, tz) -> list[dict[str, object]]:
+    """Return month metadata for previous-previous, previous, and current month."""
+    months: list[dict[str, object]] = []
+    for offset in (2, 1, 0):
+        month_index = (year * 12 + month - 1) - offset
+        item_year = month_index // 12
+        item_month = (month_index % 12) + 1
+        next_month_index = month_index + 1
+        next_year = next_month_index // 12
+        next_month = (next_month_index % 12) + 1
+        month_start = timezone.datetime(item_year, item_month, 1, tzinfo=tz)
+        month_end = timezone.datetime(next_year, next_month, 1, tzinfo=tz)
+        months.append({
+            'key': f'{item_year:04d}-{item_month:02d}',
+            'year': item_year,
+            'month': item_month,
+            'label': f'{item_month}月',
+            'start': month_start,
+            'end': month_end,
+            'weekday_offset': month_start.weekday(),
+            'days': (month_end.date() - month_start.date()).days,
+        })
+    return months
+
+
 def _statistics_page_context(request: HttpRequest) -> dict[str, object]:
     default_filter_type = 'week'
     default_date: date = timezone.localdate()
@@ -937,6 +962,15 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
     def get(self, request) -> JsonResponse:
         start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
         now = timezone.localtime()
+        selected_year = int(request.GET.get('year', start_date.year))
+        tz = timezone.get_current_timezone()
+        year_start = timezone.datetime(selected_year, 1, 1, tzinfo=tz)
+        year_end = timezone.datetime(selected_year + 1, 1, 1, tzinfo=tz)
+        calendar_year = int(request.GET.get('calendar_year', selected_year))
+        calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
+        calendar_months = _build_recent_calendar_months(calendar_year, calendar_month, tz)
+        calendar_start = calendar_months[0]['start']
+        calendar_end = calendar_months[-1]['end']
 
         # 查询当前期的所有 FaultImpact
         impacts_qs = OtnFaultImpact.objects.select_related(
@@ -946,6 +980,20 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             service_interruption_time__lt=end_date
         )
         impacts = list(impacts_qs)
+        yearly_impacts_qs = OtnFaultImpact.objects.select_related(
+            'otn_fault', 'bare_fiber_service', 'circuit_service'
+        ).filter(
+            service_interruption_time__gte=year_start,
+            service_interruption_time__lt=year_end
+        )
+        yearly_impacts = list(yearly_impacts_qs)
+        calendar_impacts_qs = OtnFaultImpact.objects.select_related(
+            'otn_fault', 'bare_fiber_service', 'circuit_service'
+        ).filter(
+            service_interruption_time__gte=calendar_start,
+            service_interruption_time__lt=calendar_end
+        )
+        calendar_impacts = list(calendar_impacts_qs)
 
         # 计算周期总小时数（用于 SLA）
         period_total_hours: float = (end_date - start_date).total_seconds() / 3600.0
@@ -973,6 +1021,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 svc_sort_rank = 2
 
             if svc_key not in service_map:
+                monthly_stats = {month: {'count': 0, 'duration': 0.0} for month in range(1, 13)}
                 service_map[svc_key] = {
                     'name': svc_name,
                     'type': svc_type_label,
@@ -982,6 +1031,18 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                     'jitter_count': 0,  # 抖动
                     'degrade_count': 0, # 劣化
                     'other_count': 0,
+                    'category_stats': {
+                        label: {
+                            'count': 0,
+                            'duration': 0.0,
+                        }
+                        for _value, label, *_rest in FaultCategoryChoices.CHOICES
+                    },
+                    'monthly_stats': monthly_stats,
+                    'interrupt_calendar': {
+                        month_info['key']: {day: 0 for day in range(1, month_info['days'] + 1)}
+                        for month_info in calendar_months
+                    },
                     'total_duration': 0.0,
                     'long_count': 0,
                     'intervals': [],  # 用于 SLA 合并时段
@@ -993,6 +1054,13 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
 
             # 分类计数
             fault_cat = imp.otn_fault.fault_category if imp.otn_fault else None
+            category_label = imp.otn_fault.get_fault_category_display() if imp.otn_fault else '未知'
+            if category_label not in stats['category_stats']:
+                stats['category_stats'][category_label] = {
+                    'count': 0,
+                    'duration': 0.0,
+                }
+            stats['category_stats'][category_label]['count'] += 1
             if fault_cat == FaultCategoryChoices.FIBER_BREAK:
                 stats['break_count'] += 1
             elif fault_cat == FaultCategoryChoices.FIBER_JITTER:
@@ -1007,6 +1075,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             svc_end = imp.service_recovery_time if imp.service_recovery_time else now
             dur_hours = (svc_end - svc_start).total_seconds() / 3600.0
             stats['total_duration'] += dur_hours
+            stats['category_stats'][category_label]['duration'] += dur_hours
 
             if dur_hours >= 6.0:
                 stats['long_count'] += 1
@@ -1030,6 +1099,39 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             stats['intervals'].append((svc_start, svc_end))
             # 记录发生时间供重复判断
             stats['occurrence_times'].append(svc_start)
+
+        for year_imp in yearly_impacts:
+            if year_imp.service_type == ServiceTypeChoices.BARE_FIBER and year_imp.bare_fiber_service:
+                svc_key = f'bf_{year_imp.bare_fiber_service_id}'
+            elif year_imp.service_type == ServiceTypeChoices.CIRCUIT and year_imp.circuit_service:
+                svc_key = f'cs_{year_imp.circuit_service_id}'
+            else:
+                svc_key = f'unknown_{year_imp.id}'
+            if svc_key not in service_map:
+                continue
+
+            month_index = timezone.localtime(year_imp.service_interruption_time).month
+            month_end = year_imp.service_recovery_time if year_imp.service_recovery_time else now
+            month_dur_hours = (month_end - year_imp.service_interruption_time).total_seconds() / 3600.0
+            stats = service_map[svc_key]
+            stats['monthly_stats'][month_index]['count'] += 1
+            stats['monthly_stats'][month_index]['duration'] += month_dur_hours
+
+        for calendar_imp in calendar_impacts:
+            if calendar_imp.service_type == ServiceTypeChoices.BARE_FIBER and calendar_imp.bare_fiber_service:
+                svc_key = f'bf_{calendar_imp.bare_fiber_service_id}'
+            elif calendar_imp.service_type == ServiceTypeChoices.CIRCUIT and calendar_imp.circuit_service:
+                svc_key = f'cs_{calendar_imp.circuit_service_id}'
+            else:
+                svc_key = f'unknown_{calendar_imp.id}'
+            if svc_key not in service_map:
+                continue
+
+            calendar_day = timezone.localtime(calendar_imp.service_interruption_time)
+            calendar_key = f'{calendar_day.year:04d}-{calendar_day.month:02d}'
+            stats = service_map[svc_key]
+            if calendar_key in stats['interrupt_calendar'] and calendar_day.day in stats['interrupt_calendar'][calendar_key]:
+                stats['interrupt_calendar'][calendar_key][calendar_day.day] += 1
 
         # 构建返回结果
         services_result = []
@@ -1059,6 +1161,47 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             sla = ((period_total_hours - unavailable_hours) / period_total_hours * 100.0) if period_total_hours > 0 else 100.0
             sla = max(0.0, sla)  # 防止负值
 
+            category_order = {
+                label: index for index, (_value, label, *_rest) in enumerate(FaultCategoryChoices.CHOICES)
+            }
+            category_stats_payload = [
+                {
+                    'label': label,
+                    'count': category_stats['count'],
+                    'duration': round(category_stats['duration'], 2),
+                }
+                for label, category_stats in sorted(
+                    stats['category_stats'].items(),
+                    key=lambda item: (category_order.get(item[0], len(category_order)), item[0])
+                )
+            ]
+            monthly_stats_payload = [
+                {
+                    'month': month,
+                    'label': f'{month}月',
+                    'count': month_stats['count'],
+                    'duration': round(month_stats['duration'], 2),
+                }
+                for month, month_stats in stats['monthly_stats'].items()
+            ]
+            interrupt_calendar_payload = [
+                {
+                    'key': month_info['key'],
+                    'label': month_info['label'],
+                    'year': month_info['year'],
+                    'month': month_info['month'],
+                    'weekday_offset': month_info['weekday_offset'],
+                    'days': [
+                        {
+                            'day': day,
+                            'count': stats['interrupt_calendar'][month_info['key']][day],
+                        }
+                        for day in range(1, month_info['days'] + 1)
+                    ],
+                }
+                for month_info in calendar_months
+            ]
+
             services_result.append({
                 'key': svc_key,
                 'name': stats['name'],
@@ -1069,6 +1212,9 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'jitter_count': stats['jitter_count'],
                 'degrade_count': stats['degrade_count'],
                 'other_count': stats['other_count'],
+                'category_stats': category_stats_payload,
+                'monthly_stats': monthly_stats_payload,
+                'interrupt_calendar': interrupt_calendar_payload,
                 'total_duration': round(total_dur, 2),
                 'avg_duration': round(avg_dur, 2),
                 'long_count': stats['long_count'],
