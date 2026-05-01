@@ -232,6 +232,32 @@ const LocationModePlugin = {
     map.on('mouseleave', 'highlight-sites-layer', () => {
       map.getCanvas().style.cursor = '';
     });
+
+    if (this.config.mode === 'location') {
+      this._fitHighlightedSitesBounds(sitesData);
+    }
+  },
+
+  _fitHighlightedSitesBounds(sitesData) {
+    const map = this.map;
+    const bounds = new maplibregl.LngLatBounds();
+
+    sitesData.forEach((site) => {
+      if (site.lng != null && site.lat != null) {
+        bounds.extend([site.lng, site.lat]);
+      }
+    });
+
+    if (this.config.targetLng != null && this.config.targetLat != null) {
+      bounds.extend([this.config.targetLng, this.config.targetLat]);
+    }
+
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, { padding: 80, maxZoom: 12 });
+      if (this.mapBase && typeof this.mapBase.setHomeBounds === "function") {
+        this.mapBase.setHomeBounds(bounds);
+      }
+    }
   },
 
   _initHighlightPath(highlightPathData) {

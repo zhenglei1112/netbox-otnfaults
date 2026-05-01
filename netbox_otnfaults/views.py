@@ -695,27 +695,34 @@ class LocationMapView(PermissionRequiredMixin, View):
         is_picker = request.GET.get('picker') == 'true'
         a_site_id = request.GET.get('a_site', '')
         z_sites_param = request.GET.get('z_sites', '')
+        location_site_ids = []
+        a_site_pk = None
+
+        try:
+            if a_site_id:
+                a_site_pk = int(a_site_id)
+                location_site_ids.append(a_site_pk)
+            if z_sites_param:
+                for sid in z_sites_param.split(','):
+                    if sid.strip():
+                        location_site_ids.append(int(sid.strip()))
+        except ValueError:
+            location_site_ids = []
+            a_site_pk = None
         
         if target_lat is None and target_lng is None:
             # 如果没有指定 q 坐标，尝试根据 A/Z 站点计算中心
-            try:
-                site_ids = []
-                if a_site_id:
-                    site_ids.append(int(a_site_id))
-                if z_sites_param:
-                    for sid in z_sites_param.split(','):
-                        if sid.strip():
-                            site_ids.append(int(sid.strip()))
-                
-                if site_ids:
-                    sites = Site.objects.filter(id__in=site_ids, latitude__isnull=False, longitude__isnull=False)
-                    if sites.exists():
-                        lngs = [float(s.longitude) for s in sites]
-                        lats = [float(s.latitude) for s in sites]
-                        target_lng = sum(lngs) / len(lngs)
-                        target_lat = sum(lats) / len(lats)
-            except ValueError:
-                pass
+            if location_site_ids:
+                sites = Site.objects.filter(
+                    id__in=location_site_ids,
+                    latitude__isnull=False,
+                    longitude__isnull=False,
+                )
+                if sites.exists():
+                    lngs = [float(s.longitude) for s in sites]
+                    lats = [float(s.latitude) for s in sites]
+                    target_lng = sum(lngs) / len(lngs)
+                    target_lat = sum(lats) / len(lats)
         
         # 解析 ?path_id=xxx 参数（用于单条路径高亮显示）
         path_id = request.GET.get('path_id', '')
@@ -839,6 +846,25 @@ class LocationMapView(PermissionRequiredMixin, View):
                         })
             except (OtnPathGroup.DoesNotExist, ValueError):
                 pass
+
+        if not path_id and not path_group_id and location_site_ids:
+            sites = Site.objects.filter(
+                id__in=location_site_ids,
+                latitude__isnull=False,
+                longitude__isnull=False,
+            )
+            for site in sites:
+                role_display = 'A端' if site.pk == a_site_pk else 'Z端'
+                highlight_sites_data.append({
+                    'id': site.pk,
+                    'name': site.name,
+                    'lat': float(site.latitude),
+                    'lng': float(site.longitude),
+                    'role': 'fault_a' if site.pk == a_site_pk else 'fault_z',
+                    'role_display': role_display,
+                    'color': '#dc3545' if site.pk == a_site_pk else '#0d6efd',
+                    'url': site.get_absolute_url(),
+                })
         
         # 获取插件配置
         plugin_settings = get_plugin_settings()
