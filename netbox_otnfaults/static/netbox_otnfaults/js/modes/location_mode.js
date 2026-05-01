@@ -43,6 +43,12 @@ const LocationModePlugin = {
       this._initHighlightSites(this.config.highlightSitesData);
     }
 
+    // 1.6. 路径组模式使用路径与站点的合并边界作为初始视野
+    this._fitPathGroupBounds(
+      this.config.highlightPathData,
+      this.config.highlightSitesData
+    );
+
     // 2. 处理目标位置标记 (Location 模式)
     if (
       !this.config.highlightPathData &&
@@ -260,6 +266,63 @@ const LocationModePlugin = {
     }
   },
 
+  _fitPathGroupBounds(highlightPathData, sitesData) {
+    if (this.config.mode !== "pathgroup") return;
+
+    const map = this.map;
+    const bounds = new maplibregl.LngLatBounds();
+    const features = this._getHighlightPathFeatures(highlightPathData);
+
+    features.forEach((feature) => {
+      if (feature.geometry) {
+        this._extendBoundsWithGeometry(bounds, feature.geometry);
+      }
+    });
+
+    (sitesData || []).forEach((site) => {
+      if (site.lng != null && site.lat != null) {
+        bounds.extend([site.lng, site.lat]);
+      }
+    });
+
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, { padding: 80, maxZoom: 12 });
+      if (this.mapBase && typeof this.mapBase.setHomeBounds === "function") {
+        this.mapBase.setHomeBounds(bounds);
+      }
+    }
+  },
+
+  _getHighlightPathFeatures(highlightPathData) {
+    if (!highlightPathData) return [];
+
+    if (highlightPathData.type === "FeatureCollection") {
+      return highlightPathData.features || [];
+    }
+    if (highlightPathData.type === "Feature" && highlightPathData.geometry) {
+      return [highlightPathData];
+    }
+    return [];
+  },
+
+  _extendBoundsWithGeometry(bounds, geometry) {
+    const extendCoordinates = (coordinates) => {
+      if (!Array.isArray(coordinates) || coordinates.length === 0) return;
+
+      if (
+        typeof coordinates[0] === "number" &&
+        typeof coordinates[1] === "number"
+      ) {
+        bounds.extend(coordinates);
+        return;
+      }
+
+      coordinates.forEach((item) => extendCoordinates(item));
+    };
+
+    extendCoordinates(geometry.coordinates);
+  },
+
   _initHighlightPath(highlightPathData) {
     const map = this.map;
     const mapBase = this.mapBase;
@@ -359,7 +422,7 @@ const LocationModePlugin = {
     }
 
     // 自动缩放
-    if (!bounds.isEmpty()) {
+    if (this.config.mode !== 'pathgroup' && !bounds.isEmpty()) {
       map.fitBounds(bounds, { padding: 80, maxZoom: 12 });
       // 设置 Home 按钮的重置目标为当前边界
       if (this.mapBase && typeof this.mapBase.setHomeBounds === "function") {

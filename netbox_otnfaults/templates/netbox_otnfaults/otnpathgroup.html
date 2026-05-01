@@ -3,6 +3,14 @@
 {% load render_table from django_tables2 %}
 
 {% block extra_controls %}
+{% if perms.netbox_otnfaults.change_otnpathgroup %}
+<a
+  href="{% url 'plugins:netbox_otnfaults:otnpathgroup_copy_members' pk=object.pk %}"
+  class="btn btn-secondary btn-sm"
+>
+  <i class="mdi mdi-content-copy"></i> 复制路径组
+</a>
+{% endif %}
 <a
   href="{% url 'plugins:netbox_otnfaults:location_map' %}?path_group_id={{ object.pk }}"
   class="btn btn-primary btn-sm"

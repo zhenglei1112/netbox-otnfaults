@@ -5,6 +5,7 @@ __pycache__/
 *.pyo
 .worktrees/
 .superpowers/
+.tmp_test_artifacts/pycache_*/
 
 # Other
 图像.md

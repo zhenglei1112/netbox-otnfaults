@@ -46,6 +46,7 @@ urlpatterns = [
     path('path-groups/', views.OtnPathGroupListView.as_view(), name='otnpathgroup_list'),
     path('path-groups/add/', views.OtnPathGroupEditView.as_view(), name='otnpathgroup_add'),
     path('path-groups/bulk-delete/', views.OtnPathGroupBulkDeleteView.as_view(), name='otnpathgroup_bulk_delete'),
+    path('path-groups/<int:pk>/copy-members/', views.OtnPathGroupCopyMembersView.as_view(), name='otnpathgroup_copy_members'),
     path('path-groups/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'otnpathgroup'))),
     path('path-groups/<int:pk>/edit/', views.OtnPathGroupEditView.as_view(), name='otnpathgroup_edit'),
     path('path-groups/<int:pk>/delete/', views.OtnPathGroupDeleteView.as_view(), name='otnpathgroup_delete'),

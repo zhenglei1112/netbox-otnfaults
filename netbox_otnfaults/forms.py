@@ -10,6 +10,8 @@ from .models import (
 )
 import json
 
+from typing import Any
+
 from django import forms
 from django.core.exceptions import ValidationError
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField, TagFilterField
@@ -1076,6 +1078,33 @@ class OtnPathGroupForm(NetBoxModelForm):
         fields = (
             'name', 'slug', 'description', 'paths', 'comments', 'tags',
         )
+
+
+class OtnPathGroupCopyMembersForm(forms.Form):
+    """路径组成员复制表单"""
+    source_group = DynamicModelChoiceField(
+        queryset=OtnPathGroup.objects.none(),
+        label='来源路径组'
+    )
+    mode = forms.ChoiceField(
+        choices=(
+            ('merge', '保留现有站点与路径并合并复制'),
+            ('replace', '覆盖现有站点与路径后复制'),
+        ),
+        initial='merge',
+        label='复制方式'
+    )
+
+    def __init__(self, target_group: OtnPathGroup, *args: Any, **kwargs: Any) -> None:
+        self.target_group = target_group
+        super().__init__(*args, **kwargs)
+        self.fields['source_group'].queryset = OtnPathGroup.objects.exclude(pk=target_group.pk)
+
+    def clean_source_group(self) -> OtnPathGroup:
+        source_group = self.cleaned_data['source_group']
+        if source_group.pk == self.target_group.pk:
+            raise ValidationError('不能选择当前路径组作为来源。')
+        return source_group
 
 
 class OtnPathGroupFilterForm(NetBoxModelFilterSetForm):

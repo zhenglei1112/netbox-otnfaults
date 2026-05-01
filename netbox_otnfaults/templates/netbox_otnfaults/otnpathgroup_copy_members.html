@@ -1,0 +1,14 @@
+{% extends 'generic/object_edit.html' %}
+{% load form_helpers %}
+
+{% block form %}
+<div class="field-group my-5">
+  <div class="row mb-3">
+    <h2 class="col-9 offset-3 mb-0">复制路径组</h2>
+  </div>
+  <div class="row">
+    {% render_field form.source_group %}
+    {% render_field form.mode %}
+  </div>
+</div>
+{% endblock %}

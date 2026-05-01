@@ -1,5 +1,6 @@
 from netbox.views import generic
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.http import HttpRequest, HttpResponse
 from utilities.views import register_model_view, ViewTab
 from django_tables2 import RequestConfig
 from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
@@ -8,7 +9,7 @@ from .forms import (
     OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
     OtnFaultBulkEditForm, OtnFaultImpactBulkEditForm, OtnFaultImportForm, OtnFaultImpactImportForm,
     OtnPathForm, OtnPathFilterForm, OtnPathImportForm, OtnPathBulkEditForm,
-    OtnPathGroupForm, OtnPathGroupFilterForm, OtnPathGroupSiteForm,
+    OtnPathGroupForm, OtnPathGroupCopyMembersForm, OtnPathGroupFilterForm, OtnPathGroupSiteForm,
     BareFiberServiceForm, BareFiberServiceFilterForm, BareFiberServiceImportForm, BareFiberServiceBulkEditForm,
     CircuitServiceForm, CircuitServiceFilterForm, CircuitServiceImportForm, CircuitServiceBulkEditForm
 )
@@ -21,7 +22,9 @@ from .tables import (
 from django.utils import timezone
 from datetime import timedelta
 from django.views.generic import View
+from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.db import transaction
 import json
 from django.core.serializers.json import DjangoJSONEncoder
 from django.conf import settings
@@ -606,6 +609,96 @@ class OtnPathGroupEditView(generic.ObjectEditView):
     """路径组编辑视图"""
     queryset = OtnPathGroup.objects.all()
     form = OtnPathGroupForm
+
+
+class OtnPathGroupCopyMembersView(PermissionRequiredMixin, View):
+    """将其他路径组的站点与路径复制到当前路径组"""
+    permission_required = 'netbox_otnfaults.change_otnpathgroup'
+    template_name = 'netbox_otnfaults/otnpathgroup_copy_members.html'
+
+    def get_target_group(self, pk: int) -> OtnPathGroup:
+        return get_object_or_404(OtnPathGroup, pk=pk)
+
+    def get(self, request: HttpRequest, pk: int) -> HttpResponse:
+        target_group = self.get_target_group(pk)
+        form = OtnPathGroupCopyMembersForm(target_group=target_group)
+        return render(request, self.template_name, {
+            'model': OtnPathGroup,
+            'object': target_group,
+            'form': form,
+            'return_url': target_group.get_absolute_url(),
+        })
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        target_group = self.get_target_group(pk)
+        form = OtnPathGroupCopyMembersForm(target_group=target_group, data=request.POST)
+
+        if not form.is_valid():
+            return render(request, self.template_name, {
+                'model': OtnPathGroup,
+                'object': target_group,
+                'form': form,
+                'return_url': target_group.get_absolute_url(),
+            })
+
+        source_group = form.cleaned_data['source_group']
+        mode = form.cleaned_data['mode']
+        copied_paths, copied_sites, skipped_paths, skipped_sites = self.copy_members(
+            source_group=source_group,
+            target_group=target_group,
+            mode=mode,
+        )
+        messages.success(
+            request,
+            (
+                f'已从“{source_group}”复制 {copied_paths} 条路径、{copied_sites} 个站点到“{target_group}”。'
+                f' 跳过已存在路径 {skipped_paths} 条、站点 {skipped_sites} 个。'
+            )
+        )
+        return redirect(target_group.get_absolute_url())
+
+    def copy_members(
+        self,
+        source_group: OtnPathGroup,
+        target_group: OtnPathGroup,
+        mode: str,
+    ) -> tuple[int, int, int, int]:
+        with transaction.atomic():
+            source_paths = list(source_group.paths.all())
+            existing_path_ids = set(target_group.paths.values_list('pk', flat=True))
+            existing_site_ids = set(
+                target_group.group_sites.values_list('site_id', flat=True)
+            )
+
+            if mode == 'replace':
+                target_group.paths.clear()
+                target_group.group_sites.all().delete()
+                existing_path_ids = set()
+                existing_site_ids = set()
+
+            target_group.paths.add(*source_group.paths.all())
+            copied_paths = sum(1 for path in source_paths if path.pk not in existing_path_ids)
+            skipped_paths = len(source_paths) - copied_paths
+            copied_sites = 0
+            skipped_sites = 0
+
+            for source_site in source_group.group_sites.order_by('position', 'pk'):
+                if source_site.site_id in existing_site_ids:
+                    skipped_sites += 1
+                    continue
+
+                copied_site = OtnPathGroupSite.objects.create(
+                    path_group=target_group,
+                    site=source_site.site,
+                    role=source_site.role,
+                    position=source_site.position,
+                    comments=source_site.comments,
+                )
+                copied_site.tags.set(source_site.tags.all())
+                existing_site_ids.add(source_site.site_id)
+                copied_sites += 1
+
+        return copied_paths, copied_sites, skipped_paths, skipped_sites
 
 
 class OtnPathGroupDeleteView(generic.ObjectDeleteView):
