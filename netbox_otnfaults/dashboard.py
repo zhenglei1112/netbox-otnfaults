@@ -1,7 +1,7 @@
 ﻿import json
 import traceback
 import calendar
-from datetime import date
+from datetime import date, timedelta
 from urllib.parse import urlencode
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -39,25 +39,39 @@ class OtnFaultsCalendarWidget(DashboardWidget):
             first_day = date(year, month, 1)
             _, days_in_month = calendar.monthrange(year, month)
             last_day = date(year, month, days_in_month)
+            first_weekday = first_day.weekday()  # 0=周一
+            calendar_start = first_day - timedelta(days=first_weekday)
 
-            # 查询本月所有故障（按 fault_occurrence_time）
+            # 查询当前日历可见范围内的故障（按 fault_occurrence_time）
             faults = OtnFault.objects.restrict(request.user, 'view').filter(
-                fault_occurrence_time__date__gte=first_day,
+                fault_occurrence_time__date__gte=calendar_start,
                 fault_occurrence_time__date__lte=last_day,
             ).values_list('fault_occurrence_time', 'fault_category')
 
-            # 按天分组 → {day: [color, color, ...]}
-            day_dots: dict[int, list[str]] = {}
+            # 按日期分组 → {date: [color, color, ...]}
+            day_dots: dict[date, list[str]] = {}
             for occ_time, cat in faults:
-                day = timezone.localtime(occ_time).day
+                fault_day = timezone.localtime(occ_time).date()
                 color = CATEGORY_CSS_COLORS.get(cat, '#adb5bd')
-                day_dots.setdefault(day, []).append(color)
+                day_dots.setdefault(fault_day, []).append(color)
 
             # 构造日历网格 (weeks × 7)
-            # weekday: 0=Monday, 6=Sunday
             fault_list_base_url = reverse('plugins:netbox_otnfaults:otnfault_list')
-            first_weekday = first_day.weekday()  # 0=周一
-            cal_cells: list[dict | None] = [None] * first_weekday
+            cal_cells: list[dict[str, object] | None] = []
+            for offset in range(first_weekday):
+                day_date = calendar_start + timedelta(days=offset)
+                fault_list_query = urlencode({
+                    'fault_occurrence_time_after': f'{day_date.isoformat()} 00:00:00',
+                    'fault_occurrence_time_before': f'{day_date.isoformat()} 23:59:59',
+                })
+                cal_cells.append({
+                    'day': day_date.day,
+                    'date': day_date.isoformat(),
+                    'dots': day_dots.get(day_date, []),
+                    'is_today': False,
+                    'is_current_month': day_date.month == month,
+                    'fault_list_url': f'{fault_list_base_url}?{fault_list_query}',
+                })
             for d in range(1, days_in_month + 1):
                 day_date = date(year, month, d)
                 fault_list_query = urlencode({
@@ -66,8 +80,10 @@ class OtnFaultsCalendarWidget(DashboardWidget):
                 })
                 cal_cells.append({
                     'day': d,
-                    'dots': day_dots.get(d, []),
+                    'date': day_date.isoformat(),
+                    'dots': day_dots.get(day_date, []),
                     'is_today': d == today_day,
+                    'is_current_month': day_date.month == month,
                     'fault_list_url': f'{fault_list_base_url}?{fault_list_query}',
                 })
             # 补齐最后一行到 7 的倍数

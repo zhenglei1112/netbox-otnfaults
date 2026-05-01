@@ -35,11 +35,32 @@ class DashboardCalendarWidgetTestCase(unittest.TestCase):
         self.assertIn("'fault_occurrence_time_before':", source)
         self.assertIn("'fault_list_url':", source)
 
+    def test_calendar_widget_includes_leading_previous_month_dates(self) -> None:
+        source = DASHBOARD_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("from datetime import date, timedelta", source)
+        self.assertIn("calendar_start = first_day - timedelta(days=first_weekday)", source)
+        self.assertIn("fault_occurrence_time__date__gte=calendar_start", source)
+        self.assertIn("day_dots: dict[date, list[str]] = {}", source)
+        self.assertIn("fault_day = timezone.localtime(occ_time).date()", source)
+        self.assertIn("for offset in range(first_weekday):", source)
+        self.assertIn("day_date = calendar_start + timedelta(days=offset)", source)
+        self.assertIn("'is_current_month': day_date.month == month", source)
+        self.assertIn("'dots': day_dots.get(day_date, [])", source)
+        self.assertNotIn("cal_cells: list[dict | None] = [None] * first_weekday", source)
+
     def test_calendar_widget_template_links_date_cells_to_fault_list(self) -> None:
         template_source = CALENDAR_TEMPLATE_PATH.read_text(encoding="utf-8")
 
         self.assertIn('href="{{ cell.fault_list_url }}"', template_source)
         self.assertIn("otn-cal-cell-link", template_source)
+
+    def test_calendar_widget_template_grays_previous_month_dates(self) -> None:
+        template_source = CALENDAR_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".otn-cal-outside-month .otn-cal-day", template_source)
+        self.assertIn("color: #adb5bd;", template_source)
+        self.assertIn("{% if not cell.is_current_month %}otn-cal-outside-month{% endif %}", template_source)
 
 
 if __name__ == "__main__":
