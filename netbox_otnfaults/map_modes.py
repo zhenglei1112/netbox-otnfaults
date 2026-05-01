@@ -27,7 +27,7 @@ MAP_MODES = {
             'core/config.js',
             'utils/api.js',
             'services/FaultDataService.js',
-            'controls/LayerToggleControl.js',
+            'controls/LayerToggleControl.js?v=pathgroup-overlays-3',
             'controls/FaultStatisticsControl.js',
             'controls/FaultLegendControl.js',
             'controls/SearchControl.js'
@@ -69,7 +69,7 @@ MAP_MODES = {
         'projection': 'mercator',
         'controls': ['navigation', 'fullscreen', 'measures'],
         'layers': {},
-        'js_files': ['controls/LayerToggleControl.js', 'controls/SpatialSelectControl.js']
+        'js_files': ['controls/LayerToggleControl.js?v=pathgroup-overlays-3', 'controls/SpatialSelectControl.js']
     },
     'route_editor': {
         'title': 'OTN线路设计器',

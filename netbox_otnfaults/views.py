@@ -142,6 +142,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             'local_tiles_url': plugin_settings.get('local_tiles_url', ''),
             'local_glyphs_url': plugin_settings.get('local_glyphs_url', ''),
             'otn_paths_pmtiles_url': plugin_settings.get('otn_paths_pmtiles_url', ''),
+            'path_group_overlays_url': reverse('plugins-api:netbox_otnfaults-api:path-group-map-overlays'),
             
             # 动态数据 URL
             'map_data_url': reverse('plugins:netbox_otnfaults:otnfault_map_data'),

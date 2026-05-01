@@ -30,7 +30,7 @@ class PathGroupTopologyToggleTestCase(unittest.TestCase):
         mode_block = source.split("'pathgroup': {", 1)[1].split("'route_editor': {", 1)[0]
 
         self.assertIn("'controls/SpatialSelectControl.js'", mode_block)
-        self.assertIn("'controls/LayerToggleControl.js'", mode_block)
+        self.assertIn("'controls/LayerToggleControl.js?v=pathgroup-overlays-3'", mode_block)
 
     def test_location_mode_initializes_pathgroup_topology_toggle_only(self) -> None:
         source = LOCATION_MODE_PATH.read_text(encoding="utf-8")

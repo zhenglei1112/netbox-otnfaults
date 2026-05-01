@@ -1,19 +1,21 @@
 from netbox.api.viewsets import NetBoxModelViewSet
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.request import Request
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.core.cache import cache
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from datetime import timedelta
 import json
 import logging
 from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
 from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer, BareFiberServiceSerializer, CircuitServiceSerializer
 from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet
+from ..utils import get_hex_color
 from dcim.models import Site
 from dcim.api.serializers import SiteSerializer
 
@@ -72,6 +74,77 @@ class CircuitServiceViewSet(NetBoxModelViewSet):
 
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.authentication import SessionAuthentication
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def path_group_map_overlays(request: Request) -> Response:
+    """Return path group path/site overlays for the fault map layer selector."""
+    groups = OtnPathGroup.objects.prefetch_related(
+        Prefetch(
+            'paths',
+            queryset=OtnPath.objects.exclude(geometry__isnull=True).exclude(geometry=[]),
+            to_attr='overlay_paths',
+        ),
+        Prefetch(
+            'group_sites',
+            queryset=OtnPathGroupSite.objects.select_related('site'),
+            to_attr='overlay_group_sites',
+        ),
+    )
+    results = []
+
+    for group in groups:
+        path_features = []
+        for path in group.overlay_paths:
+            geometry = path.geometry
+            if isinstance(geometry, list):
+                geometry = {'type': 'LineString', 'coordinates': geometry}
+            if not geometry:
+                continue
+
+            path_features.append({
+                'type': 'Feature',
+                'properties': {
+                    'id': path.pk,
+                    'name': path.name,
+                    'url': path.get_absolute_url(),
+                },
+                'geometry': geometry,
+            })
+
+        site_features = []
+        for group_site in group.overlay_group_sites:
+            site = group_site.site
+            if site.latitude is None or site.longitude is None:
+                continue
+
+            role_color = group_site.get_role_color() or 'gray'
+            site_features.append({
+                'type': 'Feature',
+                'properties': {
+                    'id': site.pk,
+                    'name': site.name,
+                    'role': group_site.role,
+                    'role_display': group_site.get_role_display(),
+                    'color': get_hex_color(role_color),
+                    'url': site.get_absolute_url(),
+                },
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [float(site.longitude), float(site.latitude)],
+                },
+            })
+
+        results.append({
+            'id': group.pk,
+            'name': group.name,
+            'slug': group.slug,
+            'paths': path_features,
+            'sites': site_features,
+        })
+
+    return Response({'results': results})
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

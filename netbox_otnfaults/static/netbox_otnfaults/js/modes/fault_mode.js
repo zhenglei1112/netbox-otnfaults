@@ -450,6 +450,8 @@ const FaultModePlugin = {
     // 图层控制
     if (typeof LayerToggleControl !== "undefined") {
       this.layerToggleControl = new LayerToggleControl({
+        enablePathGroupOverlays: true,
+        pathGroupOverlaysUrl: this.config.pathGroupOverlaysUrl,
         onToggle: (type) => {
           // 处理 3D/2D 切换等
         },

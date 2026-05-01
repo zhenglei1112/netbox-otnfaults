@@ -20,6 +20,11 @@ class LayerToggleControl {
         this.currentMode = 'smart'; // 'smart' | 'points' | 'heatmap'
         this.currentTimeRange = '1week'; // Default to 1 week
         this.arcgisVisible = true; // 网络拓扑可见性
+        this.pathGroupOverlaysUrl = this.options.pathGroupOverlaysUrl;
+        this.enablePathGroupOverlays = this.options.enablePathGroupOverlays === true;
+        this.pathGroupOverlays = null;
+        this.pathGroupOverlayLoading = false;
+        this.selectedPathGroupIds = new Set();
 
         // 故障类型筛选（整合自 CategoryFilterControl），默认为新6大类+其它
         this.selectedCategories = ['fiber_break', 'ac_fault', 'fiber_degradation', 'fiber_jitter', 'device_fault', 'power_fault', 'other'];
@@ -155,10 +160,13 @@ class LayerToggleControl {
             // 4. 其他图层
             addSectionDivider();
             this.addHeader(menu, '其他图层');
-            this.createCheckbox(menu, '显示网络拓扑', this.arcgisVisible, (checked) => {
+            this.createCheckbox(menu, '全部站点与路径', this.arcgisVisible, (checked) => {
                 this.arcgisVisible = checked;
                 this.updateArcgisLayersVisibility();
             });
+            if (this.enablePathGroupOverlays) {
+                this.createPathGroupOverlaySelector(menu);
+            }
         }
 
         // 定位菜单
@@ -414,6 +422,340 @@ class LayerToggleControl {
         };
 
         container.appendChild(item);
+    }
+
+    createPathGroupOverlaySelector(container) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'path-group-overlay-selector px-2 pb-2';
+        wrapper.style.cssText = 'max-height: 220px; overflow-y: auto;';
+        container.appendChild(wrapper);
+
+        if (!this.pathGroupOverlaysUrl) {
+            wrapper.innerHTML = '<div class="text-muted small px-2 py-1">路径组数据不可用</div>';
+            return;
+        }
+
+        if (this.pathGroupOverlays) {
+            this.renderPathGroupOverlayOptions(wrapper);
+            return;
+        }
+
+        wrapper.innerHTML = '<div class="text-muted small px-2 py-1">正在加载路径组...</div>';
+        if (this.pathGroupOverlayLoading) return;
+
+        this.pathGroupOverlayLoading = true;
+        fetch(this.pathGroupOverlaysUrl, { credentials: 'same-origin' })
+            .then(response => response.json())
+            .then(data => {
+                this.pathGroupOverlays = data.results || [];
+                this.pathGroupOverlayLoading = false;
+                if (this.menu && wrapper.isConnected) {
+                    this.renderPathGroupOverlayOptions(wrapper);
+                }
+            })
+            .catch(() => {
+                this.pathGroupOverlayLoading = false;
+                if (wrapper.isConnected) {
+                    wrapper.innerHTML = '<div class="text-danger small px-2 py-1">路径组加载失败</div>';
+                }
+            });
+    }
+
+    renderPathGroupOverlayOptions(container) {
+        container.innerHTML = '';
+
+        if (!this.pathGroupOverlays || this.pathGroupOverlays.length === 0) {
+            container.innerHTML = '<div class="text-muted small px-2 py-1">暂无路径组</div>';
+            return;
+        }
+
+        const title = document.createElement('div');
+        title.className = 'text-muted small px-2 py-1';
+        title.innerText = '路径组';
+        container.appendChild(title);
+
+        this.pathGroupOverlays.forEach(group => {
+            const item = document.createElement('label');
+            item.className = 'dropdown-item d-flex align-items-center gap-2';
+            item.style.cursor = 'pointer';
+
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.className = 'form-check-input mt-0';
+            input.checked = this.selectedPathGroupIds.has(group.id);
+            input.style.pointerEvents = 'none';
+
+            const label = document.createElement('span');
+            label.className = 'ms-1 text-truncate';
+            label.innerText = group.name;
+
+            item.appendChild(input);
+            item.appendChild(label);
+            item.onclick = (e) => {
+                e.stopPropagation();
+                input.checked = !input.checked;
+                this.togglePathGroupOverlay(group.id, input.checked);
+            };
+
+            container.appendChild(item);
+        });
+    }
+
+    togglePathGroupOverlay(groupId, checked) {
+        if (checked) {
+            this.selectedPathGroupIds.add(groupId);
+        } else {
+            this.selectedPathGroupIds.delete(groupId);
+        }
+
+        const group = (this.pathGroupOverlays || []).find(item => item.id === groupId);
+        if (!group || !this.map) return;
+
+        this.ensurePathGroupOverlayLayers(group);
+        this.setPathGroupOverlayVisibility(groupId, checked);
+        if (checked) {
+            this.fitSelectedPathGroupOverlays();
+        }
+    }
+
+    ensurePathGroupOverlayLayers(group) {
+        const groupId = group.id;
+        const pathSourceId = `path-group-overlay-${groupId}-paths`;
+        const siteSourceId = `path-group-overlay-${groupId}-sites`;
+        const beforeLayerId = this.getPathGroupOverlayBeforeLayerId();
+
+        if (!this.map.getSource(pathSourceId)) {
+            this.map.addSource(pathSourceId, {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: group.paths || []
+                }
+            });
+        }
+
+        if (!this.map.getSource(siteSourceId)) {
+            this.map.addSource(siteSourceId, {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: group.sites || []
+                }
+            });
+        }
+
+        if (!this.map.getLayer(`${pathSourceId}-outline`)) {
+            this.map.addLayer({
+                id: `${pathSourceId}-outline`,
+                type: 'line',
+                source: pathSourceId,
+                paint: {
+                    "line-color": "#FFD700",
+                    "line-width": ["interpolate", ["linear"], ["zoom"], 3, 2, 6, 3, 10, 4],
+                    "line-opacity": 0.8
+                },
+                layout: { visibility: 'none' }
+            }, beforeLayerId);
+        }
+
+        if (!this.map.getLayer(pathSourceId)) {
+            this.map.addLayer({
+                id: pathSourceId,
+                type: 'line',
+                source: pathSourceId,
+                paint: {
+                    "line-color": "#FFD700",
+                    "line-width": ["interpolate", ["linear"], ["zoom"], 3, 1.5, 6, 2, 10, 3],
+                    "line-opacity": 0.9
+                },
+                layout: { visibility: 'none' }
+            }, beforeLayerId);
+        }
+
+        if (!this.map.getLayer(`${siteSourceId}-glow`)) {
+            this.map.addLayer({
+                id: `${siteSourceId}-glow`,
+                type: 'circle',
+                source: siteSourceId,
+                paint: {
+                    "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 8, 6, 10, 10, 12],
+                    "circle-color": ["get", "color"],
+                    "circle-opacity": 0.4,
+                    "circle-blur": 0.5
+                },
+                layout: { visibility: 'none' }
+            }, beforeLayerId);
+        }
+
+        if (!this.map.getLayer(siteSourceId)) {
+            this.map.addLayer({
+                id: siteSourceId,
+                type: 'circle',
+                source: siteSourceId,
+                paint: {
+                    "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 5, 6, 6, 10, 8],
+                    "circle-color": ["get", "color"],
+                    "circle-opacity": 1,
+                    "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 3, 1.5, 6, 1.5, 10, 2],
+                    "circle-stroke-color": "#FFFFFF"
+                },
+                layout: { visibility: 'none' }
+            }, beforeLayerId);
+        }
+
+        const labelLayerId = `path-group-overlay-${groupId}-site-labels`;
+        if (!this.map.getLayer(labelLayerId)) {
+            this.map.addLayer({
+                id: labelLayerId,
+                type: 'symbol',
+                source: siteSourceId,
+                layout: {
+                    "text-field": ["get", "name"],
+                    "text-size": 11,
+                    "text-offset": [0, 1.0],
+                    "text-anchor": "top",
+                    "text-allow-overlap": false,
+                    visibility: 'none'
+                },
+                paint: {
+                    "text-color": "#333333",
+                    "text-halo-color": "#ffffff",
+                    "text-halo-width": 1.5
+                }
+            }, beforeLayerId);
+        }
+    }
+
+    getPathGroupOverlayBeforeLayerId() {
+        const candidates = [
+            'fault-points-layer',
+            'netbox-sites-labels',
+            'netbox-sites-layer'
+        ];
+        return candidates.find(id => this.map.getLayer(id));
+    }
+
+    raisePathGroupOverlayLayers(groupId) {
+        const beforeLayerId = this.getPathGroupOverlayBeforeLayerId();
+        const layerIds = [
+            `path-group-overlay-${groupId}-paths-outline`,
+            `path-group-overlay-${groupId}-paths`,
+            `path-group-overlay-${groupId}-sites-glow`,
+            `path-group-overlay-${groupId}-sites`,
+            `path-group-overlay-${groupId}-site-labels`
+        ];
+
+        layerIds.forEach(id => {
+            if (this.map.getLayer(id)) {
+                this.map.moveLayer(id, beforeLayerId);
+            }
+        });
+    }
+
+    setPathGroupOverlayVisibility(groupId, visible) {
+        this.raisePathGroupOverlayLayers(groupId);
+        const visibility = visible ? 'visible' : 'none';
+        const layerIds = [
+            `path-group-overlay-${groupId}-paths-outline`,
+            `path-group-overlay-${groupId}-paths`,
+            `path-group-overlay-${groupId}-sites-glow`,
+            `path-group-overlay-${groupId}-sites`,
+            `path-group-overlay-${groupId}-site-labels`
+        ];
+
+        layerIds.forEach(id => {
+            if (this.map.getLayer(id)) {
+                this.map.setLayoutProperty(id, 'visibility', visibility);
+            }
+        });
+    }
+
+    fitSelectedPathGroupOverlays() {
+        if (typeof maplibregl === 'undefined' || !this.map || !this.selectedPathGroupIds.size) {
+            return;
+        }
+
+        const bounds = new maplibregl.LngLatBounds();
+        (this.pathGroupOverlays || []).forEach(group => {
+            if (!this.selectedPathGroupIds.has(group.id)) {
+                return;
+            }
+
+            (group.paths || []).forEach(feature => {
+                if (feature.geometry) {
+                    this._extendOverlayBoundsWithGeometry(bounds, feature.geometry);
+                }
+            });
+
+            (group.sites || []).forEach(feature => {
+                const coordinates = feature.geometry?.coordinates;
+                if (Array.isArray(coordinates) && coordinates.length >= 2) {
+                    bounds.extend(coordinates);
+                }
+            });
+        });
+
+        if (!bounds.isEmpty()) {
+            this.map.fitBounds(bounds, { padding: 80, maxZoom: 12, duration: 500 });
+        }
+    }
+
+    _extendOverlayBoundsWithGeometry(bounds, geometry) {
+        if (!geometry || !Array.isArray(geometry.coordinates)) {
+            return;
+        }
+
+        const extendCoordinates = (coordinates) => {
+            if (!Array.isArray(coordinates)) {
+                return;
+            }
+            if (
+                coordinates.length >= 2
+                && typeof coordinates[0] === 'number'
+                && typeof coordinates[1] === 'number'
+            ) {
+                bounds.extend(coordinates);
+                return;
+            }
+            coordinates.forEach(item => extendCoordinates(item));
+        };
+
+        extendCoordinates(geometry.coordinates);
+    }
+
+    getPathGroupOverlayDebug() {
+        const groups = this.pathGroupOverlays || [];
+        return groups.map(group => {
+            const groupId = group.id;
+            const pathSourceId = `path-group-overlay-${groupId}-paths`;
+            const siteSourceId = `path-group-overlay-${groupId}-sites`;
+            const layerIds = [
+                `path-group-overlay-${groupId}-paths-outline`,
+                `path-group-overlay-${groupId}-paths`,
+                `path-group-overlay-${groupId}-sites-glow`,
+                `path-group-overlay-${groupId}-sites`,
+                `path-group-overlay-${groupId}-site-labels`
+            ];
+
+            return {
+                id: group.id,
+                name: group.name,
+                selected: this.selectedPathGroupIds.has(group.id),
+                pathFeatureCount: (group.paths || []).length,
+                siteFeatureCount: (group.sites || []).length,
+                sourceExists: {
+                    paths: Boolean(this.map && this.map.getSource(pathSourceId)),
+                    sites: Boolean(this.map && this.map.getSource(siteSourceId))
+                },
+                layers: layerIds.map(id => ({
+                    id,
+                    exists: Boolean(this.map && this.map.getLayer(id)),
+                    visibility: this.map && this.map.getLayer(id)
+                        ? this.map.getLayoutProperty(id, 'visibility')
+                        : null
+                }))
+            };
+        });
     }
 
     hideMenu() {
