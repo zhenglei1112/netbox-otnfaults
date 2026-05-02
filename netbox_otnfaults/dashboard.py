@@ -21,6 +21,39 @@ CATEGORY_CSS_COLORS: dict[str, str] = {
 }
 
 
+CHINA_PUBLIC_HOLIDAYS: set[date] = {
+    date(2026, 1, 1), date(2026, 1, 2), date(2026, 1, 3),
+    date(2026, 2, 15), date(2026, 2, 16), date(2026, 2, 17),
+    date(2026, 2, 18), date(2026, 2, 19), date(2026, 2, 20),
+    date(2026, 2, 21), date(2026, 2, 22), date(2026, 2, 23),
+    date(2026, 4, 4), date(2026, 4, 5), date(2026, 4, 6),
+    date(2026, 5, 1), date(2026, 5, 2), date(2026, 5, 3),
+    date(2026, 5, 4), date(2026, 5, 5),
+    date(2026, 6, 19), date(2026, 6, 20), date(2026, 6, 21),
+    date(2026, 9, 25), date(2026, 9, 26), date(2026, 9, 27),
+    date(2026, 10, 1), date(2026, 10, 2), date(2026, 10, 3),
+    date(2026, 10, 4), date(2026, 10, 5), date(2026, 10, 6),
+    date(2026, 10, 7),
+}
+
+CHINA_MAKEUP_WORKDAYS: set[date] = {
+    date(2026, 1, 4),
+    date(2026, 2, 14),
+    date(2026, 2, 28),
+    date(2026, 5, 9),
+    date(2026, 9, 20),
+    date(2026, 10, 10),
+}
+
+
+def _get_china_holiday_marker(day: date) -> str:
+    if day in CHINA_PUBLIC_HOLIDAYS:
+        return '休'
+    if day in CHINA_MAKEUP_WORKDAYS:
+        return '班'
+    return ''
+
+
 @register_widget
 class OtnFaultsCalendarWidget(DashboardWidget):
     """月历热点小组件：用彩色圆点标注每天发生的故障"""
@@ -60,6 +93,7 @@ class OtnFaultsCalendarWidget(DashboardWidget):
             cal_cells: list[dict[str, object] | None] = []
             for offset in range(first_weekday):
                 day_date = calendar_start + timedelta(days=offset)
+                holiday_marker = _get_china_holiday_marker(day_date)
                 fault_list_query = urlencode({
                     'fault_occurrence_time_after': f'{day_date.isoformat()} 00:00:00',
                     'fault_occurrence_time_before': f'{day_date.isoformat()} 23:59:59',
@@ -71,9 +105,11 @@ class OtnFaultsCalendarWidget(DashboardWidget):
                     'is_today': False,
                     'is_current_month': day_date.month == month,
                     'fault_list_url': f'{fault_list_base_url}?{fault_list_query}',
+                    'holiday_marker': holiday_marker,
                 })
             for d in range(1, days_in_month + 1):
                 day_date = date(year, month, d)
+                holiday_marker = _get_china_holiday_marker(day_date)
                 fault_list_query = urlencode({
                     'fault_occurrence_time_after': f'{day_date.isoformat()} 00:00:00',
                     'fault_occurrence_time_before': f'{day_date.isoformat()} 23:59:59',
@@ -85,6 +121,7 @@ class OtnFaultsCalendarWidget(DashboardWidget):
                     'is_today': d == today_day,
                     'is_current_month': day_date.month == month,
                     'fault_list_url': f'{fault_list_base_url}?{fault_list_query}',
+                    'holiday_marker': holiday_marker,
                 })
             # 补齐最后一行到 7 的倍数
             while len(cal_cells) % 7 != 0:

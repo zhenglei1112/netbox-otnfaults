@@ -62,6 +62,27 @@ class DashboardCalendarWidgetTestCase(unittest.TestCase):
         self.assertIn("color: #adb5bd;", template_source)
         self.assertIn("{% if not cell.is_current_month %}otn-cal-outside-month{% endif %}", template_source)
 
+    def test_calendar_widget_marks_2026_public_holidays_and_makeup_workdays(self) -> None:
+        source = DASHBOARD_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("CHINA_PUBLIC_HOLIDAYS: set[date] = {", source)
+        self.assertIn("date(2026, 5, 1)", source)
+        self.assertIn("date(2026, 5, 5)", source)
+        self.assertIn("CHINA_MAKEUP_WORKDAYS: set[date] = {", source)
+        self.assertIn("date(2026, 5, 9)", source)
+        self.assertIn("holiday_marker = _get_china_holiday_marker(day_date)", source)
+        self.assertIn("'holiday_marker': holiday_marker", source)
+
+    def test_calendar_widget_template_renders_holiday_marker_after_day(self) -> None:
+        template_source = CALENDAR_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".otn-cal-holiday-marker", template_source)
+        self.assertIn(".otn-cal-holiday-marker--workday", template_source)
+        self.assertIn("color: #0d6efd;", template_source)
+        self.assertIn("{% if cell.holiday_marker %}", template_source)
+        self.assertIn('{% if cell.holiday_marker == "班" %} otn-cal-holiday-marker--workday{% endif %}', template_source)
+        self.assertIn('<span class="otn-cal-holiday-marker{% if cell.holiday_marker == "班" %} otn-cal-holiday-marker--workday{% endif %}">{{ cell.holiday_marker }}</span>', template_source)
+
 
 if __name__ == "__main__":
     unittest.main()
