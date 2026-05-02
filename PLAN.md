@@ -1733,3 +1733,11 @@
 - [x] 增加源码级回归测试，要求日历后端为公共假日和调休工作日提供标记。
 - [x] 调整日历小组件数据构造，在公共假日日期后显示 `休`，在调休周末日期后显示 `班`。
 - [x] 运行定向测试确认月历标记逻辑和模板渲染约束通过。
+## 2026-05-02 Fix reversed Top5 fault path lookup
+### Steps
+- [x] Trace how the fault distribution Top5 path label is built and how click-to-path matches OtnPath metadata.
+- [x] Add a regression test for a fault counted as `江都 <-> 高邮` matching an OtnPath stored as `高邮-江都`.
+- [x] Fix the matching logic with a scoped frontend change.
+- [x] Run targeted tests and JavaScript syntax checks.
+- [x] Add cache busting for `FaultStatisticsControl.js` so the fixed matcher is actually loaded by the fault map.
+- [x] Make OTN path metadata loading follow paginated API results and cache-bust `utils/api.js`.

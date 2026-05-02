@@ -130,11 +130,79 @@ class FaultStatisticsControl {
   matchesPath(faultASite, faultZSites, targetASite, targetZSite) {
     if (!faultASite || !faultZSites) return false;
     const zSitesList = this.splitZSites(faultZSites);
+    const normalizedFaultA = this.normalizeSiteName(faultASite);
+    const normalizedTargetA = this.normalizeSiteName(targetASite);
+    const normalizedTargetZ = this.normalizeSiteName(targetZSite);
+    const normalizedZSites = zSitesList.map((site) => this.normalizeSiteName(site));
     // 双向匹配：A匹配且Z包含目标，或者反向匹配
     return (
-      (faultASite === targetASite && zSitesList.includes(targetZSite)) ||
-      (faultASite === targetZSite && zSitesList.includes(targetASite))
+      (normalizedFaultA === normalizedTargetA && normalizedZSites.includes(normalizedTargetZ)) ||
+      (normalizedFaultA === normalizedTargetZ && normalizedZSites.includes(normalizedTargetA))
     );
+  }
+
+  normalizeSiteName(name) {
+    return String(name || "")
+      .replace(/\s+/g, "")
+      .trim();
+  }
+
+  getPathEndpointNames(path) {
+    const props = (path && path.properties) || {};
+    const aSite = props.a_site || props.site_a_name;
+    const zSite = props.z_site || props.site_z_name;
+    if (aSite && zSite) {
+      return [aSite, zSite];
+    }
+
+    const pathName = props.name || "";
+    const separators = [" <-> ", "<->", " - ", "-", "－", "—", "–", "到", "至"];
+    for (const separator of separators) {
+      if (!pathName.includes(separator)) continue;
+      const parts = pathName
+        .split(separator)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts.length === 2) {
+        return parts;
+      }
+    }
+
+    return [null, null];
+  }
+
+  pathMatchesEndpoints(path, siteAName, siteZName) {
+    const [pathAName, pathZName] = this.getPathEndpointNames(path);
+    if (!pathAName || !pathZName) return false;
+
+    const pathA = this.normalizeSiteName(pathAName);
+    const pathZ = this.normalizeSiteName(pathZName);
+    const targetA = this.normalizeSiteName(siteAName);
+    const targetZ = this.normalizeSiteName(siteZName);
+
+    return (
+      (pathA === targetA && pathZ === targetZ) ||
+      (pathA === targetZ && pathZ === targetA)
+    );
+  }
+
+  findMatchingPathsByEndpoints(paths, siteAName, siteZNames) {
+    const matchedPaths = [];
+    const seenPathIds = new Set();
+
+    siteZNames.forEach((siteZName) => {
+      paths.forEach((path) => {
+        const props = (path && path.properties) || {};
+        const pathKey = props.id || props.name || matchedPaths.length;
+        if (seenPathIds.has(pathKey)) return;
+        if (!this.pathMatchesEndpoints(path, siteAName, siteZName)) return;
+
+        matchedPaths.push(path);
+        seenPathIds.add(pathKey);
+      });
+    });
+
+    return matchedPaths;
   }
 
   // 计算统计数据 (带缓存)
@@ -907,23 +975,12 @@ class FaultStatisticsControl {
     );
 
     // 在光缆路径模型中匹配（使用站点名称，考虑AZ与ZA双向）
-    // 对于一对多情况，查找所有匹配的路径
-    const matchedPaths = [];
-    siteZNames.forEach((siteZName) => {
-      const matchingPath = paths.find((p) => {
-        const props = p.properties;
-        if (!props.a_site || !props.z_site) return false;
-
-        // 双向匹配：A-Z 或 Z-A
-        const match =
-          (props.a_site === siteAName && props.z_site === siteZName) ||
-          (props.a_site === siteZName && props.z_site === siteAName);
-        return match;
-      });
-      if (matchingPath) {
-        matchedPaths.push(matchingPath);
-      }
-    });
+    // 对于一对多情况，查找所有匹配的路径；当端点字段缺失时回退解析路径名。
+    const matchedPaths = this.findMatchingPathsByEndpoints(
+      paths,
+      siteAName,
+      siteZNames
+    );
 
     console.log("[flyToPath] 匹配到的路径数:", matchedPaths.length);
 

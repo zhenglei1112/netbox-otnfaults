@@ -25,10 +25,10 @@ MAP_MODES = {
         'js_files': [
             'utils/fault_icons.js',      # SVG图标库（必须在fault_mode.js之前）
             'core/config.js',
-            'utils/api.js',
+            'utils/api.js?v=path-pagination-1',
             'services/FaultDataService.js',
             'controls/LayerToggleControl.js?v=pathgroup-overlays-3',
-            'controls/FaultStatisticsControl.js',
+            'controls/FaultStatisticsControl.js?v=top5-path-reverse-2',
             'controls/FaultLegendControl.js',
             'controls/SearchControl.js'
         ]

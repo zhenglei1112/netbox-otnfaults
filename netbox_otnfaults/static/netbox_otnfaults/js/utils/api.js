@@ -10,21 +10,34 @@ const OTNFaultMapAPI = {
      * @returns {Promise<Array>} - 路径 GeoJSON 特征数组
      */
     fetchPaths: function(apiKey) {
-        return fetch('/api/plugins/otnfaults/paths/?limit=0', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Token ${apiKey}`,
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            const results = data.results || [];
+        const headers = {
+            'Authorization': `Token ${apiKey}`,
+            'Content-Type': 'application/json'
+        };
+
+        const fetchPage = (url, accumulatedResults = []) => {
+            return fetch(url, {
+                method: 'GET',
+                headers: headers
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const pageResults = data.results || [];
+                const results = accumulatedResults.concat(pageResults);
+                if (data.next) {
+                    return fetchPage(data.next, results);
+                }
+                return results;
+            });
+        };
+
+        return fetchPage('/api/plugins/otnfaults/paths/?limit=0')
+        .then(results => {
             return results
                 .filter(path => path.geometry) // 仅处理带几何信息的路径
                 .map(path => {
