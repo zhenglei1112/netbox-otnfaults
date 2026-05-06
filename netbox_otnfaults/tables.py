@@ -173,7 +173,7 @@ class OtnFaultTable(NetBoxTable):
             'interruption_reason', 'interruption_reason_detail', 'urgency', 'first_report_source',
             'province', 'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
-            'timeout', 'handler', 'cable_break_location', 'recovery_mode', 'handling_unit', 'contract',
+            'timeout', 'handler', 'fault_details', 'cable_break_location', 'recovery_mode', 'handling_unit', 'contract',
             'fault_status',
             'manager_reviewed', 'manager_reviewer', 'manager_review_time',
             'noc_reviewed', 'noc_reviewer', 'noc_review_time',

@@ -708,6 +708,8 @@
     // 故障复核逻辑：自动填入操作人与当前时间
     function initReviewLogic() {
         const currentUser = "{{ request.user.first_name }}{{ request.user.last_name }}" || "{{ request.user.username }}";
+        const ongoingImpactCountAttr = 'data-ongoing-impact-count';
+        const ongoingImpactWarningAttr = 'data-ongoing-impact-warning';
         
         function setupReviewerSync(checkId, nameId, timeId) {
             const checkEl = document.getElementById(checkId);
@@ -717,6 +719,10 @@
             if (checkEl && nameEl && timeEl) {
                 checkEl.addEventListener('change', function() {
                     if (this.checked) {
+                        const ongoingImpactCount = Number(checkEl.getAttribute(ongoingImpactCountAttr) || '0');
+                        if (ongoingImpactCount > 0) {
+                            alert(checkEl.getAttribute(ongoingImpactWarningAttr) || '该物理故障下仍有业务故障处于持续状态，请先检查业务恢复时间。');
+                        }
                         nameEl.value = currentUser;
                         const now = new Date();
                         const f = (n) => n.toString().padStart(2, '0');
@@ -740,6 +746,20 @@
         
         setupReviewerSync('id_manager_reviewed', 'id_manager_reviewer', 'id_manager_review_time');
         setupReviewerSync('id_noc_reviewed', 'id_noc_reviewer', 'id_noc_review_time');
+    }
+
+    function initErrorFieldFocus() {
+        const firstError = document.querySelector('.is-invalid, .invalid-feedback, .text-danger');
+        if (!firstError) return;
+
+        const errorRow = firstError.closest('.row') || firstError.closest('.mb-3') || firstError;
+        const focusTarget = errorRow.querySelector('input:not([type="hidden"]), select, textarea, button') ||
+            firstError.closest('.form-group')?.querySelector('input:not([type="hidden"]), select, textarea, button');
+
+        errorRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (focusTarget && typeof focusTarget.focus === 'function') {
+            focusTarget.focus({ preventScroll: true });
+        }
     }
 
     // Z端快捷定位：根据A端站点自动查找有路径连通的站点，并提供快捷选择
@@ -880,6 +900,7 @@
         setTimeout(initOperationsManagerLogic, 200);
         setTimeout(initReviewLogic, 200);
         setTimeout(initPathShortcuts, 200);
+        setTimeout(initErrorFieldFocus, 250);
     } else {
         window.addEventListener('load', function() {
             setTimeout(initCascadeFilter, 200);
@@ -889,6 +910,7 @@
             setTimeout(initOperationsManagerLogic, 200);
             setTimeout(initReviewLogic, 200);
             setTimeout(initPathShortcuts, 200);
+            setTimeout(initErrorFieldFocus, 250);
         });
     }
 })();

@@ -167,6 +167,24 @@ class OtnFaultForm(NetBoxModelForm):
         # 初始设置 API 数据源（前端会动态挂载 connected_to_a 参数）
         self.fields['interruption_location'].widget.attrs['data-url'] = '/api/plugins/otnfaults/connected-sites/'
         self.fields['tags'].help_text = '若故障涉及88系统，需勾选对应标签。'
+        ongoing_bare_fiber_impact_count = self._get_ongoing_impact_count(ServiceTypeChoices.BARE_FIBER)
+        ongoing_circuit_impact_count = self._get_ongoing_impact_count(ServiceTypeChoices.CIRCUIT)
+        manager_review_warning = (
+            f'该物理故障下仍有 {ongoing_bare_fiber_impact_count} 条裸纤业务故障处于持续状态，'
+            '请先检查裸纤业务恢复时间。'
+        )
+        noc_review_warning = (
+            f'该物理故障下仍有 {ongoing_circuit_impact_count} 条电路业务故障处于持续状态，'
+            '请先检查电路业务恢复时间。'
+        )
+        self.fields['manager_reviewed'].widget.attrs.update({
+            'data-ongoing-impact-count': str(ongoing_bare_fiber_impact_count),
+            'data-ongoing-impact-warning': manager_review_warning,
+        })
+        self.fields['noc_reviewed'].widget.attrs.update({
+            'data-ongoing-impact-count': str(ongoing_circuit_impact_count),
+            'data-ongoing-impact-warning': noc_review_warning,
+        })
         if not self.instance.fault_category:
             self.initial['fault_category'] = FaultCategoryChoices.FIBER_BREAK
             self.fields['fault_category'].initial = FaultCategoryChoices.FIBER_BREAK
@@ -183,6 +201,32 @@ class OtnFaultForm(NetBoxModelForm):
             field_order = list(self.fields.keys())
             field_order.insert(0, 'fault_number_display')
             self.order_fields(field_order)
+
+    def _get_ongoing_impact_count(self, service_type: str) -> int:
+        if not self.instance.pk:
+            return 0
+
+        return self.instance.impacts.filter(
+            service_recovery_time__isnull=True,
+            service_type=service_type,
+        ).count()
+
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean()
+        if cleaned_data is None:
+            cleaned_data = getattr(self, 'cleaned_data', None) or {}
+
+        if cleaned_data.get('manager_reviewed') and self._get_ongoing_impact_count(ServiceTypeChoices.BARE_FIBER) > 0:
+            raise ValidationError({
+                'manager_reviewed': '该物理故障下仍有裸纤业务故障处于持续状态，请先检查裸纤业务恢复时间。'
+            })
+
+        if cleaned_data.get('noc_reviewed') and self._get_ongoing_impact_count(ServiceTypeChoices.CIRCUIT) > 0:
+            raise ValidationError({
+                'noc_reviewed': '该物理故障下仍有电路业务故障处于持续状态，请先检查电路业务恢复时间。'
+            })
+
+        return cleaned_data
 
 
 
