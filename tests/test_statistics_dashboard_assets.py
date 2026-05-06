@@ -25,7 +25,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
     def test_statistics_dashboard_loads_bumped_theme_assets(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("statistics_dashboard.css' %}?v=29", template)
+        self.assertIn("statistics_dashboard.css' %}?v=30", template)
         self.assertIn("statistics_dashboard.js' %}?v=34", template)
 
     def test_statistics_dashboard_css_covers_light_and_dark_theme_surfaces(self) -> None:
@@ -36,6 +36,13 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn(".page-statistics .filter-controls .form-control", css)
         self.assertIn(".page-statistics .text-dark", css)
         self.assertIn(".page-statistics .table", css)
+
+    def test_statistics_dashboard_reserves_scrollbar_space_for_modal_opening(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertRegex(css, r"html\s*\{[^}]*scrollbar-gutter:\s*stable;")
+        self.assertRegex(css, r"body\.modal-open\s*\{[^}]*overflow-y:\s*scroll\s*!important;")
+        self.assertRegex(css, r"body\.modal-open\s*\{[^}]*padding-right:\s*0\s*!important;")
 
     def test_statistics_dashboard_filter_controls_group_period_controls_with_smaller_gap(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -126,6 +133,26 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertNotIn("平均时长为累计时长除以影响次数", template)
         self.assertNotIn("业务长时故障指单次业务影响历时大于等于 6 小时", template)
         self.assertNotIn("业务重复故障指同一业务相邻两次影响时间间隔不超过 60 天", template)
+
+    def test_statistics_metric_help_modal_uses_compact_card_layout(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("statistics-metric-help-modal", template)
+        self.assertIn("statistics-metric-help-grid", template)
+        self.assertEqual(template.count('class="statistics-metric-help-card"'), 4)
+        self.assertIn("statistics-metric-help-card-title", template)
+        self.assertIn("statistics-metric-help-footer", template)
+        self.assertIn("statistics-metric-help-confirm", template)
+
+        self.assertIn(".statistics-metric-help-modal .modal-content", css)
+        self.assertIn(".statistics-metric-help-grid", css)
+        self.assertIn("grid-template-columns: repeat(2, minmax(0, 1fr));", css)
+        self.assertIn(".statistics-metric-help-card-title", css)
+        self.assertIn(".statistics-metric-help-confirm", css)
+        self.assertIn("background: #008a7a;", css)
+        self.assertIn("background: var(--statistics-surface, #ffffff);", css)
+        self.assertIn("border: 1px solid var(--statistics-border, #d7dee8);", css)
 
     def test_statistics_dashboard_exposes_content_fullscreen_control(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")

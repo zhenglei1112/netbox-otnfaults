@@ -1,5 +1,14 @@
 /* 故障统计专属样式 */
 
+html {
+    scrollbar-gutter: stable;
+}
+
+body.modal-open {
+    overflow-y: scroll !important;
+    padding-right: 0 !important;
+}
+
 .page-statistics {
     --statistics-page-bg: var(--bs-body-bg, #f4f6fa);
     --statistics-surface: var(--bs-card-bg, #ffffff);
@@ -1777,6 +1786,137 @@
     border-top: 1px solid var(--statistics-border);
     padding-top: 10px;
     margin-top: 4px;
+}
+
+.statistics-metric-help-modal .modal-dialog {
+    max-width: min(1120px, calc(100vw - 2rem));
+}
+
+.statistics-metric-help-modal {
+    --statistics-surface: var(--bs-card-bg, #ffffff);
+    --statistics-surface-subtle: var(--bs-tertiary-bg, #f8fafc);
+    --statistics-border: var(--bs-border-color, #d7dee8);
+    --statistics-text: var(--bs-body-color, #182433);
+    --statistics-heading: var(--bs-emphasis-color, #111827);
+}
+
+[data-bs-theme="dark"] .statistics-metric-help-modal {
+    --statistics-surface: var(--bs-card-bg, #1f2632);
+    --statistics-surface-subtle: var(--bs-tertiary-bg, #252d3a);
+    --statistics-border: var(--bs-border-color, #3d4656);
+    --statistics-text: var(--bs-body-color, #dce3ee);
+    --statistics-heading: var(--bs-emphasis-color, #f2f6fb);
+}
+
+.statistics-metric-help-modal .modal-content {
+    border: 1px solid var(--statistics-border, #d7dee8);
+    border-radius: 8px;
+    background: var(--statistics-surface, #ffffff);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+    overflow: hidden;
+}
+
+.statistics-metric-help-modal .modal-header {
+    min-height: 3.4rem;
+    padding: 0.85rem 1.35rem;
+    border-bottom: 1px solid var(--statistics-border, #d7dee8);
+    background: var(--statistics-surface, #ffffff);
+}
+
+.statistics-metric-help-modal .modal-title {
+    display: inline-flex;
+    align-items: center;
+    color: var(--statistics-heading, #111827);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.statistics-metric-help-modal .btn-close {
+    opacity: 0.55;
+}
+
+.statistics-metric-help-modal .modal-body {
+    padding: 1.25rem;
+    background: var(--statistics-surface, #ffffff);
+}
+
+.statistics-metric-help-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem 1rem;
+}
+
+.statistics-metric-help-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border: 1px solid var(--statistics-border, #d7dee8);
+    border-radius: 6px;
+    background: var(--statistics-surface, #ffffff);
+    overflow: hidden;
+}
+
+.statistics-metric-help-card-title {
+    margin: 0;
+    padding: 0.55rem 0.85rem;
+    border-bottom: 1px solid var(--statistics-border, #d7dee8);
+    background: var(--statistics-surface-subtle, #f8fafc);
+    color: var(--statistics-heading, #111827);
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.statistics-metric-help-card-body {
+    flex: 1 1 auto;
+    padding: 0.65rem 1.05rem 0.78rem 1.25rem;
+}
+
+.statistics-metric-help-card-body ul {
+    padding-left: 1rem;
+}
+
+.statistics-metric-help-card-body li {
+    margin-bottom: 0.38rem;
+    color: var(--statistics-text, #182433);
+    font-size: 0.86rem;
+    line-height: 1.58;
+}
+
+.statistics-metric-help-card-body li:last-child {
+    margin-bottom: 0;
+}
+
+.statistics-metric-help-footer {
+    padding: 0.9rem 1.35rem 1.15rem;
+    border-top: 1px solid var(--statistics-border, #d7dee8);
+    background: var(--statistics-surface, #ffffff);
+}
+
+.statistics-metric-help-confirm {
+    min-width: 4.2rem;
+    border-color: #008a7a;
+    background: #008a7a;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.statistics-metric-help-confirm:hover,
+.statistics-metric-help-confirm:focus {
+    border-color: #007568;
+    background: #007568;
+    color: #ffffff;
+}
+
+@media (max-width: 767.98px) {
+    .statistics-metric-help-modal .modal-dialog {
+        max-width: calc(100vw - 1rem);
+    }
+
+    .statistics-metric-help-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .modal-dialog.statistics-cable-break-map-dialog {

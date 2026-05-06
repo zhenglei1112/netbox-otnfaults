@@ -1260,7 +1260,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("month.days.map(day => Number(day.count || 0))", source)
         self.assertIn("const interruptCalendarMaxCount = getMaxServiceInterruptCalendarCount(services);", source)
         self.assertIn("interruptCalendarMaxCount,", source)
-        self.assertIn("statistics_dashboard.css' %}?v=29", template)
+        self.assertIn("statistics_dashboard.css' %}?v=30", template)
         self.assertIn("statistics_dashboard.js' %}?v=34", template)
 
     def test_service_fault_tabs_render_click_filtered_detail_lists(self) -> None:
