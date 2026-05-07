@@ -98,6 +98,12 @@ class OtnFaultTable(NetBoxTable):
     fault_category = columns.ChoiceFieldColumn(
         verbose_name='故障分类'
     )
+    power_fault_phenomenon = columns.ChoiceFieldColumn(
+        verbose_name='供电故障现象'
+    )
+    power_fault_impact = columns.ChoiceFieldColumn(
+        verbose_name='影响情况'
+    )
     interruption_reason = columns.ChoiceFieldColumn(
         verbose_name='一级原因'
     )
@@ -168,7 +174,8 @@ class OtnFaultTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = OtnFault
         fields = (
-            'pk', 'fault_number', 'fault_category', 'duty_officer', 'interruption_location_a', 'interruption_location',
+            'pk', 'fault_number', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
+            'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'progress',
             'interruption_reason', 'interruption_reason_detail', 'urgency', 'first_report_source',
             'province', 'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',
@@ -191,6 +198,20 @@ class OtnFaultTable(NetBoxTable):
 
     def value_fault_category(self, value: str | None, record: OtnFault) -> str:
         return _display_or_empty(record.get_fault_category_display())
+
+    def render_power_fault_phenomenon(self, value, record):
+        color = record.get_power_fault_phenomenon_color()
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_power_fault_phenomenon_display())
+
+    def value_power_fault_phenomenon(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_power_fault_phenomenon_display())
+
+    def render_power_fault_impact(self, value, record):
+        color = record.get_power_fault_impact_color()
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_power_fault_impact_display())
+
+    def value_power_fault_impact(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_power_fault_impact_display())
 
     def render_urgency(self, value, record):
         color = record.get_urgency_color()

@@ -1810,3 +1810,8 @@
 - [x] 定位故障分布图打开后 `/api/plugins/otnfaults/paths/` 返回 403 的请求头根因。
 - [x] 增加前端 API 工具回归测试，覆盖同时存在 CSRF 与 API key 时仍发送 Token 认证。
 - [x] 修复 `utils/api.js` 的认证头选择逻辑，并运行相关测试。
+## 2026-05-07 Power fault phenomenon and impact fields
+- [x] Add source regression coverage for the two new power-fault select fields, choices, list columns, filter form, and edit-page visibility.
+- [x] Extend the fault model, migration, serializer, table columns, filterset, and filter form.
+- [x] Render the two fields immediately after fault category and show them only for power faults.
+- [x] Run targeted tests and Python syntax checks.

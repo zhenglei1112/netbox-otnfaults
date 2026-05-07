@@ -117,6 +117,30 @@ class PowerMaintenanceModeChoices(ChoiceSet):
     ]
 
 
+class PowerFaultPhenomenonChoices(ChoiceSet):
+    key = 'OtnFault.power_fault_phenomenon'
+
+    ALL_INTERRUPTED = 'all_interrupted'
+    PARTIAL_INTERRUPTED = 'partial_interrupted'
+
+    CHOICES = [
+        (ALL_INTERRUPTED, '全中断', 'red'),
+        (PARTIAL_INTERRUPTED, '部分中断', 'orange'),
+    ]
+
+
+class PowerFaultImpactChoices(ChoiceSet):
+    key = 'OtnFault.power_fault_impact'
+
+    HOSTED = 'hosted'
+    NOT_HOSTED = 'not_hosted'
+
+    CHOICES = [
+        (HOSTED, '设备托管', 'blue'),
+        (NOT_HOSTED, '设备未托管', 'gray'),
+    ]
+
+
 class ResourceTypeChoices(ChoiceSet):
     key = 'OtnFault.resource_type'
 
@@ -259,6 +283,20 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         choices=FaultCategoryChoices,
         default=FaultCategoryChoices.FIBER_BREAK,
         verbose_name='故障分类',
+    )
+    power_fault_phenomenon = models.CharField(
+        max_length=20,
+        choices=PowerFaultPhenomenonChoices,
+        blank=True,
+        null=True,
+        verbose_name='供电故障现象'
+    )
+    power_fault_impact = models.CharField(
+        max_length=20,
+        choices=PowerFaultImpactChoices,
+        blank=True,
+        null=True,
+        verbose_name='影响情况'
     )
     
     # 一级原因选项
@@ -967,6 +1005,14 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
     def get_power_maintenance_mode_color(self):
         """获取供电维护方式的颜色"""
         return PowerMaintenanceModeChoices.colors.get(self.power_maintenance_mode)
+
+    def get_power_fault_phenomenon_color(self):
+        """获取供电故障现象的颜色"""
+        return PowerFaultPhenomenonChoices.colors.get(self.power_fault_phenomenon)
+
+    def get_power_fault_impact_color(self):
+        """获取影响情况的颜色"""
+        return PowerFaultImpactChoices.colors.get(self.power_fault_impact)
 
     def clean(self):
         super().clean()

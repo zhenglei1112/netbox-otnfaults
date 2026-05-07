@@ -11,6 +11,12 @@
         {% render_field form.fault_number_display %}
         {% endif %}
         {% render_field form.fault_category %}
+        <div data-power-fault-only>
+        {% render_field form.power_fault_phenomenon %}
+        </div>
+        <div data-power-fault-only>
+        {% render_field form.power_fault_impact %}
+        </div>
         {% render_field form.fault_status %}
         {% render_field form.urgency %}
         {% render_field form.first_report_source %}
@@ -167,6 +173,7 @@
     function toggleFiberFields(category) {
         const fiberInfoDiv = document.getElementById('fiber-supplementary-info');
         const powerInfoDiv = document.getElementById('power-supplementary-info');
+        const powerFaultOnlyRows = document.querySelectorAll('[data-power-fault-only]');
         
         if (!fiberInfoDiv || !powerInfoDiv) return;
         
@@ -180,8 +187,10 @@
         // 控制供电补充信息显示
         if (category === POWER_FAULT_CATEGORY) {
             powerInfoDiv.style.display = 'block';
+            powerFaultOnlyRows.forEach(row => { row.style.display = ''; });
         } else {
             powerInfoDiv.style.display = 'none';
+            powerFaultOnlyRows.forEach(row => { row.style.display = 'none'; });
         }
     }
     

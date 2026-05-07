@@ -43,7 +43,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'id', 'fault_number', 'duty_officer',
             'interruption_location_a', 'interruption_location',
             'fault_occurrence_time_after', 'fault_occurrence_time_before',
-            'fault_recovery_time', 'fault_category',
+            'fault_recovery_time', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
             'interruption_reason', 'fault_details', 'interruption_longitude',
             'interruption_latitude', 'province', 'urgency', 'first_report_source',
             'line_manager', 'operations_manager', 'maintenance_mode', 'handling_unit', 'contract',

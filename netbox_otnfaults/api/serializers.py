@@ -105,7 +105,8 @@ class OtnFaultSerializer(NetBoxModelSerializer):
         fields = (
             'id', 'url', 'display', 'fault_number', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'processing_duration', 'timeline_data',
-            'fault_category', 'interruption_reason', 'interruption_reason_detail', 'fault_details',
+            'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
+            'interruption_reason', 'interruption_reason_detail', 'fault_details',
             'interruption_longitude', 'interruption_latitude',
             'province', 'urgency', 'first_report_source',
             'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',

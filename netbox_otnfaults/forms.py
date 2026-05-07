@@ -4,6 +4,7 @@ from .models import (
     MaintenanceModeChoices, ResourceTypeChoices, ResourceOwnerChoices, CableRouteChoices,
     FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices,
     PowerDataTypeChoices, PowerRecoveryModeChoices, PowerMaintenanceModeChoices,
+    PowerFaultPhenomenonChoices, PowerFaultImpactChoices,
     OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite, BareFiberService,
     CircuitService, ServiceGroupChoices, BusinessCategoryChoices, ServiceTypeChoices,
     CircuitOperationStatusChoices, SLALevelChoices
@@ -97,7 +98,7 @@ class OtnFaultForm(NetBoxModelForm):
     
     fieldsets = (
         FieldSet(
-            'fault_category', 'urgency', 'province',
+            'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'urgency', 'province',
             'interruption_location_a', 'interruption_location',
             'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail',
@@ -132,7 +133,7 @@ class OtnFaultForm(NetBoxModelForm):
         model = OtnFault
         fields = (
             # 故障信息组字段
-            'fault_category', 'urgency', 'province', 'interruption_location_a', 'interruption_location',
+            'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'urgency', 'province', 'interruption_location_a', 'interruption_location',
             'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 'fault_recovery_time',
             'closure_time', 'first_report_source', 'duty_officer', 'handler', 'fault_details',
@@ -284,7 +285,8 @@ class OtnFaultImportForm(NetBoxModelImportForm):
         model = OtnFault
         fields = (
             'fault_number', 'duty_officer', 'province', 'interruption_location_a', 'interruption_location', 
-            'fault_category', 'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 
+            'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
+            'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 
             'fault_recovery_time', 'urgency', 'first_report_source', 
             'resource_type', 'resource_owner', 'cable_route', 'line_manager', 
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time', 
@@ -509,6 +511,16 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='故障分类'
     )
+    power_fault_phenomenon = forms.ChoiceField(
+        choices=add_blank_choice(PowerFaultPhenomenonChoices),
+        required=False,
+        label='供电故障现象'
+    )
+    power_fault_impact = forms.ChoiceField(
+        choices=add_blank_choice(PowerFaultImpactChoices),
+        required=False,
+        label='影响情况'
+    )
     interruption_reason = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.INTERRUPTION_REASON_CHOICES),
         required=False,
@@ -584,6 +596,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     
     nullable_fields = (
         'province', 'line_manager', 'operations_manager', 'handling_unit', 'fault_category',
+        'power_fault_phenomenon', 'power_fault_impact',
         'interruption_reason', 'interruption_reason_detail', 'maintenance_mode', 'resource_type',
         'resource_owner', 'cable_break_location', 'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments',
         'interruption_location_a', 'first_report_source', 'cable_route'
@@ -656,7 +669,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
         FieldSet(
-            'fault_category', 'fault_status', 'urgency', 'province',
+            'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'fault_status', 'urgency', 'province',
             'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail',
             'first_report_source', 'duty_officer',
@@ -899,6 +912,16 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     comments = forms.CharField(
         required=False,
         label='评论'
+    )
+    power_fault_phenomenon = forms.ChoiceField(
+        choices=add_blank_choice(PowerFaultPhenomenonChoices),
+        required=False,
+        label='供电故障现象'
+    )
+    power_fault_impact = forms.ChoiceField(
+        choices=add_blank_choice(PowerFaultImpactChoices),
+        required=False,
+        label='影响情况'
     )
     power_data_type = forms.ChoiceField(
         choices=add_blank_choice(PowerDataTypeChoices),
