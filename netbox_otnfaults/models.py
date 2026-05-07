@@ -1460,6 +1460,46 @@ class OtnPath(NetBoxModel):
         return CableTypeChoices.colors.get(self.cable_type)
 
 
+class OtnMapPreference(NetBoxModel):
+    """Per-user style preferences for unified map modes."""
+
+    user = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='otn_map_preferences',
+        verbose_name='用户'
+    )
+    map_mode = models.CharField(max_length=64, verbose_name='地图模式')
+    style_config = models.JSONField(default=dict, blank=True, verbose_name='样式配置')
+    schema_version = models.PositiveSmallIntegerField(default=1)
+    tags = models.JSONField(default=list, blank=True)
+    comments = models.TextField(blank=True, verbose_name='评论')
+
+    class Meta:
+        ordering = ('user', 'map_mode')
+        constraints = [
+            models.UniqueConstraint(
+                fields=('user', 'map_mode'),
+                name='unique_otn_map_preference_user_mode',
+            )
+        ]
+        verbose_name = '地图偏好'
+        verbose_name_plural = '地图偏好'
+
+    def __str__(self) -> str:
+        return f"{self.user} / {self.map_mode}"
+
+    def save(self, *args, **kwargs) -> None:
+        if self.tags is None:
+            self.tags = []
+        if self.custom_field_data is None:
+            self.custom_field_data = {}
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self) -> str:
+        return reverse('plugins:netbox_otnfaults:otnfault_map_globe')
+
+
 class BareFiberService(NetBoxModel):
     """裸纤业务模型"""
     name = models.CharField(

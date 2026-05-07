@@ -9,6 +9,7 @@ class OTNMapCore {
     this.mapBase = new NetBoxMapBase();
     this.map = null;
     this.modePlugin = null;
+    this.mapStylePreferenceService = null;
     this.config = window[configKey];
   }
 
@@ -93,6 +94,7 @@ class OTNMapCore {
       }
 
       // 3. 加载共享层（如站点、OTN路径）
+      this._initMapStylePreferences();
       this._initSharedLayers();
       if (window.OTNPerf) window.OTNPerf.mark('shared_layers_done');
 
@@ -192,6 +194,7 @@ class OTNMapCore {
    */
   _initSharedLayers() {
     const firstSymbolId = this._findFirstSymbolLayerId();
+    const prefConfig = this.mapStylePreferenceService ? this.mapStylePreferenceService.currentConfig : null;
 
     // 0. 用户自定义 GeoJSON 底层 (如省份边界)
     if (this.config.userGeojsonUrl) {
@@ -206,9 +209,12 @@ class OTNMapCore {
               id: "user-geojson-fill",
               type: "fill",
               source: "user-geojson-source",
+              layout: {
+                "visibility": prefConfig ? (prefConfig.province.visible ? "visible" : "none") : "visible"
+              },
               paint: {
-                "fill-color": "#2c3e50", // 深灰蓝色
-                "fill-opacity": 0.05      // 极低透明度，显得更浅
+                "fill-color": prefConfig ? prefConfig.province.fillColor : "#2c3e50",
+                "fill-opacity": prefConfig ? prefConfig.province.fillOpacity : 0.05
               }
             },
             firstSymbolId
@@ -220,10 +226,13 @@ class OTNMapCore {
               id: "user-geojson-line",
               type: "line",
               source: "user-geojson-source",
+              layout: {
+                "visibility": prefConfig ? (prefConfig.province.visible ? "visible" : "none") : "visible"
+              },
               paint: {
-                "line-color": "rgba(90, 140, 190, 0.7)", // 适度显眼但不突出的蓝灰色省界线
-                "line-width": 1.5,
-                "line-opacity": 0.9
+                "line-color": prefConfig ? prefConfig.province.lineColor : "rgba(90, 140, 190, 0.7)",
+                "line-width": prefConfig ? prefConfig.province.lineWidth : 1.5,
+                "line-opacity": prefConfig ? prefConfig.province.lineOpacity : 0.9
               }
             },
             firstSymbolId
@@ -252,12 +261,12 @@ class OTNMapCore {
           layout: {
             "line-join": "round",
             "line-cap": "round",
-            visibility: "visible",
+            visibility: prefConfig ? (prefConfig.paths.visible ? "visible" : "none") : "visible",
           },
           paint: {
-            "line-color": "#00cc66", // 默认绿色，模式插件可覆盖样式
-            "line-width": 2,
-            "line-opacity": 0.8,
+            "line-color": prefConfig ? prefConfig.paths.lineColor : "#00cc66",
+            "line-width": prefConfig ? prefConfig.paths.lineWidth : 2,
+            "line-opacity": prefConfig ? prefConfig.paths.lineOpacity : 0.8,
           },
         },
         firstSymbolId
@@ -309,11 +318,14 @@ class OTNMapCore {
         id: "netbox-sites-layer",
         type: "circle",
         source: "netbox-sites",
+        layout: {
+          visibility: prefConfig ? (prefConfig.sites.visible ? "visible" : "none") : "visible"
+        },
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 3, 10, 6],
-          "circle-color": "#00aaff",
-          "circle-stroke-width": 1,
-          "circle-stroke-color": "#fff",
+          "circle-radius": prefConfig && prefConfig.sites.circleRadius !== undefined ? prefConfig.sites.circleRadius : ["interpolate", ["linear"], ["zoom"], 4, 3, 10, 6],
+          "circle-color": prefConfig ? prefConfig.sites.circleColor : "#00aaff",
+          "circle-stroke-width": prefConfig ? prefConfig.sites.strokeWidth : 1,
+          "circle-stroke-color": prefConfig ? prefConfig.sites.strokeColor : "#fff",
           "circle-opacity": ["step", ["zoom"], 0.5, 6, 1],
           "circle-stroke-opacity": ["step", ["zoom"], 0.5, 6, 1],
         },
@@ -325,11 +337,12 @@ class OTNMapCore {
         type: "symbol",
         source: "netbox-sites",
         layout: {
+          "visibility": prefConfig ? (prefConfig.sites.visible ? "visible" : "none") : "visible",
           "text-field": ["get", "name"],
           "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
           "text-offset": [0, -0.8],  // 负值向上偏移，文本显示在圆点上方
           "text-anchor": "bottom",   // 文本底部锚定在坐标点
-          "text-size": [
+          "text-size": prefConfig && prefConfig.sites.labelSize !== undefined ? prefConfig.sites.labelSize : [
             "interpolate",
             ["linear"],
             ["zoom"],
@@ -345,7 +358,7 @@ class OTNMapCore {
           "text-optional": true,
         },
         paint: {
-          "text-color": "#1a1a1a",  // 更深的文本颜色，增强对比
+          "text-color": prefConfig ? prefConfig.sites.labelColor : "#1a1a1a",  // 更深的文本颜色，增强对比
           "text-halo-color": "#ffffff",
           "text-halo-width": 2,      // 增大光晕，增强悬浮和可读性
           "text-halo-blur": 1,       // 添加光晕模糊，增强3D感
@@ -357,7 +370,7 @@ class OTNMapCore {
             8, 1       // 高缩放级别完全不透明
           ],
         },
-        minzoom: 6,
+        minzoom: prefConfig && prefConfig.sites.labelMinZoom !== undefined ? prefConfig.sites.labelMinZoom : 6,
       });
 
       this.map.on(
@@ -426,6 +439,22 @@ class OTNMapCore {
       },
       buildingFirstSymbolId // 插入到符号图层之前
     );
+  }
+
+  _initMapStylePreferences() {
+    if (typeof MapStylePreferenceService === "undefined") return;
+
+    this.mapStylePreferenceService = new MapStylePreferenceService(this.map, this.config);
+    this.mapStylePreferenceService.apply(this.config.mapStylePreferences || {});
+
+    if (typeof MapStylePreferenceControl !== "undefined" && this.config.mapPreferencesUrl) {
+      const control = new MapStylePreferenceControl({
+        mapStylePreferenceService: this.mapStylePreferenceService,
+        preferencesUrl: this.config.mapPreferencesUrl,
+        csrfToken: this.config.csrfToken,
+      });
+      this.mapBase.addControl(control, "top-right");
+    }
   }
 
   _addCommonControls() {

@@ -12,9 +12,9 @@ from django.db.models import Prefetch, Q
 from datetime import timedelta
 import json
 import logging
-from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
-from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer, BareFiberServiceSerializer, CircuitServiceSerializer
-from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet
+from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, OtnMapPreference
+from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer, BareFiberServiceSerializer, CircuitServiceSerializer, OtnMapPreferenceSerializer
+from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet, OtnMapPreferenceFilterSet
 from ..utils import get_hex_color
 from dcim.models import Site
 from dcim.api.serializers import SiteSerializer
@@ -71,6 +71,13 @@ class CircuitServiceViewSet(NetBoxModelViewSet):
     queryset = CircuitService.objects.all()
     serializer_class = CircuitServiceSerializer
     filterset_class = CircuitServiceFilterSet
+
+
+class OtnMapPreferenceViewSet(NetBoxModelViewSet):
+    """地图偏好 API ViewSet"""
+    queryset = OtnMapPreference.objects.all()
+    serializer_class = OtnMapPreferenceSerializer
+    filterset_class = OtnMapPreferenceFilterSet
 
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.authentication import SessionAuthentication

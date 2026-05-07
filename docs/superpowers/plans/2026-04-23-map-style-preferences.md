@@ -1,41 +1,41 @@
-# Map Style Preferences Implementation Plan
+# 地图样式偏好实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **致智能体工作者：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 逐任务实现本计划。步骤使用复选框（`- [ ]`）语法跟踪进度。
 
-**Goal:** Build a per-user map style preference feature for province boundaries, NetBox sites, and OTN paths in the unified map window.
+**目标：** 在统一地图窗口中构建按用户保存的地图样式偏好功能，覆盖省界、NetBox 站点和 OTN 路径图层。
 
-**Architecture:** Add a plugin-owned `OtnMapPreference` model keyed by `user + map_mode`, with a versioned JSON schema validated through a small service module. Map views inject the current user's normalized preference into `window.OTNMapConfig`; a shared frontend service applies styles to MapLibre layers and a floating control previews, resets, and saves the current user's defaults.
+**架构：** 新增插件专属 `OtnMapPreference` 模型，以 `user + map_mode` 为唯一键，通过小型服务模块验证带版本号的 JSON 配置。地图视图将当前用户的归一化偏好注入 `window.OTNMapConfig`；前端共享服务将样式应用到 MapLibre 图层，浮动控件支持预览、重置和保存当前用户的默认设置。
 
-**Tech Stack:** Django 5 / NetBox 4 plugin models and views, `JsonResponse`, MapLibre GL JS, Bootstrap 5, source-level Python `unittest` tests.
-
----
-
-## File Structure
-
-- Create `netbox_otnfaults/services/map_preferences.py`: default schema, validation, normalization, current-user lookup/save helpers, and template context builder.
-- Modify `netbox_otnfaults/models.py`: add `OtnMapPreference(NetBoxModel)`.
-- Modify `netbox_otnfaults/filtersets.py`: add `OtnMapPreferenceFilterSet`.
-- Modify `netbox_otnfaults/urls.py`: add plugin-local GET/POST preference endpoint.
-- Modify `netbox_otnfaults/views.py`: add `MapPreferenceView` and inject preference context into unified map views.
-- Modify `netbox_otnfaults/map_modes.py`: load the preference service/control JS in unified map modes.
-- Modify `netbox_otnfaults/templates/netbox_otnfaults/unified_map.html`: expose `mapStylePreferences` and `mapPreferencesUrl`.
-- Create `netbox_otnfaults/static/netbox_otnfaults/js/services/MapStylePreferenceService.js`: apply normalized styles to province/site/path layers.
-- Create `netbox_otnfaults/static/netbox_otnfaults/js/controls/MapStylePreferenceControl.js`: floating settings panel with preview/default/save actions.
-- Modify `netbox_otnfaults/static/netbox_otnfaults/js/unified_map_core.js`: instantiate the service after shared layers and register the control.
-- Create `tests/test_map_style_preferences.py`: source-level regression coverage.
-- Add migration `netbox_otnfaults/migrations/0054_otnmappreference.py` via `makemigrations` if NetBox/Django imports are available in the environment.
+**技术栈：** Django 5 / NetBox 4 插件模型与视图、`JsonResponse`、MapLibre GL JS、Bootstrap 5、源码级 Python `unittest` 测试。
 
 ---
 
-### Task 1: Source Tests For The Contract
+## 文件结构
 
-**Files:**
-- Create: `tests/test_map_style_preferences.py`
-- Read: `docs/superpowers/specs/2026-04-23-map-style-preferences-design.md`
+- 新建 `netbox_otnfaults/services/map_preferences.py`：默认配置、校验、归一化、当前用户查询/保存辅助函数及模板上下文构建器。
+- 修改 `netbox_otnfaults/models.py`：新增 `OtnMapPreference(NetBoxModel)`。
+- 修改 `netbox_otnfaults/filtersets.py`：新增 `OtnMapPreferenceFilterSet`。
+- 修改 `netbox_otnfaults/urls.py`：新增插件内 GET/POST 偏好接口。
+- 修改 `netbox_otnfaults/views.py`：新增 `MapPreferenceView` 并在统一地图视图中注入偏好上下文。
+- 修改 `netbox_otnfaults/map_modes.py`：在统一地图模式中加载偏好服务/控件 JS。
+- 修改 `netbox_otnfaults/templates/netbox_otnfaults/unified_map.html`：暴露 `mapStylePreferences` 和 `mapPreferencesUrl`。
+- 新建 `netbox_otnfaults/static/netbox_otnfaults/js/services/MapStylePreferenceService.js`：将归一化样式应用到省界/站点/路径图层。
+- 新建 `netbox_otnfaults/static/netbox_otnfaults/js/controls/MapStylePreferenceControl.js`：浮动设置面板，支持预览/恢复默认/保存操作。
+- 修改 `netbox_otnfaults/static/netbox_otnfaults/js/unified_map_core.js`：在共享图层之后实例化服务并注册控件。
+- 新建 `tests/test_map_style_preferences.py`：源码级回归覆盖。
+- 如环境中可用 NetBox/Django 导入，则通过 `makemigrations` 添加迁移 `netbox_otnfaults/migrations/0054_otnmappreference.py`。
 
-- [ ] **Step 1: Write the failing source tests**
+---
 
-Create `tests/test_map_style_preferences.py`:
+### 任务 1：契约源码测试
+
+**文件：**
+- 新建：`tests/test_map_style_preferences.py`
+- 参考：`docs/superpowers/specs/2026-04-23-map-style-preferences-design.md`
+
+- [ ] **步骤 1：编写失败的源码测试**
+
+新建 `tests/test_map_style_preferences.py`：
 
 ```python
 import unittest
@@ -145,15 +145,15 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run the failing tests**
+- [ ] **步骤 2：运行失败的测试**
 
-Run: `python -m unittest tests.test_map_style_preferences`
+运行：`python -m unittest tests.test_map_style_preferences`
 
-Expected: FAIL because `OtnMapPreference`, the service, endpoint, and frontend files do not exist yet.
+预期结果：失败，因为 `OtnMapPreference`、服务、接口和前端文件尚不存在。
 
-- [ ] **Step 3: Commit the failing tests**
+- [ ] **步骤 3：提交失败的测试**
 
-Run:
+运行：
 
 ```powershell
 git add tests/test_map_style_preferences.py
@@ -162,18 +162,18 @@ git commit -m "test: cover map style preference contract"
 
 ---
 
-### Task 2: Backend Model, FilterSet, And Service
+### 任务 2：后端模型、FilterSet 与服务
 
-**Files:**
-- Modify: `netbox_otnfaults/models.py`
-- Modify: `netbox_otnfaults/filtersets.py`
-- Create: `netbox_otnfaults/services/map_preferences.py`
-- Create: `netbox_otnfaults/migrations/0054_otnmappreference.py`
-- Test: `tests/test_map_style_preferences.py`
+**文件：**
+- 修改：`netbox_otnfaults/models.py`
+- 修改：`netbox_otnfaults/filtersets.py`
+- 新建：`netbox_otnfaults/services/map_preferences.py`
+- 新建：`netbox_otnfaults/migrations/0054_otnmappreference.py`
+- 测试：`tests/test_map_style_preferences.py`
 
-- [ ] **Step 1: Add `OtnMapPreference`**
+- [ ] **步骤 1：添加 `OtnMapPreference`**
 
-In `netbox_otnfaults/models.py`, add this class after `OtnPath`:
+在 `netbox_otnfaults/models.py` 中，于 `OtnPath` 之后添加以下类：
 
 ```python
 class OtnMapPreference(NetBoxModel):
@@ -208,9 +208,9 @@ class OtnMapPreference(NetBoxModel):
         return reverse('plugins:netbox_otnfaults:otnfault_map_globe')
 ```
 
-- [ ] **Step 2: Add `OtnMapPreferenceFilterSet`**
+- [ ] **步骤 2：添加 `OtnMapPreferenceFilterSet`**
 
-In `netbox_otnfaults/filtersets.py`, import `OtnMapPreference` and add:
+在 `netbox_otnfaults/filtersets.py` 中导入 `OtnMapPreference` 并添加：
 
 ```python
 class OtnMapPreferenceFilterSet(NetBoxModelFilterSet):
@@ -227,9 +227,9 @@ class OtnMapPreferenceFilterSet(NetBoxModelFilterSet):
         )
 ```
 
-- [ ] **Step 3: Create `map_preferences.py`**
+- [ ] **步骤 3：创建 `map_preferences.py`**
 
-Create `netbox_otnfaults/services/map_preferences.py` with default config, type/limit maps, and these public functions:
+新建 `netbox_otnfaults/services/map_preferences.py`，包含默认配置、类型/限制映射及以下公共函数：
 
 ```python
 def normalize_map_style_config(raw_config: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
@@ -245,29 +245,29 @@ def build_map_preference_context(request: Any, map_mode: str) -> dict[str, str]:
     ...
 ```
 
-Use the schema from `docs/superpowers/specs/2026-04-23-map-style-preferences-design.md`. `save_user_map_style_config()` must call `OtnMapPreference.objects.update_or_create(user=user, map_mode=map_mode, defaults={...})`; do not accept a user id from input.
+使用 `docs/superpowers/specs/2026-04-23-map-style-preferences-design.md` 中的配置模式。`save_user_map_style_config()` 必须调用 `OtnMapPreference.objects.update_or_create(user=user, map_mode=map_mode, defaults={...})`；不接受来自输入的用户 ID。
 
-- [ ] **Step 4: Run source tests**
+- [ ] **步骤 4：运行源码测试**
 
-Run: `python -m unittest tests.test_map_style_preferences.MapStylePreferenceSourceTestCase.test_model_filterset_service_and_endpoint_contract`
+运行：`python -m unittest tests.test_map_style_preferences.MapStylePreferenceSourceTestCase.test_model_filterset_service_and_endpoint_contract`
 
-Expected: FAIL only on missing endpoint/view integration; model, FilterSet, and service assertions pass.
+预期结果：仅在缺失的接口/视图集成部分失败；模型、FilterSet 和服务的断言通过。
 
-- [ ] **Step 5: Generate migration**
+- [ ] **步骤 5：生成迁移**
 
-Run in a NetBox runtime: `python manage.py makemigrations netbox_otnfaults`
+在 NetBox 运行环境中执行：`python manage.py makemigrations netbox_otnfaults`
 
-Expected: `netbox_otnfaults/migrations/0054_otnmappreference.py` is created.
+预期结果：`netbox_otnfaults/migrations/0054_otnmappreference.py` 已创建。
 
-If this repo cannot import a NetBox settings module, create an equivalent manual migration and verify syntax with:
+如果本仓库无法导入 NetBox 设置模块，创建等效的手动迁移并通过以下命令验证语法：
 
 ```powershell
 python -m py_compile .\netbox_otnfaults\models.py .\netbox_otnfaults\filtersets.py .\netbox_otnfaults\services\map_preferences.py
 ```
 
-- [ ] **Step 6: Commit backend model and service**
+- [ ] **步骤 6：提交后端模型和服务**
 
-Run:
+运行：
 
 ```powershell
 git add netbox_otnfaults/models.py netbox_otnfaults/filtersets.py netbox_otnfaults/services/map_preferences.py netbox_otnfaults/migrations/0054_otnmappreference.py
@@ -276,17 +276,17 @@ git commit -m "feat: add map style preference model"
 
 ---
 
-### Task 3: Endpoint And Template Context
+### 任务 3：接口与模板上下文
 
-**Files:**
-- Modify: `netbox_otnfaults/views.py`
-- Modify: `netbox_otnfaults/urls.py`
-- Modify: `netbox_otnfaults/templates/netbox_otnfaults/unified_map.html`
-- Test: `tests/test_map_style_preferences.py`
+**文件：**
+- 修改：`netbox_otnfaults/views.py`
+- 修改：`netbox_otnfaults/urls.py`
+- 修改：`netbox_otnfaults/templates/netbox_otnfaults/unified_map.html`
+- 测试：`tests/test_map_style_preferences.py`
 
-- [ ] **Step 1: Add preference service imports**
+- [ ] **步骤 1：添加偏好服务导入**
 
-In `netbox_otnfaults/views.py`, add:
+在 `netbox_otnfaults/views.py` 中添加：
 
 ```python
 from .services.map_preferences import (
@@ -296,9 +296,9 @@ from .services.map_preferences import (
 )
 ```
 
-- [ ] **Step 2: Add `MapPreferenceView`**
+- [ ] **步骤 2：添加 `MapPreferenceView`**
 
-In `netbox_otnfaults/views.py`, add near the map views:
+在 `netbox_otnfaults/views.py` 的地图视图附近添加：
 
 ```python
 class MapPreferenceView(PermissionRequiredMixin, View):
@@ -329,15 +329,15 @@ class MapPreferenceView(PermissionRequiredMixin, View):
         return JsonResponse({'schema_version': 1, 'style_config': normalized})
 ```
 
-- [ ] **Step 3: Add URL and context injection**
+- [ ] **步骤 3：添加 URL 和上下文注入**
 
-In `netbox_otnfaults/urls.py`, add near other map URLs:
+在 `netbox_otnfaults/urls.py` 的其他地图 URL 附近添加：
 
 ```python
 path('map/preferences/<str:map_mode>/', views.MapPreferenceView.as_view(), name='map_preferences'),
 ```
 
-In map render contexts, add:
+在地图渲染上下文中添加：
 
 ```python
 **build_map_preference_context(request, 'fault'),
@@ -345,31 +345,31 @@ In map render contexts, add:
 **build_map_preference_context(request, map_mode),
 ```
 
-Use the first in `OtnFaultGlobeMapView`, the second in `StatisticsCableBreakMapView`, and the third in `LocationMapView`.
+第一个用于 `OtnFaultGlobeMapView`，第二个用于 `StatisticsCableBreakMapView`，第三个用于 `LocationMapView`。
 
-- [ ] **Step 4: Inject frontend config**
+- [ ] **步骤 4：注入前端配置**
 
-In `unified_map.html`, inside `window.OTNMapConfig`, add:
+在 `unified_map.html` 的 `window.OTNMapConfig` 内添加：
 
 ```javascript
     mapStylePreferences: {{ map_style_preferences|safe }},
     mapPreferencesUrl: '{{ map_preferences_url|escapejs }}',
 ```
 
-- [ ] **Step 5: Run tests and syntax checks**
+- [ ] **步骤 5：运行测试和语法检查**
 
-Run:
+运行：
 
 ```powershell
 python -m unittest tests.test_map_style_preferences.MapStylePreferenceSourceTestCase.test_model_filterset_service_and_endpoint_contract
 python -m py_compile .\netbox_otnfaults\views.py .\netbox_otnfaults\urls.py
 ```
 
-Expected: test passes; syntax checks pass.
+预期结果：测试通过；语法检查通过。
 
-- [ ] **Step 6: Commit endpoint and context**
+- [ ] **步骤 6：提交接口和上下文**
 
-Run:
+运行：
 
 ```powershell
 git add netbox_otnfaults/views.py netbox_otnfaults/urls.py netbox_otnfaults/templates/netbox_otnfaults/unified_map.html
@@ -378,18 +378,18 @@ git commit -m "feat: expose map style preference endpoint"
 
 ---
 
-### Task 4: Frontend Style Service And Control
+### 任务 4：前端样式服务与控件
 
-**Files:**
-- Create: `netbox_otnfaults/static/netbox_otnfaults/js/services/MapStylePreferenceService.js`
-- Create: `netbox_otnfaults/static/netbox_otnfaults/js/controls/MapStylePreferenceControl.js`
-- Modify: `netbox_otnfaults/static/netbox_otnfaults/js/unified_map_core.js`
-- Modify: `netbox_otnfaults/map_modes.py`
-- Test: `tests/test_map_style_preferences.py`
+**文件：**
+- 新建：`netbox_otnfaults/static/netbox_otnfaults/js/services/MapStylePreferenceService.js`
+- 新建：`netbox_otnfaults/static/netbox_otnfaults/js/controls/MapStylePreferenceControl.js`
+- 修改：`netbox_otnfaults/static/netbox_otnfaults/js/unified_map_core.js`
+- 修改：`netbox_otnfaults/map_modes.py`
+- 测试：`tests/test_map_style_preferences.py`
 
-- [ ] **Step 1: Create `MapStylePreferenceService.js`**
+- [ ] **步骤 1：创建 `MapStylePreferenceService.js`**
 
-Implement a global `MapStylePreferenceService` class with:
+实现一个全局 `MapStylePreferenceService` 类，包含：
 
 ```javascript
 class MapStylePreferenceService {
@@ -410,13 +410,13 @@ class MapStylePreferenceService {
 window.MapStylePreferenceService = MapStylePreferenceService;
 ```
 
-The implementation must call `setPaintProperty`, `setLayoutProperty`, and `setLayerZoomRange` for these layer IDs: `user-geojson-fill`, `user-geojson-line`, `netbox-sites-layer`, `netbox-sites-labels`, `otn-paths-layer`, `otn-paths-highlight-outline`, `otn-paths-highlight-layer`.
+实现必须对以下图层 ID 调用 `setPaintProperty`、`setLayoutProperty` 和 `setLayerZoomRange`：`user-geojson-fill`、`user-geojson-line`、`netbox-sites-layer`、`netbox-sites-labels`、`otn-paths-layer`、`otn-paths-highlight-outline`、`otn-paths-highlight-layer`。
 
-- [ ] **Step 2: Create `MapStylePreferenceControl.js`**
+- [ ] **步骤 2：创建 `MapStylePreferenceControl.js`**
 
-Implement a global `MapStylePreferenceControl` with MapLibre `onAdd()` / `onRemove()`. It must render a right-side floating panel titled `我的地图样式` and include buttons labeled `应用预览`, `恢复默认`, and `保存为我的默认`.
+实现一个全局 `MapStylePreferenceControl`，包含 MapLibre 的 `onAdd()` / `onRemove()`。必须渲染一个右侧浮动面板，标题为 `我的地图样式`，并包含 `应用预览`、`恢复默认`、`保存为我的默认` 三个按钮。
 
-The save method must POST:
+保存方法必须发送 POST 请求：
 
 ```javascript
 await fetch(this.preferencesUrl, {
@@ -430,34 +430,34 @@ await fetch(this.preferencesUrl, {
 });
 ```
 
-The control must collect and save `province`, `sites`, and `paths` groups only.
+控件必须仅收集和保存 `province`、`sites` 和 `paths` 三个组。
 
-- [ ] **Step 3: Load assets in map modes**
+- [ ] **步骤 3：在地图模式中加载资源**
 
-In `map_modes.py`, add to `fault`, `statistics_cable_break`, `location`, `path`, and `pathgroup`:
+在 `map_modes.py` 中，向 `fault`、`statistics_cable_break`、`location`、`path` 和 `pathgroup` 添加：
 
 ```python
 'services/MapStylePreferenceService.js',
 'controls/MapStylePreferenceControl.js',
 ```
 
-Put the service before the control.
+服务放在控件之前。
 
-- [ ] **Step 4: Register service and control in `OTNMapCore`**
+- [ ] **步骤 4：在 `OTNMapCore` 中注册服务和控件**
 
-In `OTNMapCore.constructor`, add:
+在 `OTNMapCore.constructor` 中添加：
 
 ```javascript
     this.mapStylePreferenceService = null;
 ```
 
-After `this._initSharedLayers();`, call:
+在 `this._initSharedLayers();` 之后调用：
 
 ```javascript
       this._initMapStylePreferences();
 ```
 
-Add:
+添加：
 
 ```javascript
   _initMapStylePreferences() {
@@ -476,9 +476,9 @@ Add:
   }
 ```
 
-- [ ] **Step 5: Run tests and JS syntax checks**
+- [ ] **步骤 5：运行测试和 JS 语法检查**
 
-Run:
+运行：
 
 ```powershell
 python -m unittest tests.test_map_style_preferences
@@ -487,11 +487,11 @@ node --check .\netbox_otnfaults\static\netbox_otnfaults\js\controls\MapStylePref
 node --check .\netbox_otnfaults\static\netbox_otnfaults\js\unified_map_core.js
 ```
 
-Expected: all pass.
+预期结果：全部通过。
 
-- [ ] **Step 6: Commit frontend integration**
+- [ ] **步骤 6：提交前端集成**
 
-Run:
+运行：
 
 ```powershell
 git add netbox_otnfaults/static/netbox_otnfaults/js/services/MapStylePreferenceService.js netbox_otnfaults/static/netbox_otnfaults/js/controls/MapStylePreferenceControl.js netbox_otnfaults/static/netbox_otnfaults/js/unified_map_core.js netbox_otnfaults/map_modes.py
@@ -500,15 +500,15 @@ git commit -m "feat: add map style preference control"
 
 ---
 
-### Task 5: Final Verification And PLAN.md Status
+### 任务 5：最终验证与 PLAN.md 状态
 
-**Files:**
-- Modify: `PLAN.md`
-- Test: all changed implementation files
+**文件：**
+- 修改：`PLAN.md`
+- 测试：所有已修改的实现文件
 
-- [ ] **Step 1: Update `PLAN.md` after implementation**
+- [ ] **步骤 1：实现完成后更新 `PLAN.md`**
 
-Add this section at the top after implementation is complete:
+实现完成后在顶部添加以下部分：
 
 ```markdown
 ## 2026-04-23 地图样式个人偏好
@@ -521,20 +521,20 @@ Add this section at the top after implementation is complete:
 - [x] 运行源码级回归测试、Python 语法检查和 JavaScript 语法检查。
 ```
 
-- [ ] **Step 2: Run final focused tests**
+- [ ] **步骤 2：运行最终聚焦测试**
 
-Run:
+运行：
 
 ```powershell
 python -m unittest tests.test_map_style_preferences
 python -m unittest tests.test_statistics_cable_break_overview tests.test_map_framerate_toggle
 ```
 
-Expected: all pass.
+预期结果：全部通过。
 
-- [ ] **Step 3: Run final syntax checks**
+- [ ] **步骤 3：运行最终语法检查**
 
-Run:
+运行：
 
 ```powershell
 python -m py_compile .\netbox_otnfaults\models.py .\netbox_otnfaults\filtersets.py .\netbox_otnfaults\views.py .\netbox_otnfaults\urls.py .\netbox_otnfaults\map_modes.py .\netbox_otnfaults\services\map_preferences.py
@@ -543,22 +543,22 @@ node --check .\netbox_otnfaults\static\netbox_otnfaults\js\controls\MapStylePref
 node --check .\netbox_otnfaults\static\netbox_otnfaults\js\unified_map_core.js
 ```
 
-Expected: all pass.
+预期结果：全部通过。
 
-- [ ] **Step 4: Run migration workflow when a NetBox runtime exists**
+- [ ] **步骤 4：在 NetBox 运行环境存在时执行迁移工作流**
 
-Run:
+运行：
 
 ```powershell
 python manage.py makemigrations netbox_otnfaults
 python manage.py migrate
 ```
 
-Expected: migration applies successfully. If this runtime is unavailable, record that `migrate` was not run.
+预期结果：迁移成功应用。如果运行环境不可用，记录 `migrate` 未执行。
 
-- [ ] **Step 5: Final git checks and commit**
+- [ ] **步骤 5：最终 git 检查并提交**
 
-Run:
+运行：
 
 ```powershell
 git status --short
@@ -567,13 +567,13 @@ git add PLAN.md tests/test_map_style_preferences.py
 git commit -m "test: verify map style preferences"
 ```
 
-If `tests/test_map_style_preferences.py` is already committed and unchanged, commit only `PLAN.md`.
+如果 `tests/test_map_style_preferences.py` 已提交且未更改，则仅提交 `PLAN.md`。
 
 ---
 
-## Self-Review
+## 自审
 
-- Spec coverage: the tasks cover the model, schema validation, current-user API, map context injection, shared layer style application, floating panel UI, and V1 exclusions.
-- Scope: the plan does not implement fault marker styles, heatmap styles, viewport defaults, role defaults, named profiles, or import/export.
-- Type consistency: Python helpers use `dict[str, Any]`; frontend uses `mapStylePreferences` and `mapPreferencesUrl`, matching template injection and `OTNMapConfig`.
-- Runtime gap: this repository has no running NetBox environment. Source tests and syntax checks are required; `migrate` is required only when a NetBox runtime is available.
+- 规格覆盖：任务覆盖了模型、配置模式验证、当前用户 API、地图上下文注入、共享图层样式应用、浮动面板 UI 和 V1 排除项。
+- 范围：本计划不实现故障标记样式、热力图样式、视窗默认值、角色默认值、命名配置文件或导入/导出功能。
+- 类型一致性：Python 辅助函数使用 `dict[str, Any]`；前端使用 `mapStylePreferences` 和 `mapPreferencesUrl`，与模板注入和 `OTNMapConfig` 一致。
+- 运行环境差异：本仓库没有运行中的 NetBox 环境。源码测试和语法检查是必须的；`migrate` 仅在 NetBox 运行环境可用时才需执行。

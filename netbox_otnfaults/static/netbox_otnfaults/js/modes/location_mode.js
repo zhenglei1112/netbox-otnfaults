@@ -99,14 +99,21 @@ const LocationModePlugin = {
     // 如果已加载，跳过
     if (window.OTNPathsMetadata && window.OTNPathsMetadata.length > 0) return;
 
-    const apiKey = this.config && this.config.apiKey;
-    if (!apiKey) return; // 无 apiKey 时跳过，路径搜索功能不可用
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+    
+    const csrfMatch = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch[1]) : (window.OTNMapConfig ? window.OTNMapConfig.csrfToken : '');
+    
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
 
     fetch('/api/plugins/otnfaults/paths/?limit=0', {
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
+      headers: headers,
+      credentials: 'same-origin'
     })
       .then(r => r.json())
       .then(data => {

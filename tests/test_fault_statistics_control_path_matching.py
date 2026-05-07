@@ -131,6 +131,52 @@ class FaultStatisticsControlPathMatchingTestCase(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_path_metadata_fetch_prefers_api_token_when_csrf_exists(self) -> None:
+        script = textwrap.dedent(
+            f"""
+            const fs = require('fs');
+            const vm = require('vm');
+            const source = fs.readFileSync({str(API_JS_PATH)!r}, 'utf8');
+            let requestHeaders = null;
+            const sandbox = {{
+              console,
+              window: {{ OTNMapConfig: {{ csrfToken: 'csrf-from-config' }} }},
+              document: {{ cookie: 'csrftoken=csrf-from-cookie' }},
+              fetch: async (url, options) => {{
+                requestHeaders = options.headers;
+                return {{
+                  ok: true,
+                  status: 200,
+                  json: async () => ({{ results: [], next: null }}),
+                }};
+              }},
+            }};
+            vm.runInNewContext(source, sandbox);
+
+            sandbox.window.OTNFaultMapAPI.fetchPaths('netbox-api-token').then(() => {{
+              if (requestHeaders.Authorization !== 'Token netbox-api-token') {{
+                throw new Error(`expected Authorization token header, got ${{requestHeaders.Authorization}}`);
+              }}
+              if (requestHeaders['X-CSRFToken'] !== 'csrf-from-cookie') {{
+                throw new Error(`expected CSRF header from cookie, got ${{requestHeaders['X-CSRFToken']}}`);
+              }}
+            }}).catch((error) => {{
+              console.error(error);
+              process.exit(1);
+            }});
+            """
+        )
+
+        result = subprocess.run(
+            ["node", "-e", script],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

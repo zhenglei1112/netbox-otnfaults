@@ -7,6 +7,7 @@ from .models import (
     CircuitService,
     OtnFault,
     OtnFaultImpact,
+    OtnMapPreference,
     OtnPath,
     OtnPathGroup,
 )
@@ -190,6 +191,20 @@ class OtnPathFilterSet(NetBoxModelFilterSet):
             Q(name__icontains=value)
             | Q(description__icontains=value)
             | Q(comments__icontains=value)
+        )
+
+
+class OtnMapPreferenceFilterSet(django_filters.FilterSet):
+    class Meta:
+        model = OtnMapPreference
+        fields = ('id', 'user', 'map_mode', 'schema_version')
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(map_mode__icontains=value)
+            | Q(user__username__icontains=value)
         )
 
 

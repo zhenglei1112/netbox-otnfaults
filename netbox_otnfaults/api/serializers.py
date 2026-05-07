@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from netbox.api.serializers import NetBoxModelSerializer, WritableNestedSerializer
-from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
+from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, OtnMapPreference
 from django.contrib.auth import get_user_model
 from dcim.models import Site, Region
 from tenancy.models import Tenant
@@ -238,4 +238,17 @@ class CircuitServiceSerializer(NetBoxModelSerializer):
             'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time',
             'comments', 'tags', 'custom_fields', 'created', 'last_updated',
         )
+
+
+class OtnMapPreferenceSerializer(NetBoxModelSerializer):
+    """地图偏好序列化器"""
+    user = NestedUserSerializer(required=False)
+
+    class Meta:
+        model = OtnMapPreference
+        fields = (
+            'id', 'url', 'display', 'user', 'map_mode', 'style_config', 'schema_version',
+            'tags', 'comments', 'custom_fields', 'created', 'last_updated',
+        )
+        brief_fields = ('id', 'url', 'display', 'user', 'map_mode')
 

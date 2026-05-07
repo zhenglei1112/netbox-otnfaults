@@ -14,6 +14,7 @@ urlpatterns = [
     path('faults/bulk-delete/', views.OtnFaultBulkDeleteView.as_view(), name='otnfault_bulk_delete'),
     path('faults/map-globe/', views.OtnFaultGlobeMapView.as_view(), name='otnfault_map_globe'),
     path('faults/map-data/', views.OtnFaultMapDataView.as_view(), name='otnfault_map_data'),
+    path('map/preferences/<str:map_mode>/', views.MapPreferenceView.as_view(), name='map_preferences'),
     path('map/location/', views.LocationMapView.as_view(), name='location_map'),
     path('faults/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'otnfault'))),
     path('faults/<int:pk>/edit/', views.OtnFaultEditView.as_view(), name='otnfault_edit'),

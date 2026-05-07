@@ -239,6 +239,8 @@ const FaultModePlugin = {
     });
 
     // --- 路径高亮层 (恢复旧版逻辑) ---
+    const prefConfig = this.core.mapStylePreferenceService ? this.core.mapStylePreferenceService.currentConfig : null;
+
     // 添加路径高亮源
     mapBase.addGeoJsonSource("otn-paths-highlight", {
       type: "Feature",
@@ -251,9 +253,12 @@ const FaultModePlugin = {
         id: "otn-paths-highlight-outline",
         type: "line",
         source: "otn-paths-highlight",
+        layout: {
+          visibility: prefConfig ? (prefConfig.paths.visible ? "visible" : "none") : "visible"
+        },
         paint: {
-          "line-color": "#FFD700",
-          "line-width": 6,
+          "line-color": "#ffffff",
+          "line-width": prefConfig ? prefConfig.paths.highlightWidth + 2 : 7,
           "line-opacity": 0.8,
         },
       },
@@ -266,9 +271,12 @@ const FaultModePlugin = {
         id: "otn-paths-highlight-layer",
         type: "line",
         source: "otn-paths-highlight",
+        layout: {
+          visibility: prefConfig ? (prefConfig.paths.visible ? "visible" : "none") : "visible"
+        },
         paint: {
-          "line-color": "#FFD700",
-          "line-width": 5,
+          "line-color": prefConfig ? prefConfig.paths.highlightColor : "#FFD700",
+          "line-width": prefConfig ? prefConfig.paths.highlightWidth : 5,
           "line-opacity": 0.9,
         },
       },
@@ -1074,11 +1082,9 @@ const FaultModePlugin = {
   _loadPathMetadata() {
     // 加载 top5 路径等
     if (typeof OTNFaultMapAPI !== "undefined") {
-      // 确保传入 apiKey，否则请求会失败
-      const apiKey = this.config ? this.config.apiKey : null;
-      console.log("[FaultMode] Loading metadata. APIKey present:", !!apiKey);
+      console.log("[FaultMode] Loading metadata...");
 
-      const loadPromise = OTNFaultMapAPI.fetchPaths(apiKey).then((data) => {
+      const loadPromise = OTNFaultMapAPI.fetchPaths().then((data) => {
         // 预处理数据：确保 total_length 存在
         if (data && Array.isArray(data)) {
           // 定义计算距离函数 (Haversine Formula)

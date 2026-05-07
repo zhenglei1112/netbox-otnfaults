@@ -11,14 +11,24 @@ const OTNFaultMapAPI = {
      */
     fetchPaths: function(apiKey) {
         const headers = {
-            'Authorization': `Token ${apiKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
         };
+        
+        const csrfMatch = typeof document !== 'undefined'
+            ? document.cookie.match(/(?:^|; )csrftoken=([^;]+)/)
+            : null;
+        const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch[1]) : (window.OTNMapConfig ? window.OTNMapConfig.csrfToken : '');
+        
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
 
         const fetchPage = (url, accumulatedResults = []) => {
             return fetch(url, {
                 method: 'GET',
-                headers: headers
+                headers: headers,
+                credentials: 'same-origin'
             })
             .then(response => {
                 if (!response.ok) {

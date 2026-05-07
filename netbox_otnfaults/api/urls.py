@@ -10,6 +10,7 @@ router.register('path-groups', views.OtnPathGroupViewSet)
 router.register('path-group-sites', views.OtnPathGroupSiteViewSet)
 router.register('bare-fiber-services', views.BareFiberServiceViewSet)
 router.register('circuit-services', views.CircuitServiceViewSet)
+router.register('map-preferences', views.OtnMapPreferenceViewSet)
 
 # 自定义路由放在 router.urls 之前，防止被 ViewSet 通配路由覆盖
 # 使用 re_path 支持带/不带尾部斜杠

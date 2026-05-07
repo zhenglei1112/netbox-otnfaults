@@ -26,7 +26,9 @@ MAP_MODES = {
             'utils/fault_icons.js',      # SVG图标库（必须在fault_mode.js之前）
             'core/config.js',
             'utils/api.js?v=path-pagination-1',
+            'services/MapStylePreferenceService.js',
             'services/FaultDataService.js',
+            'controls/MapStylePreferenceControl.js',
             'controls/LayerToggleControl.js?v=pathgroup-overlays-3',
             'controls/FaultStatisticsControl.js?v=top5-path-reverse-2',
             'controls/FaultLegendControl.js',
@@ -41,7 +43,9 @@ MAP_MODES = {
         'js_files': [
             'core/config.js',
             'utils/api.js',
+            'services/MapStylePreferenceService.js',
             'services/FaultDataService.js',
+            'controls/MapStylePreferenceControl.js',
             'controls/FaultLegendControl.js',
             'controls/SearchControl.js'
         ],
@@ -53,7 +57,11 @@ MAP_MODES = {
         'projection': 'mercator',
         'controls': ['navigation', 'fullscreen', 'measures'],
         'layers': {},
-        'js_files': ['controls/SearchControl.js']
+        'js_files': [
+            'services/MapStylePreferenceService.js',
+            'controls/MapStylePreferenceControl.js',
+            'controls/SearchControl.js'
+        ]
     },
     'path': {
         'title': '路径地图',
@@ -61,7 +69,11 @@ MAP_MODES = {
         'projection': 'mercator',
         'controls': ['navigation', 'fullscreen', 'measures'],
         'layers': {},
-        'js_files': ['controls/SearchControl.js']
+        'js_files': [
+            'services/MapStylePreferenceService.js',
+            'controls/MapStylePreferenceControl.js',
+            'controls/SearchControl.js'
+        ]
     },
     'pathgroup': {
         'title': '路径组地图',
@@ -69,7 +81,12 @@ MAP_MODES = {
         'projection': 'mercator',
         'controls': ['navigation', 'fullscreen', 'measures'],
         'layers': {},
-        'js_files': ['controls/LayerToggleControl.js?v=pathgroup-overlays-3', 'controls/SpatialSelectControl.js']
+        'js_files': [
+            'services/MapStylePreferenceService.js',
+            'controls/MapStylePreferenceControl.js',
+            'controls/LayerToggleControl.js?v=pathgroup-overlays-3',
+            'controls/SpatialSelectControl.js'
+        ]
     },
     'route_editor': {
         'title': 'OTN线路设计器',

@@ -27,12 +27,19 @@ from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.db import transaction
 import json
 from django.core.serializers.json import DjangoJSONEncoder
+from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.urls import reverse
 from urllib.parse import urlencode
+import logging
 from .map_modes import get_mode_config
 from .statistics_period import build_period_display
 from .statistics_views import _parse_time_range, get_cable_break_base_queryset
+from .services.map_preferences import (
+    build_map_preference_context,
+    get_user_map_style_config,
+    save_user_map_style_config,
+)
 from .utils import build_fault_colors_config, get_hex_color
 from .services.fault_map_data import (
     build_fault_map_payload,
@@ -40,6 +47,9 @@ from .services.fault_map_data import (
     get_sites_data,
 )
 from .view_mixins import ExcelFriendlyCSVExportMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_plugin_settings():
@@ -111,6 +121,45 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
             'marker_data': payload['marker_data'],
         })
 
+
+class MapPreferenceView(PermissionRequiredMixin, View):
+    """Current user's per-map-mode style preference endpoint."""
+
+    permission_required = 'netbox_otnfaults.view_otnfault'
+
+    def get(self, request, map_mode: str):
+        return JsonResponse({
+            'schema_version': 1,
+            'style_config': get_user_map_style_config(request.user, map_mode),
+        })
+
+    def post(self, request, map_mode: str):
+        try:
+            payload = json.loads(request.body.decode('utf-8') or '{}')
+        except json.JSONDecodeError:
+            return JsonResponse({'error': '无效的 JSON 请求体'}, status=400)
+
+        if not isinstance(payload, dict):
+            return JsonResponse({'error': '请求体必须是 JSON 对象'}, status=400)
+
+        raw_style_config = payload.get('style_config', payload)
+        if not isinstance(raw_style_config, dict):
+            return JsonResponse({'error': 'style_config 必须是 JSON 对象'}, status=400)
+
+        try:
+            normalized = save_user_map_style_config(request.user, map_mode, raw_style_config)
+        except ValidationError as exc:
+            return JsonResponse({'error': '; '.join(exc.messages)}, status=400)
+        except Exception as exc:
+            logger.exception("Failed to save map style preference for user=%s mode=%s", request.user, map_mode)
+            if settings.DEBUG:
+                message = f"{exc.__class__.__name__}: {exc}"
+            else:
+                message = "保存地图样式失败，请查看 NetBox 服务端日志。"
+            return JsonResponse({'error': message}, status=500)
+
+        return JsonResponse({'schema_version': 1, 'style_config': normalized})
+
 class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
     """OTN故障分布图（地球模式）视图"""
     permission_required = 'netbox_otnfaults.view_otnfault'
@@ -155,6 +204,7 @@ class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
             'debug_mode': False,
             'show_debug_panel': False,
             'debug_date': '2025-12-05 00:00:00',
+            **build_map_preference_context(request, 'fault'),
         })
 
 class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
@@ -203,6 +253,7 @@ class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
             'debug_mode': False,
             'show_debug_panel': False,
             'debug_date': '2025-12-05 00:00:00',
+            **build_map_preference_context(request, 'statistics_cable_break'),
         })
 
 
@@ -1048,6 +1099,7 @@ class LocationMapView(PermissionRequiredMixin, View):
             # 路径组模式特定数据 (用于空间选择控件)
             'path_group_id': path_group_id if path_group_id else '',
             'path_group_name': path_group_name if path_group_name else '',
+            **build_map_preference_context(request, map_mode),
         })
 
     def _parse_coordinates(self, q_param):

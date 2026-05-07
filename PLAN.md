@@ -1779,3 +1779,34 @@
 - [x] 调整业务统计后端初始化逻辑，让无本期故障的裸纤业务也进入卡片数据，并保留年度/月历统计。
 - [x] 调整裸纤业务卡片渲染和样式，让本期零故障卡片标题使用较浅青色区分。
 - [x] 运行定向测试和语法检查验证变更。
+
+# Added 2026-04-24 execution tracking below.
+## 2026-04-24 Map style preferences execution
+
+- [x] Reviewed `docs/superpowers/specs/2026-04-23-map-style-preferences-design.md` and `docs/superpowers/plans/2026-04-23-map-style-preferences.md`.
+- [x] Confirmed current workspace only has partial map-related groundwork; map style preference model, service, API wiring, template injection, JS control, and source test are still missing.
+- [x] Checked dirty worktree state and will avoid overwriting the existing edit in `docs/superpowers/plans/2026-04-23-map-style-preferences.md`.
+- [x] Add `tests/test_map_style_preferences.py` first to lock the expected contract before implementation.
+- [x] Implement backend model/filterset/service/migration for per-user map style preferences.
+- [x] Inject preference context into unified map views and expose the plugin preference endpoint.
+- [x] Implement the front-end style service/control and wire them into map modes and `unified_map_core.js`.
+- [x] Run focused tests and syntax checks; `makemigrations`/`migrate` were not executed because this workspace does not provide a runnable NetBox environment.
+
+## 2026-04-27 Map style preference panel visual controls
+
+- [x] Add source-level regression coverage for the settings panel card-style sections, segmented boolean controls, and range-based numeric controls.
+- [x] Refactor `MapStylePreferenceControl.js` so the panel uses grouped translucent cards inspired by the reference image while keeping existing preference fields and save/reset behavior.
+- [x] Replace all numeric setting inputs with range sliders plus read-only value display; do not expose direct number inputs.
+- [x] Keep color settings as visual color swatches and keep changes previewing immediately.
+- [x] Run focused unittest coverage and JavaScript syntax checks.
+## 2026-04-27 重构地图样式设置菜单 UI
+### 实施步骤
+- [x] 将地图样式设置控件从固定浮层改为与“视图与时间设置”一致的地图控件悬浮菜单。
+- [x] 复用分区标题、卡片式可见性开关、滑条、颜色色块和底部操作按钮的紧凑布局。
+- [x] 将主要视觉规则迁移到 `otnfault_map_controls.css`，减少 JS 内联样式并适配深色主题。
+- [x] 运行前端语法检查，确认地图样式控件脚本可解析。
+- [x] 修复菜单挂载在 MapLibre 控件组内导致的按钮样式继承、右侧控件遮挡和三组入口溢出问题。
+## 2026-05-07 故障分布图路径元数据 403
+- [x] 定位故障分布图打开后 `/api/plugins/otnfaults/paths/` 返回 403 的请求头根因。
+- [x] 增加前端 API 工具回归测试，覆盖同时存在 CSRF 与 API key 时仍发送 Token 认证。
+- [x] 修复 `utils/api.js` 的认证头选择逻辑，并运行相关测试。
