@@ -2039,9 +2039,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     </div>`;
     }
 
-    function getInterruptCalendarLevel(count, maxCount) {
-        if (count <= 0 || maxCount <= 0) return 0;
-        return Math.min(4, Math.max(1, Math.ceil((count / maxCount) * 4)));
+    function getInterruptCalendarLevel(count) {
+        if (count <= 0) return 0;
+        return Math.min(4, count);
     }
 
     function renderServiceInterruptCalendar(svc, interruptCalendarMaxCount) {
@@ -2052,7 +2052,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const leadingBlanks = Array.from({ length: Number(month.weekday_offset || 0) }, () => '<span class="service-interrupt-calendar-day service-interrupt-calendar-day--blank"></span>').join('');
             const dayHtml = days.map(day => {
                 const count = Number(day.count || 0);
-                const level = getInterruptCalendarLevel(count, maxCount);
+                const level = getInterruptCalendarLevel(count);
                 const title = `${escapeHtml(month.label || '')}${escapeHtml(day.day || '')}日：${count}次`;
                 return `<span class="service-interrupt-calendar-day service-interrupt-calendar-day--level-${level}" title="${title}"></span>`;
             }).join('');
@@ -2095,7 +2095,7 @@ document.addEventListener("DOMContentLoaded", function() {
             chart.setOption({
                 animation: false,
                 backgroundColor: 'transparent',
-                grid: { top: 8, left: 4, right: 4, bottom: 20, containLabel: false },
+                grid: { top: 16, left: 4, right: 4, bottom: 20, containLabel: false },
                 tooltip: Object.assign({
                     trigger: 'axis',
                     confine: true,
@@ -2151,6 +2151,17 @@ document.addEventListener("DOMContentLoaded", function() {
                         smooth: true,
                         symbol: 'circle',
                         symbolSize: 4,
+                        label: {
+                            show: true,
+                            position: 'top',
+                            distance: 4,
+                            color: '#078087',
+                            fontSize: 9,
+                            formatter(params) {
+                                const value = Number(params.value || 0);
+                                return value > 0 ? `${formatCardMetricValue(value)}时` : '';
+                            }
+                        },
                         lineStyle: { width: 1.8, color: '#078087' },
                         itemStyle: { color: '#078087' },
                         areaStyle: { color: 'rgba(7, 128, 135, 0.08)' }
@@ -2161,6 +2172,17 @@ document.addEventListener("DOMContentLoaded", function() {
                         yAxisIndex: 0,
                         data: countValues,
                         barWidth: 8,
+                        label: {
+                            show: true,
+                            position: 'top',
+                            distance: 2,
+                            color: theme.muted,
+                            fontSize: 9,
+                            formatter(params) {
+                                const value = Number(params.value || 0);
+                                return value > 0 ? `${formatCardCountValue(value)}次` : '';
+                            }
+                        },
                         itemStyle: {
                             color: 'rgba(32, 107, 196, 0.55)',
                             borderRadius: [3, 3, 0, 0]

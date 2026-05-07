@@ -1091,6 +1091,31 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("selected_year = int(request.GET.get('year', start_date.year))", views_source)
         self.assertIn("year_start = timezone.datetime(selected_year, 1, 1, tzinfo=tz)", views_source)
         self.assertIn("year_end = timezone.datetime(selected_year + 1, 1, 1, tzinfo=tz)", views_source)
+        impacts_query_source = views_source.split(
+            "impacts_qs = OtnFaultImpact.objects.select_related(",
+            1,
+        )[1].split("impacts = list(impacts_qs)", 1)[0]
+        self.assertNotIn(
+            "otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK",
+            impacts_query_source,
+        )
+        self.assertNotIn(
+            ".exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)",
+            impacts_query_source,
+        )
+        for query_name in ("yearly_impacts_qs", "calendar_impacts_qs"):
+            query_source = views_source.split(
+                f"{query_name} = OtnFaultImpact.objects.select_related(",
+                1,
+            )[1].split(f"{query_name.replace('_qs', '')} = list({query_name})", 1)[0]
+            self.assertIn(
+                "otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK",
+                query_source,
+            )
+            self.assertIn(
+                ".exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)",
+                query_source,
+            )
         self.assertIn("yearly_impacts_qs = OtnFaultImpact.objects.select_related(", views_source)
         self.assertIn("'annual_summary': {", views_source)
         self.assertIn("'count': 0,", views_source)
@@ -1186,13 +1211,18 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('<div class="service-runtime-calendar-title">运行月历</div>', source)
         self.assertIn('<div class="service-runtime-calendar-chart" aria-label="本年业务故障月度统计"></div>', source)
         self.assertIn("${renderServiceRuntimeCalendar()}", source)
+        self.assertNotIn("function renderServiceRuntimeCalendarMetrics(svc)", source)
+        self.assertNotIn('<div class="service-runtime-calendar-metrics" aria-label="运行月历指标">', source)
         self.assertIn("${renderServiceInterruptCalendar(card.service, card.interruptCalendarMaxCount)}", source)
         self.assertIn("function renderServiceInterruptCalendar(svc, interruptCalendarMaxCount)", source)
         self.assertIn('<div class="service-interrupt-calendar" aria-label="近三个月业务中断日历">', source)
         self.assertIn("const months = Array.isArray(svc.interrupt_calendar) ? svc.interrupt_calendar : [];", source)
         self.assertIn("const maxCount = Number(interruptCalendarMaxCount || 0);", source)
         self.assertIn("const leadingBlanks = Array.from({ length: Number(month.weekday_offset || 0) }, () => '<span class=\"service-interrupt-calendar-day service-interrupt-calendar-day--blank\"></span>').join('');", source)
-        self.assertIn("function getInterruptCalendarLevel(count, maxCount)", source)
+        self.assertIn("function getInterruptCalendarLevel(count)", source)
+        self.assertIn("if (count <= 0) return 0;", source)
+        self.assertIn("return Math.min(4, count);", source)
+        self.assertNotIn("Math.ceil((count / maxCount) * 4)", source)
         self.assertIn("service-interrupt-calendar-month", source)
         self.assertIn("service-interrupt-calendar-month-label", source)
         self.assertIn("service-interrupt-calendar-days", source)
@@ -1206,6 +1236,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("const monthLabels = Array.from({ length: 12 }, (_item, index) => `${index + 1}月`);", source)
         self.assertIn("const countValues = monthLabels.map((_label, index) => Number(monthlyStats[index] && monthlyStats[index].count || 0));", source)
         self.assertIn("const durationValues = monthLabels.map((_label, index) => Number(monthlyStats[index] && monthlyStats[index].duration || 0));", source)
+        self.assertNotIn("const totalCount = countValues.reduce((sum, value) => sum + value, 0);", source)
+        self.assertNotIn("const totalDuration = durationValues.reduce((sum, value) => sum + value, 0);", source)
+        self.assertNotIn("function buildServiceRuntimeCalendarGraphics(totalCount, totalDuration, theme)", source)
         self.assertNotIn("dailyDurationStats", source)
         self.assertNotIn("dayLabels", source)
         self.assertNotIn("xLabels", source)
@@ -1213,7 +1246,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("const chart = echarts.init(element);", source)
         self.assertIn("serviceCalendarCharts.push(chart);", source)
         self.assertIn("grid: {", source)
-        self.assertIn("top: 8", source)
+        self.assertIn("top: 16", source)
         self.assertIn("bottom: 20", source)
         self.assertIn("left: 4", source)
         self.assertIn("right: 4", source)
@@ -1226,12 +1259,19 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("const countAxisMax = Math.max(1, Math.ceil(maxCount * 2.6));", source)
         self.assertIn("const durationAxisMin = -Math.max(1, Math.ceil(maxDuration * 1.5));", source)
         self.assertIn("const durationAxisMax = Math.max(1, Math.ceil(maxDuration * 1.15));", source)
+        self.assertNotIn("graphic: buildServiceRuntimeCalendarGraphics(totalCount, totalDuration, theme),", source)
+        self.assertIn("const duration = durationValues[labelIndex] || 0;", source)
+        self.assertIn("formatCardMetricValue(duration)", source)
         self.assertIn("type: 'bar'", source)
         self.assertIn("name: '故障数'", source)
         self.assertIn("type: 'line'", source)
         self.assertIn("name: '故障时长'", source)
         self.assertIn("yAxisIndex: 0", source)
         self.assertIn("yAxisIndex: 1", source)
+        self.assertIn("position: 'top'", source)
+        self.assertIn("formatter(params) {", source)
+        self.assertIn("return value > 0 ? `${formatCardMetricValue(value)}时` : '';", source)
+        self.assertIn("return value > 0 ? `${formatCardCountValue(value)}次` : '';", source)
         self.assertNotIn("xAxisIndex: 1", source)
         self.assertNotIn("gridIndex: 1", source)
         self.assertNotIn("top: '54%'", source)
@@ -1243,6 +1283,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".service-runtime-calendar-heading {", css)
         self.assertIn(".service-runtime-calendar-icon {", css)
         self.assertIn(".service-runtime-calendar-title {", css)
+        self.assertNotIn(".service-runtime-calendar-metrics", css)
+        self.assertNotIn(".service-runtime-calendar-metric", css)
         self.assertIn("font-size: 1rem;", css)
         self.assertIn(".service-runtime-calendar-chart {", css)
         self.assertIn("height: 8.75rem;", css)
@@ -1254,6 +1296,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("grid-template-columns: repeat(7, 0.62rem);", css)
         self.assertIn(".service-interrupt-calendar-day {", css)
         self.assertIn(".service-interrupt-calendar-day--blank {", css)
+        self.assertIn(".service-interrupt-calendar-day--level-1 {\n    background: #93c5fd;", css)
+        self.assertIn(".service-interrupt-calendar-day--level-2 {\n    background: #2563eb;", css)
+        self.assertIn(".service-interrupt-calendar-day--level-3 {\n    background: #fca5a5;", css)
+        self.assertIn(".service-interrupt-calendar-day--level-4 {\n    background: #b91c1c;", css)
         self.assertIn(".service-interrupt-calendar-day--level-4 {", css)
         self.assertIn("function getMaxServiceInterruptCalendarCount(services)", source)
         self.assertIn("services.flatMap(svc =>", source)

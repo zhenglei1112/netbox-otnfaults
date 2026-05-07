@@ -984,15 +984,17 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
         ).filter(
             service_interruption_time__gte=year_start,
-            service_interruption_time__lt=year_end
-        )
+            service_interruption_time__lt=year_end,
+            otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK
+        ).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
         yearly_impacts = list(yearly_impacts_qs)
         calendar_impacts_qs = OtnFaultImpact.objects.select_related(
             'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
         ).filter(
             service_interruption_time__gte=calendar_start,
-            service_interruption_time__lt=calendar_end
-        )
+            service_interruption_time__lt=calendar_end,
+            otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK
+        ).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
         calendar_impacts = list(calendar_impacts_qs)
 
         # 计算周期总小时数（用于 SLA）
