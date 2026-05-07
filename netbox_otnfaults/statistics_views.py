@@ -15,9 +15,10 @@ from django.db.models.functions import TruncDate, Coalesce, Cast
 from decimal import Decimal
 import math
 from urllib.parse import quote
+from typing import Any
 
 from .models import (
-    OtnFault, OtnFaultImpact, OtnPath,
+    OtnFault, OtnFaultImpact, OtnPath, BareFiberService,
     FaultCategoryChoices, ResourceTypeChoices, CableTypeChoices,
     ServiceTypeChoices, FaultStatusChoices
 )
@@ -1005,6 +1006,57 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
         service_map: dict = {}  # key -> stats dict
         service_details: list[dict[str, str | int | float | bool]] = []
 
+        def initialize_service_stats(
+            svc_name: str,
+            svc_type_label: str,
+            svc_group_label: str,
+            svc_sort_rank: int,
+        ) -> dict[str, Any]:
+            monthly_stats = {month: {'count': 0, 'duration': 0.0} for month in range(1, 13)}
+            return {
+                'name': svc_name,
+                'type': svc_type_label,
+                'group_label': svc_group_label,
+                'sort_rank': svc_sort_rank,
+                'has_current_period_faults': False,
+                'count': 0,
+                'break_count': 0,   # 中断
+                'jitter_count': 0,  # 抖动
+                'degrade_count': 0, # 劣化
+                'other_count': 0,
+                'category_stats': {
+                    label: {
+                        'count': 0,
+                        'duration': 0.0,
+                    }
+                    for _value, label, *_rest in FaultCategoryChoices.CHOICES
+                },
+                'monthly_stats': monthly_stats,
+                'annual_summary': {
+                    'count': 0,
+                    'total_duration': 0.0,
+                    'intervals': [],
+                },
+                'interrupt_calendar': {
+                    month_info['key']: {day: 0 for day in range(1, month_info['days'] + 1)}
+                    for month_info in calendar_months
+                },
+                'total_duration': 0.0,
+                'long_count': 0,
+                'intervals': [],  # 用于 SLA 合并时段
+                'occurrence_times': [],  # 用于重复判断
+            }
+
+        for service in BareFiberService.objects.select_related('tenant_group').order_by('name'):
+            svc_key = f'bf_{service.pk}'
+            svc_group_label = service.tenant_group.name if service.tenant_group else '未分组'
+            service_map[svc_key] = initialize_service_stats(
+                service.name,
+                '裸纤业务',
+                svc_group_label,
+                0,
+            )
+
         for imp in impacts:
             # 确定业务标识和名称
             if imp.service_type == ServiceTypeChoices.BARE_FIBER and imp.bare_fiber_service:
@@ -1027,41 +1079,15 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 svc_sort_rank = 2
 
             if svc_key not in service_map:
-                monthly_stats = {month: {'count': 0, 'duration': 0.0} for month in range(1, 13)}
-                service_map[svc_key] = {
-                    'name': svc_name,
-                    'type': svc_type_label,
-                    'group_label': svc_group_label,
-                    'sort_rank': svc_sort_rank,
-                    'count': 0,
-                    'break_count': 0,   # 中断
-                    'jitter_count': 0,  # 抖动
-                    'degrade_count': 0, # 劣化
-                    'other_count': 0,
-                    'category_stats': {
-                        label: {
-                            'count': 0,
-                            'duration': 0.0,
-                        }
-                        for _value, label, *_rest in FaultCategoryChoices.CHOICES
-                    },
-                    'monthly_stats': monthly_stats,
-                    'annual_summary': {
-                        'count': 0,
-                        'total_duration': 0.0,
-                        'intervals': [],
-                    },
-                    'interrupt_calendar': {
-                        month_info['key']: {day: 0 for day in range(1, month_info['days'] + 1)}
-                        for month_info in calendar_months
-                    },
-                    'total_duration': 0.0,
-                    'long_count': 0,
-                    'intervals': [],  # 用于 SLA 合并时段
-                    'occurrence_times': [],  # 用于重复判断
-                }
+                service_map[svc_key] = initialize_service_stats(
+                    svc_name,
+                    svc_type_label,
+                    svc_group_label,
+                    svc_sort_rank,
+                )
 
             stats = service_map[svc_key]
+            stats['has_current_period_faults'] = True
             stats['count'] += 1
 
             # 分类计数
@@ -1241,6 +1267,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'type': stats['type'],
                 'group_label': stats['group_label'],
                 'sort_rank': stats['sort_rank'],
+                'has_current_period_faults': stats['has_current_period_faults'],
                 'count': count,
                 'break_count': stats['break_count'],
                 'jitter_count': stats['jitter_count'],

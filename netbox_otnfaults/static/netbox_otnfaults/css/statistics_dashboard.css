@@ -705,6 +705,11 @@ body.modal-open {
     line-height: 1.2;
 }
 
+.service-strip-card-title--quiet {
+    background: #bff4f8;
+    color: #075985;
+}
+
 .service-strip-card[data-service-key] {
     cursor: pointer;
 }

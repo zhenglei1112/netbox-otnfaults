@@ -2196,12 +2196,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderStripCard(card) {
         const title = escapeHtml(card.footer);
+        const hasCurrentPeriodFaults = card.service ? card.service.has_current_period_faults !== false : true;
+        const quietTitleClass = hasCurrentPeriodFaults ? '' : ' service-strip-card-title--quiet';
         const serviceAttrs = card.serviceKey
             ? ` data-service-key="${escapeHtml(card.serviceKey)}" data-service-name="${title}" role="button" tabindex="0"`
             : '';
         return `
             <div class="statistics-strip-card service-strip-card"${serviceAttrs}>
-                <div class="service-strip-card-title" title="${title}">${title}</div>
+                <div class="service-strip-card-title${quietTitleClass}" title="${title}">${title}</div>
                 <div class="statistics-strip-card-body">
                     ${renderServiceAnnualSummary(card.service)}
                     ${renderServiceCurrentPeriod(card.service)}

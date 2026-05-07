@@ -995,7 +995,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".service-group-section", css)
         self.assertIn(".service-group-card-grid", css)
         self.assertIn("footer: svc.name", source)
-        self.assertIn('<div class="service-strip-card-title" title="${title}">${title}</div>', source)
+        self.assertIn('<div class="service-strip-card-title${quietTitleClass}" title="${title}">${title}</div>', source)
         self.assertNotIn('<div class="statistics-strip-card-footer" title="${footer}">${footer}</div>', source)
         self.assertIn("grid-template-columns: repeat(auto-fill, minmax(21rem, 22.5rem));", css)
         self.assertIn("min-height: 20rem;", css)
@@ -1011,6 +1011,17 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("activeTab.id === 'tab-service-btn' || activeTab.id === 'tab-circuit-service-btn'", source)
         self.assertIn("event.target.id === 'tab-service-btn' || event.target.id === 'tab-circuit-service-btn'", source)
         self.assertIn(".service-strip-card-grid", css)
+
+    def test_bare_fiber_zero_current_period_cards_use_light_cyan_title(self) -> None:
+        source = JS_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("const hasCurrentPeriodFaults = card.service ? card.service.has_current_period_faults !== false : true;", source)
+        self.assertIn("const quietTitleClass = hasCurrentPeriodFaults ? '' : ' service-strip-card-title--quiet';", source)
+        self.assertIn('<div class="service-strip-card-title${quietTitleClass}" title="${title}">${title}</div>', source)
+        self.assertIn(".service-strip-card-title--quiet {", css)
+        self.assertIn("background: #bff4f8;", css)
+        self.assertIn("color: #075985;", css)
 
     def test_service_cards_render_annual_summary_at_top(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
