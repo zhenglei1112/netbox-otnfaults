@@ -1,5 +1,5 @@
 {% extends 'generic/object.html' %}
-{% load i18n %}
+{% load i18n helpers %}
 
 {% block content %}
 <div class="row mb-3">
@@ -73,6 +73,10 @@
                         </td>
                     </tr>
                     {% endif %}
+                    <tr>
+                        <th scope="row">业务影响</th>
+                        <td>{% badge object.get_business_impact_display bg_color=object.get_business_impact_color %}</td>
+                    </tr>
                     <tr>
                         <th scope="row">业务故障时间</th>
                         <td>{{ object.service_interruption_time|date:"Y-m-d H:i:s"|default:"—" }}</td>

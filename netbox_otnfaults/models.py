@@ -1405,6 +1405,19 @@ class ServiceTypeChoices(ChoiceSet):
         (CIRCUIT, '电路业务', 'green'),
     ]
 
+
+class BusinessImpactChoices(ChoiceSet):
+    key = 'OtnFaultImpact.business_impact'
+
+    INTERRUPTED = 'interrupted'
+    NOT_INTERRUPTED = 'not_interrupted'
+
+    CHOICES = [
+        (INTERRUPTED, '业务中断', 'red'),
+        (NOT_INTERRUPTED, '业务未中断', 'blue'),
+    ]
+
+
 class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
     otn_fault = models.ForeignKey(
         to=OtnFault,
@@ -1449,6 +1462,12 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='业务站点Z',
         blank=True,
         help_text='仅裸纤业务时使用，可选择多个Z端站点'
+    )
+    business_impact = models.CharField(
+        max_length=20,
+        choices=BusinessImpactChoices,
+        default=BusinessImpactChoices.INTERRUPTED,
+        verbose_name='业务影响'
     )
     service_interruption_time = models.DateTimeField(
         verbose_name='业务故障时间'
@@ -1534,6 +1553,9 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
 
     def get_service_type_color(self):
         return ServiceTypeChoices.colors.get(self.service_type)
+
+    def get_business_impact_color(self):
+        return BusinessImpactChoices.colors.get(self.business_impact)
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_otnfaults:otnfaultimpact', args=[self.pk])

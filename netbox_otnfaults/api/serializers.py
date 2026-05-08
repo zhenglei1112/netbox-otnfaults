@@ -181,13 +181,13 @@ class OtnFaultImpactSerializer(NetBoxModelSerializer):
         fields = (
             'id', 'url', 'display', 'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service',
             'service_site_a', 'service_site_z',
-            'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'business_impact', 'service_interruption_time', 'service_recovery_time', 'service_duration',
             'tags', 'comments', 'custom_fields', 'created', 'last_updated',
             'journal_entries',
         )
         brief_fields = (
             'id', 'url', 'display', 'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service',
-            'service_interruption_time', 'service_recovery_time',
+            'business_impact', 'service_interruption_time', 'service_recovery_time',
         )
         read_only_fields = ('service_duration', 'journal_entries')
 

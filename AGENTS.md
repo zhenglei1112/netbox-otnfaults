@@ -95,6 +95,9 @@ RequestConfig(request, paginate={'per_page': per_page}).configure(table)
 ### 6.4 多表格独立分页
 当页面包含多个表格时，使用不同的页码参数（如 `page`, `sites_page`）实现独立分页。
 
+### 6.5 表格操作列位置
+表格中的编辑、删除等操作按钮列（`actions`）必须永远保持为最后一列。为表格新增业务字段或统计字段时，必须放在 `actions` 前，禁止把新增字段追加到操作按钮之后。
+
 5. 安全与约束
 核心保护: 绝不修改 netbox/ 核心目录下的文件。只修改 plugins/<your_plugin_name>/ 内的文件。
 

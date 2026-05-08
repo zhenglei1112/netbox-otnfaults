@@ -10,7 +10,7 @@ from .models import (
     PowerRectificationSubjectChoices, PowerRectificationProgressChoices,
     OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite, BareFiberService,
     CircuitService, ServiceGroupChoices, BusinessCategoryChoices, ServiceTypeChoices,
-    CircuitOperationStatusChoices, SLALevelChoices
+    BusinessImpactChoices, CircuitOperationStatusChoices, SLALevelChoices
 )
 import json
 
@@ -457,7 +457,7 @@ class OtnFaultImpactForm(NetBoxModelForm):
         fields = (
             'otn_fault', 'secondary_faults', 'service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z',
             'circuit_business_category', 'circuit_service_group', 'circuit_special_line_name', 'circuit_service',
-            'service_interruption_time', 'service_recovery_time',
+            'business_impact', 'service_interruption_time', 'service_recovery_time',
             'comments', 'tags',
         )
         widgets = {
@@ -741,6 +741,11 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='业务类型'
     )
+    business_impact = forms.ChoiceField(
+        choices=add_blank_choice(BusinessImpactChoices),
+        required=False,
+        label='业务影响'
+    )
     bare_fiber_service = DynamicModelChoiceField(
         queryset=BareFiberService.objects.all(),
         required=False,
@@ -768,7 +773,7 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
     model = OtnFaultImpact
     fieldsets = (
         ('故障影响业务', (
-            'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service', 'service_interruption_time', 'service_recovery_time', 'comments',
+            'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service', 'business_impact', 'service_interruption_time', 'service_recovery_time', 'comments',
         )),
     )
     nullable_fields = (
@@ -1100,6 +1105,11 @@ class OtnFaultImpactFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='业务组',
         widget=forms.SelectMultiple()
+    )
+    business_impact = forms.ChoiceField(
+        choices=add_blank_choice(BusinessImpactChoices),
+        required=False,
+        label='业务影响'
     )
     service_interruption_time_after = forms.DateTimeField(
         required=False,

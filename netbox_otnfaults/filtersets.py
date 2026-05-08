@@ -193,6 +193,7 @@ class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
             'circuit_service',
             'circuit_business_category',
             'circuit_service_group',
+            'business_impact',
             'service_interruption_time_after',
             'service_interruption_time_before',
             'service_recovery_time',

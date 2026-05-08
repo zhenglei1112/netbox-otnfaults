@@ -545,6 +545,9 @@ class OtnFaultImpactTable(NetBoxTable):
         format='Y-m-d H:i:s',
         verbose_name='业务故障时间'
     )
+    business_impact = columns.ChoiceFieldColumn(
+        verbose_name='业务影响'
+    )
     service_recovery_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
         verbose_name='业务恢复时间'
@@ -569,12 +572,12 @@ class OtnFaultImpactTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = OtnFaultImpact
         fields = (
-            'pk', 'id', 'service_type', 'service_name', 'service_interruption_time', 'service_recovery_time',
+            'pk', 'id', 'service_type', 'service_name', 'business_impact', 'service_interruption_time', 'service_recovery_time',
             'service_duration', 'otn_fault', 'secondary_faults', 'service_group',
             'comments', 'tags', 'actions',
         )
         default_columns = (
-            'id', 'service_type', 'service_name', 'service_interruption_time',
+            'id', 'service_type', 'service_name', 'business_impact', 'service_interruption_time',
             'service_recovery_time', 'service_duration', 'otn_fault',
         )
 
@@ -672,6 +675,9 @@ class OtnFaultImpactDetailTable(NetBoxTable):
         format='Y-m-d H:i:s',
         verbose_name='业务中断时间'
     )
+    business_impact = columns.ChoiceFieldColumn(
+        verbose_name='业务影响'
+    )
     service_recovery_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
         verbose_name='业务恢复时间'
@@ -697,11 +703,11 @@ class OtnFaultImpactDetailTable(NetBoxTable):
         model = OtnFaultImpact
         fields = (
             'otn_fault', 'fault_category', 'interruption_location_a', 'interruption_location',
-            'service_interruption_time', 'service_recovery_time', 'service_duration', 'actions',
+            'business_impact', 'service_interruption_time', 'service_recovery_time', 'service_duration', 'actions',
         )
         default_columns = (
             'otn_fault', 'fault_category', 'interruption_location_a', 'interruption_location',
-            'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'business_impact', 'service_interruption_time', 'service_recovery_time', 'service_duration',
         )
 
     def render_service_duration(self, record):
@@ -743,12 +749,12 @@ class OtnFaultImpactSummaryTable(OtnFaultImpactTable):
         fields = (
             'id', 'service_type', 'service_name',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
-            'secondary_faults', 'actions',
+            'secondary_faults', 'business_impact', 'actions',
         )
         default_columns = (
             'id', 'service_type', 'service_name',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
-            'secondary_faults',
+            'secondary_faults', 'business_impact',
         )
         exclude = ('otn_fault', 'service_group', 'comments', 'tags', 'pk')
 
