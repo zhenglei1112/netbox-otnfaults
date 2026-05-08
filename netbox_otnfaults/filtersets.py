@@ -74,7 +74,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'rectification_status', 'rectification_measures', 'rectification_description',
             'rectification_subject', 'rectification_progress', 'planned_completion_date',
             'actual_completion_date', 'rectification_completion_description', 'comments',
-            'fault_status', 'manager_reviewed', 'manager_reviewer', 'noc_reviewed', 'noc_reviewer',
+            'fault_status', 'is_suspended', 'manager_reviewed', 'manager_reviewer', 'noc_reviewed', 'noc_reviewer',
             'manager_review_time', 'noc_review_time'
         )
 

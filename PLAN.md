@@ -1873,3 +1873,8 @@
 - [x] 新增业务影响单选字段，选项为业务中断、业务未中断，并生成迁移。
 - [x] 调整故障影响业务编辑页和详情页，将业务影响放在业务故障时间前。
 - [x] 运行定向测试和 Python 语法检查验证变更。
+## 2026-05-08 is_suspended fault flag
+- [x] Add regression tests for `OtnFault.is_suspended`, edit/detail field order, and suspended status auto-sync.
+- [x] Update the fault model, migration, forms, filters, serializer, and templates so `is_suspended` appears immediately after `fault_status`.
+- [x] Update statistics "non-suspended" scope to require both `fault_status != SUSPENDED` and `is_suspended = false`.
+- [x] Run targeted tests.

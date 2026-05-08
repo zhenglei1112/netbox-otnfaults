@@ -808,6 +808,12 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         null=True,
         verbose_name='处理状态'
     )
+
+    is_suspended = models.BooleanField(
+        default=False,
+        verbose_name='挂起',
+        help_text='该故障为挂起故障，不计入故障时长统计'
+    )
     
     # 19) 光缆中断部位，为选择型字段，分为尾纤、出局缆、长途光缆
     cable_break_location = models.CharField(
@@ -1358,6 +1364,14 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             raise ValidationError(errors)
 
     def save(self, *args: Any, **kwargs: Any) -> None:
+        if self.fault_status == FaultStatusChoices.SUSPENDED:
+            self.is_suspended = True
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = {
+                    *kwargs['update_fields'],
+                    'is_suspended',
+                }
+
         if self.fault_number:
             super().save(*args, **kwargs)
             return

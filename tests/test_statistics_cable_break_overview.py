@@ -24,7 +24,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("FaultStatusChoices", source)
         self.assertIn("cable_break_faults = [", source)
         self.assertIn("f.fault_category == FaultCategoryChoices.FIBER_BREAK", source)
-        self.assertIn("f.fault_status != FaultStatusChoices.SUSPENDED", source)
+        self.assertIn("_is_non_suspended_fault(f)", source)
+        self.assertIn("fault.fault_status != FaultStatusChoices.SUSPENDED", source)
+        self.assertIn("and not fault.is_suspended", source)
         self.assertIn("def _compute_cable_break_overview(faults: list, now) -> dict:", source)
         self.assertIn("cable_break_overview = _compute_cable_break_overview(faults, now)", source)
         self.assertIn("'cable_break_overview': cable_break_overview", source)
@@ -535,7 +537,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("if f.fault_category not in OVERALL_EXCLUDED_TOTAL_CATEGORIES", source)
         self.assertIn("overall_total_count = len(overall_faults)", source)
         self.assertIn("overall_category_stats = _build_fault_category_summary(overall_faults, now)", source)
-        self.assertIn("all_suspended_faults_count = qs_all.filter(fault_status=FaultStatusChoices.SUSPENDED).count()", source)
+        self.assertIn("all_suspended_faults_count = qs_all.filter(_suspended_fault_q()).count()", source)
         self.assertIn("other_overview = _build_other_fault_summary(all_faults, all_suspended_faults_count)", source)
         self.assertIn("prev_other_overview = _build_other_fault_summary(prev_all_faults, all_suspended_faults_count)", source)
         self.assertIn("'other_overview': other_overview", source)
@@ -1114,6 +1116,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             ".exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)",
             impacts_query_source,
         )
+        self.assertNotIn(
+            "otn_fault__is_suspended=False",
+            impacts_query_source,
+        )
         for query_name in ("yearly_impacts_qs", "calendar_impacts_qs"):
             query_source = views_source.split(
                 f"{query_name} = OtnFaultImpact.objects.select_related(",
@@ -1125,6 +1131,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             )
             self.assertIn(
                 ".exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)",
+                query_source,
+            )
+            self.assertIn(
+                "otn_fault__is_suspended=False",
                 query_source,
             )
         self.assertIn("yearly_impacts_qs = OtnFaultImpact.objects.select_related(", views_source)
@@ -1527,6 +1537,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("fault_occurrence_time__gte=start_date", source)
         self.assertIn("fault_occurrence_time__lt=end_date", source)
         self.assertIn("fault_category=FaultCategoryChoices.FIBER_BREAK", source)
+        self.assertIn("filter(is_suspended=False)", source)
         self.assertIn("exclude(fault_status=FaultStatusChoices.SUSPENDED)", source)
         self.assertIn("faults = list(get_cable_break_base_queryset(start_date, end_date))", source)
         self.assertNotIn("qs = qs_all.filter(fault_category=FaultCategoryChoices.FIBER_BREAK)", source)
@@ -2126,6 +2137,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("physical_duration_boxplot_faults = list(get_cable_break_base_queryset(start_date, end_date))", views_source)
         self.assertIn("physical_duration_boxplot_stats = _build_physical_daily_fault_series(start_date, end_date, physical_duration_boxplot_faults, now)", views_source)
         self.assertIn("fault_category=FaultCategoryChoices.FIBER_BREAK", views_source)
+        self.assertIn(".filter(is_suspended=False)", views_source)
         self.assertIn(".exclude(fault_status=FaultStatusChoices.SUSPENDED)", views_source)
         self.assertNotIn("physical_daily_start, physical_daily_end = _resolve_physical_daily_range(start_date, end_date, filter_type)", views_source)
         self.assertNotIn("FaultCategoryChoices.POWER_FAULT", views_source.split("physical_daily_faults = list(", 1)[1].split("physical_daily_stats = ", 1)[0])

@@ -127,7 +127,7 @@ class OtnFaultForm(NetBoxModelForm):
             'cutover_report_status', 'cutover_report_time',
             'first_report_source', 'duty_officer',
             'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
-            'closure_time', 'handler', 'fault_details', 'fault_status',
+            'closure_time', 'handler', 'fault_details', 'fault_status', 'is_suspended',
             name='故障信息'
         ),
         FieldSet(
@@ -164,7 +164,7 @@ class OtnFaultForm(NetBoxModelForm):
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
             'fault_occurrence_time', 'fault_recovery_time',
             'closure_time', 'first_report_source', 'duty_officer', 'handler', 'fault_details',
-            'fault_status',
+            'fault_status', 'is_suspended',
             # 线路主管补充信息组字段
             'line_manager', 'resource_type', 'resource_owner', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
@@ -675,6 +675,11 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='处理状态'
     )
+    is_suspended = forms.BooleanField(
+        required=False,
+        label='挂起',
+        help_text='该故障为挂起故障，不计入故障时长统计'
+    )
     timeout = forms.BooleanField(
         required=False,
         label='规定时间内完成修复'
@@ -699,7 +704,7 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         'rectification_subject', 'rectification_progress', 'planned_completion_date',
         'actual_completion_date', 'rectification_completion_description',
         'interruption_reason', 'interruption_reason_detail', 'maintenance_mode', 'resource_type',
-            'resource_owner', 'cable_break_location', 'recovery_mode', 'root_cause_analysis', 'fault_status', 'handler', 'timeout_reason', 'comments',
+            'resource_owner', 'cable_break_location', 'recovery_mode', 'root_cause_analysis', 'fault_status', 'is_suspended', 'handler', 'timeout_reason', 'comments',
         'interruption_location_a', 'first_report_source', 'cable_route'
     )
 
@@ -787,7 +792,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
         FieldSet(
-            'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'fault_status', 'urgency', 'province',
+            'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'fault_status', 'is_suspended', 'urgency', 'province',
             'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
             'first_report_source', 'duty_officer',
@@ -930,6 +935,11 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         choices=add_blank_choice(FaultStatusChoices),
         required=False,
         label='处理状态'
+    )
+    is_suspended = forms.BooleanField(
+        required=False,
+        label='挂起',
+        help_text='该故障为挂起故障，不计入故障时长统计'
     )
     timeout = forms.BooleanField(
         required=False,

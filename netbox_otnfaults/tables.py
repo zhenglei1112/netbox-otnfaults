@@ -183,6 +183,9 @@ class OtnFaultTable(NetBoxTable):
     fault_status = columns.ChoiceFieldColumn(
         verbose_name='处理状态'
     )
+    is_suspended = columns.BooleanColumn(
+        verbose_name='挂起'
+    )
     manager_reviewed = columns.BooleanColumn(
         verbose_name='线路主管复核'
     )
@@ -221,7 +224,7 @@ class OtnFaultTable(NetBoxTable):
             'rectification_status', 'rectification_measures', 'rectification_description',
             'rectification_subject', 'rectification_progress', 'planned_completion_date',
             'actual_completion_date', 'rectification_completion_description', 'handling_unit', 'contract',
-            'fault_status',
+            'fault_status', 'is_suspended',
             'manager_reviewed', 'manager_reviewer', 'manager_review_time',
             'noc_reviewed', 'noc_reviewer', 'noc_review_time',
             'comments', 'tags', 'actions',
@@ -428,6 +431,9 @@ class ContractOtnFaultTable(NetBoxTable):
     fault_status = columns.ChoiceFieldColumn(
         verbose_name='处理状态'
     )
+    is_suspended = columns.BooleanColumn(
+        verbose_name='挂起'
+    )
     fault_duration = tables.Column(
         verbose_name='故障历时',
         orderable=False
@@ -442,7 +448,7 @@ class ContractOtnFaultTable(NetBoxTable):
         model = OtnFault
         fields = (
             'pk', 'fault_number', 'duty_officer', 'fault_occurrence_time',
-            'fault_category', 'urgency', 'fault_status', 'progress', 'fault_duration',
+            'fault_category', 'urgency', 'fault_status', 'is_suspended', 'progress', 'fault_duration',
         )
         default_columns = (
             'fault_number', 'duty_officer', 'fault_occurrence_time',

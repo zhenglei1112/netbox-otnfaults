@@ -18,6 +18,7 @@
         {% render_field form.power_fault_impact %}
         </div>
         {% render_field form.fault_status %}
+        {% render_field form.is_suspended %}
         {% render_field form.urgency %}
         {% render_field form.first_report_source %}
         {% render_field form.tags %}
@@ -118,6 +119,7 @@
     // 供电故障类型
     const POWER_FAULT_CATEGORY = 'power_fault';
     const POWER_RECTIFICATION_REASON = 'power_equipment_rectification';
+    const SUSPENDED_STATUS = 'suspended';
 
     // 故障分类 -> 一级原因映射
     const CATEGORY_TO_REASON_MAP = {
@@ -804,6 +806,28 @@
         }
     }
 
+    function initSuspendedStatusSync() {
+        const statusSelect = document.querySelector('select[name="fault_status"]');
+        const suspendedInput = document.querySelector('input[name="is_suspended"]');
+        if (!statusSelect || !suspendedInput) return;
+
+        const syncSuspendedFlag = (value) => {
+            if (value === SUSPENDED_STATUS) {
+                suspendedInput.checked = true;
+            }
+        };
+
+        if (statusSelect.tomselect) {
+            statusSelect.tomselect.on('change', syncSuspendedFlag);
+            syncSuspendedFlag(statusSelect.tomselect.getValue());
+        } else {
+            statusSelect.addEventListener('change', function() {
+                syncSuspendedFlag(this.value);
+            });
+            syncSuspendedFlag(statusSelect.value);
+        }
+    }
+
     // Z端快捷定位：根据A端站点自动查找有路径连通的站点，并提供快捷选择
     function initPathShortcuts() {
         const aSiteSelect = document.querySelector('select[name="interruption_location_a"]');
@@ -941,6 +965,7 @@
         setTimeout(initManagerLogic, 200);
         setTimeout(initOperationsManagerLogic, 200);
         setTimeout(initReviewLogic, 200);
+        setTimeout(initSuspendedStatusSync, 200);
         setTimeout(initPathShortcuts, 200);
         setTimeout(initErrorFieldFocus, 250);
     } else {
@@ -951,6 +976,7 @@
             setTimeout(initManagerLogic, 200);
             setTimeout(initOperationsManagerLogic, 200);
             setTimeout(initReviewLogic, 200);
+            setTimeout(initSuspendedStatusSync, 200);
             setTimeout(initPathShortcuts, 200);
             setTimeout(initErrorFieldFocus, 250);
         });

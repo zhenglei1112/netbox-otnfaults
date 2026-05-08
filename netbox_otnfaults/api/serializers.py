@@ -139,7 +139,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time',
             'arrival_time', 'repair_time', 'timeout', 'timeout_reason',
-            'handler', 'recovery_mode', 'cable_break_location', 'handling_unit', 'fault_status', 'status_color',
+            'handler', 'recovery_mode', 'cable_break_location', 'handling_unit', 'fault_status', 'is_suspended', 'status_color',
             'closure_time', 'power_data_type', 'root_cause_analysis', 'rectification_status',
             'rectification_measures', 'rectification_description', 'rectification_subject',
             'rectification_progress', 'planned_completion_date', 'actual_completion_date',
@@ -152,7 +152,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
         brief_fields = (
             'id', 'url', 'display', 'fault_number', 'duty_officer', 'fault_occurrence_time',
             'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
-            'fault_status',
+            'fault_status', 'is_suspended',
         )
         read_only_fields = (
             'fault_number', 'fault_duration', 'processing_duration',

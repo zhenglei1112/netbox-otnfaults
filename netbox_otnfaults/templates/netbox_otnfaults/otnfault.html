@@ -80,6 +80,12 @@
           <td style="overflow-wrap: break-word; word-break: break-word;">
             {% if object.fault_status %}
               {% badge object.get_fault_status_display bg_color=object.get_fault_status_color %}
+              <span class="ms-2 text-muted small">挂起:</span>
+              {% if object.is_suspended %}
+                <i class="mdi mdi-check-bold text-success" title="is_suspended"></i>
+              {% else %}
+                <i class="mdi mdi-close-thick text-muted" title="is_suspended"></i>
+              {% endif %}
             {% else %}
               —
             {% endif %}

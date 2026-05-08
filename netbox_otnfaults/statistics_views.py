@@ -342,6 +342,17 @@ def _build_other_fault_summary(faults: list, suspended_faults_count: int) -> dic
     }
 
 
+def _is_non_suspended_fault(fault) -> bool:
+    return (
+        fault.fault_status != FaultStatusChoices.SUSPENDED
+        and not fault.is_suspended
+    )
+
+
+def _suspended_fault_q() -> Q:
+    return Q(fault_status=FaultStatusChoices.SUSPENDED) | Q(is_suspended=True)
+
+
 def get_cable_break_base_queryset(start_date, end_date) -> QuerySet:
     """Return the shared cable-break queryset used by statistics and map views."""
     return (
@@ -352,6 +363,7 @@ def get_cable_break_base_queryset(start_date, end_date) -> QuerySet:
             fault_occurrence_time__lt=end_date,
             fault_category=FaultCategoryChoices.FIBER_BREAK,
         )
+        .filter(is_suspended=False)
         .exclude(fault_status=FaultStatusChoices.SUSPENDED)
     )
 
@@ -383,7 +395,7 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
     cable_break_faults = [
         f for f in faults
         if f.fault_category == FaultCategoryChoices.FIBER_BREAK
-        and f.fault_status != FaultStatusChoices.SUSPENDED
+        and _is_non_suspended_fault(f)
     ]
 
     reason_counts: dict[str, int] = {}
@@ -665,7 +677,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         qs_all = OtnFault.objects.select_related('province', 'interruption_location_a').prefetch_related('interruption_location')
         all_current_qs = qs_all.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
         all_faults = list(all_current_qs)
-        all_suspended_faults_count = qs_all.filter(fault_status=FaultStatusChoices.SUSPENDED).count()
+        all_suspended_faults_count = qs_all.filter(_suspended_fault_q()).count()
 
         overall_faults = [
             f for f in all_faults
@@ -680,6 +692,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 fault_occurrence_time__gte=physical_daily_start,
                 fault_occurrence_time__lt=physical_daily_end,
                 fault_category=FaultCategoryChoices.FIBER_BREAK,
+            ).filter(
+                is_suspended=False
             ).exclude(
                 fault_status=FaultStatusChoices.SUSPENDED
             )
@@ -987,7 +1001,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             service_interruption_time__gte=year_start,
             service_interruption_time__lt=year_end,
             otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK
-        ).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
+        ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
         yearly_impacts = list(yearly_impacts_qs)
         calendar_impacts_qs = OtnFaultImpact.objects.select_related(
             'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
@@ -995,7 +1009,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             service_interruption_time__gte=calendar_start,
             service_interruption_time__lt=calendar_end,
             otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK
-        ).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
+        ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
         calendar_impacts = list(calendar_impacts_qs)
 
         # 计算周期总小时数（用于 SLA）
