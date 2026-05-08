@@ -2028,14 +2028,46 @@ document.addEventListener("DOMContentLoaded", function() {
                     </div>`;
     }
 
-    function renderServiceRuntimeCalendar() {
+    function renderServiceRuntimeCalendar(svc) {
         return `
                     <div class="service-runtime-calendar">
                         <div class="service-runtime-calendar-heading">
                             <span class="service-runtime-calendar-icon"><i class="mdi mdi-calendar-month-outline"></i></span>
                             <div class="service-runtime-calendar-title">运行月历</div>
                         </div>
+                        ${renderServiceRuntimeCalendarSlaTable(svc)}
                         <div class="service-runtime-calendar-chart" aria-label="本年业务故障月度统计"></div>
+                    </div>`;
+    }
+
+    function renderServiceRuntimeCalendarSlaRow(monthlyStats, annualYear, currentYear, currentMonth) {
+        return monthlyStats.map((item, index) => {
+            const itemLabel = item && item.label ? item.label : `${index + 1}月`;
+            const itemSla = item && item.sla !== undefined ? item.sla : 100;
+            const monthNumber = Number(item && item.month || index + 1);
+            const showSla = annualYear < currentYear || (annualYear === currentYear && monthNumber <= currentMonth);
+            return `
+                            <div class="service-runtime-calendar-sla-cell">
+                                <span class="service-runtime-calendar-sla-month">${escapeHtml(itemLabel)}</span>
+                                <span class="service-runtime-calendar-sla-value">${showSla ? `${formatCardMetricValue(itemSla)}%` : '-'}</span>
+                            </div>`;
+        }).join('');
+    }
+
+    function renderServiceRuntimeCalendarSlaTable(svc) {
+        const annualYear = Number(svc.annual_summary && svc.annual_summary.year || new Date().getFullYear());
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
+        const sourceStats = Array.isArray(svc.monthly_stats) ? svc.monthly_stats : [];
+        const monthlyStats = Array.from({ length: 12 }, (_item, index) => {
+            return sourceStats[index] || { month: index + 1, label: `${index + 1}月`, sla: 100 };
+        });
+        const firstHalf = monthlyStats.slice(0, 6);
+        const secondHalf = monthlyStats.slice(6, 12);
+        return `
+                    <div class="service-runtime-calendar-sla-grid" aria-label="本年各月SLA情况">
+                        ${renderServiceRuntimeCalendarSlaRow(firstHalf, annualYear, currentYear, currentMonth)}
+                        ${renderServiceRuntimeCalendarSlaRow(secondHalf, annualYear, currentYear, currentMonth)}
                     </div>`;
     }
 
@@ -2196,6 +2228,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderStripCard(card) {
         const title = escapeHtml(card.footer);
+        const svc = card.service || {};
         const hasCurrentPeriodFaults = card.service ? card.service.has_current_period_faults !== false : true;
         const quietTitleClass = hasCurrentPeriodFaults ? '' : ' service-strip-card-title--quiet';
         const serviceAttrs = card.serviceKey
@@ -2207,8 +2240,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 <div class="statistics-strip-card-body">
                     ${renderServiceAnnualSummary(card.service)}
                     ${renderServiceCurrentPeriod(card.service)}
-                    ${renderServiceRuntimeCalendar()}
-                    ${renderServiceInterruptCalendar(card.service, card.interruptCalendarMaxCount)}
+                    ${renderServiceRuntimeCalendar(svc)}
+                    ${renderServiceInterruptCalendar(svc, card.interruptCalendarMaxCount)}
                 </div>
             </div>`;
     }

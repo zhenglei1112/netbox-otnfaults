@@ -1878,3 +1878,14 @@
 - [x] Update the fault model, migration, forms, filters, serializer, and templates so `is_suspended` appears immediately after `fault_status`.
 - [x] Update statistics "non-suspended" scope to require both `fault_status != SUSPENDED` and `is_suspended = false`.
 - [x] Run targeted tests.
+## 2026-05-08 裸纤业务运行月历增加月度 SLA
+- [x] 增加源码级回归测试，锁定业务统计接口为每月返回 SLA，且运行月历渲染两行六列的本年月度 SLA 表格。
+- [x] 调整业务统计后端，在年度光缆中断且非挂起口径下按月合并不可用区间并计算月度 SLA。
+- [x] 调整业务故障卡片前端，在运行月历图表下方渲染 12 个月 SLA 表格并补充样式。
+- [x] 运行定向测试和 JS 语法检查验证变更。
+
+## 2026-05-08 调整裸纤运行月历 SLA 表格位置
+- [x] 增加源码级回归测试，锁定 SLA 表格位于运行月历图表上方、使用单线表格样式，且未到月份显示为 `-`。
+- [x] 调整业务故障卡片前端渲染顺序，将月度 SLA 表格并入运行月历区并置于次数/历时月图之上。
+- [x] 调整 SLA 表格样式为两行六列单线表格，减少占高并避免与图表压盖。
+- [x] 运行定向测试和 JS 语法检查验证变更。

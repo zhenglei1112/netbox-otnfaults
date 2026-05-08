@@ -632,6 +632,40 @@ body.modal-open {
     background: transparent;
 }
 
+.service-runtime-calendar-sla-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    margin: 0.12rem 0 0.35rem;
+    border-top: 1px solid rgba(154, 168, 186, 0.45);
+    border-left: 1px solid rgba(154, 168, 186, 0.45);
+}
+
+.service-runtime-calendar-sla-cell {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem 0.08rem;
+    border-right: 1px solid rgba(154, 168, 186, 0.45);
+    border-bottom: 1px solid rgba(154, 168, 186, 0.45);
+    background: transparent;
+    line-height: 1.15;
+}
+
+.service-runtime-calendar-sla-month {
+    color: var(--statistics-muted);
+    font-size: 0.68rem;
+    font-weight: 500;
+}
+
+.service-runtime-calendar-sla-value {
+    margin-top: 0.08rem;
+    color: #078087;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
 .service-interrupt-calendar {
     padding: 0.65rem 1.25rem 0.95rem;
     border-top: 1px solid var(--statistics-divider);

@@ -1026,7 +1026,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             svc_group_label: str,
             svc_sort_rank: int,
         ) -> dict[str, Any]:
-            monthly_stats = {month: {'count': 0, 'duration': 0.0} for month in range(1, 13)}
+            monthly_stats = {month: {'count': 0, 'duration': 0.0, 'intervals': []} for month in range(1, 13)}
             return {
                 'name': svc_name,
                 'type': svc_type_label,
@@ -1168,6 +1168,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             stats = service_map[svc_key]
             stats['monthly_stats'][month_index]['count'] += 1
             stats['monthly_stats'][month_index]['duration'] += month_dur_hours
+            stats['monthly_stats'][month_index]['intervals'].append((year_imp.service_interruption_time, month_end))
             stats['annual_summary']['count'] += 1
             stats['annual_summary']['total_duration'] += month_dur_hours
             stats['annual_summary']['intervals'].append((year_imp.service_interruption_time, month_end))
@@ -1189,6 +1190,31 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 stats['interrupt_calendar'][calendar_key][calendar_day.day] += 1
 
         # 构建返回结果
+        def calculate_merged_interval_sla(
+            intervals: list[tuple[Any, Any]],
+            scope_start: Any,
+            scope_end: Any,
+        ) -> float:
+            total_hours = (scope_end - scope_start).total_seconds() / 3600.0
+            clipped_intervals = [
+                (max(start, scope_start), min(end, scope_end))
+                for start, end in intervals
+                if start < scope_end and end > scope_start
+            ]
+            merged_intervals: list[tuple[Any, Any]] = []
+            for start, end in sorted(clipped_intervals, key=lambda item: item[0]):
+                if start >= end:
+                    continue
+                if merged_intervals and start <= merged_intervals[-1][1]:
+                    merged_intervals[-1] = (merged_intervals[-1][0], max(merged_intervals[-1][1], end))
+                else:
+                    merged_intervals.append((start, end))
+            unavailable_hours = sum(
+                (end - start).total_seconds() / 3600.0 for start, end in merged_intervals
+            )
+            sla_value = ((total_hours - unavailable_hours) / total_hours * 100.0) if total_hours > 0 else 100.0
+            return max(0.0, sla_value)
+
         services_result = []
         for svc_key, stats in service_map.items():
             count = stats['count']
@@ -1242,15 +1268,25 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                     key=lambda item: (category_order.get(item[0], len(category_order)), item[0])
                 )
             ]
-            monthly_stats_payload = [
-                {
+            monthly_stats_payload = []
+            for month, month_stats in stats['monthly_stats'].items():
+                month_start = timezone.datetime(selected_year, month, 1, tzinfo=tz)
+                month_end_boundary = (
+                    timezone.datetime(selected_year + 1, 1, 1, tzinfo=tz)
+                    if month == 12 else timezone.datetime(selected_year, month + 1, 1, tzinfo=tz)
+                )
+                monthly_sla = calculate_merged_interval_sla(
+                    month_stats['intervals'],
+                    month_start,
+                    month_end_boundary,
+                )
+                monthly_stats_payload.append({
                     'month': month,
                     'label': f'{month}月',
                     'count': month_stats['count'],
                     'duration': round(month_stats['duration'], 2),
-                }
-                for month, month_stats in stats['monthly_stats'].items()
-            ]
+                    'sla': round(monthly_sla, 4),
+                })
             annual_summary_payload = {
                 'year': selected_year,
                 'count': stats['annual_summary']['count'],
