@@ -10,6 +10,9 @@ from .models import (
     OtnMapPreference,
     OtnPath,
     OtnPathGroup,
+    PowerRectificationMeasureChoices,
+    PowerRootCauseAnalysisChoices,
+    RecoveryModeChoices,
 )
 
 
@@ -37,6 +40,23 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
         label='我的待复核故障',
     )
 
+    recovery_mode = django_filters.MultipleChoiceFilter(
+        choices=[(value, label) for value, label, *_ in RecoveryModeChoices.CHOICES],
+        method='filter_recovery_mode',
+        label='应对措施',
+    )
+    root_cause_analysis = django_filters.MultipleChoiceFilter(
+        choices=[(value, label) for value, label, *_ in PowerRootCauseAnalysisChoices.CHOICES],
+        method='filter_root_cause_analysis',
+        label='根因分析',
+    )
+
+    rectification_measures = django_filters.MultipleChoiceFilter(
+        choices=[(value, label) for value, label, *_ in PowerRectificationMeasureChoices.CHOICES],
+        method='filter_rectification_measures',
+        label='整改措施',
+    )
+
     class Meta:
         model = OtnFault
         fields = (
@@ -44,12 +64,16 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'interruption_location_a', 'interruption_location',
             'fault_occurrence_time_after', 'fault_occurrence_time_before',
             'fault_recovery_time', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
-            'interruption_reason', 'fault_details', 'interruption_longitude',
+            'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
+            'fault_details', 'interruption_longitude',
             'interruption_latitude', 'province', 'urgency', 'first_report_source',
             'line_manager', 'operations_manager', 'maintenance_mode', 'handling_unit', 'contract',
             'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'timeout_reason', 'resource_type', 'resource_owner', 'cable_route',
-            'handler', 'cable_break_location', 'recovery_mode', 'comments',
+            'handler', 'cable_break_location', 'recovery_mode', 'root_cause_analysis',
+            'rectification_status', 'rectification_measures', 'rectification_description',
+            'rectification_subject', 'rectification_progress', 'planned_completion_date',
+            'actual_completion_date', 'rectification_completion_description', 'comments',
             'fault_status', 'manager_reviewed', 'manager_reviewer', 'noc_reviewed', 'noc_reviewer',
             'manager_review_time', 'noc_review_time'
         )
@@ -66,6 +90,21 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             | Q(interruption_location_a__name__icontains=value)
             | Q(interruption_location__name__icontains=value)
         ).distinct()
+
+    def filter_recovery_mode(self, queryset, name: str, value: list[str]):
+        if not value:
+            return queryset
+        return queryset.filter(recovery_mode__overlap=value)
+
+    def filter_root_cause_analysis(self, queryset, name: str, value: list[str]):
+        if not value:
+            return queryset
+        return queryset.filter(root_cause_analysis__overlap=value)
+
+    def filter_rectification_measures(self, queryset, name: str, value: list[str]):
+        if not value:
+            return queryset
+        return queryset.filter(rectification_measures__overlap=value)
 
     def filter_bidirectional_pair(self, queryset, name, value):
         try:

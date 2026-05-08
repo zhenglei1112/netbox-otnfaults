@@ -1815,3 +1815,44 @@
 - [x] Extend the fault model, migration, serializer, table columns, filterset, and filter form.
 - [x] Render the two fields immediately after fault category and show them only for power faults.
 - [x] Run targeted tests and Python syntax checks.
+
+## 2026-05-07 Power fault reason tree
+- [x] Add source regression coverage for the confirmed power-fault first-level and second-level reason tree.
+- [x] Update `OtnFault` reason choices and mappings for power faults.
+- [x] Update the edit-page cascade mapping so frontend filtering matches the model.
+- [x] Run focused source tests and syntax checks.
+## 2026-05-07 供电整改故障增加割接报备字段
+- [x] 增加源码级回归测试，锁定割接报备字段在模型、表单、列表列设置、筛选和 API 中暴露。
+- [x] 调整故障模型、迁移、表单、过滤器、表格和序列化器，新增割接报备情况与报备时间。
+- [x] 调整故障新增编辑页和详情页，仅在供电故障且一级原因为电源设备整改时于二级原因后显示字段。
+- [x] 运行定向测试和 Python 语法检查。
+## 2026-05-08 恢复方式改为应对措施多选
+- [x] 增加回归测试，锁定故障模型 `recovery_mode` 显示为“应对措施”且选项为四类应对措施。
+- [x] 调整模型选项、字段显示名和多选值展示逻辑，保持字段名 `recovery_mode` 不变。
+- [x] 调整故障表单/导入表单/筛选表单为“应对措施”多选显示，并保持详情页、列表列名一致。
+- [x] 运行定向测试验证。
+
+## 2026-05-08 应对措施改为 ArrayField
+- [x] 调整回归测试，要求 `recovery_mode` 使用 PostgreSQL `ArrayField`、GIN 索引和数组查询。
+- [x] 将 `OtnFault.recovery_mode` 从逗号字符串改为数组字段，并兼容旧字符串值显示。
+- [x] 调整表单、过滤、列表/API 显示，按列表值处理。
+- [x] 更新迁移，将旧单值/逗号值转换为 PostgreSQL 数组。
+- [x] 运行定向测试和语法验证。
+
+## 2026-05-08 资料类型改为供电设备提供方
+- [x] 增加回归测试，锁定 `power_data_type` 显示名和三个新选项。
+- [x] 调整模型、表单和详情页显示文字，保持字段名不变。
+- [x] 增加迁移同步字段 choices/verbose_name，并清理旧值。
+- [x] 运行定向测试和语法验证。
+
+## 2026-05-08 供电故障新增根因分析
+- [x] 增加回归测试，锁定根因分析 ArrayField、选项、表单、筛选、列表、API 和模板入口。
+- [x] 新增 `root_cause_analysis` 字段、ChoiceSet、显示方法和 GIN 索引。
+- [x] 调整供电故障补充信息组、筛选页、列设置、详情页和新增修改页。
+- [x] 新增迁移并运行定向测试和语法验证。
+## 2026-05-08 供电故障补充整改字段
+
+- [x] 补充源码级回归测试，锁定供电故障整改字段的模型、选项、迁移、筛选、列设置、详情页和新增编辑页。
+- [x] 在 `OtnFault` 增加是否整改、整改措施、措施描述、整改主体、整改进度、计划完成时间、实际完成时间、整改完成情况描述字段。
+- [x] 将新增字段加入供电故障补充信息组、筛选表单、表格列设置、REST 序列化和详情页展示。
+- [x] 运行定向测试验证新增字段覆盖完整。

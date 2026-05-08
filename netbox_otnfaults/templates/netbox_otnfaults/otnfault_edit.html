@@ -29,6 +29,12 @@
 
         {% render_field form.interruption_reason %}
         {% render_field form.interruption_reason_detail %}
+        <div data-cutover-report-only>
+        {% render_field form.cutover_report_status %}
+        </div>
+        <div data-cutover-report-only>
+        {% render_field form.cutover_report_time %}
+        </div>
         {% render_field form.duty_officer %}
         {% render_field form.fault_occurrence_time %}
         {% render_field form.dispatch_time %}
@@ -52,7 +58,6 @@
         {% render_field form.resource_owner %}
         {% render_field form.cable_route %}
         {% render_field form.cable_break_location %}
-        {% render_field form.recovery_mode %}
         {% render_field form.maintenance_mode %}
         {% render_field form.handling_unit %}
         {% render_field form.contract %}
@@ -67,7 +72,16 @@
     </div>
     <div class="row">
         {% render_field form.power_data_type %}
-        {% render_field form.power_recovery_mode %}
+        {% render_field form.root_cause_analysis %}
+        {% render_field form.recovery_mode %}
+        {% render_field form.rectification_status %}
+        {% render_field form.rectification_measures %}
+        {% render_field form.rectification_description %}
+        {% render_field form.rectification_subject %}
+        {% render_field form.rectification_progress %}
+        {% render_field form.planned_completion_date %}
+        {% render_field form.actual_completion_date %}
+        {% render_field form.rectification_completion_description %}
         {% render_field form.power_maintenance_mode %}
     </div>
 </div>
@@ -103,6 +117,7 @@
     const FIBER_FAULT_CATEGORIES = ['fiber_break', 'fiber_degradation', 'fiber_jitter'];
     // 供电故障类型
     const POWER_FAULT_CATEGORY = 'power_fault';
+    const POWER_RECTIFICATION_REASON = 'power_equipment_rectification';
 
     // 故障分类 -> 一级原因映射
     const CATEGORY_TO_REASON_MAP = {
@@ -122,8 +137,9 @@
                          'auxiliary_card', 'power_card', 'optical_layer_card',
                          'chassis_fault', 'misoperation_device', 'device_relocation', 
                          'other_device'],
-        'power_fault': ['power_equipment_fault', 'power_equipment_rectification', 
-                        'ac_fault_power', 'natural_disaster_power', 'misoperation_power']
+        'power_fault': ['ac_fault_power', 'power_equipment_fault',
+                        'misoperation_power', 'natural_disaster_power',
+                        'unknown_power', 'power_equipment_rectification']
     };
     
     // 一级原因 -> 二级原因映射
@@ -158,12 +174,20 @@
         'misoperation_device': [],
         'device_relocation': [],
         'other_device': [],
-        // 供电故障的一级原因（无二级原因）
-        'power_equipment_fault': [],
-        'power_equipment_rectification': [],
-        'ac_fault_power': [],
-        'natural_disaster_power': [],
-        'misoperation_power': []
+        // 供电故障的一级原因
+        'ac_fault_power': ['room_power_test', 'grid_power_maintenance',
+                           'breaker_trip', 'ups_fault', 'mains_power_outage',
+                           'natural_disaster_power_detail', 'manual_misoperation',
+                           'other_power'],
+        'power_equipment_fault': ['switching_power_fault', 'rectifier_module_fault'],
+        'misoperation_power': ['human_caused'],
+        'natural_disaster_power': ['power_flood', 'power_rainstorm', 'power_lightning'],
+        'unknown_power': [],
+        'power_equipment_rectification': ['power_relocation', 'grid_power_maintenance',
+                                          'switching_power_rectification',
+                                          'battery_rectification',
+                                          'owner_unit_rectification',
+                                          'mains_power_outage']
     };
     
     // 保存原始选项
@@ -192,6 +216,12 @@
             powerInfoDiv.style.display = 'none';
             powerFaultOnlyRows.forEach(row => { row.style.display = 'none'; });
         }
+    }
+
+    function toggleCutoverReportFields(category, reason) {
+        const cutoverRows = document.querySelectorAll('[data-cutover-report-only]');
+        const shouldShow = category === POWER_FAULT_CATEGORY && reason === POWER_RECTIFICATION_REASON;
+        cutoverRows.forEach(row => { row.style.display = shouldShow ? '' : 'none'; });
     }
     
     let isCascadeUpdating = false;
@@ -243,6 +273,7 @@
             
             // 切换光缆补充信息显隐
             toggleFiberFields(value);
+            toggleCutoverReportFields(value, '');
             isCascadeUpdating = false;
         });
         
@@ -252,6 +283,7 @@
             isCascadeUpdating = true;
             console.log('[CascadeFilter] 一级原因变化:', value);
             updateDetailOptions(value, detailTS);
+            toggleCutoverReportFields(categoryTS.getValue(), value);
             isCascadeUpdating = false;
         });
         
@@ -264,6 +296,7 @@
             // 默认隐藏
             toggleFiberFields('');
         }
+        toggleCutoverReportFields(categorySelect.value, reasonSelect.value);
         
         if (reasonSelect.value) {
             updateDetailOptions(reasonSelect.value, detailTS, true);

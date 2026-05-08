@@ -1,6 +1,11 @@
 from rest_framework import serializers
 from netbox.api.serializers import NetBoxModelSerializer, WritableNestedSerializer
-from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, OtnMapPreference
+from ..models import (
+    OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite,
+    BareFiberService, CircuitService, OtnMapPreference, PowerRectificationMeasureChoices,
+    PowerRootCauseAnalysisChoices,
+    RecoveryModeChoices,
+)
 from django.contrib.auth import get_user_model
 from dcim.models import Site, Region
 from tenancy.models import Tenant
@@ -99,6 +104,27 @@ class OtnFaultSerializer(NetBoxModelSerializer):
     processing_duration = serializers.SerializerMethodField()
     timeline_data = serializers.SerializerMethodField()
     status_color = serializers.SerializerMethodField()
+    recovery_mode = serializers.ListField(
+        child=serializers.ChoiceField(
+            choices=[(value, label) for value, label, *_ in RecoveryModeChoices.CHOICES]
+        ),
+        required=False,
+        allow_empty=True,
+    )
+    root_cause_analysis = serializers.ListField(
+        child=serializers.ChoiceField(
+            choices=[(value, label) for value, label, *_ in PowerRootCauseAnalysisChoices.CHOICES]
+        ),
+        required=False,
+        allow_empty=True,
+    )
+    rectification_measures = serializers.ListField(
+        child=serializers.ChoiceField(
+            choices=[(value, label) for value, label, *_ in PowerRectificationMeasureChoices.CHOICES]
+        ),
+        required=False,
+        allow_empty=True,
+    )
     
     class Meta:
         model = OtnFault
@@ -106,14 +132,18 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'id', 'url', 'display', 'fault_number', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'processing_duration', 'timeline_data',
             'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
-            'interruption_reason', 'interruption_reason_detail', 'fault_details',
+            'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
+            'fault_details',
             'interruption_longitude', 'interruption_latitude',
             'province', 'urgency', 'first_report_source',
             'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time',
             'arrival_time', 'repair_time', 'timeout', 'timeout_reason',
             'handler', 'recovery_mode', 'cable_break_location', 'handling_unit', 'fault_status', 'status_color',
-            'closure_time', 'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
+            'closure_time', 'power_data_type', 'root_cause_analysis', 'rectification_status',
+            'rectification_measures', 'rectification_description', 'rectification_subject',
+            'rectification_progress', 'planned_completion_date', 'actual_completion_date',
+            'rectification_completion_description', 'power_recovery_mode', 'power_maintenance_mode',
             'manager_reviewed', 'manager_reviewer', 'manager_review_time',
             'noc_reviewed', 'noc_reviewer', 'noc_review_time',
             'tags', 'comments', 'custom_fields', 'created', 'last_updated',

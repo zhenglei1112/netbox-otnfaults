@@ -110,6 +110,13 @@ class OtnFaultTable(NetBoxTable):
     interruption_reason_detail = columns.ChoiceFieldColumn(
         verbose_name='二级原因'
     )
+    cutover_report_status = columns.ChoiceFieldColumn(
+        verbose_name='割接报备情况'
+    )
+    cutover_report_time = tables.DateTimeColumn(
+        format='Y-m-d H:i:s',
+        verbose_name='报备时间'
+    )
     fault_duration = tables.Column(
         verbose_name='故障历时',
         orderable=False
@@ -129,8 +136,37 @@ class OtnFaultTable(NetBoxTable):
     maintenance_mode = columns.ChoiceFieldColumn(
         verbose_name='维护方式'
     )
-    recovery_mode = columns.ChoiceFieldColumn(
-        verbose_name='恢复方式'
+    recovery_mode = tables.Column(
+        verbose_name='应对措施'
+    )
+    root_cause_analysis = tables.Column(
+        verbose_name='根因分析'
+    )
+    rectification_status = columns.ChoiceFieldColumn(
+        verbose_name='是否整改'
+    )
+    rectification_measures = tables.Column(
+        verbose_name='整改措施'
+    )
+    rectification_description = tables.Column(
+        verbose_name='措施描述'
+    )
+    rectification_subject = columns.ChoiceFieldColumn(
+        verbose_name='整改主体'
+    )
+    rectification_progress = columns.ChoiceFieldColumn(
+        verbose_name='整改进度'
+    )
+    planned_completion_date = tables.DateColumn(
+        format='Y-m-d',
+        verbose_name='计划完成时间'
+    )
+    actual_completion_date = tables.DateColumn(
+        format='Y-m-d',
+        verbose_name='实际完成时间'
+    )
+    rectification_completion_description = tables.Column(
+        verbose_name='整改完成情况描述'
     )
     resource_type = columns.ChoiceFieldColumn(
         verbose_name='光纤来源'
@@ -177,10 +213,14 @@ class OtnFaultTable(NetBoxTable):
             'pk', 'fault_number', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
             'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'progress',
-            'interruption_reason', 'interruption_reason_detail', 'urgency', 'first_report_source',
+            'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
+            'urgency', 'first_report_source',
             'province', 'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time', 'arrival_time',
-            'timeout', 'handler', 'fault_details', 'cable_break_location', 'recovery_mode', 'handling_unit', 'contract',
+            'timeout', 'handler', 'fault_details', 'cable_break_location', 'recovery_mode', 'root_cause_analysis',
+            'rectification_status', 'rectification_measures', 'rectification_description',
+            'rectification_subject', 'rectification_progress', 'planned_completion_date',
+            'actual_completion_date', 'rectification_completion_description', 'handling_unit', 'contract',
             'fault_status',
             'manager_reviewed', 'manager_reviewer', 'manager_review_time',
             'noc_reviewed', 'noc_reviewer', 'noc_review_time',
@@ -240,6 +280,51 @@ class OtnFaultTable(NetBoxTable):
 
     def value_recovery_mode(self, value: str | None, record: OtnFault) -> str:
         return _display_or_empty(record.get_recovery_mode_display())
+
+    def render_root_cause_analysis(self, value, record):
+        color = record.get_root_cause_analysis_color()
+        if not color:
+            return '—'
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_root_cause_analysis_display())
+
+    def value_root_cause_analysis(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_root_cause_analysis_display())
+
+    def render_rectification_status(self, value, record):
+        color = record.get_rectification_status_color()
+        if not color:
+            return '—'
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_rectification_status_display())
+
+    def value_rectification_status(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_rectification_status_display())
+
+    def render_rectification_measures(self, value, record):
+        color = record.get_rectification_measures_color()
+        if not color:
+            return '—'
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_rectification_measures_display())
+
+    def value_rectification_measures(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_rectification_measures_display())
+
+    def render_rectification_subject(self, value, record):
+        color = record.get_rectification_subject_color()
+        if not color:
+            return '—'
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_rectification_subject_display())
+
+    def value_rectification_subject(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_rectification_subject_display())
+
+    def render_rectification_progress(self, value, record):
+        color = record.get_rectification_progress_color()
+        if not color:
+            return '—'
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_rectification_progress_display())
+
+    def value_rectification_progress(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_rectification_progress_display())
 
     def render_resource_type(self, value, record):
         color = record.get_resource_type_color()

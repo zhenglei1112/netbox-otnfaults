@@ -76,8 +76,8 @@ class WeeklyReportText(Script):
         natural_disaster_count = faults.filter(interruption_reason='natural_disaster').count()
         traffic_accident_count = faults.filter(interruption_reason='traffic_accident').count()
         
-        # pigtail needs to check location and recovery mode
-        pigtail_count = faults.filter(Q(cable_break_location='pigtail') | Q(recovery_mode='tail_fiber_replacement')).count()
+        # pigtail is now determined by location only; recovery_mode stores response measures.
+        pigtail_count = faults.filter(cable_break_location='pigtail').count()
         animal_damage_count = faults.filter(interruption_reason='animal_damage').count()
         jitter_count = faults.filter(fault_category=FaultCategoryChoices.FIBER_JITTER).count()
         

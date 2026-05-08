@@ -136,15 +136,12 @@ class GenerateFaultData(Script):
             'leased',       # 租赁纤芯
         ]
         
-        # 恢复方式选项
+        # 应对措施选项
         self.recovery_modes = [
-            'fusion_splicing',          # 熔接恢复
-            'tail_fiber_replacement',   # 更换尾纤恢复
-            'processing',               # 处理恢复
-            'fiber_adjustment',         # 调纤恢复
-            'automatic',                # 自动恢复
-            'unknown',                  # 无法查明
-            'not_provided',             # 未提供
+            'emergency_generation',     # 应急发电
+            'battery_power',            # 电池供电
+            'utility_power_restored',   # 市电恢复
+            'onsite_handling',          # 现场处置
         ]
         
         # 中国GPS坐标范围

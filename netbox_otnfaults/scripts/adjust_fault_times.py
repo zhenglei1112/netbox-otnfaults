@@ -228,7 +228,7 @@ class AdjustFaultTimes(Script):
         - arrival_time (到达现场时间)
         """
         fault.cable_break_location = None
-        fault.recovery_mode = None
+        fault.recovery_mode = []
         fault.resource_type = None
         fault.cable_route = None
         fault.dispatch_time = None

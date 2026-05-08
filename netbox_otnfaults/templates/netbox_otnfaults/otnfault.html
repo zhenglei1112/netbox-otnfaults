@@ -4,6 +4,7 @@
 {% load i18n %}
 {% load l10n %}
 {% load helpers %}
+{% load otnfault_display %}
 
 {% block extra_styles %}
 <style>
@@ -148,6 +149,18 @@
             {{ object.get_interruption_reason_detail_display|default:"—" }}
           </td>
         </tr>
+        {% if object.fault_category == 'power_fault' and object.interruption_reason == 'power_equipment_rectification' %}
+        <tr>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">割接报备情况</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.get_cutover_report_status_display|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">报备时间</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">
+            {% if object.cutover_report_time %}{{ object.cutover_report_time|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endif %}
         <tr>
           <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">值守人员</span></th>
           <td style="overflow-wrap: break-word; word-break: break-word;">
@@ -316,16 +329,6 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">恢复方式</th>
-          <td>
-            {% if object.recovery_mode %}
-              {% badge object.get_recovery_mode_display bg_color=object.get_recovery_mode_color %}
-            {% else %}
-              —
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
           <th scope="row">资源所属者</th>
           <td>{{ object.get_resource_owner_display|default:"—" }}</td>
         </tr>
@@ -382,7 +385,7 @@
       <h5 class="card-header">供电故障补充信息</h5>
       <table class="table table-hover attr-table">
         <tr>
-          <th scope="row">资料类型</th>
+          <th scope="row">供电设备提供方</th>
           <td>
             {% if object.power_data_type %}
             {% badge object.get_power_data_type_display bg_color=object.get_power_data_type_color %}
@@ -392,14 +395,86 @@
           </td>
         </tr>
         <tr>
-          <th scope="row">恢复方式</th>
+          <th scope="row">应对措施</th>
           <td>
-            {% if object.power_recovery_mode %}
-            {% badge object.get_power_recovery_mode_display bg_color=object.get_power_recovery_mode_color %}
+            {% if object.recovery_mode %}
+              {% for label in object.recovery_mode|otnfault_choice_labels:"recovery_mode" %}
+                <span class="badge rounded-pill border bg-body text-body">{{ label }}</span>
+              {% endfor %}
             {% else %}
             —
             {% endif %}
           </td>
+        </tr>
+        <tr>
+          <th scope="row">根因分析</th>
+          <td>
+            {% if object.root_cause_analysis %}
+              {% for label in object.root_cause_analysis|otnfault_choice_labels:"root_cause_analysis" %}
+                <span class="badge rounded-pill border bg-body text-body">{{ label }}</span>
+              {% endfor %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">是否整改</th>
+          <td>
+            {% if object.rectification_status %}
+            {% badge object.get_rectification_status_display bg_color=object.get_rectification_status_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">整改措施</th>
+          <td>
+            {% if object.rectification_measures %}
+              {% for label in object.rectification_measures|otnfault_choice_labels:"rectification_measures" %}
+                <span class="badge rounded-pill border bg-body text-body">{{ label }}</span>
+              {% endfor %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">措施描述</th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.rectification_description|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">整改主体</th>
+          <td>
+            {% if object.rectification_subject %}
+            {% badge object.get_rectification_subject_display bg_color=object.get_rectification_subject_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">整改进度</th>
+          <td>
+            {% if object.rectification_progress %}
+            {% badge object.get_rectification_progress_display bg_color=object.get_rectification_progress_color %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">计划完成时间</th>
+          <td>{% if object.planned_completion_date %}{{ object.planned_completion_date|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+        </tr>
+        <tr>
+          <th scope="row">实际完成时间</th>
+          <td>{% if object.actual_completion_date %}{{ object.actual_completion_date|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+        </tr>
+        <tr>
+          <th scope="row">整改完成情况描述</th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.rectification_completion_description|default:"—" }}</td>
         </tr>
         <tr>
           <th scope="row">维护方式</th>

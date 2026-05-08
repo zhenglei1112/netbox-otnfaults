@@ -1,6 +1,8 @@
 ﻿from django.db import models
 from typing import Any
 
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import GinIndex
 from django.db import IntegrityError, transaction
 from django.urls import reverse
 from django.utils import timezone
@@ -78,12 +80,112 @@ class MaintenanceModeChoices(ChoiceSet):
 class PowerDataTypeChoices(ChoiceSet):
     key = 'OtnFault.power_data_type'
 
-    SELF_BUILT = 'self_built_battery'
-    PROVINCIAL = 'provincial_battery'
+    OWNED = 'owned_equipment'
+    PHASE_ONE_SUPPORTING = 'phase_one_supporting'
+    THIRD_PARTY = 'third_party_provided'
 
     CHOICES = [
-        (SELF_BUILT, '自建配套', 'green'),
-        (PROVINCIAL, '外部配套', 'blue'),
+        (OWNED, '自有设备', 'green'),
+        (PHASE_ONE_SUPPORTING, '一期配套', 'blue'),
+        (THIRD_PARTY, '三方提供', 'orange'),
+    ]
+
+
+class PowerRootCauseAnalysisChoices(ChoiceSet):
+    key = 'OtnFault.root_cause_analysis'
+
+    SWITCHING_POWER_FAULT = 'switching_power_fault'
+    RECTIFIER_MODULE_FAULT = 'rectifier_module_fault'
+    BATTERY_DEPLETED = 'battery_depleted'
+    NO_BATTERY = 'no_battery'
+    INSUFFICIENT_BATTERY_BACKUP_TIME = 'insufficient_battery_backup_time'
+    ROOM_POWER_TEST = 'room_power_test'
+    GRID_POWER_MAINTENANCE = 'grid_power_maintenance'
+    BREAKER_TRIP = 'breaker_trip'
+    UPS_FAULT = 'ups_fault'
+    MAINS_POWER_OUTAGE = 'mains_power_outage'
+    NATURAL_DISASTER = 'natural_disaster'
+    HUMAN_MISOPERATION = 'human_misoperation'
+    OTHER = 'other'
+
+    CHOICES = [
+        (SWITCHING_POWER_FAULT, '开关电源故障', 'red'),
+        (RECTIFIER_MODULE_FAULT, '整流模块故障', 'orange'),
+        (BATTERY_DEPLETED, '电池耗尽', 'yellow'),
+        (NO_BATTERY, '无电池', 'gray'),
+        (INSUFFICIENT_BATTERY_BACKUP_TIME, '电池备电时间不足', 'yellow'),
+        (ROOM_POWER_TEST, '机房供电测试', 'blue'),
+        (GRID_POWER_MAINTENANCE, '国网供电检修', 'cyan'),
+        (BREAKER_TRIP, '空开跳闸', 'orange'),
+        (UPS_FAULT, 'UPS故障', 'red'),
+        (MAINS_POWER_OUTAGE, '市电停电', 'purple'),
+        (NATURAL_DISASTER, '自然灾害', 'brown'),
+        (HUMAN_MISOPERATION, '人为误操作', 'pink'),
+        (OTHER, '其他', 'gray'),
+    ]
+
+
+class PowerRectificationStatusChoices(ChoiceSet):
+    key = 'OtnFault.rectification_status'
+
+    NOT_REQUIRED = 'not_required'
+    REQUIRED = 'required'
+    DUPLICATE_MERGED = 'duplicate_merged'
+
+    CHOICES = [
+        (NOT_REQUIRED, '无需整改', 'gray'),
+        (REQUIRED, '需要整改', 'orange'),
+        (DUPLICATE_MERGED, '重复合并', 'blue'),
+    ]
+
+
+class PowerRectificationMeasureChoices(ChoiceSet):
+    key = 'OtnFault.rectification_measures'
+
+    REPLACE_POWER = 'replace_power'
+    REPLACE_BATTERY = 'replace_battery'
+    BATTERY_EXPANSION = 'battery_expansion'
+    POWER_EXPANSION = 'power_expansion'
+    ADD_MONITORING = 'add_monitoring'
+    OTHER = 'other'
+
+    CHOICES = [
+        (REPLACE_POWER, '更换电源', 'red'),
+        (REPLACE_BATTERY, '更换电池', 'orange'),
+        (BATTERY_EXPANSION, '电池扩容', 'yellow'),
+        (POWER_EXPANSION, '电源扩容', 'purple'),
+        (ADD_MONITORING, '增加动环', 'cyan'),
+        (OTHER, '其他', 'gray'),
+    ]
+
+
+class PowerRectificationSubjectChoices(ChoiceSet):
+    key = 'OtnFault.rectification_subject'
+
+    HEADQUARTERS = 'headquarters'
+    SUBSIDIARY = 'subsidiary'
+    EXTERNAL = 'external'
+
+    CHOICES = [
+        (HEADQUARTERS, '本部', 'blue'),
+        (SUBSIDIARY, '子公司', 'green'),
+        (EXTERNAL, '外单位', 'orange'),
+    ]
+
+
+class PowerRectificationProgressChoices(ChoiceSet):
+    key = 'OtnFault.rectification_progress'
+
+    NOT_STARTED = 'not_started'
+    IN_PROGRESS = 'in_progress'
+    COMPLETED = 'completed'
+    SUSPENDED = 'suspended'
+
+    CHOICES = [
+        (NOT_STARTED, '未实施', 'gray'),
+        (IN_PROGRESS, '进行中', 'blue'),
+        (COMPLETED, '已完成', 'green'),
+        (SUSPENDED, '挂起', 'yellow'),
     ]
 
 
@@ -138,6 +240,18 @@ class PowerFaultImpactChoices(ChoiceSet):
     CHOICES = [
         (HOSTED, '设备托管', 'blue'),
         (NOT_HOSTED, '设备未托管', 'gray'),
+    ]
+
+
+class CutoverReportStatusChoices(ChoiceSet):
+    key = 'OtnFault.cutover_report_status'
+
+    UNREPORTED = 'unreported'
+    REPORTED = 'reported'
+
+    CHOICES = [
+        (UNREPORTED, '未报备', 'red'),
+        (REPORTED, '已报备', 'green'),
     ]
 
 
@@ -222,22 +336,16 @@ class CableBreakLocationChoices(ChoiceSet):
 class RecoveryModeChoices(ChoiceSet):
     key = 'OtnFault.recovery_mode'
 
-    FUSION_SPLICING = 'fusion_splicing'
-    TAIL_FIBER_REPLACEMENT = 'tail_fiber_replacement'
-    PROCESSING = 'processing'
-    FIBER_ADJUSTMENT = 'fiber_adjustment'
-    AUTOMATIC = 'automatic'
-    UNKNOWN = 'unknown'
-    NOT_PROVIDED = 'not_provided'
+    EMERGENCY_GENERATION = 'emergency_generation'
+    BATTERY_POWER = 'battery_power'
+    UTILITY_POWER_RESTORED = 'utility_power_restored'
+    ONSITE_HANDLING = 'onsite_handling'
 
     CHOICES = [
-        (FUSION_SPLICING, '熔接恢复', 'red'),
-        (TAIL_FIBER_REPLACEMENT, '更换尾纤恢复', 'orange'),
-        (PROCESSING, '处理恢复', 'yellow'),
-        (FIBER_ADJUSTMENT, '调纤恢复', 'green'),
-        (AUTOMATIC, '自动恢复', 'blue'),
-        (UNKNOWN, '无法查明', 'gray'),
-        (NOT_PROVIDED, '未提供', 'light-gray'),
+        (EMERGENCY_GENERATION, '应急发电', 'orange'),
+        (BATTERY_POWER, '电池供电', 'yellow'),
+        (UTILITY_POWER_RESTORED, '市电恢复', 'green'),
+        (ONSITE_HANDLING, '现场处置', 'blue'),
     ]
 
 
@@ -331,11 +439,12 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         ('device_relocation', '设备搬迁'),
         ('other_device', '其他'),
         # 供电故障专用的一级原因
-        ('power_equipment_fault', '电源设备故障'),
-        ('power_equipment_rectification', '电源设备整改'),
         ('ac_fault_power', '交流故障'),
-        ('natural_disaster_power', '自然灾害'),
+        ('power_equipment_fault', '电源设备故障'),
         ('misoperation_power', '误操作'),
+        ('natural_disaster_power', '自然灾害'),
+        ('unknown_power', '不详'),
+        ('power_equipment_rectification', '电源设备整改'),
     )
     
     # 二级原因选项
@@ -372,6 +481,25 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         # 线路整改二级原因
         ('planned_reporting', '计划报备'),
         ('unplanned_reporting', '非报备'),
+        # 供电故障二级原因
+        ('room_power_test', '机房供电测试'),
+        ('grid_power_maintenance', '国网供电检修'),
+        ('breaker_trip', '空开跳闸'),
+        ('ups_fault', 'UPS故障'),
+        ('mains_power_outage', '市电停电'),
+        ('natural_disaster_power_detail', '自然灾害'),
+        ('manual_misoperation', '人为误操作'),
+        ('other_power', '其他'),
+        ('switching_power_fault', '开关电源故障'),
+        ('rectifier_module_fault', '整流模块故障'),
+        ('human_caused', '人为导致'),
+        ('power_flood', '洪水'),
+        ('power_rainstorm', '暴雨'),
+        ('power_lightning', '雷击'),
+        ('power_relocation', '搬迁'),
+        ('switching_power_rectification', '开关电源整改'),
+        ('battery_rectification', '电池整改'),
+        ('owner_unit_rectification', '业主单位整改'),
     )
     
     # 故障分类 -> 一级原因映射
@@ -392,8 +520,9 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
                          'auxiliary_card', 'power_card', 'optical_layer_card',
                          'chassis_fault', 'misoperation_device', 'device_relocation', 
                          'other_device'],
-        'power_fault': ['power_equipment_fault', 'power_equipment_rectification', 
-                        'ac_fault_power', 'natural_disaster_power', 'misoperation_power'],
+        'power_fault': ['ac_fault_power', 'power_equipment_fault',
+                        'misoperation_power', 'natural_disaster_power',
+                        'unknown_power', 'power_equipment_rectification'],
     }
     
     # 一级原因 -> 二级原因映射
@@ -428,12 +557,20 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         'misoperation_device': [],
         'device_relocation': [],
         'other_device': [],
-        # 供电故障的一级原因（无二级原因）
-        'power_equipment_fault': [],
-        'power_equipment_rectification': [],
-        'ac_fault_power': [],
-        'natural_disaster_power': [],
-        'misoperation_power': [],
+        # 供电故障的一级原因
+        'ac_fault_power': ['room_power_test', 'grid_power_maintenance',
+                           'breaker_trip', 'ups_fault', 'mains_power_outage',
+                           'natural_disaster_power_detail', 'manual_misoperation',
+                           'other_power'],
+        'power_equipment_fault': ['switching_power_fault', 'rectifier_module_fault'],
+        'misoperation_power': ['human_caused'],
+        'natural_disaster_power': ['power_flood', 'power_rainstorm', 'power_lightning'],
+        'unknown_power': [],
+        'power_equipment_rectification': ['power_relocation', 'grid_power_maintenance',
+                                          'switching_power_rectification',
+                                          'battery_rectification',
+                                          'owner_unit_rectification',
+                                          'mains_power_outage'],
     }
     
     interruption_reason = models.CharField(
@@ -448,6 +585,18 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         max_length=30,
         choices=INTERRUPTION_REASON_DETAIL_CHOICES,
         verbose_name='二级原因',
+        blank=True,
+        null=True
+    )
+    cutover_report_status = models.CharField(
+        max_length=20,
+        choices=CutoverReportStatusChoices,
+        verbose_name='割接报备情况',
+        blank=True,
+        null=True
+    )
+    cutover_report_time = models.DateTimeField(
+        verbose_name='报备时间',
         blank=True,
         null=True
     )
@@ -669,13 +818,15 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='光缆中断部位'
     )
     
-    # 20) 恢复方式，为选择型字段，分为熔接恢复、更换尾纤恢复、处理恢复、调纤恢复、自动恢复、无法查明、未提供
-    recovery_mode = models.CharField(
-        max_length=30,
-        choices=RecoveryModeChoices,
+    # 20) 应对措施，保存在 recovery_mode 字段中，支持多选。
+    recovery_mode = ArrayField(
+        base_field=models.CharField(
+            max_length=40,
+            choices=RecoveryModeChoices,
+        ),
         blank=True,
-        null=True,
-        verbose_name='恢复方式'
+        default=list,
+        verbose_name='应对措施'
     )
     
     # 21) 封包完成时间，格式为2024/11/17  10:23:34
@@ -691,7 +842,64 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         choices=PowerDataTypeChoices,
         blank=True,
         null=True,
-        verbose_name='资料类型'
+        verbose_name='供电设备提供方'
+    )
+    root_cause_analysis = ArrayField(
+        base_field=models.CharField(
+            max_length=40,
+            choices=PowerRootCauseAnalysisChoices,
+        ),
+        blank=True,
+        default=list,
+        verbose_name='根因分析'
+    )
+    rectification_status = models.CharField(
+        max_length=20,
+        choices=PowerRectificationStatusChoices,
+        blank=True,
+        null=True,
+        verbose_name='是否整改'
+    )
+    rectification_measures = ArrayField(
+        base_field=models.CharField(
+            max_length=40,
+            choices=PowerRectificationMeasureChoices,
+        ),
+        blank=True,
+        default=list,
+        verbose_name='整改措施'
+    )
+    rectification_description = models.TextField(
+        blank=True,
+        verbose_name='措施描述'
+    )
+    rectification_subject = models.CharField(
+        max_length=20,
+        choices=PowerRectificationSubjectChoices,
+        blank=True,
+        null=True,
+        verbose_name='整改主体'
+    )
+    rectification_progress = models.CharField(
+        max_length=20,
+        choices=PowerRectificationProgressChoices,
+        blank=True,
+        null=True,
+        verbose_name='整改进度'
+    )
+    planned_completion_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name='计划完成时间'
+    )
+    actual_completion_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name='实际完成时间'
+    )
+    rectification_completion_description = models.TextField(
+        blank=True,
+        verbose_name='整改完成情况描述'
     )
     power_recovery_mode = models.CharField(
         max_length=30,
@@ -749,6 +957,11 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
 
     class Meta:
         ordering = ('-fault_occurrence_time',)
+        indexes = [
+            GinIndex(fields=['recovery_mode']),
+            GinIndex(fields=['root_cause_analysis']),
+            GinIndex(fields=['rectification_measures']),
+        ]
         verbose_name = '故障'
         verbose_name_plural = '故障'
 
@@ -974,9 +1187,31 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         """获取光缆中断部位的颜色"""
         return CableBreakLocationChoices.colors.get(self.cable_break_location)
 
-    def get_recovery_mode_color(self):
-        """获取恢复方式的颜色"""
-        return RecoveryModeChoices.colors.get(self.recovery_mode)
+    def get_recovery_mode_values(self) -> list[str]:
+        """返回 recovery_mode 中保存的应对措施值。"""
+        if not self.recovery_mode:
+            return []
+        if isinstance(self.recovery_mode, str):
+            return [value.strip() for value in self.recovery_mode.split(',') if value.strip()]
+        return [value for value in self.recovery_mode if value]
+
+    def get_recovery_mode_display(self) -> str:
+        """显示多个应对措施。"""
+        labels = {
+            value: label
+            for value, label, *_ in RecoveryModeChoices.CHOICES
+        }
+        return '、'.join(
+            labels.get(value, value)
+            for value in self.get_recovery_mode_values()
+        )
+
+    def get_recovery_mode_color(self) -> str | None:
+        """获取应对措施的颜色；多选时使用首个选项颜色。"""
+        values = self.get_recovery_mode_values()
+        if not values:
+            return None
+        return RecoveryModeChoices.colors.get(values[0])
 
     def get_resource_type_color(self):
         """获取资源类型的颜色"""
@@ -995,8 +1230,72 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         return FaultStatusChoices.colors.get(self.fault_status)
 
     def get_power_data_type_color(self):
-        """获取资料类型的颜色"""
+        """获取供电设备提供方的颜色"""
         return PowerDataTypeChoices.colors.get(self.power_data_type)
+
+    def get_root_cause_analysis_values(self) -> list[str]:
+        """返回 root_cause_analysis 中保存的根因分析值。"""
+        if not self.root_cause_analysis:
+            return []
+        if isinstance(self.root_cause_analysis, str):
+            return [value.strip() for value in self.root_cause_analysis.split(',') if value.strip()]
+        return [value for value in self.root_cause_analysis if value]
+
+    def get_root_cause_analysis_display(self) -> str:
+        """显示多个根因分析。"""
+        labels = {
+            value: label
+            for value, label, *_ in PowerRootCauseAnalysisChoices.CHOICES
+        }
+        return '、'.join(
+            labels.get(value, value)
+            for value in self.get_root_cause_analysis_values()
+        )
+
+    def get_root_cause_analysis_color(self) -> str | None:
+        """获取根因分析的颜色；多选时使用首个选项颜色。"""
+        values = self.get_root_cause_analysis_values()
+        if not values:
+            return None
+        return PowerRootCauseAnalysisChoices.colors.get(values[0])
+
+    def get_rectification_status_color(self):
+        """获取是否整改的颜色"""
+        return PowerRectificationStatusChoices.colors.get(self.rectification_status)
+
+    def get_rectification_measures_values(self) -> list[str]:
+        """返回 rectification_measures 中保存的整改措施值。"""
+        if not self.rectification_measures:
+            return []
+        if isinstance(self.rectification_measures, str):
+            return [value.strip() for value in self.rectification_measures.split(',') if value.strip()]
+        return [value for value in self.rectification_measures if value]
+
+    def get_rectification_measures_display(self) -> str:
+        """显示多个整改措施。"""
+        labels = {
+            value: label
+            for value, label, *_ in PowerRectificationMeasureChoices.CHOICES
+        }
+        return '、'.join(
+            labels.get(value, value)
+            for value in self.get_rectification_measures_values()
+        )
+
+    def get_rectification_measures_color(self) -> str | None:
+        """获取整改措施的颜色；多选时使用首个选项颜色。"""
+        values = self.get_rectification_measures_values()
+        if not values:
+            return None
+        return PowerRectificationMeasureChoices.colors.get(values[0])
+
+    def get_rectification_subject_color(self):
+        """获取整改主体的颜色"""
+        return PowerRectificationSubjectChoices.colors.get(self.rectification_subject)
+
+    def get_rectification_progress_color(self):
+        """获取整改进度的颜色"""
+        return PowerRectificationProgressChoices.colors.get(self.rectification_progress)
 
     def get_power_recovery_mode_color(self):
         """获取供电恢复方式的颜色"""

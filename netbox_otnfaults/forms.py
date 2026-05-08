@@ -4,7 +4,10 @@ from .models import (
     MaintenanceModeChoices, ResourceTypeChoices, ResourceOwnerChoices, CableRouteChoices,
     FaultStatusChoices, CableBreakLocationChoices, RecoveryModeChoices,
     PowerDataTypeChoices, PowerRecoveryModeChoices, PowerMaintenanceModeChoices,
-    PowerFaultPhenomenonChoices, PowerFaultImpactChoices,
+    PowerFaultPhenomenonChoices, PowerFaultImpactChoices, CutoverReportStatusChoices,
+    PowerRootCauseAnalysisChoices,
+    PowerRectificationStatusChoices, PowerRectificationMeasureChoices,
+    PowerRectificationSubjectChoices, PowerRectificationProgressChoices,
     OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite, BareFiberService,
     CircuitService, ServiceGroupChoices, BusinessCategoryChoices, ServiceTypeChoices,
     CircuitOperationStatusChoices, SLALevelChoices
@@ -14,6 +17,7 @@ import json
 from typing import Any
 
 from django import forms
+from django.contrib.postgres.forms import SimpleArrayField
 from django.core.exceptions import ValidationError
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField, TagFilterField
 from utilities.forms.rendering import FieldSet
@@ -71,6 +75,24 @@ class OtnFaultForm(NetBoxModelForm):
             'external_party_object': '$handling_unit',
         }
     )
+    recovery_mode = forms.MultipleChoiceField(
+        choices=RecoveryModeChoices,
+        required=False,
+        label='应对措施',
+        widget=forms.SelectMultiple()
+    )
+    root_cause_analysis = forms.MultipleChoiceField(
+        choices=PowerRootCauseAnalysisChoices,
+        required=False,
+        label='根因分析',
+        widget=forms.SelectMultiple()
+    )
+    rectification_measures = forms.MultipleChoiceField(
+        choices=PowerRectificationMeasureChoices,
+        required=False,
+        label='整改措施',
+        widget=forms.SelectMultiple()
+    )
     comments = CommentField(
         label='评论',
         help_text='<span class="form-text">支持 <i class="mdi mdi-information-outline"></i> <a href="/static/docs/reference/markdown/" target="_blank" tabindex="-1">Markdown</a> 语法</span>'
@@ -102,6 +124,7 @@ class OtnFaultForm(NetBoxModelForm):
             'interruption_location_a', 'interruption_location',
             'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail',
+            'cutover_report_status', 'cutover_report_time',
             'first_report_source', 'duty_officer',
             'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
             'closure_time', 'handler', 'fault_details', 'fault_status',
@@ -114,7 +137,10 @@ class OtnFaultForm(NetBoxModelForm):
             name='线路主管补充信息'
         ),
         FieldSet(
-            'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
+            'power_data_type', 'root_cause_analysis', 'recovery_mode', 'rectification_status',
+            'rectification_measures', 'rectification_description', 'rectification_subject',
+            'rectification_progress', 'planned_completion_date', 'actual_completion_date',
+            'rectification_completion_description', 'power_recovery_mode', 'power_maintenance_mode',
             name='供电故障补充信息'
         ),
         FieldSet(
@@ -135,7 +161,8 @@ class OtnFaultForm(NetBoxModelForm):
             # 故障信息组字段
             'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'urgency', 'province', 'interruption_location_a', 'interruption_location',
             'interruption_latitude', 'interruption_longitude',
-            'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 'fault_recovery_time',
+            'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
+            'fault_occurrence_time', 'fault_recovery_time',
             'closure_time', 'first_report_source', 'duty_officer', 'handler', 'fault_details',
             'fault_status',
             # 线路主管补充信息组字段
@@ -144,7 +171,10 @@ class OtnFaultForm(NetBoxModelForm):
             'departure_time', 'arrival_time', 'repair_time', 'timeout',
             'timeout_reason',
             # 供电故障补充信息组字段
-            'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
+            'power_data_type', 'root_cause_analysis', 'recovery_mode', 'rectification_status',
+            'rectification_measures', 'rectification_description', 'rectification_subject',
+            'rectification_progress', 'planned_completion_date', 'actual_completion_date',
+            'rectification_completion_description', 'power_recovery_mode', 'power_maintenance_mode',
             # 故障复核信息字段
             'manager_reviewed', 'manager_reviewer', 'manager_review_time',
             'noc_reviewed', 'noc_reviewer', 'noc_review_time',
@@ -159,7 +189,12 @@ class OtnFaultForm(NetBoxModelForm):
             'arrival_time': DateTimePicker(),
             'repair_time': DateTimePicker(),
             'closure_time': DateTimePicker(),
+            'cutover_report_time': DateTimePicker(),
+            'planned_completion_date': DatePicker(),
+            'actual_completion_date': DatePicker(),
             'fault_details': forms.Textarea(attrs={'rows': 5}),
+            'rectification_description': forms.Textarea(attrs={'rows': 3}),
+            'rectification_completion_description': forms.Textarea(attrs={'rows': 3}),
             'timeout_reason': forms.TextInput(),
         }
         
@@ -186,6 +221,12 @@ class OtnFaultForm(NetBoxModelForm):
             'data-ongoing-impact-count': str(ongoing_circuit_impact_count),
             'data-ongoing-impact-warning': noc_review_warning,
         })
+        if self.instance.recovery_mode:
+            self.initial['recovery_mode'] = self.instance.get_recovery_mode_values()
+        if self.instance.root_cause_analysis:
+            self.initial['root_cause_analysis'] = self.instance.get_root_cause_analysis_values()
+        if self.instance.rectification_measures:
+            self.initial['rectification_measures'] = self.instance.get_rectification_measures_values()
         if not self.instance.fault_category:
             self.initial['fault_category'] = FaultCategoryChoices.FIBER_BREAK
             self.fields['fault_category'].initial = FaultCategoryChoices.FIBER_BREAK
@@ -212,6 +253,18 @@ class OtnFaultForm(NetBoxModelForm):
             service_type=service_type,
         ).count()
 
+    def clean_recovery_mode(self) -> list[str]:
+        value = self.cleaned_data.get('recovery_mode') or []
+        return list(value)
+
+    def clean_root_cause_analysis(self) -> list[str]:
+        value = self.cleaned_data.get('root_cause_analysis') or []
+        return list(value)
+
+    def clean_rectification_measures(self) -> list[str]:
+        value = self.cleaned_data.get('rectification_measures') or []
+        return list(value)
+
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
         if cleaned_data is None:
@@ -233,6 +286,24 @@ class OtnFaultForm(NetBoxModelForm):
 
 
 class OtnFaultImportForm(NetBoxModelImportForm):
+    recovery_mode = SimpleArrayField(
+        base_field=forms.ChoiceField(choices=RecoveryModeChoices),
+        delimiter=',',
+        required=False,
+        label='应对措施'
+    )
+    root_cause_analysis = SimpleArrayField(
+        base_field=forms.ChoiceField(choices=PowerRootCauseAnalysisChoices),
+        delimiter=',',
+        required=False,
+        label='根因分析'
+    )
+    rectification_measures = SimpleArrayField(
+        base_field=forms.ChoiceField(choices=PowerRectificationMeasureChoices),
+        delimiter=',',
+        required=False,
+        label='整改措施'
+    )
     duty_officer = CSVModelChoiceField(
         queryset=get_user_model().objects.all(),
         to_field_name='username',
@@ -286,12 +357,16 @@ class OtnFaultImportForm(NetBoxModelImportForm):
         fields = (
             'fault_number', 'duty_officer', 'province', 'interruption_location_a', 'interruption_location', 
             'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
-            'interruption_reason', 'interruption_reason_detail', 'fault_occurrence_time', 
+            'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
+            'fault_occurrence_time',
             'fault_recovery_time', 'urgency', 'first_report_source', 
             'resource_type', 'resource_owner', 'cable_route', 'line_manager', 
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time', 
             'departure_time', 'arrival_time', 'repair_time', 
-            'timeout', 'timeout_reason', 'handler', 'cable_break_location', 'recovery_mode', 
+            'timeout', 'timeout_reason', 'handler', 'cable_break_location', 'recovery_mode',
+            'root_cause_analysis', 'rectification_status', 'rectification_measures',
+            'rectification_description', 'rectification_subject', 'rectification_progress',
+            'planned_completion_date', 'actual_completion_date', 'rectification_completion_description',
             'interruption_latitude', 'interruption_longitude', 
             'fault_details', 'comments', 'tags', 'operations_manager'
         )
@@ -521,6 +596,16 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='影响情况'
     )
+    cutover_report_status = forms.ChoiceField(
+        choices=add_blank_choice(CutoverReportStatusChoices),
+        required=False,
+        label='割接报备情况'
+    )
+    cutover_report_time = forms.DateTimeField(
+        required=False,
+        label='报备时间',
+        widget=DateTimePicker()
+    )
     interruption_reason = forms.ChoiceField(
         choices=add_blank_choice(OtnFault.INTERRUPTION_REASON_CHOICES),
         required=False,
@@ -567,10 +652,23 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='光缆中断部位'
     )
-    recovery_mode = forms.ChoiceField(
-        choices=add_blank_choice(RecoveryModeChoices),
+    recovery_mode = forms.MultipleChoiceField(
+        choices=RecoveryModeChoices,
         required=False,
-        label='恢复方式'
+        label='应对措施',
+        widget=forms.SelectMultiple()
+    )
+    root_cause_analysis = forms.MultipleChoiceField(
+        choices=PowerRootCauseAnalysisChoices,
+        required=False,
+        label='根因分析',
+        widget=forms.SelectMultiple()
+    )
+    rectification_measures = forms.MultipleChoiceField(
+        choices=PowerRectificationMeasureChoices,
+        required=False,
+        label='整改措施',
+        widget=forms.SelectMultiple()
     )
     fault_status = forms.ChoiceField(
         choices=add_blank_choice(FaultStatusChoices),
@@ -596,9 +694,12 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     
     nullable_fields = (
         'province', 'line_manager', 'operations_manager', 'handling_unit', 'fault_category',
-        'power_fault_phenomenon', 'power_fault_impact',
+        'power_fault_phenomenon', 'power_fault_impact', 'cutover_report_status', 'cutover_report_time',
+        'rectification_status', 'rectification_measures', 'rectification_description',
+        'rectification_subject', 'rectification_progress', 'planned_completion_date',
+        'actual_completion_date', 'rectification_completion_description',
         'interruption_reason', 'interruption_reason_detail', 'maintenance_mode', 'resource_type',
-        'resource_owner', 'cable_break_location', 'recovery_mode', 'fault_status', 'handler', 'timeout_reason', 'comments',
+            'resource_owner', 'cable_break_location', 'recovery_mode', 'root_cause_analysis', 'fault_status', 'handler', 'timeout_reason', 'comments',
         'interruption_location_a', 'first_report_source', 'cable_route'
     )
 
@@ -616,6 +717,18 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     #         'comments',
     #     )),
     # )
+
+    def clean_recovery_mode(self) -> list[str]:
+        value = self.cleaned_data.get('recovery_mode') or []
+        return list(value)
+
+    def clean_root_cause_analysis(self) -> list[str]:
+        value = self.cleaned_data.get('root_cause_analysis') or []
+        return list(value)
+
+    def clean_rectification_measures(self) -> list[str]:
+        value = self.cleaned_data.get('rectification_measures') or []
+        return list(value)
 
 class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
     otn_fault = DynamicModelChoiceField(
@@ -671,7 +784,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         FieldSet(
             'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'fault_status', 'urgency', 'province',
             'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
-            'interruption_reason', 'interruption_reason_detail',
+            'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
             'first_report_source', 'duty_officer',
             'fault_occurrence_time_after', 'fault_occurrence_time_before', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
             'closure_time', 'handler', 'fault_details',
@@ -684,7 +797,10 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             name='线路主管补充信息'
         ),
         FieldSet(
-            'power_data_type', 'power_recovery_mode', 'power_maintenance_mode',
+            'power_data_type', 'root_cause_analysis', 'rectification_status', 'rectification_measures',
+            'rectification_description', 'rectification_subject', 'rectification_progress',
+            'planned_completion_date', 'actual_completion_date', 'rectification_completion_description',
+            'power_recovery_mode', 'power_maintenance_mode',
             name='供电故障补充信息'
         ),
         FieldSet(
@@ -799,10 +915,11 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='光缆中断部位'
     )
-    recovery_mode = forms.ChoiceField(
-        choices=add_blank_choice(RecoveryModeChoices),
+    recovery_mode = forms.MultipleChoiceField(
+        choices=RecoveryModeChoices,
         required=False,
-        label='恢复方式'
+        label='应对措施',
+        widget=forms.SelectMultiple()
     )
     fault_status = forms.ChoiceField(
         choices=add_blank_choice(FaultStatusChoices),
@@ -923,10 +1040,20 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='影响情况'
     )
+    cutover_report_status = forms.ChoiceField(
+        choices=add_blank_choice(CutoverReportStatusChoices),
+        required=False,
+        label='割接报备情况'
+    )
+    cutover_report_time = forms.DateTimeField(
+        required=False,
+        label='报备时间',
+        widget=DateTimePicker()
+    )
     power_data_type = forms.ChoiceField(
         choices=add_blank_choice(PowerDataTypeChoices),
         required=False,
-        label='资料类型'
+        label='供电设备提供方'
     )
     power_recovery_mode = forms.ChoiceField(
         choices=add_blank_choice(PowerRecoveryModeChoices),
