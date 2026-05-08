@@ -238,7 +238,15 @@
                     <!-- 三个图表：按 3/2/5 比例展示 -->
                     <div class="statistics-distribution-chart-col statistics-distribution-chart-col-reason mb-3 mb-lg-0">
                         <div class="card shadow-sm h-100">
-                            <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">主要原因分析</h3></div>
+                            <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                                <h3 class="card-title mb-0" style="font-size: 1rem;">主要原因分析</h3>
+                                <div class="btn-group btn-group-sm" role="group" aria-label="指标切换">
+                                    <input type="radio" class="btn-check" name="metricReason" id="metric-reason-count" value="count" autocomplete="off" checked>
+                                    <label class="btn btn-outline-primary" for="metric-reason-count" style="padding: 0.1rem 0.4rem; font-size: 0.75rem;">中断数量</label>
+                                    <input type="radio" class="btn-check" name="metricReason" id="metric-reason-duration" value="duration" autocomplete="off">
+                                    <label class="btn btn-outline-primary" for="metric-reason-duration" style="padding: 0.1rem 0.4rem; font-size: 0.75rem;">中断时长</label>
+                                </div>
+                            </div>
                             <div class="card-body p-0">
                                 <div id="chart-reason" style="width: 100%; height: 340px;"></div>
                             </div>
@@ -246,7 +254,15 @@
                     </div>
                     <div class="statistics-distribution-chart-col statistics-distribution-chart-col-resource mb-3 mb-lg-0">
                         <div class="card shadow-sm h-100">
-                            <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">光缆属性分布</h3></div>
+                            <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                                <h3 class="card-title mb-0" style="font-size: 1rem;">光缆属性分布</h3>
+                                <div class="btn-group btn-group-sm" role="group" aria-label="指标切换">
+                                    <input type="radio" class="btn-check" name="metricResource" id="metric-resource-count" value="count" autocomplete="off" checked>
+                                    <label class="btn btn-outline-primary" for="metric-resource-count" style="padding: 0.1rem 0.4rem; font-size: 0.75rem;">中断数量</label>
+                                    <input type="radio" class="btn-check" name="metricResource" id="metric-resource-duration" value="duration" autocomplete="off">
+                                    <label class="btn btn-outline-primary" for="metric-resource-duration" style="padding: 0.1rem 0.4rem; font-size: 0.75rem;">中断时长</label>
+                                </div>
+                            </div>
                             <div class="card-body p-0">
                                 <div id="chart-resource" style="width: 100%; height: 340px;"></div>
                             </div>
@@ -263,28 +279,38 @@
                 </div>
 
                 <div class="card shadow-sm statistics-physical-daily-chart-card">
-                    <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">中断数量（中断时长）</h3></div>
-                    <div class="card-body p-0">
-                        <div class="statistics-physical-daily-controls" aria-label="物理故障中断图切换">
-                            <div class="btn-group btn-group-sm" role="group" aria-label="指标切换">
-                                <input type="radio" class="btn-check" name="physicalDailyMetric" id="physical-daily-metric-count" value="count" autocomplete="off" checked>
-                                <label class="btn btn-outline-primary" for="physical-daily-metric-count">中断数量</label>
-                                <input type="radio" class="btn-check" name="physicalDailyMetric" id="physical-daily-metric-duration" value="duration" autocomplete="off">
-                                <label class="btn btn-outline-primary" for="physical-daily-metric-duration">中断时长</label>
-                            </div>
+                    <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0" style="font-size: 1rem;">按故障日期分布</h3>
+                        <div class="d-flex gap-2">
                             <div class="btn-group btn-group-sm" role="group" aria-label="粒度切换">
                                 <input type="radio" class="btn-check" name="physicalDailyGranularity" id="physical-daily-granularity-day" value="day" autocomplete="off" checked>
                                 <label class="btn btn-outline-primary" for="physical-daily-granularity-day">按天</label>
                                 <input type="radio" class="btn-check" name="physicalDailyGranularity" id="physical-daily-granularity-week" value="week" autocomplete="off">
                                 <label class="btn btn-outline-primary" for="physical-daily-granularity-week">按周</label>
                             </div>
+                            <div class="btn-group btn-group-sm" role="group" aria-label="指标切换">
+                                <input type="radio" class="btn-check" name="physicalDailyMetric" id="physical-daily-metric-count" value="count" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="physical-daily-metric-count">中断数量</label>
+                                <input type="radio" class="btn-check" name="physicalDailyMetric" id="physical-daily-metric-duration" value="duration" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="physical-daily-metric-duration">中断时长</label>
+                            </div>
                         </div>
+                    </div>
+                    <div class="card-body p-0">
                         <div id="chart-physical-daily-faults" class="statistics-physical-daily-chart"></div>
                     </div>
                 </div>
 
                 <div class="card shadow-sm statistics-province-chart-card">
-                    <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">各省份故障统计</h3></div>
+                    <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0" style="font-size: 1rem;">各省份故障统计</h3>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="指标切换">
+                            <input type="radio" class="btn-check" name="metricProvince" id="metric-province-count" value="count" autocomplete="off" checked>
+                            <label class="btn btn-outline-primary" for="metric-province-count">中断数量</label>
+                            <input type="radio" class="btn-check" name="metricProvince" id="metric-province-duration" value="duration" autocomplete="off">
+                            <label class="btn btn-outline-primary" for="metric-province-duration">中断时长</label>
+                        </div>
+                    </div>
                     <div class="card-body p-0">
                         <div id="chart-province" class="statistics-province-chart"></div>
                     </div>

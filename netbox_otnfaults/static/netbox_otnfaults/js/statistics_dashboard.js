@@ -22,6 +22,28 @@ document.addEventListener("DOMContentLoaded", function() {
     const statisticsPage = document.querySelector('.page-statistics');
     const btnStatisticsFullscreen = document.getElementById('statistics-fullscreen-btn');
     
+
+    const metricReasonInputs = Array.from(document.querySelectorAll('input[name="metricReason"]'));
+    const metricResourceInputs = Array.from(document.querySelectorAll('input[name="metricResource"]'));
+    const metricProvinceInputs = Array.from(document.querySelectorAll('input[name="metricProvince"]'));
+
+    let currentMetricReason = 'count';
+    let currentMetricResource = 'count';
+    let currentMetricProvince = 'count';
+
+    metricReasonInputs.forEach(input => input.addEventListener('change', (e) => {
+        currentMetricReason = e.target.value;
+        if (currentChartsData) renderCharts(currentChartsData);
+    }));
+    metricResourceInputs.forEach(input => input.addEventListener('change', (e) => {
+        currentMetricResource = e.target.value;
+        if (currentChartsData) renderCharts(currentChartsData);
+    }));
+    metricProvinceInputs.forEach(input => input.addEventListener('change', (e) => {
+        currentMetricProvince = e.target.value;
+        if (currentChartsData) renderCharts(currentChartsData);
+    }));
+
     let excludedCategories = {
         resource_type: new Set(),
         province: new Set(),
@@ -1507,15 +1529,16 @@ document.addEventListener("DOMContentLoaded", function() {
         };
         const resourceTypeOrder = ['自建光缆', '协调资源', '租赁纤芯', '未填写'];
         const resourceTypeRank = new Map(resourceTypeOrder.map((name, index) => [name, index]));
+        const isResourceCount = currentMetricResource === 'count';
         const resourceData = chartsData.resource
-            .map(item => ({name: item.name, value: item.value, _duration: item.duration}))
+            .map(item => ({name: item.name, value: isResourceCount ? item.value : item.duration, _duration: item.duration, _count: item.value}))
             .sort((a, b) => (resourceTypeRank.get(a.name) ?? resourceTypeOrder.length) - (resourceTypeRank.get(b.name) ?? resourceTypeOrder.length));
         const resourceTotal = resourceData.reduce((sum, item) => sum + item.value, 0);
         function formatResourceMetricLabel(params) {
             const item = resourceData.find(resourceItem => resourceItem.name === params.name);
             if (!item) return params.name;
             const percent = resourceTotal > 0 ? ((item.value / resourceTotal) * 100).toFixed(2) : "0.00";
-            return `${params.name}\n${params.value}次 ${percent}%`;
+            return isResourceCount ? `${params.name}\n${item._count}次 ${percent}%` : `${params.name}\n${item._duration.toFixed(2)}小时 ${percent}%`;
         }
         chartResource.setOption({
             textStyle: { color: chartTheme.text },
@@ -1526,9 +1549,9 @@ document.addEventListener("DOMContentLoaded", function() {
                 formatter: params => {
                     let p = params[0];
                     let percent = resourceTotal > 0 ? ((p.value / resourceTotal) * 100).toFixed(2) : "0.00";
-                    let avg = p.value > 0 ? (p.data._duration / p.value).toFixed(2) : "0.00";
-                    return `${p.marker || ''}${p.name}: ${p.value}次 (${percent}%)<br/>` +
-                           `<span style="margin-left:14px;">总历时: ${p.data._duration} 小时</span><br/>` +
+                    let avg = p.data._count > 0 ? (p.data._duration / p.data._count).toFixed(2) : "0.00";
+                    return `${p.marker || ''}${p.name}: ${p.data._count}次 (${isResourceCount ? percent + '%' : '-'})<br/>` +
+                           `<span style="margin-left:14px;">总历时: ${p.data._duration} 小时 (${!isResourceCount ? percent + '%' : '-'})</span><br/>` +
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
             },
@@ -1551,10 +1574,10 @@ document.addEventListener("DOMContentLoaded", function() {
             },
             series: [{
                 type: 'bar',
-                barMaxWidth: 28,
+                barMaxWidth: 16,
                 label: {
                     show: true,
-                    position: 'bottom',
+                    position: 'top',
                     align: 'left',
                     distance: 8,
                     formatter: formatResourceMetricLabel,
@@ -1564,15 +1587,20 @@ document.addEventListener("DOMContentLoaded", function() {
                 },
                 labelLayout: params => ({
                     x: params.rect.x,
+                    y: params.rect.y - 4,
+                    verticalAlign: 'bottom',
                     align: 'left',
                 }),
                 itemStyle: { borderRadius: [0, 4, 4, 0] },
-                data: resourceData.map(item => ({value: item.value, _duration: item._duration, itemStyle: { color: resourceColorMap[item.name] || chartTheme.primary }}))
+                data: resourceData.map(item => ({value: item.value, _duration: item._duration, _count: item._count, itemStyle: { color: resourceColorMap[item.name] || chartTheme.primary }}))
             }]
         });
 
         // 2. 省份 (Bar 全部)
-        let provData = chartsData.province;
+        const isProvinceCount = currentMetricProvince === 'count';
+        let provData = chartsData.province.slice().sort((a, b) => {
+            return isProvinceCount ? b.value - a.value : b.duration - a.duration;
+        });
         chartProvince.setOption({
             textStyle: { color: chartTheme.text },
             tooltip: { 
@@ -1581,8 +1609,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 axisPointer: { type: 'shadow', shadowStyle: { color: chartTheme.dark ? 'rgba(110, 168, 254, 0.14)' : 'rgba(32, 107, 196, 0.1)' } },
                 formatter: params => {
                     let p = params[0];
-                    let avg = p.value > 0 ? (p.data._duration / p.value).toFixed(2) : "0.00";
-                    return `${p.marker || ''}${p.name}: ${p.value}次<br/>` +
+                    let avg = p.data._count > 0 ? (p.data._duration / p.data._count).toFixed(2) : "0.00";
+                    return `${p.marker || ''}${p.name}: ${p.data._count}次<br/>` +
                            `<span style="margin-left:14px;">总历时: ${p.data._duration} 小时</span><br/>` +
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
@@ -1596,14 +1624,18 @@ document.addEventListener("DOMContentLoaded", function() {
             yAxis: { type: 'value', ...buildAxisTheme(chartTheme) },
             series: [{
                 type: 'bar',
-                label: { show: true, position: 'top', color: chartTheme.heading, fontWeight: 600 },
+                label: { 
+                    show: true, position: 'top', color: chartTheme.heading, fontWeight: 600,
+                    formatter: function(params) { return isProvinceCount ? (params.value > 0 ? params.value : '') : (params.value > 0 ? params.value.toFixed(1) : ''); }
+                },
                 itemStyle: { color: chartTheme.primary, borderRadius: [4, 4, 0, 0] },
-                data: provData.map(item => ({value: item.value, _duration: item.duration}))
+                data: provData.map(item => ({value: isProvinceCount ? item.value : item.duration, _duration: item.duration, _count: item.value}))
             }]
         });
 
         // 3. 一级原因 (Pie)
-        const reasonData = chartsData.reason.map(item => ({name: item.name, value: item.value, _duration: item.duration}));
+        const isReasonCount = currentMetricReason === 'count';
+        const reasonData = chartsData.reason.map(item => ({name: item.name, value: isReasonCount ? item.value : item.duration, _duration: item.duration, _count: item.value}));
         const reasonTotal = reasonData.reduce((sum, item) => sum + item.value, 0);
         const reasonLegendByName = new Map(reasonData.map(item => [item.name, item]));
         const reasonColorPalette = [
@@ -1623,16 +1655,21 @@ document.addEventListener("DOMContentLoaded", function() {
                 ...buildTooltipTheme(chartTheme),
                 trigger: 'item', 
                 formatter: params => {
-                    let avg = params.value > 0 ? (params.data._duration / params.value).toFixed(2) : "0.00";
-                    return `${params.marker}${params.name}: ${params.value}次 (${params.percent}%)<br/>` +
-                           `<span style="margin-left:14px;">总历时: ${params.data._duration} 小时</span><br/>` +
+                    let avg = params.data._count > 0 ? (params.data._duration / params.data._count).toFixed(2) : "0.00";
+                    return `${params.marker}${params.name}: ${params.data._count}次 (${isReasonCount ? params.percent + '%' : '-'})<br/>` +
+                           `<span style="margin-left:14px;">总历时: ${params.data._duration} 小时 (${!isReasonCount ? params.percent + '%' : '-'})</span><br/>` +
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
             },
             legend: {
                 bottom: 0,
                 left: 'center',
-                formatter: name => formatLegendMetricLabel(name, reasonLegendByName, reasonTotal),
+                formatter: name => {
+                    const item = reasonLegendByName.get(name);
+                    if (!item) return name;
+                    const percent = reasonTotal > 0 ? ((item.value / reasonTotal) * 100).toFixed(2) : "0.00";
+                    return isReasonCount ? `${name}  ${item._count}次 ${percent}%` : `${name}  ${item._duration.toFixed(2)}时 ${percent}%`;
+                },
                 ...buildLegendTheme(chartTheme)
             },
             series: [{
