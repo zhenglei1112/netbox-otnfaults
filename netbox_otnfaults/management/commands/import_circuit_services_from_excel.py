@@ -130,6 +130,7 @@ class Command(BaseCommand):
 
                 instance.business_category = category_value
                 instance.service_group = service_group_value
+                instance.extra_fields = row.extra_fields or {}
 
                 if row.bandwidth:
                     bw_str = row.bandwidth.strip().upper()

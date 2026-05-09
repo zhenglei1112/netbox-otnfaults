@@ -27,6 +27,12 @@ from tenancy.models import Tenant, TenantGroup
 from django.contrib.auth import get_user_model
 from netbox_contract.models import ServiceProvider, Contract
 
+CIRCUIT_SERVICE_EXTRA_FIELD_PREFIX = 'extra_fields__'
+CIRCUIT_SERVICE_EXTRA_FIELD_FIELD_NAMES = tuple(
+    f'{CIRCUIT_SERVICE_EXTRA_FIELD_PREFIX}{key}'
+    for key, _label in CircuitService.EXTRA_FIELD_DEFINITIONS
+)
+
 class OtnFaultForm(NetBoxModelForm):
     duty_officer = DynamicModelChoiceField(
         queryset=get_user_model().objects.all(),
@@ -1448,10 +1454,16 @@ class BareFiberServiceBulkEditForm(NetBoxModelBulkEditForm):
 
 class CircuitServiceForm(NetBoxModelForm):
     """电路业务编辑表单"""
+    EXTRA_FIELD_PREFIX = CIRCUIT_SERVICE_EXTRA_FIELD_PREFIX
+    EXTRA_FIELD_FIELD_NAMES = CIRCUIT_SERVICE_EXTRA_FIELD_FIELD_NAMES
     business_manager = DynamicModelChoiceField(
         queryset=get_user_model().objects.all(),
         required=False,
         label='业务主管'
+    )
+    extra_fields = forms.JSONField(
+        required=False,
+        widget=forms.HiddenInput
     )
     is_external_business = forms.BooleanField(
         required=False,
@@ -1469,12 +1481,13 @@ class CircuitServiceForm(NetBoxModelForm):
     fieldsets = (
         FieldSet('special_line_name', 'name', 'slug', 'business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', name='电路业务'),
         FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
+        FieldSet(*EXTRA_FIELD_FIELD_NAMES, name='扩展信息'),
         FieldSet('tags', name='其他'),
     )
 
     class Meta:
         model = CircuitService
-        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
+        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'extra_fields', 'comments', 'tags')
         widgets = {
             'billing_start_time': DatePicker(),
             'billing_end_time': DatePicker(),
@@ -1486,6 +1499,36 @@ class CircuitServiceForm(NetBoxModelForm):
         service_group_field = self.fields['service_group']
         service_group_field.widget.attrs['data-service-group-category-map'] = category_map
         service_group_field.widget.attrs['data-placeholder'] = '请先选择业务门类'
+        self._init_extra_field_inputs()
+
+    def _init_extra_field_inputs(self) -> None:
+        values = getattr(self.instance, 'extra_fields', None) or {}
+        if isinstance(self.initial.get('extra_fields'), dict):
+            values = self.initial['extra_fields']
+
+        for key, label in CircuitService.EXTRA_FIELD_DEFINITIONS:
+            field_name = f'{self.EXTRA_FIELD_PREFIX}{key}'
+            self.fields[field_name] = forms.CharField(
+                required=False,
+                label=label,
+                initial=values.get(key, ''),
+            )
+
+    def clean_extra_fields(self) -> dict[str, str]:
+        return {
+            key: str(value).strip()
+            for key, _label in CircuitService.EXTRA_FIELD_DEFINITIONS
+            if (value := self.cleaned_data.get(f'{self.EXTRA_FIELD_PREFIX}{key}', '')) not in (None, '')
+        }
+
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean()
+        cleaned_data['extra_fields'] = {
+            key: str(value).strip()
+            for key, _label in CircuitService.EXTRA_FIELD_DEFINITIONS
+            if (value := cleaned_data.get(f'{self.EXTRA_FIELD_PREFIX}{key}', '')) not in (None, '')
+        }
+        return cleaned_data
 
 
 class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
@@ -1553,7 +1596,7 @@ class CircuitServiceImportForm(NetBoxModelImportForm):
 
     class Meta:
         model = CircuitService
-        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'comments', 'tags')
+        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'extra_fields', 'comments', 'tags')
 
 
 class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):

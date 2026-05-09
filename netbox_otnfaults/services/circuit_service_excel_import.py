@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import BinaryIO
 import re
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
@@ -11,7 +12,55 @@ XML_NS = {
     "a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
     "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
 }
-TARGET_HEADERS = ("业务门类", "业务组", "专线名称", "电路编号")
+TARGET_HEADERS: tuple[str, ...] = ("业务门类", "业务组", "专线名称", "电路编号")
+EXTRA_FIELD_HEADER_MAP: dict[str, str] = {
+    "需求单号": "request_number",
+    "需求单扫描件 （上传）": "request_attachment",
+    "需求单扫描件（上传）": "request_attachment",
+    "配置完成日期": "configuration_completed_date",
+    "配置人": "configuration_person",
+    "服务测试开始日期": "service_test_start_date",
+    "服务开通时间": "service_open_time",
+    "历年开通单附件 （上传）": "opening_order_attachment",
+    "历年开通单附件（上传）": "opening_order_attachment",
+    "服务测试结束时间": "service_test_end_time",
+    "服务结束时间": "service_end_time",
+    "资源回收时间 （专线关闭）": "resource_recycle_time",
+    "资源回收时间（专线关闭）": "resource_recycle_time",
+    "资源回收实施人": "resource_recycle_person",
+    "变更单号": "change_number",
+    "变更日期": "change_date",
+    "变更实施人": "change_person",
+    "历次变更单 （上传）": "change_order_attachment",
+    "历次变更单（上传）": "change_order_attachment",
+    "互联信息": "interconnection_info",
+    "承载系统 (多选）": "carrier_system",
+    "承载系统（多选）": "carrier_system",
+    "签约主体": "contracting_party",
+    "客户对象": "customer_object",
+    "客户A端": "customer_a_end",
+    "干线A端-站点": "trunk_a_site",
+    "干线A端-站点属性": "trunk_a_site_attribute",
+    "干线A端-A网元": "trunk_a_ne",
+    "干线A端-A单板": "trunk_a_board",
+    "干线A端-A端口": "trunk_a_port",
+    "客户Z端": "customer_z_end",
+    "干线Z端-站点": "trunk_z_site",
+    "干线Z端-站点属性": "trunk_z_site_attribute",
+    "干线Z端-Z网元": "trunk_z_ne",
+    "干线Z端-Z单板": "trunk_z_board",
+    "干线Z端-Z端口": "trunk_z_port",
+    "收费属性": "charge_attribute",
+    "销售人员": "sales_person",
+    "合同开通时间": "contract_open_time",
+    "合同结束时间": "contract_end_time",
+    "合同编号": "contract_number",
+    "合同名称": "contract_name",
+    "立项项目编号": "project_approval_number",
+    "项目名称": "project_name",
+    "执行是否异常": "execution_exception",
+    "执行异常原因": "execution_exception_reason",
+}
 
 
 @dataclass(frozen=True)
@@ -27,6 +76,7 @@ class CircuitServiceExcelRow:
     operation_status: str | None = None
     ring_protection: str | None = None
     is_external_business: str | None = None
+    extra_fields: dict[str, str] | None = None
 
 
 def normalize_business_category_label(value: str) -> str:
@@ -37,9 +87,9 @@ def normalize_business_category_label(value: str) -> str:
     return label
 
 
-def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终数据") -> list[CircuitServiceExcelRow]:
-    workbook_path = Path(path)
-    with ZipFile(workbook_path) as workbook:
+def read_circuit_service_excel_rows(path: str | Path | BinaryIO, sheet_name: str = "最终数据") -> list[CircuitServiceExcelRow]:
+    workbook_source = Path(path) if isinstance(path, str) else path
+    with ZipFile(workbook_source) as workbook:
         shared_strings = _read_shared_strings(workbook)
         worksheet_path = _find_sheet_path(workbook, sheet_name)
         worksheet = ET.fromstring(workbook.read(worksheet_path))
@@ -49,6 +99,7 @@ def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终�
             return []
 
         header_map = _row_to_column_values(rows[0], shared_strings)
+        combined_header_map = _build_combined_header_map(rows, shared_strings)
         required_columns = {
             header: column
             for column, header in header_map.items()
@@ -78,6 +129,12 @@ def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终�
                 is_external_business_column = col
         
         is_external_business_column = is_external_business_column if 'is_external_business_column' in locals() else None
+        extra_field_columns = {
+            column: field_key
+            for column, header in combined_header_map.items()
+            if header in EXTRA_FIELD_HEADER_MAP
+            for field_key in (EXTRA_FIELD_HEADER_MAP[header],)
+        }
 
         records: list[CircuitServiceExcelRow] = []
         for row in rows[2:]:
@@ -92,6 +149,11 @@ def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终�
             operation_status = _clean_cell(values.get(operation_status_column)) if operation_status_column else None
             ring_protection = _clean_cell(values.get(ring_protection_column)) if ring_protection_column else None
             is_external_business = _clean_cell(values.get(is_external_business_column)) if is_external_business_column else None
+            extra_fields = {
+                field_key: value
+                for column, field_key in extra_field_columns.items()
+                if (value := _clean_cell(values.get(column)))
+            }
             if not any((business_category, service_group, special_line_name, circuit_number)):
                 continue
             records.append(
@@ -107,6 +169,7 @@ def read_circuit_service_excel_rows(path: str | Path, sheet_name: str = "最终�
                     operation_status=operation_status,
                     ring_protection=ring_protection,
                     is_external_business=is_external_business,
+                    extra_fields=extra_fields,
                 )
             )
 
@@ -152,6 +215,32 @@ def _row_to_column_values(row: ET.Element, shared_strings: list[str]) -> dict[st
             continue
         values[column.group(0)] = _cell_value(cell, shared_strings)
     return values
+
+
+def _build_combined_header_map(rows: list[ET.Element], shared_strings: list[str]) -> dict[str, str]:
+    first_row = _row_to_column_values(rows[0], shared_strings)
+    second_row = _row_to_column_values(rows[1], shared_strings) if len(rows) > 1 else {}
+    columns = sorted(set(first_row) | set(second_row), key=_column_index)
+
+    combined: dict[str, str] = {}
+    current_parent = ""
+    for column in columns:
+        parent = _clean_cell(first_row.get(column))
+        child = _clean_cell(second_row.get(column))
+        if parent:
+            current_parent = parent
+        if child and current_parent:
+            combined[column] = f"{current_parent}-{child}"
+        else:
+            combined[column] = parent or child
+    return combined
+
+
+def _column_index(column: str) -> int:
+    index = 0
+    for char in column:
+        index = index * 26 + ord(char) - ord("A") + 1
+    return index
 
 
 def _cell_value(cell: ET.Element, shared_strings: list[str]) -> str | None:

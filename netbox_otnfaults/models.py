@@ -2072,6 +2072,49 @@ class SLALevelChoices(ChoiceSet):
 
 class CircuitService(NetBoxModel):
     """?????????"""
+    EXTRA_FIELD_DEFINITIONS: tuple[tuple[str, str], ...] = (
+        ('request_number', '需求单号'),
+        ('request_attachment', '需求单扫描件（上传）'),
+        ('configuration_completed_date', '配置完成日期'),
+        ('configuration_person', '配置人'),
+        ('service_test_start_date', '服务测试开始日期'),
+        ('service_open_time', '服务开通时间'),
+        ('opening_order_attachment', '历年开通单附件（上传）'),
+        ('service_test_end_time', '服务测试结束时间'),
+        ('service_end_time', '服务结束时间'),
+        ('resource_recycle_time', '资源回收时间（专线关闭）'),
+        ('resource_recycle_person', '资源回收实施人'),
+        ('change_number', '变更单号'),
+        ('change_date', '变更日期'),
+        ('change_person', '变更实施人'),
+        ('change_order_attachment', '历次变更单（上传）'),
+        ('interconnection_info', '互联信息'),
+        ('carrier_system', '承载系统（多选）'),
+        ('contracting_party', '签约主体'),
+        ('customer_object', '客户对象'),
+        ('customer_a_end', '客户A端'),
+        ('trunk_a_site', '干线A端-站点'),
+        ('trunk_a_site_attribute', '干线A端-站点属性'),
+        ('trunk_a_ne', '干线A端-A网元'),
+        ('trunk_a_board', '干线A端-A单板'),
+        ('trunk_a_port', '干线A端-A端口'),
+        ('customer_z_end', '客户Z端'),
+        ('trunk_z_site', '干线Z端-站点'),
+        ('trunk_z_site_attribute', '干线Z端-站点属性'),
+        ('trunk_z_ne', '干线Z端-Z网元'),
+        ('trunk_z_board', '干线Z端-Z单板'),
+        ('trunk_z_port', '干线Z端-Z端口'),
+        ('charge_attribute', '收费属性'),
+        ('sales_person', '销售人员'),
+        ('contract_open_time', '合同开通时间'),
+        ('contract_end_time', '合同结束时间'),
+        ('contract_number', '合同编号'),
+        ('contract_name', '合同名称'),
+        ('project_approval_number', '立项项目编号'),
+        ('project_name', '项目名称'),
+        ('execution_exception', '执行是否异常'),
+        ('execution_exception_reason', '执行异常原因'),
+    )
     SERVICE_GROUP_CATEGORY_MAP = {
         ServiceGroupChoices.MINISTRY_BACKBONE: BusinessCategoryChoices.MINISTRY_PROVINCE_TRANSPORT,
         ServiceGroupChoices.BEIJING_METRO: BusinessCategoryChoices.MINISTRY_PROVINCE_TRANSPORT,
@@ -2170,6 +2213,11 @@ class CircuitService(NetBoxModel):
         null=True,
         verbose_name='计费结束时间'
     )
+    extra_fields = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='扩展信息'
+    )
     tags = taggit.managers.TaggableManager(
         through='extras.TaggedItem',
         to='extras.Tag',
@@ -2217,3 +2265,15 @@ class CircuitService(NetBoxModel):
 
     def get_sla_level_color(self):
         return SLALevelChoices.colors.get(self.sla_level)
+
+    @property
+    def extra_field_items(self) -> list[dict[str, str]]:
+        values = self.extra_fields or {}
+        return [
+            {
+                'key': key,
+                'label': label,
+                'value': str(values.get(key, '') or ''),
+            }
+            for key, label in self.EXTRA_FIELD_DEFINITIONS
+        ]
