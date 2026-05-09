@@ -118,16 +118,21 @@ class CircuitServiceExtraFieldsSourceTestCase(unittest.TestCase):
 
     def test_forms_split_extra_fields_for_editing(self) -> None:
         forms_text = FORMS_PATH.read_text(encoding="utf-8-sig")
+        circuit_form_text = forms_text[
+            forms_text.index("class CircuitServiceForm"):
+            forms_text.index("class CircuitServiceFilterForm")
+        ]
         module = _parse_module(FORMS_PATH)
         form_class = _find_class(module, "CircuitServiceForm")
 
         _find_meta_tuple(form_class, "extra_fields")
         self.assertIn("EXTRA_FIELD_PREFIX", forms_text)
         self.assertIn("CircuitService.EXTRA_FIELD_DEFINITIONS", forms_text)
-        self.assertIn("def _init_extra_field_inputs", forms_text)
-        self.assertIn("def clean_extra_fields", forms_text)
-        self.assertIn("def clean(self) -> dict[str, Any]", forms_text)
-        self.assertIn("f'{self.EXTRA_FIELD_PREFIX}{key}'", forms_text)
+        self.assertIn("def _init_extra_field_inputs", circuit_form_text)
+        self.assertIn("def clean_extra_fields", circuit_form_text)
+        self.assertIn("def clean(self) -> dict[str, Any]", circuit_form_text)
+        self.assertIn("cleaned_data = getattr(self, 'cleaned_data', None) or {}", circuit_form_text)
+        self.assertIn("f'{self.EXTRA_FIELD_PREFIX}{key}'", circuit_form_text)
         self.assertNotIn("    EXTRA_FIELD_FIELD_NAMES = tuple(", forms_text)
 
     def test_serializer_and_detail_template_expose_extra_fields(self) -> None:

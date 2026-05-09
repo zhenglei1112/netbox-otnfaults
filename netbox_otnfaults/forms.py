@@ -1523,6 +1523,8 @@ class CircuitServiceForm(NetBoxModelForm):
 
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
+        if cleaned_data is None:
+            cleaned_data = getattr(self, 'cleaned_data', None) or {}
         cleaned_data['extra_fields'] = {
             key: str(value).strip()
             for key, _label in CircuitService.EXTRA_FIELD_DEFINITIONS
