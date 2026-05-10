@@ -48,6 +48,7 @@ window.DirectingEngine = (function () {
     const FAULT_DWELL_BASE = 20000;         // 故障基础停留时间
     const FAULT_DWELL_CRITICAL = 40000;     // 致命故障停留时间
     const CRUISE_DWELL_TIME = 20000;        // 巡航停留时间（用于检查故障队列）
+    const FAULT_FOCUS_SITE_LABEL_ZOOM_MARGIN = 2.5;
     const CONFIG = window.DASHBOARD_CONFIG;
 
     /**
@@ -248,8 +249,9 @@ window.DirectingEngine = (function () {
         var dy = currentFault.lat - currentCenter.lat;
         var distance = Math.sqrt(dx * dx + dy * dy);
         var duration = Math.min(6000, Math.max(3000, distance * 300));
+        var faultFocusZoom = MapEngine.getSiteLabelMinZoom() + FAULT_FOCUS_SITE_LABEL_ZOOM_MARGIN;
 
-        MapEngine.flyTo(currentFault.lng, currentFault.lat, 8, {
+        MapEngine.flyTo(currentFault.lng, currentFault.lat, faultFocusZoom, {
             duration: duration,
             pitch: 55,
         }).then(function () {

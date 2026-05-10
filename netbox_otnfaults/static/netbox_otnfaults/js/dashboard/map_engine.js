@@ -12,8 +12,34 @@ window.MapEngine = (function () {
     let flowOffset = 0;
     let _mapReady = false;
     let _pendingData = null;  // 地图未就绪时暂存数据
+    let focusedSiteIds = [];
 
     const CONFIG = window.DASHBOARD_CONFIG;
+    const SITE_LABEL_MIN_ZOOM = 6;
+
+    const DASHBOARD_LAYER_STACK = [
+        'province-shadow',
+        'province-extrusion',
+        'province-border-glow-bottom',
+        'province-border-top',
+        'province-labels',
+        'otn-paths-base-glow',
+        'otn-paths-base-main',
+        'sites-glow',
+        'sites-core',
+        'sites-label',
+        'closed-heatmap-layer',
+        'sites-focus-glow',
+        'sites-focus-core',
+        'sites-focus-label',
+        'paths-fault-glow',
+        'paths-fault-main',
+        'paths-label',
+        'paths-detail',
+        'faults-pulse',
+        'faults-glow',
+        'faults-core',
+    ];
 
     /**
      * 初始化地图
@@ -140,7 +166,7 @@ window.MapEngine = (function () {
                 source: 'otn_paths_pmtiles',
                 'source-layer': 'otn_paths',
                 paint: {
-                    'line-color': 'rgba(0, 210, 255, 0.12)',
+                    'line-color': 'rgba(16, 185, 129, 0.16)',
                     'line-width': ['interpolate', ['linear'], ['zoom'], 3, 3, 7, 6, 10, 10],
                     'line-blur': 3
                 }
@@ -158,47 +184,26 @@ window.MapEngine = (function () {
                     'line-cap': 'round'
                 },
                 paint: {
-                    'line-color': 'rgba(0, 210, 255, 0.35)',
+                    'line-color': 'rgba(16, 185, 129, 0.48)',
                     'line-width': ['interpolate', ['linear'], ['zoom'], 3, 0.8, 7, 1.5, 10, 2.2],
                     'line-opacity': 0.9
                 }
             });
         }
 
-        _restackTopologyLayer();
+        _restackDashboardLayers();
     }
 
-    function _restackTopologyLayer() {
+    function _restackDashboardLayers() {
         if (!map) return;
 
-        var topologyLayerIds = ['otn-paths-base-glow', 'otn-paths-base-main'];
-        var beforeLayerCandidates = [
-            'closed-heatmap-layer',
-            'sites-glow',
-            'sites-core',
-            'sites-label',
-            'paths-fault-glow',
-            'paths-fault-main',
-            'paths-label',
-            'paths-detail',
-
-            'faults-pulse',
-            'faults-glow',
-            'faults-core',
-        ];
-        var beforeLayerId = null;
-
-        for (var i = 0; i < beforeLayerCandidates.length; i++) {
-            if (map.getLayer(beforeLayerCandidates[i])) {
-                beforeLayerId = beforeLayerCandidates[i];
-                break;
-            }
+        var beforeLayerId;
+        for (var i = DASHBOARD_LAYER_STACK.length - 1; i >= 0; i--) {
+            var layerId = DASHBOARD_LAYER_STACK[i];
+            if (!map.getLayer(layerId)) continue;
+            map.moveLayer(layerId, beforeLayerId);
+            beforeLayerId = layerId;
         }
-
-        topologyLayerIds.forEach(function (layerId) {
-            if (!map.getLayer(layerId)) return;
-            map.moveLayer(layerId, beforeLayerId || undefined);
-        });
     }
 
     /* ═══ GCJ-02 → WGS-84 坐标转换 ═══
@@ -356,7 +361,7 @@ window.MapEngine = (function () {
                             10, 16
                         ],
                         'text-justify': 'center',
-                        'text-anchor': 'center',
+                    'text-anchor': 'center',
                         'text-padding': 120, // 显著增大碰撞缓冲区，降低显示密度
                         'symbol-avoid-edges': true,
                     },
@@ -367,7 +372,7 @@ window.MapEngine = (function () {
                     }
                 });
 
-                _restackTopologyLayer();
+                _restackDashboardLayers();
             })
             .catch(err => console.warn('省界数据加载失败:', err));
     }
@@ -387,13 +392,15 @@ window.MapEngine = (function () {
             features: sites.map(s => ({
                 type: 'Feature',
                 geometry: { type: 'Point', coordinates: [s.lng, s.lat] },
-                properties: { name: s.name, id: s.id }
+                properties: { name: s.name, id: String(s.id) }
             }))
         };
 
+        let layerAdded = false;
         if (map.getSource('sites')) {
             map.getSource('sites').setData(geojson);
         } else {
+            layerAdded = true;
             map.addSource('sites', { type: 'geojson', data: geojson });
 
             // 站点光晕
@@ -403,7 +410,7 @@ window.MapEngine = (function () {
                 source: 'sites',
                 paint: {
                     'circle-radius': 8,
-                    'circle-color': 'rgba(0, 210, 255, 0.1)',
+                    'circle-color': 'rgba(16, 185, 129, 0.14)',
                     'circle-blur': 1
                 }
             });
@@ -415,8 +422,8 @@ window.MapEngine = (function () {
                 source: 'sites',
                 paint: {
                     'circle-radius': 3,
-                    'circle-color': '#00D2FF',
-                    'circle-stroke-color': 'rgba(0, 210, 255, 0.5)',
+                    'circle-color': '#10B981',
+                    'circle-stroke-color': 'rgba(16, 185, 129, 0.65)',
                     'circle-stroke-width': 1
                 }
             });
@@ -426,7 +433,7 @@ window.MapEngine = (function () {
                 id: 'sites-label',
                 type: 'symbol',
                 source: 'sites',
-                minzoom: 6,
+                minzoom: SITE_LABEL_MIN_ZOOM,
                 layout: {
                     'text-field': ['get', 'name'],
                     'text-size': 10,
@@ -435,42 +442,171 @@ window.MapEngine = (function () {
                     'text-font': ['Noto Sans SC Regular']
                 },
                 paint: {
-                    'text-color': 'rgba(180, 210, 230, 0.8)',
+                    'text-color': 'rgba(167, 243, 208, 0.82)',
                     'text-halo-color': 'rgba(6, 10, 20, 0.9)',
                     'text-halo-width': 1
                 }
             });
+
+            // 聚焦站点光晕
+            map.addLayer({
+                id: 'sites-focus-glow',
+                type: 'circle',
+                source: 'sites',
+                filter: ['in', ['get', 'id'], ['literal', []]],
+                paint: {
+                    'circle-radius': 16,
+                    'circle-color': 'rgba(34, 197, 94, 0.45)',
+                    'circle-blur': 1
+                }
+            });
+
+            // 聚焦站点核心点
+            map.addLayer({
+                id: 'sites-focus-core',
+                type: 'circle',
+                source: 'sites',
+                filter: ['in', ['get', 'id'], ['literal', []]],
+                paint: {
+                    'circle-radius': 7,
+                    'circle-color': '#10B981',
+                    'circle-stroke-color': '#D1FAE5',
+                    'circle-stroke-width': 2
+                }
+            });
+
+            map.addLayer({
+                id: 'sites-focus-label',
+                type: 'symbol',
+                source: 'sites',
+                filter: ['in', ['get', 'id'], ['literal', []]],
+                layout: {
+                    'text-field': ['get', 'name'],
+                    'text-size': 12,
+                    'text-offset': [0, 1.45],
+                    'text-anchor': 'top',
+                    'text-font': ['Noto Sans SC Regular'],
+                    'text-allow-overlap': true,
+                    'text-ignore-placement': true,
+                    'text-padding': 12
+                },
+                paint: {
+                    'text-color': '#D1FAE5',
+                    'text-halo-color': 'rgba(6, 10, 20, 0.98)',
+                    'text-halo-width': 2,
+                    'text-halo-blur': 1
+                }
+            });
         }
 
-        _restackTopologyLayer();
+        _applyFocusedSiteFilter();
+        _applyRegularSiteFilter();
+        if (layerAdded) {
+            _restackDashboardLayers();
+        }
+    }
+
+    function _extractFaultSiteIds(fault) {
+        var ids = [];
+        if (!fault) return ids;
+
+        if (fault.site_a_id) ids.push(String(fault.site_a_id));
+        (fault.site_z_ids || []).forEach(function (siteId) {
+            if (siteId != null && siteId !== '') ids.push(String(siteId));
+        });
+
+        // 去重 + 确保全部为非空字符串
+        return ids.filter(function (siteId, index) {
+            return typeof siteId === 'string' && siteId.length > 0 && ids.indexOf(siteId) === index;
+        });
+    }
+
+    function _applyFocusedSiteFilter() {
+        if (!map || !map.getLayer('sites-focus-label')) return;
+
+        const emptySiteFilter = ['in', ['get', 'id'], ['literal', []]];
+        const focusedSiteFilter = ['in', ['get', 'id'], ['literal', focusedSiteIds]];
+        const filter = (!focusedSiteIds || focusedSiteIds.length === 0) ? emptySiteFilter : focusedSiteFilter;
+
+        map.setFilter('sites-focus-label', filter);
+        if (!focusedSiteIds || focusedSiteIds.length === 0) {
+            if (map.getLayer('sites-focus-glow')) map.setFilter('sites-focus-glow', emptySiteFilter);
+            if (map.getLayer('sites-focus-core')) map.setFilter('sites-focus-core', emptySiteFilter);
+            return;
+        }
+
+        if (map.getLayer('sites-focus-glow')) map.setFilter('sites-focus-glow', focusedSiteFilter);
+        if (map.getLayer('sites-focus-core')) map.setFilter('sites-focus-core', focusedSiteFilter);
+    }
+
+    function _applyRegularSiteFilter() {
+        if (!map) return;
+
+        if (!focusedSiteIds || focusedSiteIds.length === 0) {
+            // 清除所有普通站点层的过滤器
+            if (map.getLayer('sites-label')) map.setFilter('sites-label', null);
+            if (map.getLayer('sites-glow'))  map.setFilter('sites-glow', null);
+            if (map.getLayer('sites-core'))  map.setFilter('sites-core', null);
+            return;
+        }
+
+        // 排除聚焦站点，由 focus 层单独渲染
+        var excludeFilter = ['!', ['in', ['get', 'id'], ['literal', focusedSiteIds]]];
+        if (map.getLayer('sites-label')) map.setFilter('sites-label', excludeFilter);
+        if (map.getLayer('sites-glow'))  map.setFilter('sites-glow', excludeFilter);
+        if (map.getLayer('sites-core'))  map.setFilter('sites-core', excludeFilter);
+    }
+
+    function _setRegularSiteLabelCollision(enabled) {
+        if (!map || !map.getLayer('sites-label')) return;
+
+        map.setLayoutProperty('sites-label', 'text-allow-overlap', !enabled);
+        map.setLayoutProperty('sites-label', 'text-ignore-placement', !enabled);
+    }
+
+    function focusFaultSites(fault) {
+        focusedSiteIds = _extractFaultSiteIds(fault);
+        _applyFocusedSiteFilter();
+        _applyRegularSiteFilter();
+        _setRegularSiteLabelCollision(false);
+        // 不再调用 _restackDashboardLayers()：图层顺序仅在首次创建时确定，
+        // filter/layout 属性变更不需要重排，避免与动画帧竞态导致闪烁
+    }
+
+    function clearFaultSiteFocus() {
+        focusedSiteIds = [];
+        _applyFocusedSiteFilter();
+        _applyRegularSiteFilter();
+        _setRegularSiteLabelCollision(true);
+        // 同上，不再重排图层
     }
 
     /**
      * 路径颜色配置
-     * 96芯 → 蓝色系  |  144芯 → 绿色系  |  默认 → 青色系
+     * 态势大屏统一使用绿色系，按光缆类型仅调整明度与透明度。
      */
     const PATH_COLORS = {
         '96': {
-            main: 'rgba(59, 130, 246, 0.6)',    // 蓝
-            glow: 'rgba(59, 130, 246, 0.12)',
-            flow: '#3B82F6',
-            label: '#93C5FD',
+            main: 'rgba(34, 197, 94, 0.62)',
+            glow: 'rgba(34, 197, 94, 0.14)',
+            flow: '#22C55E',
+            label: '#BBF7D0',
         },
         '114': {
-            main: 'rgba(16, 185, 129, 0.6)',    // 绿
-            glow: 'rgba(16, 185, 129, 0.12)',
+            main: 'rgba(16, 185, 129, 0.68)',
+            glow: 'rgba(16, 185, 129, 0.16)',
             flow: '#10B981',
-            label: '#6EE7B7',
+            label: '#A7F3D0',
         },
         'default': {
-            main: 'rgba(0, 210, 255, 0.45)',    // 青
-            glow: 'rgba(0, 210, 255, 0.10)',
-            flow: '#00D2FF',
-            label: '#7DD3FC',
+            main: 'rgba(74, 222, 128, 0.52)',
+            glow: 'rgba(74, 222, 128, 0.12)',
+            flow: '#4ADE80',
+            label: '#DCFCE7',
         }
     };
 
-    const FAULT_PATH_COLOR = '#FF1E1E';  // 故障路径红色
+    const FAULT_PATH_COLOR = '#FF1E1E';  // 故障路径保留红色告警语义
 
     /**
      * 渲染故障关联路径覆盖层
@@ -552,6 +688,8 @@ window.MapEngine = (function () {
         var faultGeoJson = { type: 'FeatureCollection', features: faultFeatures };
         var labelGeoJson = { type: 'FeatureCollection', features: labelFeatures };
 
+        let layerAdded = false;
+
         if (map.getSource('paths-fault')) {
             map.getSource('paths-fault').setData(faultGeoJson);
         } else {
@@ -565,6 +703,7 @@ window.MapEngine = (function () {
         }
 
         if (!map.getLayer('paths-fault-glow')) {
+            layerAdded = true;
             map.addLayer({
                 id: 'paths-fault-glow',
                 type: 'line',
@@ -645,7 +784,9 @@ window.MapEngine = (function () {
             });
         }
 
-        _restackTopologyLayer();
+        if (layerAdded) {
+            _restackDashboardLayers();
+        }
     }
 
     /**
@@ -725,13 +866,14 @@ window.MapEngine = (function () {
             })
         };
 
+        let layerAdded = false;
+
         // 更新或创建数据源
         if (map.getSource('faults')) {
             map.getSource('faults').setData(geojson);
         } else {
+            layerAdded = true;
             map.addSource('faults', { type: 'geojson', data: geojson });
-
-
 
             // 1. 脉冲扩散环（动画驱动）
             map.addLayer({
@@ -775,6 +917,10 @@ window.MapEngine = (function () {
                 }
             });
         }
+
+        if (layerAdded) {
+            _restackDashboardLayers();
+        }
     }
 
     /**
@@ -810,71 +956,72 @@ window.MapEngine = (function () {
             })
         };
 
+        let layerAdded = false;
+
         // 更新或创建数据源
         if (map.getSource('closed-heatmap')) {
             map.getSource('closed-heatmap').setData(geojson);
             // 如果 Layer 已存在，仅更新数据即可
-            if (map.getLayer('closed-heatmap-layer')) return;
+            if (map.getLayer('closed-heatmap-layer')) {
+                return;
+            }
             // Source 在但 Layer 不在（初次创建失败）→ 继续补画 Layer
         } else {
+            layerAdded = true;
             map.addSource('closed-heatmap', { type: 'geojson', data: geojson });
         }
 
-        // 确定插入位置：在省份标签之后、站点/路径图层之前
-        var beforeLayerId = null;
-        var candidateLayers = ['sites-glow', 'paths-glow', 'paths-main'];
-        for (var i = 0; i < candidateLayers.length; i++) {
-            if (map.getLayer(candidateLayers[i])) {
-                beforeLayerId = candidateLayers[i];
-                break;
-            }
+        if (!map.getLayer('closed-heatmap-layer')) {
+            layerAdded = true;
+            // 热力图层（年度数据降温：降低强度和半径，红色仅保留给极高密度核心）
+            map.addLayer({
+                id: 'closed-heatmap-layer',
+                type: 'heatmap',
+                source: 'closed-heatmap',
+                paint: {
+                    // 热力权重：使用 feature 的 weight 属性
+                    'heatmap-weight': ['get', 'weight'],
+
+                    // 热力强度：避免年度点位在全国视角下快速顶满为红色
+                    'heatmap-intensity': ['interpolate', ['linear'], ['zoom'],
+                        3, 1.0,
+                        6, 0.9,
+                        10, 1.2
+                    ],
+
+                    // 热力颜色渐变：以青蓝和黄橙表达趋势，红色后移到最高密度
+                    'heatmap-color': [
+                        'interpolate', ['linear'], ['heatmap-density'],
+                        0,    'rgba(0, 0, 0, 0)',           // 透明
+                        0.10, 'rgba(0, 180, 255, 0.18)',    // 淡青
+                        0.25, 'rgba(0, 210, 255, 0.32)',    // 青色
+                        0.45, 'rgba(16, 185, 129, 0.42)',   // 绿色
+                        0.65, 'rgba(250, 219, 20, 0.55)',   // 黄色
+                        0.82, 'rgba(255, 138, 0, 0.65)',    // 橙色
+                        1.0,  'rgba(255, 50, 30, 0.72)',    // 红色（最高密度核心）
+                    ],
+
+                    // 热力半径：缩小扩散范围，减少相邻线路热点在全国视角下连成片
+                    'heatmap-radius': ['interpolate', ['linear'], ['zoom'],
+                        3, 28,
+                        5, 22,
+                        7, 16,
+                        10, 10
+                    ],
+
+                    // 整体不透明度
+                    'heatmap-opacity': ['interpolate', ['linear'], ['zoom'],
+                        3, 0.45,
+                        7, 0.38,
+                        10, 0.3
+                    ],
+                }
+            });
         }
 
-        // 热力图层（针对稀疏数据优化：大半径 + 高强度 + 低密度区可见）
-        map.addLayer({
-            id: 'closed-heatmap-layer',
-            type: 'heatmap',
-            source: 'closed-heatmap',
-            paint: {
-                // 热力权重：使用 feature 的 weight 属性
-                'heatmap-weight': ['get', 'weight'],
-
-                // 热力强度：高起步值确保稀疏点也能产生可见热力
-                'heatmap-intensity': ['interpolate', ['linear'], ['zoom'],
-                    3, 3.0,
-                    6, 2.0,
-                    10, 2.5
-                ],
-
-                // 热力颜色渐变：低密度区使用较高不透明度确保可见
-                'heatmap-color': [
-                    'interpolate', ['linear'], ['heatmap-density'],
-                    0,    'rgba(0, 0, 0, 0)',           // 透明
-                    0.05, 'rgba(0, 180, 255, 0.3)',     // 淡青（极低密度即可见）
-                    0.15, 'rgba(20, 100, 180, 0.45)',   // 天蓝
-                    0.3,  'rgba(0, 210, 255, 0.55)',    // 青色
-                    0.45, 'rgba(16, 185, 129, 0.6)',    // 绿色
-                    0.6,  'rgba(250, 219, 20, 0.7)',    // 黄色
-                    0.8,  'rgba(255, 138, 0, 0.8)',     // 橙色
-                    1.0,  'rgba(255, 50, 30, 0.9)',     // 红色（高密度）
-                ],
-
-                // 热力半径：大半径使稀疏点的热力扩散可见
-                'heatmap-radius': ['interpolate', ['linear'], ['zoom'],
-                    3, 50,     // 全国概览：特大半径覆盖
-                    5, 35,
-                    7, 25,
-                    10, 15     // 局部查看：适中半径
-                ],
-
-                // 整体不透明度
-                'heatmap-opacity': ['interpolate', ['linear'], ['zoom'],
-                    3, 0.75,
-                    7, 0.65,
-                    10, 0.5
-                ],
-            }
-        }, beforeLayerId || undefined);
+        if (layerAdded) {
+            _restackDashboardLayers();
+        }
 
         console.log('[MapEngine] 热力图层创建成功，数据点:', closedPoints.length);
     }
@@ -962,6 +1109,10 @@ window.MapEngine = (function () {
         return map;
     }
 
+    function getSiteLabelMinZoom() {
+        return SITE_LABEL_MIN_ZOOM;
+    }
+
     /**
      * 三阶贝塞尔缓动函数
      */
@@ -975,11 +1126,14 @@ window.MapEngine = (function () {
         renderFaultPaths,
         renderFaultMarkers,
         renderHeatmap,
+        focusFaultSites,
+        clearFaultSiteFocus,
         highlightFaultPath,
         flyTo,
         easeTo,
         rotateTo,
         resetView,
+        getSiteLabelMinZoom,
         getMap
     };
 })();

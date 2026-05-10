@@ -106,6 +106,8 @@
             onFaultFocus: function (fault) {
                 console.log('[Directing] 故障聚焦:', fault.fault_number);
 
+                MapEngine.focusFaultSites(fault);
+
                 // 显示右翼面板详情
                 Panels.showFaultFocus(fault);
 
@@ -124,6 +126,11 @@
             onFaultLeave: function (fault) {
                 console.log('[Directing] 离开故障:', fault.fault_number);
                 Panels.clearFaultFocus();
+
+                // 延迟清除地图聚焦到下一渲染帧，避免与 flyTo 摄像机动画竞态
+                requestAnimationFrame(function () {
+                    MapEngine.clearFaultSiteFocus();
+                });
 
                 if (lastData) {
                     Panels.updateFaultQueue(lastData.active_faults || [], null);

@@ -134,7 +134,7 @@ class DashboardPmtilesTopologyTestCase(unittest.TestCase):
             map_engine,
         )
 
-    def test_map_engine_reorders_base_topology_after_province_layers_load(self) -> None:
+    def test_map_engine_restacks_dashboard_layers_after_province_layers_load(self) -> None:
         map_engine = (
             REPO_ROOT
             / "netbox_otnfaults"
@@ -145,7 +145,8 @@ class DashboardPmtilesTopologyTestCase(unittest.TestCase):
             / "map_engine.js"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("_restackTopologyLayer();", map_engine)
+        self.assertIn("DASHBOARD_LAYER_STACK", map_engine)
+        self.assertIn("_restackDashboardLayers();", map_engine)
 
 
 if __name__ == "__main__":
