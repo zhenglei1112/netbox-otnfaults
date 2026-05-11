@@ -16,6 +16,7 @@ router.register('map-preferences', views.OtnMapPreferenceViewSet)
 # 使用 re_path 支持带/不带尾部斜杠
 urlpatterns = [
     path('path-groups/map-overlays/', views.path_group_map_overlays, name='path-group-map-overlays'),
+    path('path-groups/<int:pk>/map-overlay/', views.path_group_map_overlay_detail, name='path-group-map-overlay-detail'),
     re_path(r'^path-groups/(?P<pk>\d+)/batch-add/?$', views.path_group_batch_add, name='path-group-batch-add'),
     re_path(r'^path-groups/(?P<pk>\d+)/clear-paths/?$', views.path_group_clear_paths, name='path-group-clear-paths'),
     re_path(r'^path-groups/(?P<pk>\d+)/clear-sites/?$', views.path_group_clear_sites, name='path-group-clear-sites'),

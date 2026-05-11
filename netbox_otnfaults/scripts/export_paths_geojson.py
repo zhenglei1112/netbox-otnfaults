@@ -42,7 +42,7 @@ class ExportPathsGeoJSON(Script):
             if not path.geometry:
                 skipped += 1
                 continue
-            
+
             feature = {
                 "type": "Feature",
                 "geometry": {

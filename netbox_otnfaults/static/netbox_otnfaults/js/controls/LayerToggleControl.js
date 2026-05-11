@@ -23,6 +23,7 @@ class LayerToggleControl {
         this.pathGroupOverlaysUrl = this.options.pathGroupOverlaysUrl;
         this.enablePathGroupOverlays = this.options.enablePathGroupOverlays === true;
         this.pathGroupOverlays = null;
+        this.pathGroupOverlayDetails = new Map();
         this.pathGroupOverlayLoading = false;
         this.selectedPathGroupIds = new Set();
 
@@ -487,7 +488,10 @@ class LayerToggleControl {
 
             const label = document.createElement('span');
             label.className = 'ms-1 text-truncate';
-            label.innerText = group.name;
+            const counts = [];
+            if (Number.isFinite(group.path_count)) counts.push(`${group.path_count}路`);
+            if (Number.isFinite(group.site_count)) counts.push(`${group.site_count}站`);
+            label.innerText = counts.length ? `${group.name} (${counts.join('/')})` : group.name;
 
             item.appendChild(input);
             item.appendChild(label);
@@ -501,7 +505,7 @@ class LayerToggleControl {
         });
     }
 
-    togglePathGroupOverlay(groupId, checked) {
+    async togglePathGroupOverlay(groupId, checked) {
         if (checked) {
             this.selectedPathGroupIds.add(groupId);
         } else {
@@ -511,17 +515,35 @@ class LayerToggleControl {
         const group = (this.pathGroupOverlays || []).find(item => item.id === groupId);
         if (!group || !this.map) return;
 
-        this.ensurePathGroupOverlayLayers(group);
-        this.setPathGroupOverlayVisibility(groupId, checked);
+        this.ensurePathGroupOverlayLayers();
+        if (checked) {
+            await this.loadPathGroupOverlayDetail(group);
+        }
+        this.refreshPathGroupOverlaySources();
+        this.setPathGroupOverlayVisibility(this.selectedPathGroupIds.size > 0);
         if (checked) {
             this.fitSelectedPathGroupOverlays();
         }
     }
 
-    ensurePathGroupOverlayLayers(group) {
-        const groupId = group.id;
-        const pathSourceId = `path-group-overlay-${groupId}-paths`;
-        const siteSourceId = `path-group-overlay-${groupId}-sites`;
+    async loadPathGroupOverlayDetail(group) {
+        const existing = this.pathGroupOverlayDetails.get(group.id);
+        if (existing) {
+            return existing;
+        }
+
+        const response = await fetch(group.detail_url, { credentials: 'same-origin' });
+        if (!response.ok) {
+            throw new Error(`Failed to load path group overlay ${group.id}: ${response.status}`);
+        }
+        const detail = await response.json();
+        this.pathGroupOverlayDetails.set(group.id, detail);
+        return detail;
+    }
+
+    ensurePathGroupOverlayLayers() {
+        const pathSourceId = 'path-group-overlay-paths';
+        const siteSourceId = 'path-group-overlay-sites';
         const beforeLayerId = this.getPathGroupOverlayBeforeLayerId();
 
         if (!this.map.getSource(pathSourceId)) {
@@ -529,7 +551,7 @@ class LayerToggleControl {
                 type: 'geojson',
                 data: {
                     type: 'FeatureCollection',
-                    features: group.paths || []
+                    features: []
                 }
             });
         }
@@ -539,14 +561,14 @@ class LayerToggleControl {
                 type: 'geojson',
                 data: {
                     type: 'FeatureCollection',
-                    features: group.sites || []
+                    features: []
                 }
             });
         }
 
-        if (!this.map.getLayer(`${pathSourceId}-outline`)) {
+        if (!this.map.getLayer('path-group-overlay-paths-outline')) {
             this.map.addLayer({
-                id: `${pathSourceId}-outline`,
+                id: 'path-group-overlay-paths-outline',
                 type: 'line',
                 source: pathSourceId,
                 paint: {
@@ -558,9 +580,9 @@ class LayerToggleControl {
             }, beforeLayerId);
         }
 
-        if (!this.map.getLayer(pathSourceId)) {
+        if (!this.map.getLayer('path-group-overlay-paths')) {
             this.map.addLayer({
-                id: pathSourceId,
+                id: 'path-group-overlay-paths',
                 type: 'line',
                 source: pathSourceId,
                 paint: {
@@ -572,9 +594,9 @@ class LayerToggleControl {
             }, beforeLayerId);
         }
 
-        if (!this.map.getLayer(`${siteSourceId}-glow`)) {
+        if (!this.map.getLayer('path-group-overlay-sites-glow')) {
             this.map.addLayer({
-                id: `${siteSourceId}-glow`,
+                id: 'path-group-overlay-sites-glow',
                 type: 'circle',
                 source: siteSourceId,
                 paint: {
@@ -587,9 +609,9 @@ class LayerToggleControl {
             }, beforeLayerId);
         }
 
-        if (!this.map.getLayer(siteSourceId)) {
+        if (!this.map.getLayer('path-group-overlay-sites')) {
             this.map.addLayer({
-                id: siteSourceId,
+                id: 'path-group-overlay-sites',
                 type: 'circle',
                 source: siteSourceId,
                 paint: {
@@ -603,7 +625,7 @@ class LayerToggleControl {
             }, beforeLayerId);
         }
 
-        const labelLayerId = `path-group-overlay-${groupId}-site-labels`;
+        const labelLayerId = 'path-group-overlay-site-labels';
         if (!this.map.getLayer(labelLayerId)) {
             this.map.addLayer({
                 id: labelLayerId,
@@ -635,14 +657,14 @@ class LayerToggleControl {
         return candidates.find(id => this.map.getLayer(id));
     }
 
-    raisePathGroupOverlayLayers(groupId) {
+    raisePathGroupOverlayLayers() {
         const beforeLayerId = this.getPathGroupOverlayBeforeLayerId();
         const layerIds = [
-            `path-group-overlay-${groupId}-paths-outline`,
-            `path-group-overlay-${groupId}-paths`,
-            `path-group-overlay-${groupId}-sites-glow`,
-            `path-group-overlay-${groupId}-sites`,
-            `path-group-overlay-${groupId}-site-labels`
+            'path-group-overlay-paths-outline',
+            'path-group-overlay-paths',
+            'path-group-overlay-sites-glow',
+            'path-group-overlay-sites',
+            'path-group-overlay-site-labels'
         ];
 
         layerIds.forEach(id => {
@@ -652,15 +674,15 @@ class LayerToggleControl {
         });
     }
 
-    setPathGroupOverlayVisibility(groupId, visible) {
-        this.raisePathGroupOverlayLayers(groupId);
+    setPathGroupOverlayVisibility(visible) {
+        this.raisePathGroupOverlayLayers();
         const visibility = visible ? 'visible' : 'none';
         const layerIds = [
-            `path-group-overlay-${groupId}-paths-outline`,
-            `path-group-overlay-${groupId}-paths`,
-            `path-group-overlay-${groupId}-sites-glow`,
-            `path-group-overlay-${groupId}-sites`,
-            `path-group-overlay-${groupId}-site-labels`
+            'path-group-overlay-paths-outline',
+            'path-group-overlay-paths',
+            'path-group-overlay-sites-glow',
+            'path-group-overlay-sites',
+            'path-group-overlay-site-labels'
         ];
 
         layerIds.forEach(id => {
@@ -670,24 +692,48 @@ class LayerToggleControl {
         });
     }
 
+    refreshPathGroupOverlaySources() {
+        if (!this.map) return;
+
+        const pathFeatures = [];
+        const siteFeatures = [];
+        this.selectedPathGroupIds.forEach(groupId => {
+            const detail = this.pathGroupOverlayDetails.get(groupId);
+            if (!detail) return;
+            pathFeatures.push(...(detail.paths || []));
+            siteFeatures.push(...(detail.sites || []));
+        });
+
+        const pathSource = this.map.getSource('path-group-overlay-paths');
+        if (pathSource) {
+            pathSource.setData({ type: 'FeatureCollection', features: pathFeatures });
+        }
+
+        const siteSource = this.map.getSource('path-group-overlay-sites');
+        if (siteSource) {
+            siteSource.setData({ type: 'FeatureCollection', features: siteFeatures });
+        }
+    }
+
     fitSelectedPathGroupOverlays() {
         if (typeof maplibregl === 'undefined' || !this.map || !this.selectedPathGroupIds.size) {
             return;
         }
 
         const bounds = new maplibregl.LngLatBounds();
-        (this.pathGroupOverlays || []).forEach(group => {
-            if (!this.selectedPathGroupIds.has(group.id)) {
+        this.selectedPathGroupIds.forEach(groupId => {
+            const detail = this.pathGroupOverlayDetails.get(groupId);
+            if (!detail) return;
+            if (this._extendOverlayBoundsWithBbox(bounds, detail.bbox)) {
                 return;
             }
-
-            (group.paths || []).forEach(feature => {
+            (detail.paths || []).forEach(feature => {
                 if (feature.geometry) {
                     this._extendOverlayBoundsWithGeometry(bounds, feature.geometry);
                 }
             });
 
-            (group.sites || []).forEach(feature => {
+            (detail.sites || []).forEach(feature => {
                 const coordinates = feature.geometry?.coordinates;
                 if (Array.isArray(coordinates) && coordinates.length >= 2) {
                     bounds.extend(coordinates);
@@ -698,6 +744,15 @@ class LayerToggleControl {
         if (!bounds.isEmpty()) {
             this.map.fitBounds(bounds, { padding: 80, maxZoom: 12, duration: 500 });
         }
+    }
+
+    _extendOverlayBoundsWithBbox(bounds, bbox) {
+        if (!Array.isArray(bbox) || bbox.length !== 4) {
+            return false;
+        }
+        bounds.extend([bbox[0], bbox[1]]);
+        bounds.extend([bbox[2], bbox[3]]);
+        return true;
     }
 
     _extendOverlayBoundsWithGeometry(bounds, geometry) {
@@ -726,26 +781,24 @@ class LayerToggleControl {
     getPathGroupOverlayDebug() {
         const groups = this.pathGroupOverlays || [];
         return groups.map(group => {
-            const groupId = group.id;
-            const pathSourceId = `path-group-overlay-${groupId}-paths`;
-            const siteSourceId = `path-group-overlay-${groupId}-sites`;
+            const detail = this.pathGroupOverlayDetails.get(group.id) || {};
             const layerIds = [
-                `path-group-overlay-${groupId}-paths-outline`,
-                `path-group-overlay-${groupId}-paths`,
-                `path-group-overlay-${groupId}-sites-glow`,
-                `path-group-overlay-${groupId}-sites`,
-                `path-group-overlay-${groupId}-site-labels`
+                'path-group-overlay-paths-outline',
+                'path-group-overlay-paths',
+                'path-group-overlay-sites-glow',
+                'path-group-overlay-sites',
+                'path-group-overlay-site-labels'
             ];
 
             return {
                 id: group.id,
                 name: group.name,
                 selected: this.selectedPathGroupIds.has(group.id),
-                pathFeatureCount: (group.paths || []).length,
-                siteFeatureCount: (group.sites || []).length,
+                pathFeatureCount: (detail.paths || []).length,
+                siteFeatureCount: (detail.sites || []).length,
                 sourceExists: {
-                    paths: Boolean(this.map && this.map.getSource(pathSourceId)),
-                    sites: Boolean(this.map && this.map.getSource(siteSourceId))
+                    paths: Boolean(this.map && this.map.getSource('path-group-overlay-paths')),
+                    sites: Boolean(this.map && this.map.getSource('path-group-overlay-sites'))
                 },
                 layers: layerIds.map(id => ({
                     id,

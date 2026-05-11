@@ -6,9 +6,11 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.core.cache import cache
 from django.conf import settings
+from django.urls import reverse
+from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.db.models import Prefetch, Q
+from django.db.models import Count, Q
 from datetime import timedelta
 import json
 import logging
@@ -85,72 +87,131 @@ from rest_framework.authentication import SessionAuthentication
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def path_group_map_overlays(request: Request) -> Response:
-    """Return path group path/site overlays for the fault map layer selector."""
-    groups = OtnPathGroup.objects.prefetch_related(
-        Prefetch(
-            'paths',
-            queryset=OtnPath.objects.exclude(geometry__isnull=True).exclude(geometry=[]),
-            to_attr='overlay_paths',
-        ),
-        Prefetch(
-            'group_sites',
-            queryset=OtnPathGroupSite.objects.select_related('site'),
-            to_attr='overlay_group_sites',
-        ),
-    )
-    results = []
+    """Return lightweight path group metadata for the fault map layer selector."""
+    groups = OtnPathGroup.objects.annotate(
+        path_count=Count('paths', distinct=True),
+        site_count=Count('group_sites', distinct=True),
+    ).only('id', 'name', 'slug')
 
-    for group in groups:
-        path_features = []
-        for path in group.overlay_paths:
-            geometry = path.geometry
-            if isinstance(geometry, list):
-                geometry = {'type': 'LineString', 'coordinates': geometry}
-            if not geometry:
-                continue
-
-            path_features.append({
-                'type': 'Feature',
-                'properties': {
-                    'id': path.pk,
-                    'name': path.name,
-                    'url': path.get_absolute_url(),
-                },
-                'geometry': geometry,
-            })
-
-        site_features = []
-        for group_site in group.overlay_group_sites:
-            site = group_site.site
-            if site.latitude is None or site.longitude is None:
-                continue
-
-            role_color = group_site.get_role_color() or 'gray'
-            site_features.append({
-                'type': 'Feature',
-                'properties': {
-                    'id': site.pk,
-                    'name': site.name,
-                    'role': group_site.role,
-                    'role_display': group_site.get_role_display(),
-                    'color': get_hex_color(role_color),
-                    'url': site.get_absolute_url(),
-                },
-                'geometry': {
-                    'type': 'Point',
-                    'coordinates': [float(site.longitude), float(site.latitude)],
-                },
-            })
-
-        results.append({
+    results = [
+        {
             'id': group.pk,
             'name': group.name,
             'slug': group.slug,
-            'paths': path_features,
-            'sites': site_features,
-        })
-
+            'path_count': group.path_count,
+            'site_count': group.site_count,
+            'detail_url': request.build_absolute_uri(
+                reverse('plugins-api:netbox_otnfaults-api:path-group-map-overlay-detail', args=[group.pk])
+            ),
+        }
+        for group in groups
+    ]
     return Response({'results': results})
+
+
+def _serialize_path_group_path_feature(path: OtnPath) -> dict:
+    geometry = path.geometry
+    if isinstance(geometry, list):
+        geometry = {'type': 'LineString', 'coordinates': geometry}
+
+    return {
+        'type': 'Feature',
+        'properties': {
+            'id': path.pk,
+            'name': path.name,
+            'url': path.get_absolute_url(),
+        },
+        'geometry': geometry,
+    }
+
+
+def _serialize_path_group_site_feature(group_site: OtnPathGroupSite) -> dict | None:
+    site = group_site.site
+    if site.latitude is None or site.longitude is None:
+        return None
+
+    role_color = group_site.get_role_color() or 'gray'
+    return {
+        'type': 'Feature',
+        'properties': {
+            'id': site.pk,
+            'name': site.name,
+            'role': group_site.role,
+            'role_display': group_site.get_role_display(),
+            'color': get_hex_color(role_color),
+            'url': site.get_absolute_url(),
+        },
+        'geometry': {
+            'type': 'Point',
+            'coordinates': [float(site.longitude), float(site.latitude)],
+        },
+    }
+
+
+def _extend_bbox_with_coordinates(bbox: list[float] | None, coordinates: list) -> list[float] | None:
+    if (
+        isinstance(coordinates, list)
+        and len(coordinates) >= 2
+        and isinstance(coordinates[0], (int, float))
+        and isinstance(coordinates[1], (int, float))
+    ):
+        lng = float(coordinates[0])
+        lat = float(coordinates[1])
+        if bbox is None:
+            return [lng, lat, lng, lat]
+        bbox[0] = min(bbox[0], lng)
+        bbox[1] = min(bbox[1], lat)
+        bbox[2] = max(bbox[2], lng)
+        bbox[3] = max(bbox[3], lat)
+        return bbox
+
+    if isinstance(coordinates, list):
+        for item in coordinates:
+            bbox = _extend_bbox_with_coordinates(bbox, item)
+
+    return bbox
+
+
+def _path_group_overlay_bbox(path_features: list[dict], site_features: list[dict]) -> list[float] | None:
+    bbox: list[float] | None = None
+    for feature in [*path_features, *site_features]:
+        geometry = feature.get('geometry') or {}
+        coordinates = geometry.get('coordinates')
+        if coordinates:
+            bbox = _extend_bbox_with_coordinates(bbox, coordinates)
+    return bbox
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def path_group_map_overlay_detail(request: Request, pk: int) -> Response:
+    """Return one path group's overlay geometry."""
+    path_group = get_object_or_404(OtnPathGroup, pk=pk)
+
+    paths = path_group.paths.exclude(geometry__isnull=True).exclude(geometry=[]).only('id', 'name', 'geometry')
+    path_features = [
+        _serialize_path_group_path_feature(path)
+        for path in paths
+        if path.geometry
+    ]
+
+    group_sites = path_group.group_sites.select_related('site').only(
+        'id', 'role', 'path_group_id', 'site__id', 'site__name', 'site__latitude', 'site__longitude'
+    )
+    site_features = [
+        feature
+        for feature in (_serialize_path_group_site_feature(group_site) for group_site in group_sites)
+        if feature is not None
+    ]
+
+    return Response({
+        'id': path_group.pk,
+        'name': path_group.name,
+        'slug': path_group.slug,
+        'paths': path_features,
+        'sites': site_features,
+        'bbox': _path_group_overlay_bbox(path_features, site_features),
+    })
 
 
 @api_view(['GET'])
