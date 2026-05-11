@@ -122,6 +122,61 @@ body.modal-open {
     gap: 0.75rem;
 }
 
+.bare-fiber-service-card-scope-toggle {
+    flex: 0 1 auto;
+    white-space: nowrap;
+    border-radius: 8px;
+}
+
+.bare-fiber-service-card-scope-toggle.d-none {
+    display: none !important;
+}
+
+.bare-fiber-service-card-scope-toggle .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-color: #008a7a;
+    color: #008a7a;
+    background: #ffffff;
+    box-shadow: none;
+}
+
+.bare-fiber-service-card-scope-toggle .btn:hover,
+.bare-fiber-service-card-scope-toggle .btn:focus {
+    border-color: #008a7a;
+    color: #008a7a;
+    background: color-mix(in srgb, #008a7a 8%, #ffffff);
+}
+
+.bare-fiber-service-card-scope-toggle .btn-check:checked + .btn {
+    background: #008a7a;
+    border-color: #008a7a;
+    color: #ffffff;
+    box-shadow: none;
+}
+
+.bare-fiber-service-card-scope-toggle .btn-check:checked + .btn:hover,
+.bare-fiber-service-card-scope-toggle .btn-check:checked + .btn:focus {
+    background: #008a7a;
+    border-color: #008a7a;
+    color: #ffffff;
+}
+
+@media (max-width: 991.98px) {
+    .bare-fiber-service-card-scope-toggle {
+        flex: 1 1 100%;
+        width: 100%;
+        white-space: normal;
+    }
+
+    .bare-fiber-service-card-scope-toggle .btn {
+        flex: 1 1 0;
+        justify-content: center;
+        text-align: center;
+    }
+}
+
 .statistics-period-control-group {
     gap: 0.25rem;
 }

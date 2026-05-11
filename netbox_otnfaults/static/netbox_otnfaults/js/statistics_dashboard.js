@@ -168,6 +168,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const cableBreakMapIframe = document.getElementById('statistics-cable-break-map-iframe');
     const cableBreakMapLoading = document.getElementById('statistics-cable-break-map-loading');
     const cableBreakMapPeriod = document.getElementById('statistics-cable-break-map-period');
+    const scopeToggle = document.getElementById('bare-fiber-service-card-scope-toggle');
+    const bareFiberServiceCardScopeInputs = Array.from(document.querySelectorAll('input[name="bareFiberServiceCardScope"]'));
     let cableBreakMapManualBackdrop = null;
 
     const badgeFilter = document.getElementById('drill-down-filter-badge');
@@ -1885,6 +1887,8 @@ document.addEventListener("DOMContentLoaded", function() {
     let activeServiceDetailFilterName = null;
     let activeServiceDetailFilterType = null;
     let serviceCalendarCharts = [];
+    let currentBareFiberServices = [];
+    let bareFiberServiceCardScope = 'faulted';
 
     async function loadServiceData() {
         disposeServiceCalendarCharts();
@@ -1912,7 +1916,8 @@ document.addEventListener("DOMContentLoaded", function() {
             activeServiceDetailFilterKey = null;
             activeServiceDetailFilterName = null;
             activeServiceDetailFilterType = null;
-            renderServiceCards(getServicesByType(services, '裸纤业务'), 'service-cards-container', '裸纤业务');
+            currentBareFiberServices = getServicesByType(services, '裸纤业务');
+            renderBareFiberServiceCards();
             renderServiceCards(getServicesByType(services, '电路业务'), 'circuit-service-cards-container', '电路业务');
             renderServiceDetailsTable('裸纤业务', 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
             renderServiceDetailsTable('电路业务', 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
@@ -1952,6 +1957,22 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function getServicesByType(services, serviceType) {
         return services.filter(svc => svc.type === serviceType);
+    }
+
+    function serviceHasCurrentPeriodFaults(svc) {
+        return Number(svc && svc.count || 0) > 0;
+    }
+
+    function getVisibleBareFiberServices() {
+        if (bareFiberServiceCardScope === 'all') {
+            return currentBareFiberServices;
+        }
+        return currentBareFiberServices.filter(serviceHasCurrentPeriodFaults);
+    }
+
+    function renderBareFiberServiceCards() {
+        disposeServiceCalendarCharts();
+        renderServiceCards(getVisibleBareFiberServices(), 'service-cards-container', '裸纤业务');
     }
 
     function escapeHtml(value) {
@@ -2269,7 +2290,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const hasCurrentPeriodFaults = card.service ? card.service.has_current_period_faults !== false : true;
         const quietTitleClass = hasCurrentPeriodFaults ? '' : ' service-strip-card-title--quiet';
         const serviceAttrs = card.serviceKey
-            ? ` data-service-key="${escapeHtml(card.serviceKey)}" data-service-name="${title}" role="button" tabindex="0"`
+            ? ` data-service-key="${escapeHtml(card.serviceKey)}" data-service-name="${title}" data-service-type="${escapeHtml(card.serviceType || '')}" role="button" tabindex="0"`
             : '';
         return `
             <div class="statistics-strip-card service-strip-card"${serviceAttrs}>
@@ -2324,6 +2345,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const cardsHtml = group.services.map(svc => {
                 return renderStripCard({
                     serviceKey: svc.key,
+                    serviceType: emptyServiceType,
                     footer: svc.name,
                     service: svc,
                     interruptCalendarMaxCount,
@@ -2339,11 +2361,11 @@ document.addEventListener("DOMContentLoaded", function() {
         container.innerHTML = html;
         initServiceRuntimeCalendarCharts(container, servicesByKey);
         container.querySelectorAll('.service-strip-card[data-service-key]').forEach(card => {
-            card.addEventListener('click', () => handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName));
+            card.addEventListener('click', () => handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName, card.dataset.serviceType));
             card.addEventListener('keydown', event => {
                 if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName);
+                    handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName, card.dataset.serviceType);
                 }
             });
         });
@@ -2405,12 +2427,12 @@ document.addEventListener("DOMContentLoaded", function() {
         }).join('');
     }
 
-    function handleServiceCardClick(serviceKey, serviceName) {
+    function handleServiceCardClick(serviceKey, serviceName, serviceType) {
         if (!serviceKey) return;
         const detail = currentServiceDetails.find(item => item.service_key === serviceKey);
         activeServiceDetailFilterKey = serviceKey;
         activeServiceDetailFilterName = serviceName;
-        activeServiceDetailFilterType = detail ? detail.service_type : null;
+        activeServiceDetailFilterType = serviceType || (detail ? detail.service_type : null);
         renderServiceDetailsTable('裸纤业务', 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
         renderServiceDetailsTable('电路业务', 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
 
@@ -2421,8 +2443,24 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
+    function syncBareFiberServiceCardScopeToggle() {
+        if (!scopeToggle) return;
+        const activeTab = document.querySelector('#statisticsTab .nav-link.active');
+        const activeTabId = activeTab ? activeTab.id : '';
+        scopeToggle.classList.toggle('d-none', activeTabId !== 'tab-service-btn');
+    }
+
+    bareFiberServiceCardScopeInputs.forEach(input => {
+        input.addEventListener('change', () => {
+            if (!input.checked) return;
+            bareFiberServiceCardScope = input.value === 'all' ? 'all' : 'faulted';
+            renderBareFiberServiceCards();
+        });
+    });
+
     // ---------------- Tab 切换联动 ----------------
     function loadActiveTab() {
+        syncBareFiberServiceCardScopeToggle();
         const activeTab = document.querySelector('#statisticsTab .nav-link.active');
         if (activeTab && (activeTab.id === 'tab-service-btn' || activeTab.id === 'tab-circuit-service-btn')) {
             loadServiceData();
@@ -2435,6 +2473,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const tabEl = document.getElementById('statisticsTab');
     if (tabEl) {
         tabEl.addEventListener('shown.bs.tab', function(event) {
+            syncBareFiberServiceCardScopeToggle();
             if (event.target.id === 'tab-service-btn' || event.target.id === 'tab-circuit-service-btn') {
                 loadServiceData();
             } else if (event.target.id === 'tab-physical-btn') {
@@ -2447,6 +2486,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // ---------------- 初始化启动 ----------------
+    syncBareFiberServiceCardScopeToggle();
     updateDateSelectors();
     loadData();
 });

@@ -20,6 +20,12 @@
             
             <div class="d-flex gx-2 align-items-center filter-controls">
 
+                <div id="bare-fiber-service-card-scope-toggle" class="bare-fiber-service-card-scope-toggle btn-group d-none" role="group" aria-label="裸纤业务卡片显示范围">
+                    <input type="radio" class="btn-check" name="bareFiberServiceCardScope" id="bare-fiber-scope-faulted" value="faulted" autocomplete="off" checked>
+                    <label class="btn btn-outline-primary" for="bare-fiber-scope-faulted">发生故障业务</label>
+                    <input type="radio" class="btn-check" name="bareFiberServiceCardScope" id="bare-fiber-scope-all" value="all" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="bare-fiber-scope-all">全部业务</label>
+                </div>
                 <button type="button" id="statistics-metric-help-btn" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#statisticsMetricHelpModal">
                     <i class="mdi mdi-information-outline me-1" aria-hidden="true"></i>指标说明
                 </button>
