@@ -930,6 +930,14 @@ class CircuitServiceTable(NetBoxTable):
         format='Y年n月j日',
         verbose_name='计费结束时间'
     )
+    created = tables.DateTimeColumn(
+        format='Y-m-d H:i:s',
+        verbose_name='创建时间'
+    )
+    last_updated = tables.DateTimeColumn(
+        format='Y-m-d H:i:s',
+        verbose_name='修改时间'
+    )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:circuitservice_list'
     )
@@ -937,7 +945,7 @@ class CircuitServiceTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CircuitService
         fields = (
-            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'tags', 'actions',
+            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'created', 'last_updated', 'tags', 'actions',
         )
         default_columns = (
             'business_category', 'service_group', 'special_line_name', 'name', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level',

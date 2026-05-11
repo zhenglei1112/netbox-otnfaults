@@ -118,6 +118,14 @@
                         <th scope="row">计费结束时间</th>
                         <td>{{ object.billing_end_time|date:"Y年n月j日"|default:"—" }}</td>
                     </tr>
+                    <tr>
+                        <th scope="row">创建时间</th>
+                        <td>{{ object.created|date:"Y-m-d H:i:s"|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">修改时间</th>
+                        <td>{{ object.last_updated|date:"Y-m-d H:i:s"|default:"—" }}</td>
+                    </tr>
                 </table>
         </div>
         <div class="card mt-3">

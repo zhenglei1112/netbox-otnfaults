@@ -8,6 +8,7 @@ MODELS_PATH = REPO_ROOT / "netbox_otnfaults" / "models.py"
 FORMS_PATH = REPO_ROOT / "netbox_otnfaults" / "forms.py"
 SERIALIZERS_PATH = REPO_ROOT / "netbox_otnfaults" / "api" / "serializers.py"
 FILTERSETS_PATH = REPO_ROOT / "netbox_otnfaults" / "filtersets.py"
+TABLES_PATH = REPO_ROOT / "netbox_otnfaults" / "tables.py"
 DETAIL_TEMPLATE_PATH = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults" / "circuitservice.html"
 
 
@@ -88,6 +89,14 @@ def _find_meta_tuple(class_node: ast.ClassDef, field_name: str) -> None:
         raise AssertionError(f"{field_name} not found in {class_node.name}.Meta.fields")
 
 
+def _get_meta_tuple_items(class_node: ast.ClassDef, tuple_name: str) -> list[str]:
+    meta_class = _find_class(ast.Module(body=class_node.body, type_ignores=[]), "Meta")
+    value = _find_assignment(meta_class, tuple_name)
+    if not isinstance(value, (ast.Tuple, ast.List)):
+        raise AssertionError(f"{class_node.name}.Meta.{tuple_name} is not a tuple/list")
+    return [elt.value for elt in value.elts if isinstance(elt, ast.Constant) and isinstance(elt.value, str)]
+
+
 class CircuitServiceExtraFieldsSourceTestCase(unittest.TestCase):
     def test_model_declares_json_field_and_ordered_definitions(self) -> None:
         module = _parse_module(MODELS_PATH)
@@ -146,6 +155,40 @@ class CircuitServiceExtraFieldsSourceTestCase(unittest.TestCase):
         self.assertIn("object.extra_field_items", template_text)
         self.assertIn("extra_field.label", template_text)
         self.assertIn("extra_field.value", template_text)
+
+    def test_builtin_audit_timestamps_are_exposed_without_model_fields(self) -> None:
+        models_module = _parse_module(MODELS_PATH)
+        model_class = _find_class(models_module, "CircuitService")
+        model_field_names = {
+            target.id
+            for node in model_class.body
+            if isinstance(node, ast.Assign)
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        }
+        self.assertNotIn("created", model_field_names)
+        self.assertNotIn("last_updated", model_field_names)
+
+        serializers_module = _parse_module(SERIALIZERS_PATH)
+        serializer_class = _find_class(serializers_module, "CircuitServiceSerializer")
+        serializer_fields = _get_meta_tuple_items(serializer_class, "fields")
+        self.assertIn("created", serializer_fields)
+        self.assertIn("last_updated", serializer_fields)
+
+        tables_module = _parse_module(TABLES_PATH)
+        table_class = _find_class(tables_module, "CircuitServiceTable")
+        table_fields = _get_meta_tuple_items(table_class, "fields")
+        self.assertIn("created", table_fields)
+        self.assertIn("last_updated", table_fields)
+        self.assertLess(table_fields.index("created"), table_fields.index("actions"))
+        self.assertLess(table_fields.index("last_updated"), table_fields.index("actions"))
+        self.assertEqual(table_fields[-1], "actions")
+
+        template_text = DETAIL_TEMPLATE_PATH.read_text(encoding="utf-8-sig")
+        self.assertIn("创建时间", template_text)
+        self.assertIn("object.created|date", template_text)
+        self.assertIn("修改时间", template_text)
+        self.assertIn("object.last_updated|date", template_text)
 
     def test_filterset_quick_search_includes_special_line_name(self) -> None:
         filtersets_text = FILTERSETS_PATH.read_text(encoding="utf-8-sig")
