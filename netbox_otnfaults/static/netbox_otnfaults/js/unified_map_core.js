@@ -10,7 +10,11 @@ class OTNMapCore {
     this.map = null;
     this.modePlugin = null;
     this.mapStylePreferenceService = null;
-    this.config = window[configKey];
+    this.config = this._resolveConfig();
+  }
+
+  _resolveConfig() {
+    return window[this.configKey] || window.OTNFaultMapConfig || null;
   }
 
   /**
@@ -20,6 +24,12 @@ class OTNMapCore {
   async init(modePlugin) {
     if (window.OTNPerf) window.OTNPerf.mark('init_start');
     this.modePlugin = modePlugin;
+    this.config = this._resolveConfig();
+
+    if (!this.config) {
+      NetBoxMapBase.showError("map", "地图配置未加载，请刷新页面重试。");
+      return;
+    }
 
     // 1. 初始化地图实例 (立即渲染容器)
     try {

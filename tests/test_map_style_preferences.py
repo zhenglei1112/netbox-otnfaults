@@ -72,8 +72,9 @@ class MapStylePreferenceSourceTestCase(unittest.TestCase):
         self.assertIn("**build_map_preference_context(request, 'fault')", views_source)
         self.assertIn("**build_map_preference_context(request, 'statistics_cable_break')", views_source)
         self.assertIn("**build_map_preference_context(request, map_mode)", views_source)
+        self.assertIn("**build_map_preference_context(request, 'route_editor')", views_source)
 
-        self.assertIn("mapStylePreferences: {{ map_style_preferences|safe }}", template_source)
+        self.assertIn('mapStylePreferences: {{ map_style_preferences|default:"{}"|safe }}', template_source)
         self.assertIn("mapPreferencesUrl: '{{ map_preferences_url|escapejs }}'", template_source)
         self.assertIn("csrfToken: '{{ csrf_token|escapejs }}'", template_source)
 
@@ -81,7 +82,7 @@ class MapStylePreferenceSourceTestCase(unittest.TestCase):
         self.assertIn("'controls/MapStylePreferenceControl.js'", modes_source)
         self.assertIn("this.mapStylePreferenceService = null;", core_source)
         self.assertIn("this._initMapStylePreferences();", core_source)
-        self.assertLess(core_source.index("this._initSharedLayers();"), core_source.index("this._initMapStylePreferences();"))
+        self.assertLess(core_source.index("this._initMapStylePreferences();"), core_source.index("this._initSharedLayers();"))
         self.assertIn("new MapStylePreferenceService(this.map, this.config)", core_source)
         self.assertIn("new MapStylePreferenceControl({", core_source)
         self.assertIn("csrfToken: this.config.csrfToken", core_source)

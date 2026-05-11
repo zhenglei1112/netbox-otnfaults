@@ -1178,6 +1178,7 @@ class RouteEditorView(PermissionRequiredMixin, View):
             
             # 数据 API
             'map_data_url': reverse('plugins:netbox_otnfaults:otnfault_map_data') + '?mode=route_editor',
+            **build_map_preference_context(request, 'route_editor'),
         })
 
 
