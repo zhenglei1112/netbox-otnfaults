@@ -28,8 +28,8 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 blank=True,
                 choices=[
-                    ('hosted', '设备托管'),
-                    ('not_hosted', '设备未托管'),
+                    ('hosted', '设备脱管'),
+                    ('not_hosted', '设备未脱管'),
                 ],
                 max_length=20,
                 null=True,

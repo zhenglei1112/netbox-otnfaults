@@ -238,8 +238,8 @@ class PowerFaultImpactChoices(ChoiceSet):
     NOT_HOSTED = 'not_hosted'
 
     CHOICES = [
-        (HOSTED, '设备托管', 'blue'),
-        (NOT_HOSTED, '设备未托管', 'gray'),
+        (HOSTED, '设备脱管', 'blue'),
+        (NOT_HOSTED, '设备未脱管', 'gray'),
     ]
 
 

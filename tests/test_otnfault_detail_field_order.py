@@ -52,6 +52,12 @@ class OtnFaultDetailFieldOrderSourceTestCase(unittest.TestCase):
         self.assertNotIn("power_fault_phenomenon", supplemental_block)
         self.assertNotIn("power_fault_impact", supplemental_block)
 
+    def test_blank_power_fault_fields_render_dash_in_detail(self) -> None:
+        template_text = TEMPLATE_PATH.read_text(encoding="utf-8-sig")
+
+        self.assertIn('{{ object.get_power_fault_phenomenon_display|default:"—" }}', template_text)
+        self.assertIn('{{ object.get_power_fault_impact_display|default:"—" }}', template_text)
+
 
 if __name__ == "__main__":
     unittest.main()

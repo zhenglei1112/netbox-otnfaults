@@ -68,11 +68,11 @@
         {% if object.is_power_fault %}
         <tr>
           <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">供电故障现象</span></th>
-          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.get_power_fault_phenomenon_display|default:"鈥?" }}</td>
+          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.get_power_fault_phenomenon_display|default:"—" }}</td>
         </tr>
         <tr>
           <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">影响情况</span></th>
-          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.get_power_fault_impact_display|default:"鈥?" }}</td>
+          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.get_power_fault_impact_display|default:"—" }}</td>
         </tr>
         {% endif %}
         <tr>

@@ -62,8 +62,8 @@ class OtnFaultPowerFaultFieldsSourceTestCase(unittest.TestCase):
         self.assertIn("(PARTIAL_INTERRUPTED, '部分中断'", phenomenon_block)
         self.assertIn("HOSTED = 'hosted'", impact_block)
         self.assertIn("NOT_HOSTED = 'not_hosted'", impact_block)
-        self.assertIn("(HOSTED, '设备托管'", impact_block)
-        self.assertIn("(NOT_HOSTED, '设备未托管'", impact_block)
+        self.assertIn("(HOSTED, '设备脱管'", impact_block)
+        self.assertIn("(NOT_HOSTED, '设备未脱管'", impact_block)
 
     def test_model_form_filter_table_and_serializer_include_fields(self) -> None:
         field_names = ["power_fault_phenomenon", "power_fault_impact"]
