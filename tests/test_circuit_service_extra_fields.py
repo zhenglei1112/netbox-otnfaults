@@ -7,6 +7,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 MODELS_PATH = REPO_ROOT / "netbox_otnfaults" / "models.py"
 FORMS_PATH = REPO_ROOT / "netbox_otnfaults" / "forms.py"
 SERIALIZERS_PATH = REPO_ROOT / "netbox_otnfaults" / "api" / "serializers.py"
+FILTERSETS_PATH = REPO_ROOT / "netbox_otnfaults" / "filtersets.py"
 DETAIL_TEMPLATE_PATH = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults" / "circuitservice.html"
 
 
@@ -145,6 +146,15 @@ class CircuitServiceExtraFieldsSourceTestCase(unittest.TestCase):
         self.assertIn("object.extra_field_items", template_text)
         self.assertIn("extra_field.label", template_text)
         self.assertIn("extra_field.value", template_text)
+
+    def test_filterset_quick_search_includes_special_line_name(self) -> None:
+        filtersets_text = FILTERSETS_PATH.read_text(encoding="utf-8-sig")
+        circuit_filterset_text = filtersets_text[
+            filtersets_text.index("class CircuitServiceFilterSet"):
+            filtersets_text.index("class BareFiberServiceFilterSet")
+        ]
+
+        self.assertIn("Q(special_line_name__icontains=value)", circuit_filterset_text)
 
 
 if __name__ == "__main__":

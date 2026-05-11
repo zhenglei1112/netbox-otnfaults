@@ -275,7 +275,8 @@ class CircuitServiceFilterSet(NetBoxModelFilterSet):
         if not value.strip():
             return queryset
         return queryset.filter(
-            Q(name__icontains=value)
+            Q(special_line_name__icontains=value)
+            | Q(name__icontains=value)
             | Q(slug__icontains=value)
             | Q(comments__icontains=value)
         )
