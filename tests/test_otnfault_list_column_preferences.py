@@ -43,6 +43,15 @@ class OtnFaultListColumnPreferencesSourceTestCase(unittest.TestCase):
 
         self.assertIn("fault_details", fields)
 
+    def test_power_data_type_available_in_fault_list_column_settings(self) -> None:
+        module = _parse_module(TABLES_PATH)
+        table_class = _find_class(module, "OtnFaultTable")
+        meta_class = _find_class(ast.Module(body=table_class.body, type_ignores=[]), "Meta")
+
+        fields = _tuple_items(_find_assignment(meta_class, "fields"))
+
+        self.assertIn("power_data_type", fields)
+
 
 if __name__ == "__main__":
     unittest.main()
