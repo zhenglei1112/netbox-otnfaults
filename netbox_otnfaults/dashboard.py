@@ -12,13 +12,19 @@ from .models import OtnFault, FaultCategoryChoices
 
 # --- 故障分类 → CSS 颜色映射 ---
 CATEGORY_CSS_COLORS: dict[str, str] = {
-    'fiber_break': '#dc3545',       # 红
-    'ac_fault': '#20c997',          # 青绿
-    'fiber_degradation': '#fd7e14', # 橙
-    'fiber_jitter': '#0dcaf0',      # 青蓝
-    'device_fault': '#d63384',      # 粉
-    'power_fault': '#6610f2',       # 靛紫
+    FaultCategoryChoices.AC_FAULT: '#F4C542',
+    FaultCategoryChoices.FIBER_BREAK: '#E53935',
+    FaultCategoryChoices.POWER_FAULT: '#2F6BFF',
+    FaultCategoryChoices.DEVICE_FAULT: '#8B5CF6',
 }
+
+
+CALENDAR_VISIBLE_FAULT_CATEGORIES: tuple[str, ...] = (
+    FaultCategoryChoices.AC_FAULT,
+    FaultCategoryChoices.FIBER_BREAK,
+    FaultCategoryChoices.POWER_FAULT,
+    FaultCategoryChoices.DEVICE_FAULT,
+)
 
 
 CHINA_PUBLIC_HOLIDAYS: set[date] = {
@@ -79,11 +85,14 @@ class OtnFaultsCalendarWidget(DashboardWidget):
             faults = OtnFault.objects.restrict(request.user, 'view').filter(
                 fault_occurrence_time__date__gte=calendar_start,
                 fault_occurrence_time__date__lte=last_day,
+                fault_category__in=CALENDAR_VISIBLE_FAULT_CATEGORIES,
             ).values_list('fault_occurrence_time', 'fault_category')
 
             # 按日期分组 → {date: [color, color, ...]}
             day_dots: dict[date, list[str]] = {}
             for occ_time, cat in faults:
+                if cat not in CALENDAR_VISIBLE_FAULT_CATEGORIES:
+                    continue
                 fault_day = timezone.localtime(occ_time).date()
                 color = CATEGORY_CSS_COLORS.get(cat, '#adb5bd')
                 day_dots.setdefault(fault_day, []).append(color)
@@ -135,7 +144,7 @@ class OtnFaultsCalendarWidget(DashboardWidget):
             legend: list[dict[str, str]] = []
             cat_label_map = {c[0]: str(c[1]) for c in FaultCategoryChoices.CHOICES}
             for _, cat in faults:
-                if cat and cat not in seen_cats:
+                if cat and cat in CALENDAR_VISIBLE_FAULT_CATEGORIES and cat not in seen_cats:
                     seen_cats.add(cat)
                     legend.append({
                         'color': CATEGORY_CSS_COLORS.get(cat, '#adb5bd'),

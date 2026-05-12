@@ -15,6 +15,33 @@ class DashboardCalendarWidgetTestCase(unittest.TestCase):
 
         self.assertNotIn("day_dots[day] = day_dots[day][:5]", source)
 
+    def test_calendar_widget_only_renders_four_visible_fault_categories(self) -> None:
+        source = DASHBOARD_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("CALENDAR_VISIBLE_FAULT_CATEGORIES: tuple[str, ...] = (", source)
+        self.assertIn("FaultCategoryChoices.AC_FAULT", source)
+        self.assertIn("FaultCategoryChoices.FIBER_BREAK", source)
+        self.assertIn("FaultCategoryChoices.POWER_FAULT", source)
+        self.assertIn("FaultCategoryChoices.DEVICE_FAULT", source)
+        visible_categories_block = source.split("CALENDAR_VISIBLE_FAULT_CATEGORIES: tuple[str, ...] = (", 1)[1]
+        visible_categories_block = visible_categories_block.split(")", 1)[0]
+        self.assertNotIn("FaultCategoryChoices.FIBER_DEGRADATION", visible_categories_block)
+        self.assertNotIn("FaultCategoryChoices.FIBER_JITTER", visible_categories_block)
+        self.assertIn("fault_category__in=CALENDAR_VISIBLE_FAULT_CATEGORIES", source)
+        self.assertIn("if cat not in CALENDAR_VISIBLE_FAULT_CATEGORIES:", source)
+
+    def test_calendar_widget_uses_reference_fault_category_colors(self) -> None:
+        source = DASHBOARD_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("FaultCategoryChoices.AC_FAULT: '#F4C542'", source)
+        self.assertIn("FaultCategoryChoices.FIBER_BREAK: '#E53935'", source)
+        self.assertIn("FaultCategoryChoices.POWER_FAULT: '#2F6BFF'", source)
+        self.assertIn("FaultCategoryChoices.DEVICE_FAULT: '#8B5CF6'", source)
+        category_colors_block = source.split("CATEGORY_CSS_COLORS: dict[str, str] = {", 1)[1]
+        category_colors_block = category_colors_block.split("}", 1)[0]
+        self.assertNotIn("FaultCategoryChoices.FIBER_DEGRADATION", category_colors_block)
+        self.assertNotIn("FaultCategoryChoices.FIBER_JITTER", category_colors_block)
+
     def test_calendar_widget_template_uses_compact_dot_grid_layout(self) -> None:
         template_source = CALENDAR_TEMPLATE_PATH.read_text(encoding="utf-8")
 
