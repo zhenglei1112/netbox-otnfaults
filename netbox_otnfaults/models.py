@@ -919,7 +919,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         choices=PowerMaintenanceModeChoices,
         blank=True,
         null=True,
-        verbose_name='维护方式'
+        verbose_name='供电维护方式'
     )
     
     # 故障复核信息

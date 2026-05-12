@@ -107,6 +107,9 @@ class OtnFaultTable(NetBoxTable):
     power_data_type = columns.ChoiceFieldColumn(
         verbose_name='供电设备提供方'
     )
+    power_maintenance_mode = columns.ChoiceFieldColumn(
+        verbose_name='供电维护方式'
+    )
     interruption_reason = columns.ChoiceFieldColumn(
         verbose_name='一级原因'
     )
@@ -217,7 +220,7 @@ class OtnFaultTable(NetBoxTable):
         model = OtnFault
         fields = (
             'pk', 'fault_number', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
-            'power_data_type',
+            'power_data_type', 'power_maintenance_mode',
             'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'progress',
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
@@ -266,6 +269,17 @@ class OtnFaultTable(NetBoxTable):
 
     def value_power_data_type(self, value: str | None, record: OtnFault) -> str:
         return _display_or_empty(record.get_power_data_type_display())
+
+    def render_power_maintenance_mode(self, value, record):
+        color = record.get_power_maintenance_mode_color()
+        return format_html(
+            '<span class="badge bg-{} text-white">{}</span>',
+            color,
+            record.get_power_maintenance_mode_display(),
+        )
+
+    def value_power_maintenance_mode(self, value: str | None, record: OtnFault) -> str:
+        return _display_or_empty(record.get_power_maintenance_mode_display())
 
     def render_urgency(self, value, record):
         color = record.get_urgency_color()

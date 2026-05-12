@@ -483,7 +483,7 @@
           <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.rectification_completion_description|default:"—" }}</td>
         </tr>
         <tr>
-          <th scope="row">维护方式</th>
+          <th scope="row">供电维护方式</th>
           <td>
             {% if object.power_maintenance_mode %}
             {% badge object.get_power_maintenance_mode_display bg_color=object.get_power_maintenance_mode_color %}

@@ -1085,7 +1085,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     power_maintenance_mode = forms.ChoiceField(
         choices=add_blank_choice(PowerMaintenanceModeChoices),
         required=False,
-        label='维护方式'
+        label='供电维护方式'
     )
 
 class OtnFaultImpactFilterForm(NetBoxModelFilterSetForm):
