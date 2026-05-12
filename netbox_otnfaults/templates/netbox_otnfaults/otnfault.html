@@ -492,6 +492,26 @@
             {% endif %}
           </td>
         </tr>
+        <tr>
+          <th scope="row">代维方/租赁方</th>
+          <td>
+            {% if object.handling_unit %}
+            <a href="{{ object.handling_unit.get_absolute_url }}">{{ object.handling_unit }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">代维/租赁合同</th>
+          <td>
+            {% if object.contract %}
+            <a href="{{ object.contract.get_absolute_url }}">{{ object.contract }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
       </table>
     </div>
     {% endif %}

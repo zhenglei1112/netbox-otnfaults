@@ -143,10 +143,11 @@ class OtnFaultForm(NetBoxModelForm):
             name='线路主管补充信息'
         ),
         FieldSet(
-            'power_data_type', 'root_cause_analysis', 'recovery_mode', 'rectification_status',
+            'power_data_type', 'root_cause_analysis', 'rectification_status',
             'rectification_measures', 'rectification_description', 'rectification_subject',
             'rectification_progress', 'planned_completion_date', 'actual_completion_date',
             'rectification_completion_description', 'power_recovery_mode', 'power_maintenance_mode',
+            'handling_unit', 'contract',
             name='供电故障补充信息'
         ),
         FieldSet(
@@ -816,7 +817,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             'power_data_type', 'root_cause_analysis', 'rectification_status', 'rectification_measures',
             'rectification_description', 'rectification_subject', 'rectification_progress',
             'planned_completion_date', 'actual_completion_date', 'rectification_completion_description',
-            'power_recovery_mode', 'power_maintenance_mode',
+            'power_recovery_mode', 'power_maintenance_mode', 'handling_unit', 'contract',
             name='供电故障补充信息'
         ),
         FieldSet(

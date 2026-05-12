@@ -62,6 +62,7 @@
         {% render_field form.maintenance_mode %}
         {% render_field form.handling_unit %}
         {% render_field form.contract %}
+        <template id="fiber-contract-fields-anchor"></template>
         {% render_field form.timeout %}
         {% render_field form.timeout_reason %}
     </div>
@@ -84,6 +85,7 @@
         {% render_field form.actual_completion_date %}
         {% render_field form.rectification_completion_description %}
         {% render_field form.power_maintenance_mode %}
+        <template id="power-contract-fields-anchor"></template>
     </div>
 </div>
 
@@ -195,6 +197,49 @@
     // 保存原始选项
     let allReasonOptions = [];
     let allDetailOptions = [];
+
+    function findDirectFieldColumns(select) {
+        // Find the outer row container that holds all the fields
+        const containerRow = select.closest('.field-group').querySelector('.row:not(.mb-3), .row:nth-of-type(2)');
+        
+        // Find the direct child of this container that contains our select element
+        if (containerRow) {
+            const wrapper = Array.from(containerRow.children).find(child => child.contains(select));
+            if (wrapper) {
+                return [wrapper];
+            }
+        }
+        
+        // Fallback: just return the closest wrapper that usually contains a field
+        const fallbackWrapper = select.closest('.row.mb-3') || select.closest('.mb-3');
+        return fallbackWrapper ? [fallbackWrapper] : [];
+    }
+
+    function getContractFieldNodes() {
+        const handlingUnitSelect = document.querySelector('select[name="handling_unit"]');
+        const contractSelect = document.querySelector('select[name="contract"]');
+        if (!handlingUnitSelect || !contractSelect) return [];
+
+        return [
+            ...findDirectFieldColumns(handlingUnitSelect),
+            ...findDirectFieldColumns(contractSelect),
+        ];
+    }
+
+    function moveSharedContractFields(category) {
+        const targetAnchor = document.getElementById(
+            category === POWER_FAULT_CATEGORY
+                ? 'power-contract-fields-anchor'
+                : 'fiber-contract-fields-anchor'
+        );
+        const contractFieldNodes = getContractFieldNodes();
+
+        if (!targetAnchor || contractFieldNodes.length === 0 || !targetAnchor.parentNode) return;
+
+        contractFieldNodes.forEach(node => {
+            targetAnchor.parentNode.insertBefore(node, targetAnchor);
+        });
+    }
     
     function toggleFiberFields(category) {
         const fiberInfoDiv = document.getElementById('fiber-supplementary-info');
@@ -202,6 +247,8 @@
         const powerFaultOnlyRows = document.querySelectorAll('[data-power-fault-only]');
         
         if (!fiberInfoDiv || !powerInfoDiv) return;
+
+        moveSharedContractFields(category);
         
         // 控制光缆补充信息显示
         if (FIBER_FAULT_CATEGORIES.includes(category)) {
