@@ -33,7 +33,7 @@ const FAULT_CATEGORY_NAMES = COLORS_CONFIG.category_names || {
 const FAULT_STATUS_COLORS = COLORS_CONFIG.status_colors || {
   processing: "#dc3545", // 处理中 - 红色
   temporary_recovery: "#0d6efd", // 临时恢复 - 蓝色
-  suspended: "#ffc107", // 挂起 - 黄色
+  suspended: "#ffc107", // 延后处置 - 黄色
   closed: "#198754", // 已关闭 - 绿色
 };
 
@@ -41,7 +41,7 @@ const FAULT_STATUS_COLORS = COLORS_CONFIG.status_colors || {
 const FAULT_STATUS_NAMES = COLORS_CONFIG.status_names || {
   processing: "处理中",
   temporary_recovery: "临时恢复",
-  suspended: "挂起",
+  suspended: "延后处置",
   closed: "已关闭",
 };
 

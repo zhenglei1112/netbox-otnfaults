@@ -45,7 +45,7 @@ class FaultLegendControl {
         const statuses = [
             { key: 'processing', name: FAULT_STATUS_NAMES?.processing || '处理中', color: FAULT_STATUS_COLORS?.processing || '#f5a623' },
             { key: 'temporary_recovery', name: FAULT_STATUS_NAMES?.temporary_recovery || '临时恢复', color: FAULT_STATUS_COLORS?.temporary_recovery || '#0d6efd' },
-            { key: 'suspended', name: FAULT_STATUS_NAMES?.suspended || '挂起', color: FAULT_STATUS_COLORS?.suspended || '#ffc107' },
+            { key: 'suspended', name: FAULT_STATUS_NAMES?.suspended || '延后处置', color: FAULT_STATUS_COLORS?.suspended || '#ffc107' },
             { key: 'closed', name: FAULT_STATUS_NAMES?.closed || '已关闭', color: FAULT_STATUS_COLORS?.closed || '#198754' }
         ];
 

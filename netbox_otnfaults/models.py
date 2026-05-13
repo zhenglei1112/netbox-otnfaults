@@ -314,7 +314,7 @@ class FaultStatusChoices(ChoiceSet):
     CHOICES = [
         (PROCESSING, '处理中', 'red'),
         (TEMPORARY_RECOVERY, '临时恢复', 'blue'),
-        (SUSPENDED, '挂起', 'yellow'),
+        (SUSPENDED, '延后处置', 'yellow'),
         (CLOSED, '已关闭', 'green'),
     ]
 
@@ -799,7 +799,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         help_text='用于填写处理故障的本公司内部员工、代维单位处理人员或协调纤芯处理方的具体人员或单位名称'
     )
     
-    # 18) 处理状态，为选择型字段，分为处理中、临时恢复、挂起、关闭
+    # 18) 处理状态，为选择型字段，分为处理中、临时恢复、延后处置、关闭
     fault_status = models.CharField(
         max_length=20,
         choices=FaultStatusChoices,

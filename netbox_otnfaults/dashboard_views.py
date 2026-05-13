@@ -74,7 +74,7 @@ STATUS_COLORS = {
 STATUS_NAMES = {
     'processing': '处理中',
     'temporary_recovery': '临时恢复',
-    'suspended': '挂起',
+    'suspended': '延后处置',
     'closed': '已关闭',
 }
 
