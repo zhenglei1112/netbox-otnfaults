@@ -34,7 +34,7 @@ from urllib.parse import urlencode
 import logging
 from .map_modes import get_mode_config
 from .statistics_period import build_period_display
-from .statistics_views import _parse_time_range, get_cable_break_base_queryset
+from .statistics_views import _parse_time_range, get_cable_break_base_queryset, truncate_sla
 from .services.map_preferences import (
     build_map_preference_context,
     get_user_map_style_config,
@@ -1291,7 +1291,7 @@ class BareFiberServiceView(generic.ObjectView):
             'fault_count': fault_count,
             'total_duration_hours': round(total_duration_hours, 2),
             'avg_duration_hours': round(avg_duration_hours, 2),
-            'sla_this_month': round(sla_this_month, 4),
+            'sla_this_month': truncate_sla(sla_this_month),
         }
 
 class BareFiberServiceEditView(generic.ObjectEditView):
@@ -1434,7 +1434,7 @@ class CircuitServiceView(generic.ObjectView):
             'fault_count': fault_count,
             'total_duration_hours': round(total_duration_hours, 2),
             'avg_duration_hours': round(avg_duration_hours, 2),
-            'sla_this_month': round(sla_this_month, 4),
+            'sla_this_month': truncate_sla(sla_this_month),
         }
 
 class CircuitServiceEditView(generic.ObjectEditView):

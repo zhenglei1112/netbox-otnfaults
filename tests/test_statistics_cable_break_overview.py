@@ -309,6 +309,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("return integer ? String(Math.round(diff)) : diff.toFixed(1);", source)
         self.assertIn("function formatCardMetricValue(value)", source)
         self.assertIn("return number.toFixed(1);", source)
+        self.assertIn("function formatSlaValue(value)", source)
+        self.assertIn("return (Math.trunc(number * 100) / 100).toFixed(2);", source)
         self.assertIn("function formatCardCountValue(value)", source)
         self.assertIn("return String(Math.round(number));", source)
         self.assertIn("function isCountUnit(unit)", source)
@@ -1095,7 +1097,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('<span class="service-status-pill"><span class="service-status-dot"></span>正常</span>', source)
         self.assertIn('<div class="service-annual-summary-grid">', source)
         self.assertIn("renderServiceAnnualSummary(card.service)", source.split('<div class="statistics-strip-card-body">', 1)[1])
-        self.assertIn('<div class="service-annual-summary-value">${formatCardMetricValue(annualSummary.sla)}%</div>', source)
+        self.assertIn('<div class="service-annual-summary-value">${formatSlaValue(annualSummary.sla)}%</div>', source)
         self.assertIn('<div class="service-annual-summary-label">SLA</div>', source)
         self.assertIn('<div class="service-annual-summary-value">${formatCardMetricValue(annualSummary.total_duration)}时</div>', source)
         self.assertIn('<div class="service-annual-summary-label">中断时长</div>', source)
@@ -1164,6 +1166,14 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             "impacts_qs = OtnFaultImpact.objects.select_related(",
             1,
         )[1].split("impacts = list(impacts_qs)", 1)[0]
+        self.assertIn(
+            "Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)",
+            impacts_query_source,
+        )
+        self.assertIn(
+            "| Q(service_type=ServiceTypeChoices.CIRCUIT)",
+            impacts_query_source,
+        )
         self.assertNotIn(
             "otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK",
             impacts_query_source,
@@ -1182,9 +1192,18 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
                 1,
             )[1].split(f"{query_name.replace('_qs', '')} = list({query_name})", 1)[0]
             self.assertIn(
-                "otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK",
+                "Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)",
                 query_source,
             )
+            self.assertIn(
+                "Q(service_type=ServiceTypeChoices.CIRCUIT, otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK)",
+                query_source,
+            )
+            bare_fiber_query_source = query_source.split(
+                "Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)",
+                1,
+            )[0]
+            self.assertNotIn("fault_category", bare_fiber_query_source)
             self.assertIn(
                 ".exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)",
                 query_source,
@@ -1205,7 +1224,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("'year': selected_year,", views_source)
         self.assertIn("'count': stats['annual_summary']['count'],", views_source)
         self.assertIn("'total_duration': round(stats['annual_summary']['total_duration'], 2),", views_source)
-        self.assertIn("'sla': round(annual_sla, 4),", views_source)
+        self.assertIn("'sla': truncate_sla(annual_sla),", views_source)
         self.assertIn("'annual_summary': annual_summary_payload,", views_source)
         self.assertIn("calendar_year = int(request.GET.get('calendar_year', selected_year))", views_source)
         self.assertIn("calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))", views_source)
@@ -1237,7 +1256,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("'intervals': [],", views_source)
         self.assertIn("stats['monthly_stats'][month_index]['intervals'].append((year_imp.service_interruption_time, month_end))", views_source)
         self.assertIn("monthly_sla = calculate_merged_interval_sla(", views_source)
-        self.assertIn("'sla': round(monthly_sla, 4),", views_source)
+        self.assertIn("'sla': truncate_sla(monthly_sla),", views_source)
         self.assertIn("'monthly_stats': monthly_stats_payload,", views_source)
         self.assertIn("'interrupt_calendar': interrupt_calendar_payload,", views_source)
         self.assertNotIn("daily_duration_stats", views_source)
@@ -1309,7 +1328,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("const itemLabel = item && item.label ? item.label : `${index + 1}月`;", source)
         self.assertIn("const itemSla = item && item.sla !== undefined ? item.sla : 100;", source)
         self.assertIn('<span class="service-runtime-calendar-sla-month">${escapeHtml(itemLabel)}</span>', source)
-        self.assertIn('<span class="service-runtime-calendar-sla-value">${showSla ? `${formatCardMetricValue(itemSla)}%` : \'-\'}</span>', source)
+        self.assertIn('<span class="service-runtime-calendar-sla-value">${showSla ? `${formatSlaValue(itemSla)}%` : \'-\'}</span>', source)
         self.assertIn("${renderServiceRuntimeCalendar(svc)}", source)
         self.assertNotIn("${renderServiceRuntimeCalendar()}", source)
         self.assertNotIn("${renderServiceRuntimeCalendarSlaTable(svc)}\n                    ${renderServiceInterruptCalendar", source)

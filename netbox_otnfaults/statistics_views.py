@@ -20,7 +20,7 @@ from typing import Any
 from .models import (
     OtnFault, OtnFaultImpact, OtnPath, BareFiberService,
     FaultCategoryChoices, ResourceTypeChoices, CableTypeChoices,
-    ServiceTypeChoices, FaultStatusChoices
+    ServiceTypeChoices, FaultStatusChoices, BusinessImpactChoices
 )
 from dcim.models import Region
 from .statistics_period import build_period_display
@@ -68,6 +68,10 @@ RESOURCE_TYPE_ORDER = [
     ResourceTypeChoices.LEASED,
     'unfilled',
 ]
+
+
+def truncate_sla(value: float) -> float:
+    return math.trunc(value * 100.0) / 100.0
 
 
 def _source_group_for_fault(fault) -> str:
@@ -993,22 +997,29 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
         ).filter(
             service_interruption_time__gte=start_date,
             service_interruption_time__lt=end_date
+        ).filter(
+            Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
+            | Q(service_type=ServiceTypeChoices.CIRCUIT)
         )
         impacts = list(impacts_qs)
         yearly_impacts_qs = OtnFaultImpact.objects.select_related(
             'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
         ).filter(
             service_interruption_time__gte=year_start,
-            service_interruption_time__lt=year_end,
-            otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK
+            service_interruption_time__lt=year_end
+        ).filter(
+            Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
+            | Q(service_type=ServiceTypeChoices.CIRCUIT, otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK)
         ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
         yearly_impacts = list(yearly_impacts_qs)
         calendar_impacts_qs = OtnFaultImpact.objects.select_related(
             'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
         ).filter(
             service_interruption_time__gte=calendar_start,
-            service_interruption_time__lt=calendar_end,
-            otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK
+            service_interruption_time__lt=calendar_end
+        ).filter(
+            Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
+            | Q(service_type=ServiceTypeChoices.CIRCUIT, otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK)
         ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
         calendar_impacts = list(calendar_impacts_qs)
 
@@ -1285,13 +1296,13 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                     'label': f'{month}月',
                     'count': month_stats['count'],
                     'duration': round(month_stats['duration'], 2),
-                    'sla': round(monthly_sla, 4),
+                    'sla': truncate_sla(monthly_sla),
                 })
             annual_summary_payload = {
                 'year': selected_year,
                 'count': stats['annual_summary']['count'],
                 'total_duration': round(stats['annual_summary']['total_duration'], 2),
-                'sla': round(annual_sla, 4),
+                'sla': truncate_sla(annual_sla),
             }
             interrupt_calendar_payload = [
                 {
@@ -1331,7 +1342,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'avg_duration': round(avg_dur, 2),
                 'long_count': stats['long_count'],
                 'repeat_count': repeat_count,
-                'sla': round(sla, 4),
+                'sla': truncate_sla(sla),
             })
 
         # 按业务类型分组：裸纤在前，电路在后；组内按故障总数降序，名称升序兜底。

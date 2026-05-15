@@ -1046,6 +1046,12 @@ document.addEventListener("DOMContentLoaded", function() {
         return number.toFixed(1);
     }
 
+    function formatSlaValue(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return value === undefined || value === null ? '--' : String(value);
+        return (Math.trunc(number * 100) / 100).toFixed(2);
+    }
+
     function formatCardCountValue(value) {
         const number = Number(value);
         if (!Number.isFinite(number)) return value === undefined || value === null ? '--' : String(value);
@@ -2015,7 +2021,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         </div>
                         <div class="service-annual-summary-grid">
                             <div class="service-annual-summary-item">
-                                <div class="service-annual-summary-value">${formatCardMetricValue(annualSummary.sla)}%</div>
+                                <div class="service-annual-summary-value">${formatSlaValue(annualSummary.sla)}%</div>
                                 <div class="service-annual-summary-label">SLA</div>
                             </div>
                             <div class="service-annual-summary-item">
@@ -2107,7 +2113,7 @@ document.addEventListener("DOMContentLoaded", function() {
             return `
                             <div class="service-runtime-calendar-sla-cell">
                                 <span class="service-runtime-calendar-sla-month">${escapeHtml(itemLabel)}</span>
-                                <span class="service-runtime-calendar-sla-value">${showSla ? `${formatCardMetricValue(itemSla)}%` : '-'}</span>
+                                <span class="service-runtime-calendar-sla-value">${showSla ? `${formatSlaValue(itemSla)}%` : '-'}</span>
                             </div>`;
         }).join('');
     }
