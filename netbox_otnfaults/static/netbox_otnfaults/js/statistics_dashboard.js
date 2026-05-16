@@ -2113,7 +2113,7 @@ document.addEventListener("DOMContentLoaded", function() {
             return `
                             <div class="service-runtime-calendar-sla-cell">
                                 <span class="service-runtime-calendar-sla-month">${escapeHtml(itemLabel)}</span>
-                                <span class="service-runtime-calendar-sla-value">${showSla ? `${formatSlaValue(itemSla)}%` : '-'}</span>
+                                <span class="service-runtime-calendar-sla-value">${showSla ? formatSlaValue(itemSla) : '-'}</span>
                             </div>`;
         }).join('');
     }
@@ -2140,9 +2140,7 @@ document.addEventListener("DOMContentLoaded", function() {
         return Math.min(4, count);
     }
 
-    function renderServiceInterruptCalendar(svc, interruptCalendarMaxCount) {
-        const months = Array.isArray(svc.interrupt_calendar) ? svc.interrupt_calendar : [];
-        const maxCount = Number(interruptCalendarMaxCount || 0);
+    function renderServiceInterruptCalendarMonthGrid(months, maxCount) {
         const monthHtml = months.map(month => {
             const days = Array.isArray(month.days) ? month.days : [];
             const leadingBlanks = Array.from({ length: Number(month.weekday_offset || 0) }, () => '<span class="service-interrupt-calendar-day service-interrupt-calendar-day--blank"></span>').join('');
@@ -2158,9 +2156,20 @@ document.addEventListener("DOMContentLoaded", function() {
                                 <div class="service-interrupt-calendar-days">${leadingBlanks}${dayHtml}</div>
                             </div>`;
         }).join('');
+        return monthHtml;
+    }
+
+    function renderServiceInterruptCalendar(svc, interruptCalendarMaxCount) {
+        const months = Array.isArray(svc.interrupt_calendar) ? svc.interrupt_calendar : [];
+        const expandedMonths = Array.isArray(svc.interrupt_calendar_full) ? svc.interrupt_calendar_full : months;
+        const maxCount = Number(interruptCalendarMaxCount || 0);
         return `
                     <div class="service-interrupt-calendar" aria-label="近三个月业务中断日历">
-                        <div class="service-interrupt-calendar-months">${monthHtml}</div>
+                        <div class="service-interrupt-calendar-months service-interrupt-calendar-months--default">${renderServiceInterruptCalendarMonthGrid(months, maxCount)}</div>
+                        <div class="service-interrupt-calendar-months service-interrupt-calendar-months--expanded d-none">${renderServiceInterruptCalendarMonthGrid(expandedMonths, maxCount)}</div>
+                        <button type="button" class="service-interrupt-calendar-toggle" aria-label="展开本年中断日历" title="展开本年中断日历">
+                            <i class="mdi mdi-arrow-expand-all"></i>
+                        </button>
                     </div>`;
     }
 
@@ -2191,7 +2200,7 @@ document.addEventListener("DOMContentLoaded", function() {
             chart.setOption({
                 animation: false,
                 backgroundColor: 'transparent',
-                grid: { top: 16, left: 4, right: 4, bottom: 20, containLabel: false },
+                grid: { top: 16, left: 4, right: 18, bottom: 20, containLabel: false },
                 tooltip: Object.assign({
                     trigger: 'axis',
                     confine: true,
@@ -2229,7 +2238,12 @@ document.addEventListener("DOMContentLoaded", function() {
                         splitLine: { show: false }
                     },
                     {
+                        name: '时',
                         type: 'value',
+                        position: 'right',
+                        nameLocation: 'end',
+                        nameGap: 2,
+                        nameTextStyle: { color: '#078087', fontSize: 10, fontWeight: 600 },
                         min: durationAxisMin,
                         max: durationAxisMax,
                         axisLine: { show: false },
@@ -2255,7 +2269,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             fontSize: 9,
                             formatter(params) {
                                 const value = Number(params.value || 0);
-                                return value > 0 ? `${formatCardMetricValue(value)}时` : '';
+                                return value > 0 ? formatCardMetricValue(value) : '';
                             }
                         },
                         lineStyle: { width: 1.8, color: '#078087' },
@@ -2290,6 +2304,27 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
+    function initServiceInterruptCalendarToggles(container) {
+        container.querySelectorAll('.service-interrupt-calendar-toggle').forEach(button => {
+            button.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                const calendar = button.closest('.service-interrupt-calendar');
+                if (!calendar) return;
+                const defaultMonths = calendar.querySelector('.service-interrupt-calendar-months--default');
+                const expandedMonths = calendar.querySelector('.service-interrupt-calendar-months--expanded');
+                const icon = button.querySelector('.mdi');
+                const expanded = !calendar.classList.contains('service-interrupt-calendar--expanded');
+                calendar.classList.toggle('service-interrupt-calendar--expanded', expanded);
+                if (defaultMonths) defaultMonths.classList.toggle('d-none', expanded);
+                if (expandedMonths) expandedMonths.classList.toggle('d-none', !expanded);
+                button.setAttribute('aria-label', expanded ? '收回中断日历' : '展开本年中断日历');
+                button.setAttribute('title', expanded ? '收回中断日历' : '展开本年中断日历');
+                if (icon) icon.className = expanded ? 'mdi mdi-arrow-collapse-all' : 'mdi mdi-arrow-expand-all';
+            });
+        });
+    }
+
     function renderStripCard(card) {
         const title = escapeHtml(card.footer);
         const svc = card.service || {};
@@ -2312,10 +2347,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function getMaxServiceInterruptCalendarCount(services) {
         return Math.max(
-            ...services.flatMap(svc =>
-                (Array.isArray(svc.interrupt_calendar) ? svc.interrupt_calendar : [])
-                    .flatMap(month => Array.isArray(month.days) ? month.days.map(day => Number(day.count || 0)) : [])
-            ),
+            ...services.flatMap(svc => {
+                const calendars = [svc.interrupt_calendar, svc.interrupt_calendar_full].filter(Array.isArray);
+                return calendars.flatMap(calendar =>
+                    calendar.flatMap(month => Array.isArray(month.days) ? month.days.map(day => Number(day.count || 0)) : [])
+                );
+            }),
             0
         );
     }
@@ -2366,6 +2403,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         container.innerHTML = html;
         initServiceRuntimeCalendarCharts(container, servicesByKey);
+        initServiceInterruptCalendarToggles(container);
         container.querySelectorAll('.service-strip-card[data-service-key]').forEach(card => {
             card.addEventListener('click', () => handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName, card.dataset.serviceType));
             card.addEventListener('keydown', event => {

@@ -722,6 +722,7 @@ body.modal-open {
 }
 
 .service-interrupt-calendar {
+    position: relative;
     padding: 0.65rem 1.25rem 0.95rem;
     border-top: 1px solid var(--statistics-divider);
     background: transparent;
@@ -732,6 +733,11 @@ body.modal-open {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.9rem;
     align-items: start;
+}
+
+.service-interrupt-calendar-months--expanded {
+    grid-template-columns: repeat(auto-fill, minmax(5.4rem, 1fr));
+    padding-right: 1.2rem;
 }
 
 .service-interrupt-calendar-month {
@@ -778,6 +784,35 @@ body.modal-open {
 
 .service-interrupt-calendar-day--level-4 {
     background: #b91c1c;
+}
+
+.service-interrupt-calendar-toggle {
+    position: absolute;
+    right: 0.72rem;
+    bottom: 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.45rem;
+    height: 1.45rem;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.82);
+    color: #078087;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.service-interrupt-calendar-toggle:hover,
+.service-interrupt-calendar-toggle:focus {
+    background: rgba(7, 128, 135, 0.1);
+    color: #05656a;
+    outline: none;
+}
+
+.service-interrupt-calendar--expanded .service-interrupt-calendar-toggle {
+    background: rgba(7, 128, 135, 0.12);
 }
 
 .service-strip-card-title {

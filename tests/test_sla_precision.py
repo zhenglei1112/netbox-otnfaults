@@ -37,9 +37,10 @@ class SLAPrecisionTestCase(unittest.TestCase):
         self.assertIn("function formatSlaValue(value)", source)
         self.assertIn("return (Math.trunc(number * 100) / 100).toFixed(2);", source)
         self.assertIn("${formatSlaValue(annualSummary.sla)}%", source)
-        self.assertIn("${formatSlaValue(itemSla)}%", source)
+        self.assertIn("${showSla ? formatSlaValue(itemSla) : '-'}", source)
         self.assertNotIn("${formatCardMetricValue(annualSummary.sla)}%", source)
         self.assertNotIn("${formatCardMetricValue(itemSla)}%", source)
+        self.assertNotIn("${formatSlaValue(itemSla)}%", source)
 
 
 if __name__ == "__main__":

@@ -625,6 +625,31 @@ def _build_recent_calendar_months(year: int, month: int, tz) -> list[dict[str, o
     return months
 
 
+def _build_year_to_month_calendar_months(year: int, month: int, tz) -> list[dict[str, object]]:
+    """Return month metadata from January through the requested month."""
+    month = min(max(month, 1), 12)
+    months: list[dict[str, object]] = []
+    for item_month in range(1, month + 1):
+        next_month = item_month + 1
+        next_year = year
+        if next_month > 12:
+            next_month = 1
+            next_year = year + 1
+        month_start = timezone.datetime(year, item_month, 1, tzinfo=tz)
+        month_end = timezone.datetime(next_year, next_month, 1, tzinfo=tz)
+        months.append({
+            'key': f'{year:04d}-{item_month:02d}',
+            'year': year,
+            'month': item_month,
+            'label': f'{item_month}月',
+            'start': month_start,
+            'end': month_end,
+            'weekday_offset': month_start.weekday(),
+            'days': (month_end.date() - month_start.date()).days,
+        })
+    return months
+
+
 def _statistics_page_context(request: HttpRequest) -> dict[str, object]:
     default_filter_type = 'week'
     default_date: date = timezone.localdate()
@@ -988,8 +1013,13 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
         calendar_year = int(request.GET.get('calendar_year', selected_year))
         calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
         calendar_months = _build_recent_calendar_months(calendar_year, calendar_month, tz)
+        calendar_full_months = _build_year_to_month_calendar_months(calendar_year, calendar_month, tz)
         calendar_start = calendar_months[0]['start']
         calendar_end = calendar_months[-1]['end']
+        calendar_full_start = calendar_full_months[0]['start']
+        calendar_full_end = calendar_full_months[-1]['end']
+        calendar_query_start = min(calendar_start, calendar_full_start)
+        calendar_query_end = max(calendar_end, calendar_full_end)
 
         # 查询当前期的所有 FaultImpact
         impacts_qs = OtnFaultImpact.objects.select_related(
@@ -1015,8 +1045,8 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
         calendar_impacts_qs = OtnFaultImpact.objects.select_related(
             'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
         ).filter(
-            service_interruption_time__gte=calendar_start,
-            service_interruption_time__lt=calendar_end
+            service_interruption_time__gte=calendar_query_start,
+            service_interruption_time__lt=calendar_query_end
         ).filter(
             Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
             | Q(service_type=ServiceTypeChoices.CIRCUIT, otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK)
@@ -1065,6 +1095,10 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'interrupt_calendar': {
                     month_info['key']: {day: 0 for day in range(1, month_info['days'] + 1)}
                     for month_info in calendar_months
+                },
+                'interrupt_calendar_full': {
+                    month_info['key']: {day: 0 for day in range(1, month_info['days'] + 1)}
+                    for month_info in calendar_full_months
                 },
                 'total_duration': 0.0,
                 'long_count': 0,
@@ -1199,6 +1233,8 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             stats = service_map[svc_key]
             if calendar_key in stats['interrupt_calendar'] and calendar_day.day in stats['interrupt_calendar'][calendar_key]:
                 stats['interrupt_calendar'][calendar_key][calendar_day.day] += 1
+            if calendar_key in stats['interrupt_calendar_full'] and calendar_day.day in stats['interrupt_calendar_full'][calendar_key]:
+                stats['interrupt_calendar_full'][calendar_key][calendar_day.day] += 1
 
         # 构建返回结果
         def calculate_merged_interval_sla(
@@ -1321,6 +1357,23 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 }
                 for month_info in calendar_months
             ]
+            interrupt_calendar_full_payload = [
+                {
+                    'key': month_info['key'],
+                    'label': month_info['label'],
+                    'year': month_info['year'],
+                    'month': month_info['month'],
+                    'weekday_offset': month_info['weekday_offset'],
+                    'days': [
+                        {
+                            'day': day,
+                            'count': stats['interrupt_calendar_full'][month_info['key']][day],
+                        }
+                        for day in range(1, month_info['days'] + 1)
+                    ],
+                }
+                for month_info in calendar_full_months
+            ]
 
             services_result.append({
                 'key': svc_key,
@@ -1338,6 +1391,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'annual_summary': annual_summary_payload,
                 'monthly_stats': monthly_stats_payload,
                 'interrupt_calendar': interrupt_calendar_payload,
+                'interrupt_calendar_full': interrupt_calendar_full_payload,
                 'total_duration': round(total_dur, 2),
                 'avg_duration': round(avg_dur, 2),
                 'long_count': stats['long_count'],
