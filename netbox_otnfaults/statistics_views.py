@@ -1029,7 +1029,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             service_interruption_time__lt=end_date
         ).filter(
             Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
-            | Q(service_type=ServiceTypeChoices.CIRCUIT)
+            | Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)
         )
         impacts = list(impacts_qs)
         yearly_impacts_qs = OtnFaultImpact.objects.select_related(
@@ -1039,7 +1039,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             service_interruption_time__lt=year_end
         ).filter(
             Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
-            | Q(service_type=ServiceTypeChoices.CIRCUIT, otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK)
+            | Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)
         ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
         yearly_impacts = list(yearly_impacts_qs)
         calendar_impacts_qs = OtnFaultImpact.objects.select_related(
@@ -1049,7 +1049,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             service_interruption_time__lt=calendar_query_end
         ).filter(
             Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
-            | Q(service_type=ServiceTypeChoices.CIRCUIT, otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK)
+            | Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)
         ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
         calendar_impacts = list(calendar_impacts_qs)
 

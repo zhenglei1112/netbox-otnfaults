@@ -1171,7 +1171,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             impacts_query_source,
         )
         self.assertIn(
-            "| Q(service_type=ServiceTypeChoices.CIRCUIT)",
+            "Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)",
             impacts_query_source,
         )
         self.assertNotIn(
@@ -1196,14 +1196,14 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
                 query_source,
             )
             self.assertIn(
-                "Q(service_type=ServiceTypeChoices.CIRCUIT, otn_fault__fault_category=FaultCategoryChoices.FIBER_BREAK)",
+                "Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)",
                 query_source,
             )
-            bare_fiber_query_source = query_source.split(
-                "Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)",
+            service_type_query_source = query_source.split(
+                ").filter(otn_fault__is_suspended=False)",
                 1,
             )[0]
-            self.assertNotIn("fault_category", bare_fiber_query_source)
+            self.assertNotIn("fault_category", service_type_query_source)
             self.assertIn(
                 ".exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)",
                 query_source,
