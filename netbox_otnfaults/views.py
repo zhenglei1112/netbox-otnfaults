@@ -46,6 +46,7 @@ from .services.fault_map_data import (
     build_statistics_cable_break_map_payload,
     get_sites_data,
 )
+from .services.fault_coordinates import resolve_fault_coordinates
 from .view_mixins import ExcelFriendlyCSVExportMixin
 
 
@@ -855,6 +856,22 @@ class LocationMapView(PermissionRequiredMixin, View):
             location_site_ids = []
             a_site_pk = None
         
+        if target_lat is None and target_lng is None:
+            fault_id = request.GET.get('fault', '')
+            if fault_id:
+                try:
+                    fault = (
+                        OtnFault.objects.select_related('interruption_location_a')
+                        .prefetch_related('interruption_location')
+                        .get(pk=int(fault_id))
+                    )
+                    resolved = resolve_fault_coordinates(fault)
+                    if resolved is not None:
+                        target_lat = resolved.lat
+                        target_lng = resolved.lng
+                except (OtnFault.DoesNotExist, ValueError):
+                    pass
+
         if target_lat is None and target_lng is None:
             # 如果没有指定 q 坐标，尝试根据 A/Z 站点计算中心
             if location_site_ids:

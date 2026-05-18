@@ -1710,9 +1710,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("defaulted_count", map_data_source)
         self.assertIn("coords_from_site", map_data_source)
         self.assertIn("coords_source", map_data_source)
-        self.assertIn("fault.interruption_location_a.latitude", map_data_source)
-        self.assertIn("for site in fault.interruption_location.all():", map_data_source)
-        self.assertIn("'z_site'", map_data_source)
+        self.assertIn("from .fault_coordinates import resolve_fault_coordinates", map_data_source)
+        self.assertIn("resolved = resolve_fault_coordinates(fault)", map_data_source)
+        self.assertIn("'coords_source': resolved.source", map_data_source)
         self.assertIn("path('statistics/cable-break-map/', views.StatisticsCableBreakMapView.as_view(), name='statistics_cable_break_map')", urls_source)
         self.assertIn("path('statistics/cable-break-map-data/', views.StatisticsCableBreakMapDataAPI.as_view(), name='statistics_cable_break_map_data')", urls_source)
 

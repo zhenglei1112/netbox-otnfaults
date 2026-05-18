@@ -20,6 +20,7 @@ from .models import (
     FaultCategoryChoices, FaultStatusChoices, UrgencyChoices,
 )
 from .dashboard_topology import build_fault_path_overlays
+from .services.fault_coordinates import resolve_fault_coordinates
 
 
 def get_plugin_settings() -> dict:
@@ -130,10 +131,10 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
 
         active_faults = []
         for fault in active_faults_qs:
-            coords = self._get_fault_coords(fault)
-            if not coords:
+            resolved = resolve_fault_coordinates(fault)
+            if resolved is None:
                 continue
-            lat, lng = coords
+            lat, lng = resolved.lat, resolved.lng
 
             # ── 智能对位纠偏 (中国区域特征检测) ──
             # 标准: 经度 [73, 135], 纬度 [4, 53]
@@ -269,14 +270,14 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
         closed_faults_qs = OtnFault.objects.filter(
             fault_status='closed',
             fault_occurrence_time__gte=year_start
-        ).select_related('interruption_location_a')
+        ).select_related('interruption_location_a').prefetch_related('interruption_location')
 
         closed_fault_points = []
         for fault in closed_faults_qs:
-            coords = self._get_fault_coords(fault)
-            if not coords or coords[0] is None:
+            resolved = resolve_fault_coordinates(fault)
+            if resolved is None:
                 continue
-            lat, lng = coords
+            lat, lng = resolved.lat, resolved.lng
 
             # 智能对位纠偏（与活跃故障逻辑一致）
             if lat > 70.0 and lng < 60.0:
@@ -354,13 +355,3 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             'closed_fault_points': closed_fault_points,
         }, json_dumps_params={'ensure_ascii': False})
 
-    def _get_fault_coords(self, fault) -> tuple:
-        """获取故障坐标，优先使用故障经纬度，其次使用A端站点"""
-        if fault.interruption_latitude and fault.interruption_longitude:
-            return float(fault.interruption_latitude), float(fault.interruption_longitude)
-        if (fault.interruption_location_a and
-                fault.interruption_location_a.latitude and
-                fault.interruption_location_a.longitude):
-            return (float(fault.interruption_location_a.latitude),
-                    float(fault.interruption_location_a.longitude))
-        return None, None

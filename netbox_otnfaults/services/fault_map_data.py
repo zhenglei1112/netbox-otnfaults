@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from ..models import FaultCategoryChoices, FaultStatusChoices, OtnFault
 from ..statistics_views import _source_group_for_fault
+from .fault_coordinates import resolve_fault_coordinates
 
 
 VALID_FAULT_CATEGORIES: set[str] = {
@@ -70,10 +71,9 @@ class FaultMapMarkerSerializer:
 
     def data(self) -> dict | None:
         fault = self.fault
-        coords = self._coordinates()
-        if coords is None:
+        resolved = resolve_fault_coordinates(fault)
+        if resolved is None:
             return None
-        lat, lng, coords_from_site = coords
 
         z_sites = [site.name for site in fault.interruption_location.all()]
         all_impacts = list(fault.impacts.all()) + list(fault.secondary_impacts.all())
@@ -96,9 +96,10 @@ class FaultMapMarkerSerializer:
                 })
 
         return {
-            'lat': lat,
-            'lng': lng,
-            'coords_from_site': coords_from_site,
+            'lat': resolved.lat,
+            'lng': resolved.lng,
+            'coords_from_site': resolved.coords_from_site,
+            'coords_source': resolved.source,
             'number': fault.fault_number,
             'url': fault.get_absolute_url(),
             'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}",
@@ -135,23 +136,6 @@ class FaultMapMarkerSerializer:
             'image_count': fault.images.count() if hasattr(fault, 'images') else 0,
         }
 
-    def _coordinates(self) -> tuple[float, float, bool] | None:
-        fault = self.fault
-        if fault.interruption_latitude is not None and fault.interruption_longitude is not None:
-            return float(fault.interruption_latitude), float(fault.interruption_longitude), False
-        if (
-            fault.interruption_location_a
-            and fault.interruption_location_a.latitude
-            and fault.interruption_location_a.longitude
-        ):
-            return (
-                float(fault.interruption_location_a.latitude),
-                float(fault.interruption_location_a.longitude),
-                True,
-            )
-        return None
-
-
 class StatisticsCableBreakMapMarkerSerializer:
     """Serialize a cable-break fault into the statistics map marker payload."""
 
@@ -169,10 +153,9 @@ class StatisticsCableBreakMapMarkerSerializer:
 
     def data(self) -> dict | None:
         fault = self.fault
-        coords = self._coordinates()
-        if coords is None:
+        resolved = resolve_fault_coordinates(fault)
+        if resolved is None:
             return None
-        lat, lng, coords_from_site, coords_source = coords
 
         end_time = fault.fault_recovery_time if fault.fault_recovery_time else self.now
         duration_hours = (end_time - fault.fault_occurrence_time).total_seconds() / 3600.0
@@ -180,10 +163,10 @@ class StatisticsCableBreakMapMarkerSerializer:
 
         return {
             'id': fault.pk,
-            'lat': lat,
-            'lng': lng,
-            'coords_from_site': coords_from_site,
-            'coords_source': coords_source,
+            'lat': resolved.lat,
+            'lng': resolved.lng,
+            'coords_from_site': resolved.coords_from_site,
+            'coords_source': resolved.source,
             'number': fault.fault_number,
             'url': fault.get_absolute_url(),
             'details': f"{fault.fault_number}: {fault.get_fault_category_display() or '未知类型'}",
@@ -220,27 +203,6 @@ class StatisticsCableBreakMapMarkerSerializer:
             ],
         }
 
-    def _coordinates(self) -> tuple[float, float, bool, str] | None:
-        fault = self.fault
-        if fault.interruption_latitude is not None and fault.interruption_longitude is not None:
-            return float(fault.interruption_latitude), float(fault.interruption_longitude), False, 'fault'
-        if (
-            fault.interruption_location_a
-            and fault.interruption_location_a.latitude is not None
-            and fault.interruption_location_a.longitude is not None
-        ):
-            return (
-                float(fault.interruption_location_a.latitude),
-                float(fault.interruption_location_a.longitude),
-                True,
-                'a_site',
-            )
-
-        for site in fault.interruption_location.all():
-            if site.latitude is not None and site.longitude is not None:
-                return float(site.latitude), float(site.longitude), True, 'z_site'
-        return None
-
     def _is_repeat_fault(self) -> bool:
         fault = self.fault
         if not fault.is_fiber_fault:
@@ -272,21 +234,6 @@ def build_fault_map_payload() -> dict[str, list[dict]]:
     twelve_months_ago = now - timedelta(days=365)
     all_faults = OtnFault.objects.filter(fault_occurrence_time__gte=twelve_months_ago)
 
-    heatmap_data = [
-        {
-            'lat': float(fault.interruption_latitude),
-            'lng': float(fault.interruption_longitude),
-            'count': 1,
-            'occurrence_time': fault.fault_occurrence_time.isoformat() if fault.fault_occurrence_time else None,
-            'category': _category_key(fault),
-        }
-        for fault in all_faults.exclude(
-            interruption_longitude__isnull=True,
-        ).exclude(
-            interruption_latitude__isnull=True,
-        )
-    ]
-
     marker_faults = all_faults.select_related(
         'province',
         'interruption_location_a',
@@ -306,6 +253,16 @@ def build_fault_map_payload() -> dict[str, list[dict]]:
         marker
         for marker in (FaultMapMarkerSerializer(fault).data() for fault in marker_faults)
         if marker is not None
+    ]
+    heatmap_data = [
+        {
+            'lat': marker['lat'],
+            'lng': marker['lng'],
+            'count': 1,
+            'occurrence_time': marker['occurrence_time'],
+            'category': marker['category'],
+        }
+        for marker in marker_data
     ]
 
     return {
