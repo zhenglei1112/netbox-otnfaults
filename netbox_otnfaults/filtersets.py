@@ -5,6 +5,8 @@ from netbox.filtersets import NetBoxModelFilterSet
 from .models import (
     BareFiberService,
     CircuitService,
+    CutoverTask,
+    CutoverImpact,
     OtnFault,
     OtnFaultImpact,
     OtnMapPreference,
@@ -299,6 +301,36 @@ class BareFiberServiceFilterSet(NetBoxModelFilterSet):
         )
 
 
+class CutoverTaskFilterSet(NetBoxModelFilterSet):
+    """割接管理过滤器"""
+    planned_cutover_time_after = django_filters.DateTimeFilter(
+        field_name='planned_cutover_time', lookup_expr='gte'
+    )
+    planned_cutover_time_before = django_filters.DateTimeFilter(
+        field_name='planned_cutover_time', lookup_expr='lte'
+    )
+
+    class Meta:
+        model = CutoverTask
+        fields = (
+            'id', 'cutover_no', 'status', 'province', 'management_unit',
+            'is_timeout', 'cutover_result', 'registrant', 'line_supervisor',
+            'interruption_location_a',
+        )
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(cutover_no__icontains=value)
+            | Q(cutover_location__icontains=value)
+            | Q(cutover_reason__icontains=value)
+            | Q(implementation_unit__icontains=value)
+            | Q(cutover_contact__icontains=value)
+            | Q(comments__icontains=value)
+        )
+
+
 class OtnPathGroupFilterSet(NetBoxModelFilterSet):
     """路径组过滤器"""
 
@@ -315,5 +347,69 @@ class OtnPathGroupFilterSet(NetBoxModelFilterSet):
             Q(name__icontains=value)
             | Q(slug__icontains=value)
             | Q(description__icontains=value)
+            | Q(comments__icontains=value)
+        )
+
+
+class CutoverImpactFilterSet(NetBoxModelFilterSet):
+    cutover_task = django_filters.ModelChoiceFilter(
+        queryset=CutoverTask.objects.all(),
+        label='割接任务'
+    )
+
+    service_type = django_filters.CharFilter(
+        label='业务类型'
+    )
+    bare_fiber_service = django_filters.ModelMultipleChoiceFilter(
+        queryset=BareFiberService.objects.all(),
+        label='裸纤业务'
+    )
+    circuit_service = django_filters.ModelMultipleChoiceFilter(
+        queryset=CircuitService.objects.all(),
+        label='电路业务'
+    )
+    circuit_business_category = django_filters.MultipleChoiceFilter(
+        field_name='circuit_service__business_category',
+        choices=CircuitService._meta.get_field('business_category').choices,
+        distinct=True,
+        label='业务门类'
+    )
+    circuit_service_group = django_filters.MultipleChoiceFilter(
+        field_name='circuit_service__service_group',
+        choices=CircuitService._meta.get_field('service_group').choices,
+        distinct=True,
+        label='业务组'
+    )
+    business_impact = django_filters.CharFilter(
+        label='业务影响'
+    )
+    service_interruption_time_after = django_filters.DateTimeFilter(
+        field_name='service_interruption_time',
+        lookup_expr='gte',
+        label='业务中断时间（开始）'
+    )
+    service_interruption_time_before = django_filters.DateTimeFilter(
+        field_name='service_interruption_time',
+        lookup_expr='lte',
+        label='业务中断时间（结束）'
+    )
+
+    class Meta:
+        model = CutoverImpact
+        fields = (
+            'cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service',
+            'circuit_business_category', 'circuit_service_group',
+            'business_impact', 'service_interruption_time_after', 'service_interruption_time_before',
+            'service_recovery_time',
+        )
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(cutover_task__cutover_no__icontains=value)
+            | Q(bare_fiber_service__name__icontains=value)
+            | Q(circuit_service__name__icontains=value)
+            | Q(circuit_service__special_line_name__icontains=value)
             | Q(comments__icontains=value)
         )

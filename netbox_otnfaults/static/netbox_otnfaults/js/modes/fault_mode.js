@@ -1,5 +1,5 @@
 /**
- * 故障分布图模式插件
+ * 一张图模式插件
  */
 
 const FaultModePlugin = {
@@ -28,6 +28,7 @@ const FaultModePlugin = {
 
   // 控件引用
   layerToggleControl: null,
+  layerVisibilityControl: null,
   statsControl: null,
   legendControl: null,
   searchControl: null,
@@ -64,6 +65,9 @@ const FaultModePlugin = {
 
     if (this.layerToggleControl) {
       window.layerToggleControl = this.layerToggleControl;
+    }
+    if (this.layerVisibilityControl) {
+      window.layerVisibilityControl = this.layerVisibilityControl;
     }
     if (this.statsControl) {
       window.faultStatisticsControl = this.statsControl;
@@ -458,13 +462,28 @@ const FaultModePlugin = {
     // 图层控制
     if (typeof LayerToggleControl !== "undefined") {
       this.layerToggleControl = new LayerToggleControl({
-        enablePathGroupOverlays: true,
-        pathGroupOverlaysUrl: this.config.pathGroupOverlaysUrl,
+        sections: {
+          viewMode: true,
+          timeRange: true,
+          categories: true,
+          topology: false,
+        },
         onToggle: (type) => {
           // 处理 3D/2D 切换等
         },
       });
       this.mapBase.addControl(this.layerToggleControl, "top-left");
+
+      this.layerVisibilityControl = new LayerToggleControl({
+        title: "图层显示",
+        buttonIcon: '<i class="mdi mdi-layers-outline"></i>',
+        floatingMenu: true,
+        topologyOnly: true,
+        enablePathGroupOverlays: true,
+        pathGroupOverlaysUrl: this.config.pathGroupOverlaysUrl,
+      });
+      this.mapBase.addControl(this.layerVisibilityControl, "top-right");
+      this._placeLayerVisibilityControlAboveMapStyle();
     }
 
     // 统计面板
@@ -496,7 +515,18 @@ const FaultModePlugin = {
           map.flyTo({ center: [site.longitude, site.latitude], zoom: 12 });
         },
       });
-      this.mapBase.addControl(this.searchControl, "top-left");
+      this.mapBase.addControl(this.searchControl, "top-center");
+    }
+  },
+
+  _placeLayerVisibilityControlAboveMapStyle() {
+    if (!this.layerVisibilityControl?.container) return;
+
+    const styleControl = this.map
+      .getContainer()
+      .querySelector(".maplibregl-ctrl-top-right .map-style-control");
+    if (styleControl?.parentNode) {
+      styleControl.parentNode.insertBefore(this.layerVisibilityControl.container, styleControl);
     }
   },
 

@@ -14,9 +14,9 @@ from django.db.models import Count, Q
 from datetime import timedelta
 import json
 import logging
-from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, OtnMapPreference
-from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer, BareFiberServiceSerializer, CircuitServiceSerializer, OtnMapPreferenceSerializer
-from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet, OtnMapPreferenceFilterSet
+from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, OtnMapPreference, CutoverTask, CutoverImpact
+from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer, BareFiberServiceSerializer, CircuitServiceSerializer, OtnMapPreferenceSerializer, CutoverTaskSerializer, CutoverImpactSerializer
+from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet, OtnMapPreferenceFilterSet, CutoverTaskFilterSet, CutoverImpactFilterSet
 from ..utils import get_hex_color
 from dcim.models import Site
 from dcim.api.serializers import SiteSerializer
@@ -73,6 +73,20 @@ class CircuitServiceViewSet(NetBoxModelViewSet):
     queryset = CircuitService.objects.all()
     serializer_class = CircuitServiceSerializer
     filterset_class = CircuitServiceFilterSet
+
+
+class CutoverTaskViewSet(NetBoxModelViewSet):
+    """割接管理 API ViewSet"""
+    queryset = CutoverTask.objects.all()
+    serializer_class = CutoverTaskSerializer
+    filterset_class = CutoverTaskFilterSet
+
+
+class CutoverImpactViewSet(NetBoxModelViewSet):
+    """割接影响业务 API ViewSet"""
+    queryset = CutoverImpact.objects.all()
+    serializer_class = CutoverImpactSerializer
+    filterset_class = CutoverImpactFilterSet
 
 
 class OtnMapPreferenceViewSet(NetBoxModelViewSet):

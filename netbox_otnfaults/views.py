@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpRequest, HttpResponse
 from utilities.views import register_model_view, ViewTab
 from django_tables2 import RequestConfig
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, CutoverTask, CutoverImpact
 from dcim.models import Site
 from .forms import (
     OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
@@ -11,21 +11,27 @@ from .forms import (
     OtnPathForm, OtnPathFilterForm, OtnPathImportForm, OtnPathBulkEditForm,
     OtnPathGroupForm, OtnPathGroupCopyMembersForm, OtnPathGroupFilterForm, OtnPathGroupSiteForm,
     BareFiberServiceForm, BareFiberServiceFilterForm, BareFiberServiceImportForm, BareFiberServiceBulkEditForm,
-    CircuitServiceForm, CircuitServiceFilterForm, CircuitServiceImportForm, CircuitServiceBulkEditForm
+    CircuitServiceForm, CircuitServiceFilterForm, CircuitServiceImportForm, CircuitServiceBulkEditForm,
+    CutoverTaskForm, CutoverTaskFilterForm, CutoverTaskImportForm, CutoverTaskBulkEditForm,
+    CutoverImpactForm, CutoverImpactFilterForm, CutoverImpactImportForm, CutoverImpactBulkEditForm
 )
-from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet
+from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet, CutoverTaskFilterSet, CutoverImpactFilterSet
 from .tables import (
     OtnFaultTable, OtnFaultImpactTable, OtnPathTable, OtnPathGroupTable,
     OtnPathGroupSiteTable, BareFiberServiceTable, CircuitServiceTable,
-    OtnFaultImpactSummaryTable, OtnFaultImpactDetailTable, SiteHistoryFaultTable
+    OtnFaultImpactSummaryTable, OtnFaultImpactDetailTable, SiteHistoryFaultTable,
+    CutoverTaskTable,
+    CutoverImpactTable, CutoverImpactSummaryTable
 )
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from datetime import timedelta
 from django.views.generic import View
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.db import transaction
 import json
+from typing import Any
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.exceptions import ValidationError
 from django.conf import settings
@@ -162,7 +168,7 @@ class MapPreferenceView(PermissionRequiredMixin, View):
         return JsonResponse({'schema_version': 1, 'style_config': normalized})
 
 class OtnFaultGlobeMapView(PermissionRequiredMixin, View):
-    """OTN故障分布图（地球模式）视图"""
+    """OTN一张图（地球模式）视图"""
     permission_required = 'netbox_otnfaults.view_otnfault'
 
     def get(self, request):
@@ -1340,6 +1346,222 @@ class BareFiberServiceBulkEditView(generic.BulkEditView):
     filterset = BareFiberServiceFilterSet
     table = BareFiberServiceTable
     form = BareFiberServiceBulkEditForm
+
+
+# ========== 割接管理视图 ==========
+
+class CutoverTaskListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
+    """割接管理列表视图"""
+    queryset = CutoverTask.objects.all()
+    table = CutoverTaskTable
+    filterset = CutoverTaskFilterSet
+    filterset_form = CutoverTaskFilterForm
+
+
+class CutoverTaskBulkImportView(generic.BulkImportView):
+    """割接管理批量导入视图"""
+    queryset = CutoverTask.objects.all()
+    model = CutoverTask
+    model_form = CutoverTaskImportForm
+    table = CutoverTaskTable
+
+
+@register_model_view(CutoverTask)
+class CutoverTaskView(generic.ObjectView):
+    """割接管理详情视图"""
+    queryset = CutoverTask.objects.all()
+
+    def get_extra_context(self, request, instance):
+        # 查询影响业务
+        all_impacts = instance.impacts.all().distinct()
+
+        impacts_table = CutoverImpactSummaryTable(all_impacts, prefix='impact-')
+        per_page = int(request.GET.get('impact-per_page', request.GET.get('impact_per_page', 25)))
+        RequestConfig(request, paginate={'per_page': per_page}).configure(impacts_table)
+
+        return {
+            'impacts_table': impacts_table,
+            'impacts_count': all_impacts.count(),
+            'bare_fiber_services': [
+                {
+                    'id': service.pk,
+                    'tenant_group': service.tenant_group.name if service.tenant_group else '',
+                    'name': service.name,
+                }
+                for service in BareFiberService.objects.select_related('tenant_group').order_by('tenant_group__name', 'name')
+            ],
+        }
+
+
+class CutoverTaskRelatedCustomersView(PermissionRequiredMixin, View):
+    """Maintain related customers and coordination data from the task detail page."""
+    permission_required = 'netbox_otnfaults.change_cutovertask'
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        task = get_object_or_404(CutoverTask, pk=pk)
+        try:
+            related_customers = json.loads(request.POST.get('related_customers', '[]'))
+        except json.JSONDecodeError:
+            messages.error(request, '关联用户数据格式无效。')
+            return redirect(task.get_absolute_url())
+
+        if not isinstance(related_customers, list):
+            messages.error(request, '关联用户数据必须是数组。')
+            return redirect(task.get_absolute_url())
+
+        task.related_customers = related_customers
+        task.save(update_fields=['related_customers', 'last_updated'])
+        messages.success(request, '已保存关联用户协调维护信息。')
+        return redirect(task.get_absolute_url())
+
+
+class CutoverTaskGeneratePlannedTimeView(PermissionRequiredMixin, View):
+    """Add the current planned cutover time to the task history from detail page."""
+    permission_required = 'netbox_otnfaults.change_cutovertask'
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        task = get_object_or_404(CutoverTask, pk=pk)
+        raw_time = request.POST.get('planned_cutover_time', '').strip()
+        parsed_time = parse_datetime(raw_time)
+        if not raw_time or parsed_time is None:
+            messages.error(request, '请先输入有效的新割接时间。')
+            return redirect(task.get_absolute_url())
+
+        if timezone.is_naive(parsed_time):
+            parsed_time = timezone.make_aware(parsed_time, timezone.get_current_timezone())
+        task.planned_cutover_time = parsed_time
+        new_time = timezone.localtime(parsed_time).strftime('%Y-%m-%d %H:%M:%S')
+        task._normalize_json_list_fields()
+
+        if not task.planned_cutover_times or task.planned_cutover_times[-1] != new_time:
+            task.planned_cutover_times.append(new_time)
+            for customer in task.related_customers:
+                if isinstance(customer, dict):
+                    customer['is_coordinated'] = False
+                    customer['time'] = ''
+                    customer['coordination_time'] = ''
+            task.save(update_fields=['planned_cutover_time', 'planned_cutover_times', 'related_customers', 'last_updated'])
+            messages.success(request, '已生成新的割接时间，并重置关联用户协调状态。')
+        else:
+            messages.info(request, '当前主计划时间已经是最新时间记录。')
+
+        return redirect(task.get_absolute_url())
+
+
+class CutoverTaskEditView(generic.ObjectEditView):
+    """割接管理编辑视图"""
+    queryset = CutoverTask.objects.all()
+    form = CutoverTaskForm
+    template_name = 'netbox_otnfaults/cutovertask_edit.html'
+
+    def get_extra_context(self, request, instance):
+        bare_fiber_services = [
+            {
+                'id': service.pk,
+                'tenant_group': service.tenant_group.name if service.tenant_group else '',
+                'name': service.name,
+            }
+            for service in BareFiberService.objects.select_related('tenant_group').order_by('tenant_group__name', 'name')
+        ]
+        return {
+            'bare_fiber_services': bare_fiber_services,
+        }
+
+    def alter_object(self, obj, request, args, kwargs):
+        if not obj.pk and not getattr(obj, 'registrant_id', None):
+            obj.registrant = request.user
+        return super().alter_object(obj, request, args, kwargs) if hasattr(super(), 'alter_object') else obj
+
+
+class CutoverTaskDeleteView(generic.ObjectDeleteView):
+    """割接管理删除视图"""
+    queryset = CutoverTask.objects.all()
+
+
+class CutoverTaskBulkDeleteView(generic.BulkDeleteView):
+    """割接管理批量删除视图"""
+    queryset = CutoverTask.objects.all()
+    table = CutoverTaskTable
+
+
+@register_model_view(CutoverTask, 'bulk_edit', path='edit', detail=False)
+class CutoverTaskBulkEditView(generic.BulkEditView):
+    """割接管理批量编辑视图"""
+    queryset = CutoverTask.objects.all()
+    filterset = CutoverTaskFilterSet
+    table = CutoverTaskTable
+    form = CutoverTaskBulkEditForm
+
+
+# ========== 割接影响业务视图 ==========
+
+class CutoverImpactListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
+    """割接影响业务列表视图"""
+    queryset = CutoverImpact.objects.all()
+    table = CutoverImpactTable
+    filterset = CutoverImpactFilterSet
+    filterset_form = CutoverImpactFilterForm
+
+
+class CutoverImpactBulkImportView(generic.BulkImportView):
+    """割接影响业务批量导入视图"""
+    queryset = CutoverImpact.objects.all()
+    model = CutoverImpact
+    model_form = CutoverImpactImportForm
+    table = CutoverImpactTable
+
+
+@register_model_view(CutoverImpact)
+class CutoverImpactView(generic.ObjectView):
+    """割接影响业务详情视图"""
+    queryset = CutoverImpact.objects.all()
+
+
+class CutoverImpactEditView(generic.ObjectEditView):
+    """割接影响业务编辑视图"""
+    queryset = CutoverImpact.objects.all()
+    form = CutoverImpactForm
+    template_name = 'netbox_otnfaults/cutoverimpact_edit.html'
+
+    def get_extra_context(self, request, instance):
+        bare_fiber_services = [
+            {
+                'id': service.pk,
+                'tenant_group': service.tenant_group.name if service.tenant_group else '',
+                'name': service.name,
+            }
+            for service in BareFiberService.objects.select_related('tenant_group').order_by('tenant_group__name', 'name')
+        ]
+        return {
+            'bare_fiber_services': bare_fiber_services,
+        }
+
+    def alter_object(self, obj, request, args, kwargs):
+        if not obj.pk:
+            cutover_task_id = request.GET.get('cutover_task')
+            if cutover_task_id:
+                obj.cutover_task_id = cutover_task_id
+        return super().alter_object(obj, request, args, kwargs) if hasattr(super(), 'alter_object') else obj
+
+
+class CutoverImpactDeleteView(generic.ObjectDeleteView):
+    """割接影响业务删除视图"""
+    queryset = CutoverImpact.objects.all()
+
+
+class CutoverImpactBulkDeleteView(generic.BulkDeleteView):
+    """割接影响业务批量删除视图"""
+    queryset = CutoverImpact.objects.all()
+    table = CutoverImpactTable
+
+
+@register_model_view(CutoverImpact, 'bulk_edit', path='edit', detail=False)
+class CutoverImpactBulkEditView(generic.BulkEditView):
+    """割接影响业务批量编辑视图"""
+    queryset = CutoverImpact.objects.all()
+    filterset = CutoverImpactFilterSet
+    table = CutoverImpactTable
+    form = CutoverImpactBulkEditForm
 
 
 # ========== 电路业务视图 ==========

@@ -7,7 +7,8 @@ from .models import (
     FaultCategoryChoices, FaultStatusChoices, UrgencyChoices, 
     MaintenanceModeChoices, RecoveryModeChoices, ResourceTypeChoices, ResourceOwnerChoices,
     CableRouteChoices, CableBreakLocationChoices, ServiceTypeChoices,
-    ServiceGroupChoices, BusinessCategoryChoices, CableTypeChoices
+    ServiceGroupChoices, BusinessCategoryChoices, CableTypeChoices,
+    CutoverTask, CutoverImpact
 )
 
 
@@ -910,6 +911,48 @@ class BareFiberServiceTable(NetBoxTable):
         )
 
 
+class CutoverTaskTable(NetBoxTable):
+    """割接管理列表表格"""
+    cutover_no = tables.Column(linkify=True, verbose_name='割接编号')
+    status = columns.ChoiceFieldColumn(verbose_name='状态')
+    planned_cutover_time = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='计划割接时间')
+    cutover_location = tables.Column(verbose_name='割接具体地点')
+    management_unit = columns.ChoiceFieldColumn(verbose_name='割接管理单位')
+    implementation_unit = tables.Column(verbose_name='割接实施单位')
+    cutover_contact = tables.Column(verbose_name='割接联系人')
+    cutover_result = columns.ChoiceFieldColumn(verbose_name='割接效果')
+    is_timeout = columns.ChoiceFieldColumn(verbose_name='割接是否超时')
+    line_supervisor = tables.Column(linkify=True, verbose_name='线路主管')
+    registered_at = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='登记时间')
+    tags = columns.TagColumn(url_name='plugins:netbox_otnfaults:cutovertask_list')
+
+    class Meta(NetBoxTable.Meta):
+        model = CutoverTask
+        fields = (
+            'pk', 'cutover_no', 'status', 'planned_cutover_time', 'province',
+            'cutover_location', 'management_unit', 'implementation_unit', 'cutover_contact',
+            'cutover_result', 'is_timeout', 'line_supervisor', 'registered_at', 'tags', 'actions',
+        )
+        default_columns = (
+            'cutover_no', 'status', 'planned_cutover_time', 'province', 'cutover_location',
+            'management_unit', 'implementation_unit', 'cutover_contact', 'cutover_result',
+            'is_timeout', 'line_supervisor',
+        )
+
+    def value_status(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_status_display())
+
+    def render_status(self, value, record):
+        color = record.get_status_color() or 'secondary'
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_status_display())
+
+    def value_cutover_result(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_cutover_result_display())
+
+    def value_is_timeout(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_is_timeout_display())
+
+
 class CircuitServiceTable(NetBoxTable):
     """电路业务列表表格"""
     special_line_name = tables.Column(
@@ -1049,3 +1092,138 @@ class SiteHistoryFaultTable(ContractOtnFaultTable):
             'fault_number', 'fault_category', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_duration', 'fault_status', 'progress',
         )
+
+
+class CutoverImpactTable(NetBoxTable):
+    """割接影响业务表格"""
+    cutover_task = tables.Column(
+        linkify=True,
+        verbose_name='割接任务'
+    )
+    service_type = columns.ChoiceFieldColumn(
+        verbose_name='业务类型'
+    )
+    service_name = tables.Column(
+        verbose_name='业务名称',
+        orderable=False,
+        empty_values=()
+    )
+    service_group = tables.Column(
+        verbose_name='业务组',
+        orderable=False,
+        empty_values=()
+    )
+    service_site_a = tables.Column(
+        linkify=True,
+        verbose_name='业务站点A'
+    )
+    service_site_z = tables.ManyToManyColumn(
+        linkify_item=True,
+        verbose_name='业务站点Z'
+    )
+    service_interruption_time = tables.DateTimeColumn(
+        format='Y-m-d H:i:s',
+        verbose_name='业务中断时间'
+    )
+    business_impact = columns.ChoiceFieldColumn(
+        verbose_name='业务影响'
+    )
+    service_recovery_time = tables.DateTimeColumn(
+        format='Y-m-d H:i:s',
+        verbose_name='业务恢复时间'
+    )
+    service_duration = tables.Column(
+        verbose_name='中断历时',
+        orderable=False
+    )
+
+    tags = columns.TagColumn(
+        url_name='plugins:netbox_otnfaults:cutoverimpact_list'
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = CutoverImpact
+        fields = (
+            'pk', 'id', 'cutover_task', 'service_type', 'service_name', 'service_group',
+            'service_site_a', 'service_site_z',
+            'service_duration', 'comments', 'tags', 'actions',
+        )
+        default_columns = (
+            'id', 'cutover_task', 'service_type', 'service_name', 'business_impact',
+            'service_interruption_time', 'service_recovery_time', 'service_duration',
+        )
+
+    def render_service_name(self, record):
+        if record.service_type == 'bare_fiber' and record.bare_fiber_service:
+            url = record.bare_fiber_service.get_absolute_url()
+            name = record.bare_fiber_service.name
+            return format_html('<a href="{}">{}</a>', url, name)
+        elif record.service_type == 'circuit' and record.circuit_service:
+            url = record.circuit_service.get_absolute_url()
+            name = str(record.circuit_service)
+            return format_html('<a href="{}">{}</a>', url, name)
+        return '—'
+
+    def value_service_name(self, record: CutoverImpact) -> str:
+        if record.service_type == 'bare_fiber' and record.bare_fiber_service:
+            return record.bare_fiber_service.name
+        if record.service_type == 'circuit' and record.circuit_service:
+            return str(record.circuit_service)
+        return ''
+
+    def render_service_group(self, record):
+        if record.service_type == 'circuit' and record.circuit_service:
+            return record.circuit_service.get_service_group_display()
+        return '—'
+
+    def render_service_type(self, value, record):
+        color = record.get_service_type_color()
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_service_type_display())
+
+    def value_service_type(self, value: str | None, record: CutoverImpact) -> str:
+        return _display_or_empty(record.get_service_type_display())
+
+
+    def render_service_duration(self, record):
+        info = record.service_duration_info
+        if not info:
+            return '—'
+        color_map = {
+            'green': 'linear-gradient(90deg, #28a745, #34ce57)',
+            'yellow': 'linear-gradient(90deg, #ffc107, #ffda47)',
+            'orange': 'linear-gradient(90deg, #fd7e14, #ff9636)',
+            'red': 'linear-gradient(90deg, #dc3545, #f34b5b)',
+        }
+        fill_bg = color_map.get(info['color'], color_map['green'])
+        return format_html(
+            '<div style="position:relative;width:120px;height:22px;background:#e9ecef;'
+            'border-radius:4px;overflow:hidden;display:inline-block" title="{}">'
+            '<div style="position:absolute;left:0;top:0;bottom:0;width:{}%;'
+            'border-radius:4px;background:{}"></div>'
+            '<span style="position:absolute;width:100%;text-align:center;'
+            'font-size:12px;font-weight:400;line-height:22px;color:#000">{}</span>'
+            '</div>',
+            info['full_text'],
+            info['percentage'],
+            fill_bg,
+            info['display']
+        )
+
+    def value_service_duration(self, record: CutoverImpact) -> str:
+        return _duration_export_value(record.service_duration_info)
+
+
+class CutoverImpactSummaryTable(CutoverImpactTable):
+    """割接详情页嵌入的精简影响业务表格"""
+    class Meta(CutoverImpactTable.Meta):
+        fields = (
+            'id', 'service_type', 'service_name',
+            'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'business_impact', 'service_site_a', 'service_site_z', 'actions',
+        )
+        default_columns = (
+            'id', 'service_type', 'service_name',
+            'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'business_impact', 'service_site_a', 'service_site_z',
+        )
+        exclude = ('cutover_task', 'service_group', 'comments', 'tags', 'pk')

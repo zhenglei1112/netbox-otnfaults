@@ -1,0 +1,49 @@
+{% extends 'generic/object.html' %}
+{% load helpers %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 col-xl-6">
+    <div class="card">
+      <h5 class="card-header">割接影响业务</h5>
+      <table class="table table-hover attr-table mb-0">
+        <tr><th scope="row" style="width:9rem;">割接任务</th><td>{{ object.cutover_task|linkify }}</td></tr>
+        <tr><th scope="row">业务类型</th><td>{{ object.get_service_type_display }}</td></tr>
+        {% if object.service_type == 'bare_fiber' %}
+          <tr><th scope="row">裸纤业务</th><td>{{ object.bare_fiber_service|linkify|default:"—" }}</td></tr>
+          <tr><th scope="row">业务站点A</th><td>{{ object.service_site_a|linkify|default:"—" }}</td></tr>
+          <tr>
+            <th scope="row">业务站点Z</th>
+            <td>
+              {% for site in object.service_site_z.all %}
+                {{ site|linkify }}{% if not forloop.last %}, {% endif %}
+              {% empty %}
+                —
+              {% endfor %}
+            </td>
+          </tr>
+        {% elif object.service_type == 'circuit' %}
+          <tr><th scope="row">电路业务</th><td>{{ object.circuit_service|linkify|default:"—" }}</td></tr>
+        {% endif %}
+        <tr><th scope="row">业务影响</th><td>{{ object.get_business_impact_display }}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h5 class="card-header">时间信息</h5>
+      <table class="table table-hover attr-table mb-0">
+        <tr><th scope="row" style="width:9rem;">业务中断时间</th><td>{% if object.service_interruption_time %}{{ object.service_interruption_time|date:"Y-m-d H:i:s" }}{% else %}—{% endif %}</td></tr>
+        <tr><th scope="row">业务恢复时间</th><td>{% if object.service_recovery_time %}{{ object.service_recovery_time|date:"Y-m-d H:i:s" }}{% else %}—{% endif %}</td></tr>
+        <tr><th scope="row">中断历时</th><td>{{ object.service_duration|default:"—" }}</td></tr>
+      </table>
+    </div>
+
+    {% include 'inc/panels/tags.html' %}
+    {% include 'inc/panels/comments.html' %}
+  </div>
+
+  <div class="col-12 col-xl-6">
+
+  </div>
+</div>
+{% endblock %}

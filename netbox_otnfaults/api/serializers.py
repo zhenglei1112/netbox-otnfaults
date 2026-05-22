@@ -4,7 +4,7 @@ from ..models import (
     OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite,
     BareFiberService, CircuitService, OtnMapPreference, PowerRectificationMeasureChoices,
     PowerRootCauseAnalysisChoices,
-    RecoveryModeChoices,
+    RecoveryModeChoices, CutoverTask, CutoverImpact,
 )
 from django.contrib.auth import get_user_model
 from dcim.models import Site, Region
@@ -271,6 +271,34 @@ class CircuitServiceSerializer(NetBoxModelSerializer):
         )
 
 
+class CutoverTaskSerializer(NetBoxModelSerializer):
+    """割接管理序列化器"""
+    registrant = NestedUserSerializer(required=False)
+    province = NestedRegionSerializer(required=False, allow_null=True)
+    interruption_location_a = NestedSiteSerializer(required=False)
+    interruption_location = NestedSiteSerializer(many=True, required=False)
+    line_supervisor = NestedUserSerializer(required=False, allow_null=True)
+
+    class Meta:
+        model = CutoverTask
+        fields = (
+            'id', 'url', 'display', 'cutover_no', 'status', 'registered_at', 'registrant',
+            'planned_cutover_time', 'planned_cutover_times', 'province', 'cutover_location',
+            'cutover_longitude', 'cutover_latitude', 'interruption_location_a',
+            'interruption_location', 'related_customers', 'cutover_reason', 'resource_type',
+            'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract',
+            'management_unit', 'management_unit_name', 'implementation_unit',
+            'cutover_contact', 'cutover_contact_phone', 'customer_approval_detail',
+            'started_at', 'completed_at', 'closed_at', 'is_timeout', 'timeout_reason',
+            'cutover_result', 'remaining_issues', 'rectification_status',
+            'rectification_measures', 'rectification_description', 'rectification_subject',
+            'rectification_progress', 'planned_completion_time', 'actual_completion_time',
+            'rectification_completion_description', 'line_supervisor', 'planned_impact_minutes',
+            'comments', 'tags', 'custom_fields',
+            'created', 'last_updated',
+        )
+
+
 class OtnMapPreferenceSerializer(NetBoxModelSerializer):
     """地图偏好序列化器"""
     user = NestedUserSerializer(required=False)
@@ -283,3 +311,26 @@ class OtnMapPreferenceSerializer(NetBoxModelSerializer):
         )
         brief_fields = ('id', 'url', 'display', 'user', 'map_mode')
 
+
+class CutoverImpactSerializer(NetBoxModelSerializer):
+    """割接影响业务序列化器"""
+    cutover_task = serializers.PrimaryKeyRelatedField(queryset=CutoverTask.objects.all())
+
+    bare_fiber_service = NestedBareFiberServiceSerializer(required=False, allow_null=True)
+    circuit_service = NestedCircuitServiceSerializer(required=False, allow_null=True)
+    service_site_a = NestedSiteSerializer(required=False, allow_null=True)
+    service_site_z = NestedSiteSerializer(many=True, required=False)
+
+    class Meta:
+        model = CutoverImpact
+        fields = (
+            'id', 'url', 'display', 'cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service',
+            'service_site_a', 'service_site_z',
+            'business_impact', 'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'tags', 'comments', 'custom_fields', 'created', 'last_updated',
+        )
+        brief_fields = (
+            'id', 'url', 'display', 'cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service',
+            'business_impact', 'service_interruption_time', 'service_recovery_time',
+        )
+        read_only_fields = ('service_duration',)

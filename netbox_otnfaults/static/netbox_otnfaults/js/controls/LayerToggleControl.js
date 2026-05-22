@@ -9,12 +9,26 @@
 class LayerToggleControl {
     constructor(options) {
         this.options = options || {};
+        this.floatingMenu = this.options.floatingMenu === true;
         this.sections = Object.assign({
             viewMode: true,
             timeRange: true,
             categories: true,
             topology: true
         }, this.options.sections || {});
+        if (this.options.topologyOnly === true) {
+            this.sections = {
+                viewMode: false,
+                timeRange: false,
+                categories: false,
+                topology: true
+            };
+        }
+        this.boundPositionMenu = () => this.positionMenu();
+        this.boundDocumentClick = (event) => {
+            if (this.container?.contains(event.target) || this.menu?.contains(event.target)) return;
+            this.hideMenu();
+        };
 
         // 默认状态
         this.currentMode = 'smart'; // 'smart' | 'points' | 'heatmap'
@@ -48,9 +62,14 @@ class LayerToggleControl {
 
         // 主按钮图标
         this.button = document.createElement('button');
+        this.button.type = 'button';
         this.button.className = 'maplibregl-ctrl-icon toggle-button bg-transparent';
-        this.button.innerHTML = window.mapBase.svgIcons.filter;
-        this.button.title = this.options.title || '视图与时间设置';
+        this.button.innerHTML = this.options.buttonIcon || window.mapBase.svgIcons.fault;
+        this.button.title = this.options.title || '故障视图与时间设置';
+        this.button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.toggleMenu();
+        });
 
         // Interaction: Hover to show, Leave to hide (with delay)
 
@@ -69,11 +88,19 @@ class LayerToggleControl {
     }
 
     onRemove() {
-        if (this.menu && this.menu.parentNode) {
-            this.menu.parentNode.removeChild(this.menu);
+        this.hideMenu();
+        if (this.container && this.container.parentNode) {
+            this.container.parentNode.removeChild(this.container);
         }
-        this.container.parentNode.removeChild(this.container);
         this.map = undefined;
+    }
+
+    toggleMenu() {
+        if (this.menu) {
+            this.hideMenu();
+            return;
+        }
+        this.showMenu();
     }
 
     showMenu() {
@@ -86,10 +113,7 @@ class LayerToggleControl {
 
     hideMenuWithDelay() {
         this.hideTimer = setTimeout(() => {
-            if (this.menu) {
-                this.container.removeChild(this.menu);
-                this.menu = null;
-            }
+            this.hideMenu();
         }, 200); // 200ms delay
     }
 
@@ -98,9 +122,18 @@ class LayerToggleControl {
 
         const menu = document.createElement('div');
         menu.className = 'heatmap-time-range-menu view-control-menu card shadow bg-body p-2 border border-secondary-subtle';
+        if (this.options.topologyOnly === true) {
+            menu.classList.add('layer-display-menu');
+        }
+        menu.addEventListener('click', (event) => event.stopPropagation());
 
         // Ensure menu is appended to container so mouseleave works for both button and menu
-        this.container.appendChild(menu);
+        if (this.floatingMenu) {
+            menu.classList.add('floating-menu');
+            document.body.appendChild(menu);
+        } else {
+            this.container.appendChild(menu);
+        }
         this.menu = menu;
 
         let hasSection = false;
@@ -114,7 +147,7 @@ class LayerToggleControl {
         if (this.sections.viewMode) {
             // 1. 视图模式选择（卡片式UI）
             addSectionDivider();
-            this.addHeader(menu, '视图模式');
+            this.addHeader(menu, '故障视图模式');
             const modeGroup = document.createElement('div');
             modeGroup.className = 'view-mode-cards';
             modeGroup.style.cssText = 'display: flex; gap: 8px; padding: 8px 12px;';
@@ -146,7 +179,7 @@ class LayerToggleControl {
         if (this.sections.timeRange) {
             // 2. 时间范围选择（滑动条）
             addSectionDivider();
-            this.addHeader(menu, '时间范围');
+            this.addHeader(menu, '故障时间范围');
             this.createTimeSlider(menu);
         }
 
@@ -171,13 +204,40 @@ class LayerToggleControl {
         }
 
         // 定位菜单
-        menu.style.top = '40px';
-        menu.style.left = '0';
+        if (this.floatingMenu) {
+            this.positionMenu();
+            window.addEventListener('resize', this.boundPositionMenu);
+            setTimeout(() => document.addEventListener('click', this.boundDocumentClick), 0);
+        } else {
+            menu.style.top = '0';
+            menu.style.left = '48px';
+        }
 
         // Prevent menu click from propagating to map
         menu.onmouseenter = () => {
             if (this.hideTimer) clearTimeout(this.hideTimer);
         };
+        menu.onmouseleave = () => this.hideMenuWithDelay();
+    }
+
+    positionMenu() {
+        if (!this.menu || !this.container) return;
+
+        const buttonRect = this.container.getBoundingClientRect();
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+        const menuWidth = Math.min(360, Math.max(300, viewportWidth - 24));
+        let left = buttonRect.right + 8;
+
+        if (left + menuWidth > viewportWidth - 12) {
+            left = Math.max(12, viewportWidth - menuWidth - 12);
+        }
+
+        const top = Math.max(8, Math.min(buttonRect.top, viewportHeight - 120));
+        this.menu.style.width = `${menuWidth}px`;
+        this.menu.style.left = `${left}px`;
+        this.menu.style.right = 'auto';
+        this.menu.style.top = `${top}px`;
     }
 
     /* --- UI Helpers --- */
@@ -813,8 +873,11 @@ class LayerToggleControl {
 
     hideMenu() {
         if (this.menu) {
-            document.removeEventListener('click', this.closeHandler);
-            this.container.removeChild(this.menu);
+            document.removeEventListener('click', this.boundDocumentClick);
+            window.removeEventListener('resize', this.boundPositionMenu);
+            if (this.menu.parentNode) {
+                this.menu.parentNode.removeChild(this.menu);
+            }
             this.menu = null;
         }
     }

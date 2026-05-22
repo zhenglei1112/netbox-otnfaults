@@ -223,6 +223,20 @@
   margin: 10px 0 0 10px;
 }
 
+.maplibregl-ctrl-top-center {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.maplibregl-ctrl-top-center > .maplibregl-ctrl {
+  pointer-events: auto;
+  margin: 0 !important;
+}
+
 /* --- Search Control (与现有控件风格一致) --- */
 .search-control {
   position: relative;

@@ -75,7 +75,7 @@ const LocationModePlugin = {
     const map = this.map;
 
     this.searchControl = new SearchControl({});
-    this.mapBase.addControl(this.searchControl, 'top-left');
+    this.mapBase.addControl(this.searchControl, 'top-center');
 
     // 覆盖 onResultClick：picker 模式下直接 flyTo，不依赖 FaultStatisticsControl
     const originalOnResultClick = this.searchControl.onResultClick.bind(this.searchControl);

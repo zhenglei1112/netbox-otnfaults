@@ -129,6 +129,14 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* 当图层显示菜单作为浮动菜单追加到 body 时，统一使用固定定位和高 z-index 覆盖 */
+.view-control-menu.floating-menu {
+    position: fixed !important;
+    z-index: 3000;
+    max-height: min(76vh, 680px);
+    overflow-y: auto;
+}
+
 /* 视图模式卡片容器 */
 .view-mode-cards {
     display: flex;
@@ -209,6 +217,12 @@
 
 .category-item {
     min-height: 24px;
+}
+
+.layer-toggle-control .mdi-layers-outline {
+    font-size: 22px;
+    line-height: 1;
+    color: var(--bs-body-color, #212529);
 }
 
 /* 时间范围滑动条总体样式 */

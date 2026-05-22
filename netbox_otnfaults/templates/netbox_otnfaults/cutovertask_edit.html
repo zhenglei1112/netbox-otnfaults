@@ -1,42 +1,34 @@
 {% extends 'generic/object_edit.html' %}
-{% load form_helpers %}
+{% load form_helpers helpers %}
 
 {% block form %}
 <div class="field-group my-5">
-  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">基础信息</h2></div>
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">割接信息</h2></div>
   <div class="row">
     {% render_field form.cutover_no_display %}
     {% render_field form.status %}
     {% render_field form.registered_at %}
     {% render_field form.registrant %}
-  </div>
-</div>
-
-<div class="field-group my-5">
-  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">计划与地点</h2></div>
-  <div class="row">
-    {% render_field form.planned_cutover_time %}
-    {% render_field form.planned_cutover_times %}
-    {% render_field form.planned_impact_minutes %}
-    {% render_field form.province %}
-    {% render_field form.cutover_location %}
-  </div>
-</div>
-
-<div class="field-group my-5">
-  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">影响范围</h2></div>
-  <div class="row">
-    {% render_field form.interruption_location_a %}
-    {% render_field form.interruption_location %}
-    {% render_field form.cutover_longitude %}
-    {% render_field form.cutover_latitude %}
-    {% render_field form.related_customers %}
+    {% render_field form.management_unit %}
+    {% render_field form.management_unit_name %}
     {% render_field form.cutover_reason %}
   </div>
 </div>
 
 <div class="field-group my-5">
-  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">维护与组织</h2></div>
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">割接位置</h2></div>
+  <div class="row">
+    {% render_field form.province %}
+    {% render_field form.cutover_longitude %}
+    {% render_field form.cutover_latitude %}
+    {% render_field form.cutover_location %}
+    {% render_field form.interruption_location_a %}
+    {% render_field form.interruption_location %}
+  </div>
+</div>
+
+<div class="field-group my-5">
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">资源信息</h2></div>
   <div class="row">
     {% render_field form.resource_type %}
     {% render_field form.cable_route %}
@@ -44,24 +36,39 @@
     {% render_field form.maintenance_mode %}
     {% render_field form.handling_unit %}
     {% render_field form.contract %}
-    {% render_field form.management_unit %}
-    {% render_field form.management_unit_name %}
-    {% render_field form.maintenance_unit %}
-    {% render_field form.implementation_unit %}
   </div>
 </div>
 
 <div class="field-group my-5">
-  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">审核与实施</h2></div>
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">组织联系人</h2></div>
   <div class="row">
+    {% render_field form.implementation_unit %}
     {% render_field form.cutover_contact %}
     {% render_field form.cutover_contact_phone %}
     {% render_field form.line_supervisor %}
-    {% render_field form.customer_approval_result %}
-    {% render_field form.customer_approval_detail %}
+  </div>
+</div>
+
+<div class="field-group my-5">
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">计划割接时间</h2></div>
+  <div class="row">
+    {% render_field form.planned_cutover_time %}
+    {% render_field form.planned_cutover_times %}
+    {% render_field form.planned_impact_minutes %}
+  </div>
+</div>
+
+<div class="field-group my-5">
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">关联用户</h2></div>
+  <div class="row">
+    {% render_field form.related_customers %}
+  </div>
+</div>
+
+<div class="field-group my-5">
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">实施时间线</h2></div>
+  <div class="row">
     {% render_field form.started_at %}
-    {% render_field form.service_interrupted_at %}
-    {% render_field form.service_restored_at %}
     {% render_field form.completed_at %}
     {% render_field form.closed_at %}
   </div>
@@ -69,11 +76,18 @@
 
 <div class="field-group my-5">
   <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">考核与闭环</h2></div>
+  {{ form.customer_approval_detail.as_hidden }}
   <div class="row">
     {% render_field form.is_timeout %}
     {% render_field form.timeout_reason %}
     {% render_field form.cutover_result %}
     {% render_field form.remaining_issues %}
+  </div>
+</div>
+
+<div class="field-group my-5">
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">整改信息</h2></div>
+  <div class="row">
     {% render_field form.rectification_status %}
     {% render_field form.rectification_measures %}
     {% render_field form.rectification_description %}
@@ -82,10 +96,18 @@
     {% render_field form.planned_completion_time %}
     {% render_field form.actual_completion_time %}
     {% render_field form.rectification_completion_description %}
+  </div>
+</div>
+
+<div class="field-group my-5">
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">其他</h2></div>
+  <div class="row">
     {% render_field form.comments %}
     {% render_field form.tags %}
   </div>
 </div>
+
+{{ bare_fiber_services|json_script:"cutover-bare-fiber-services" }}
 
 <script>
 (function() {
@@ -482,6 +504,7 @@
         // 5. 绑定添加事件
         btnAddRecord.addEventListener('click', function() {
             const newTime = mainTimeInput.value.trim();
+            const regenerateConfirmMessage = '生成新的割接时间，需要重新与每个关联用户确认（会清理掉已有的关联用户确认状态），确定要生成吗？';
             if (!newTime) {
                 alert('请先在输入框中选择或输入一个计划割接时间');
                 return;
@@ -501,8 +524,12 @@
             }
 
             if (times.length === 0 || times[times.length - 1] !== newTime) {
+                if (!confirm(regenerateConfirmMessage)) {
+                    return;
+                }
                 times.push(newTime);
                 timesJsonInput.value = JSON.stringify(times);
+                window.dispatchEvent(new CustomEvent('cutover:planned-time-regenerated'));
                 renderHistory();
             } else {
                 alert('该时间已是最新记录');
@@ -539,7 +566,7 @@
                                 <tr>
                                     <th class="ps-3">租户组</th>
                                     <th>业务名称</th>
-                                    <th>是否协调</th>
+                                    <th>已协调</th>
                                     <th>协调时间</th>
                                     <th class="text-end pe-3">操作</th>
                                 </tr>
@@ -733,6 +760,310 @@
 
         renderTable();
     }
+
+    initRelatedCustomers = function() {
+        const jsonInput = document.getElementById('id_related_customers');
+        const servicesDataEl = document.getElementById('cutover-bare-fiber-services');
+        if (!jsonInput || !servicesDataEl) return;
+
+        const bareFiberServices = JSON.parse(servicesDataEl.textContent || '[]');
+        jsonInput.style.display = 'none';
+        const fieldRow = jsonInput.closest('.row');
+        if (fieldRow) {
+            fieldRow.style.display = 'none';
+        }
+        const wrapper = fieldRow && fieldRow.parentNode ? fieldRow.parentNode : jsonInput.parentNode;
+        let customers = parseCustomers();
+
+        const container = document.createElement('div');
+        container.className = 'row mb-3 related-customers-ui';
+        container.innerHTML = `
+            <div class="col-sm-3 text-end">
+                <label class="col-form-label">关联用户</label>
+            </div>
+            <div class="col-sm-9">
+                <div class="card mb-0 shadow-sm border-0" style="border: 1px solid #e2e5e8 !important;">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <span class="text-muted small"><i class="mdi mdi-account-group-outline me-1"></i>裸纤业务关联记录</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btn-set-customers">
+                            <i class="mdi mdi-account-multiple-check-outline"></i> 设置关联用户
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0" id="customers-table">
+                                <thead class="table-light text-muted">
+                                    <tr>
+                                        <th class="ps-3">租户组</th>
+                                        <th>业务名称</th>
+                                        <th style="width: 120px;">已协调</th>
+                                        <th style="width: 220px;">协调时间</th>
+                                        <th class="text-end pe-3">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+              <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0"><i class="mdi mdi-account-multiple-check-outline me-1"></i>设置关联用户</h6>
+                    <button type="button" class="btn-close" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body p-0">
+                    <div class="table-responsive" style="max-height: 60vh;">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light text-muted sticky-top">
+                                <tr>
+                                    <th class="ps-3" style="width: 48px;"></th>
+                                    <th>租户组</th>
+                                    <th>业务名称</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bare-fiber-service-options"></tbody>
+                        </table>
+                    </div>
+                  </div>
+                  <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" id="btn-cancel-customers">取消</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="btn-save-customers">保存选择</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+        `;
+
+        if (fieldRow && fieldRow.nextSibling) {
+            wrapper.insertBefore(container, fieldRow.nextSibling);
+        } else {
+            wrapper.appendChild(container);
+        }
+
+        const tbody = container.querySelector('#customers-table tbody');
+        const optionsBody = container.querySelector('#bare-fiber-service-options');
+        const modalEl = container.querySelector('#customerModal');
+        let backdrop = null;
+
+        function escapeHtml(value) {
+            return String(value || '').replace(/[&<>"']/g, function(ch) {
+                return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch];
+            });
+        }
+
+        function parseCustomers() {
+            try {
+                if (jsonInput.value && jsonInput.value !== 'null' && jsonInput.value !== '[]') {
+                    const parsed = JSON.parse(jsonInput.value.replace(/'/g, '"'));
+                    if (Array.isArray(parsed)) {
+                        return parsed.map(normalizeCustomer);
+                    }
+                }
+            } catch(e) {
+                console.warn('解析关联用户失败:', e);
+            }
+            return [];
+        }
+
+        function normalizeCustomer(item) {
+            return {
+                service_id: item.service_id || item.id || null,
+                tenant: item.tenant || item.tenant_group || '',
+                business: item.business || item.name || '',
+                is_coordinated: Boolean(item.is_coordinated),
+                time: item.time || item.coordination_time || ''
+            };
+        }
+
+        function syncJsonInput() {
+            jsonInput.value = JSON.stringify(customers);
+        }
+
+        function initializeTimePickers() {
+            if (!window.flatpickr) return;
+            tbody.querySelectorAll('.customer-coordination-time').forEach(input => {
+                if (!input._flatpickr) {
+                    window.flatpickr(input, {
+                        enableTime: true,
+                        dateFormat: "Y-m-d H:i",
+                        time_24hr: true
+                    });
+                }
+            });
+        }
+
+        function renderTable() {
+            tbody.innerHTML = '';
+            if (customers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3 small">暂无关联用户记录</td></tr>';
+                syncJsonInput();
+                return;
+            }
+
+            customers.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                const checked = item.is_coordinated ? 'checked' : '';
+                const disabled = item.is_coordinated ? '' : 'disabled';
+                tr.innerHTML = `
+                    <td class="align-middle ps-3 text-break" style="max-width: 150px;">${escapeHtml(item.tenant) || '-'}</td>
+                    <td class="align-middle text-break" style="max-width: 180px;">${escapeHtml(item.business) || '-'}</td>
+                    <td class="align-middle">
+                        <input type="checkbox" class="form-check-input customer-coordinated" data-index="${index}" ${checked}>
+                    </td>
+                    <td class="align-middle">
+                        <input type="text" class="form-control form-control-sm customer-coordination-time" data-index="${index}" value="${escapeHtml(item.time)}" placeholder="YYYY-MM-DD HH:MM" ${disabled}>
+                    </td>
+                    <td class="text-end align-middle pe-3">
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0 m-0" data-index="${index}" title="删除记录">
+                            <i class="mdi mdi-trash-can-outline fs-5"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            tbody.querySelectorAll('.customer-coordinated').forEach(input => {
+                input.addEventListener('change', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    const timeInput = tbody.querySelector(`.customer-coordination-time[data-index="${index}"]`);
+                    customers[index].is_coordinated = this.checked;
+                    if (timeInput) {
+                        timeInput.disabled = !this.checked;
+                        if (!this.checked) {
+                            if (timeInput._flatpickr) {
+                                timeInput._flatpickr.clear();
+                            } else {
+                                timeInput.value = '';
+                            }
+                            customers[index].time = '';
+                        }
+                    }
+                    syncJsonInput();
+                });
+            });
+
+            tbody.querySelectorAll('.customer-coordination-time').forEach(input => {
+                input.addEventListener('change', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    customers[index].time = this.value.trim();
+                    syncJsonInput();
+                });
+            });
+
+            tbody.querySelectorAll('button[data-index]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    customers.splice(index, 1);
+                    renderTable();
+                });
+            });
+
+            initializeTimePickers();
+            syncJsonInput();
+        }
+
+        function renderOptions() {
+            const selectedIds = new Set(
+                customers
+                    .filter(item => item.service_id)
+                    .map(item => String(item.service_id))
+            );
+
+            if (bareFiberServices.length === 0) {
+                optionsBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3 small">暂无裸纤业务</td></tr>';
+                return;
+            }
+
+            optionsBody.innerHTML = '';
+            bareFiberServices.forEach(service => {
+                const serviceId = String(service.id);
+                const checked = selectedIds.has(serviceId) ? 'checked' : '';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="ps-3 align-middle">
+                        <input type="checkbox" class="form-check-input bare-fiber-service-checkbox" value="${escapeHtml(serviceId)}" ${checked}>
+                    </td>
+                    <td class="align-middle text-break">${escapeHtml(service.tenant_group) || '-'}</td>
+                    <td class="align-middle text-break">${escapeHtml(service.name) || '-'}</td>
+                `;
+                tr.addEventListener('click', function(event) {
+                    if (event.target.tagName.toLowerCase() !== 'input') {
+                        const checkbox = tr.querySelector('.bare-fiber-service-checkbox');
+                        checkbox.checked = !checkbox.checked;
+                    }
+                });
+                optionsBody.appendChild(tr);
+            });
+        }
+
+        function showModal() {
+            renderOptions();
+            backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop fade show';
+            backdrop.style.zIndex = '1050';
+            document.body.appendChild(backdrop);
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+            modalEl.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+        }
+
+        function hideModal() {
+            modalEl.classList.remove('show');
+            modalEl.style.display = 'none';
+            modalEl.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+            if (backdrop) {
+                backdrop.remove();
+                backdrop = null;
+            }
+        }
+
+        container.querySelector('#btn-set-customers').addEventListener('click', showModal);
+        container.querySelector('.btn-close').addEventListener('click', hideModal);
+        container.querySelector('#btn-cancel-customers').addEventListener('click', hideModal);
+        container.querySelector('#btn-save-customers').addEventListener('click', function() {
+            const selectedIds = new Set(
+                Array.from(optionsBody.querySelectorAll('.bare-fiber-service-checkbox:checked'))
+                    .map(input => input.value)
+            );
+            const currentByServiceId = new Map(
+                customers
+                    .filter(item => item.service_id)
+                    .map(item => [String(item.service_id), item])
+            );
+            const legacyCustomers = customers.filter(item => !item.service_id);
+            const selectedCustomers = bareFiberServices
+                .filter(service => selectedIds.has(String(service.id)))
+                .map(service => {
+                    const existing = currentByServiceId.get(String(service.id));
+                    return existing || {
+                        service_id: service.id,
+                        tenant: service.tenant_group || '',
+                        business: service.name || '',
+                        is_coordinated: false,
+                        time: ''
+                    };
+                });
+
+            customers = legacyCustomers.concat(selectedCustomers);
+            hideModal();
+            renderTable();
+        });
+
+        window.addEventListener('cutover:planned-time-regenerated', function() {
+            customers.forEach(item => {
+                item.is_coordinated = false;
+                item.time = '';
+            });
+            renderTable();
+        });
+
+        renderTable();
+    };
 
     if (document.readyState === 'complete') {
         setTimeout(initMapPicker, 200);

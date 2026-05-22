@@ -1,7 +1,7 @@
 from netbox.plugins import PluginMenu, PluginMenuItem, PluginMenuButton
 
 menu = PluginMenu(
-    label='故障管理',
+    label='故障与割接',
     groups=(
         ('故障', (
             PluginMenuItem(
@@ -27,6 +27,39 @@ menu = PluginMenu(
                         title='添加',
                         icon_class='mdi mdi-plus-thick',
                         permissions=['netbox_otnfaults.add_otnfaultimpact'],
+                    ),
+                )
+            ),
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:statistics',
+                link_text='故障统计',
+                permissions=['netbox_otnfaults.view_otnfault'],
+            ),
+        )),
+        ('割接', (
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:cutovertask_list',
+                link_text='割接管理',
+                permissions=['netbox_otnfaults.view_cutovertask'],
+                buttons=(
+                    PluginMenuButton(
+                        link='plugins:netbox_otnfaults:cutovertask_add',
+                        title='添加',
+                        icon_class='mdi mdi-plus-thick',
+                        permissions=['netbox_otnfaults.add_cutovertask'],
+                    ),
+                )
+            ),
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:cutoverimpact_list',
+                link_text='割接影响业务',
+                permissions=['netbox_otnfaults.view_cutoverimpact'],
+                buttons=(
+                    PluginMenuButton(
+                        link='plugins:netbox_otnfaults:cutoverimpact_add',
+                        title='添加',
+                        icon_class='mdi mdi-plus-thick',
+                        permissions=['netbox_otnfaults.add_cutoverimpact'],
                     ),
                 )
             ),
@@ -90,7 +123,7 @@ menu = PluginMenu(
         ('地图', (
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:otnfault_map_globe',
-                link_text='故障分布图',
+                link_text='一张图',
                 permissions=['netbox_otnfaults.view_otnfault'],
             ),
             PluginMenuItem(
@@ -101,11 +134,6 @@ menu = PluginMenu(
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:dashboard',
                 link_text='态势大屏',
-                permissions=['netbox_otnfaults.view_otnfault'],
-            ),
-            PluginMenuItem(
-                link='plugins:netbox_otnfaults:statistics',
-                link_text='故障统计',
                 permissions=['netbox_otnfaults.view_otnfault'],
             ),
         )),

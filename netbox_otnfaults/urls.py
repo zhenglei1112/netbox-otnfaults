@@ -32,6 +32,30 @@ urlpatterns = [
     path('impacts/<int:pk>/delete/', views.OtnFaultImpactDeleteView.as_view(), name='otnfaultimpact_delete'),
     path('impacts/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='otnfaultimpact_changelog', kwargs={'model': models.OtnFaultImpact}),
 
+    # 割接管理 (CutoverTask)
+    path('cutovers/', views.CutoverTaskListView.as_view(), name='cutovertask_list'),
+    path('cutovers/add/', views.CutoverTaskEditView.as_view(), name='cutovertask_add'),
+    path('cutovers/import/', views.CutoverTaskBulkImportView.as_view(), name='cutovertask_bulk_import'),
+    path('cutovers/edit/', views.CutoverTaskBulkEditView.as_view(), name='cutovertask_bulk_edit'),
+    path('cutovers/bulk-delete/', views.CutoverTaskBulkDeleteView.as_view(), name='cutovertask_bulk_delete'),
+    path('cutovers/<int:pk>/related-customers/', views.CutoverTaskRelatedCustomersView.as_view(), name='cutovertask_related_customers'),
+    path('cutovers/<int:pk>/generate-planned-time/', views.CutoverTaskGeneratePlannedTimeView.as_view(), name='cutovertask_generate_planned_time'),
+    path('cutovers/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'cutovertask'))),
+    path('cutovers/<int:pk>/edit/', views.CutoverTaskEditView.as_view(), name='cutovertask_edit'),
+    path('cutovers/<int:pk>/delete/', views.CutoverTaskDeleteView.as_view(), name='cutovertask_delete'),
+    path('cutovers/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='cutovertask_changelog', kwargs={'model': models.CutoverTask}),
+
+    # 割接影响业务 (CutoverImpact)
+    path('cutover-impacts/', views.CutoverImpactListView.as_view(), name='cutoverimpact_list'),
+    path('cutover-impacts/add/', views.CutoverImpactEditView.as_view(), name='cutoverimpact_add'),
+    path('cutover-impacts/import/', views.CutoverImpactBulkImportView.as_view(), name='cutoverimpact_bulk_import'),
+    path('cutover-impacts/edit/', views.CutoverImpactBulkEditView.as_view(), name='cutoverimpact_bulk_edit'),
+    path('cutover-impacts/bulk-delete/', views.CutoverImpactBulkDeleteView.as_view(), name='cutoverimpact_bulk_delete'),
+    path('cutover-impacts/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'cutoverimpact'))),
+    path('cutover-impacts/<int:pk>/edit/', views.CutoverImpactEditView.as_view(), name='cutoverimpact_edit'),
+    path('cutover-impacts/<int:pk>/delete/', views.CutoverImpactDeleteView.as_view(), name='cutoverimpact_delete'),
+    path('cutover-impacts/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='cutoverimpact_changelog', kwargs={'model': models.CutoverImpact}),
+
     # 光缆路径 (OtnPath)
     path('paths/', views.OtnPathListView.as_view(), name='otnpath_list'),
     path('paths/add/', views.OtnPathEditView.as_view(), name='otnpath_add'),

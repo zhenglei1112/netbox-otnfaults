@@ -26,6 +26,14 @@ LAYER_TOGGLE_CONTROL_PATH = (
     / "controls"
     / "LayerToggleControl.js"
 )
+MAP_CONTROLS_CSS_PATH = (
+    REPO_ROOT
+    / "netbox_otnfaults"
+    / "static"
+    / "netbox_otnfaults"
+    / "css"
+    / "otnfault_map_controls.css"
+)
 
 
 class FaultMapPathGroupOverlayTestCase(unittest.TestCase):
@@ -64,6 +72,22 @@ class FaultMapPathGroupOverlayTestCase(unittest.TestCase):
         self.assertIn("pathGroupOverlaysUrl: this.config.pathGroupOverlaysUrl", source)
         self.assertIn("enablePathGroupOverlays: true", source)
 
+    def test_fault_mode_separates_layer_display_control_to_right_toolbar(self) -> None:
+        source = FAULT_MODE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("layerVisibilityControl: null", source)
+        self.assertIn("this.layerToggleControl = new LayerToggleControl({", source)
+        self.assertIn("topology: false", source)
+        self.assertIn("this.layerVisibilityControl = new LayerToggleControl({", source)
+        self.assertIn("title: \"图层显示\"", source)
+        self.assertIn("buttonIcon: '<i class=\"mdi mdi-layers-outline\"></i>'", source)
+        self.assertIn("floatingMenu: true", source)
+        self.assertIn("topologyOnly: true", source)
+        self.assertIn('this.mapBase.addControl(this.layerVisibilityControl, "top-right")', source)
+        self.assertIn("this._placeLayerVisibilityControlAboveMapStyle();", source)
+        self.assertIn("styleControl.parentNode.insertBefore(this.layerVisibilityControl.container, styleControl)", source)
+        self.assertIn("window.layerVisibilityControl = this.layerVisibilityControl", source)
+
     def test_map_modes_cache_bust_layer_toggle_control(self) -> None:
         source = MAP_MODES_PATH.read_text(encoding="utf-8")
 
@@ -84,6 +108,28 @@ class FaultMapPathGroupOverlayTestCase(unittest.TestCase):
         self.assertIn("refreshPathGroupOverlaySources()", source)
         self.assertIn("line-color\": \"#FFD700\"", source)
         self.assertIn("circle-color\": [\"get\", \"color\"]", source)
+
+    def test_layer_toggle_supports_floating_layer_display_menu(self) -> None:
+        source = LAYER_TOGGLE_CONTROL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("this.floatingMenu = this.options.floatingMenu === true", source)
+        self.assertIn("this.button.innerHTML = this.options.buttonIcon || window.mapBase.svgIcons.filter", source)
+        self.assertIn("menu.classList.add('layer-display-menu')", source)
+        self.assertIn("document.body.appendChild(menu)", source)
+        self.assertIn("positionMenu()", source)
+        self.assertIn("const buttonRect = this.container.getBoundingClientRect()", source)
+        self.assertIn("const rightOfMenu = viewportWidth - buttonRect.left + 8", source)
+        self.assertNotIn("getMenuAnchorRect()", source)
+        self.assertNotIn("querySelector('.map-style-control')", source)
+        self.assertIn("window.addEventListener('resize', this.boundPositionMenu)", source)
+        self.assertIn("document.removeEventListener('click', this.boundDocumentClick)", source)
+
+    def test_layer_display_icon_matches_right_toolbar_icon_scale(self) -> None:
+        css_source = MAP_CONTROLS_CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".layer-toggle-control .mdi-layers-outline", css_source)
+        self.assertIn("font-size: 22px;", css_source)
+        self.assertIn("line-height: 1;", css_source)
 
     def test_path_group_overlays_are_inserted_above_fault_map_layers(self) -> None:
         source = LAYER_TOGGLE_CONTROL_PATH.read_text(encoding="utf-8")

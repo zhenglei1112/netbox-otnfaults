@@ -10,7 +10,9 @@ from .models import (
     PowerRectificationSubjectChoices, PowerRectificationProgressChoices,
     OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite, BareFiberService,
     CircuitService, ServiceGroupChoices, BusinessCategoryChoices, ServiceTypeChoices,
-    BusinessImpactChoices, CircuitOperationStatusChoices, SLALevelChoices
+    BusinessImpactChoices, CircuitOperationStatusChoices, SLALevelChoices,
+    CutoverTask, CutoverImpact, CutoverStatusChoices,
+    CutoverTimeoutStatusChoices, CutoverResultChoices, CutoverManagementUnitChoices
 )
 import json
 
@@ -1660,3 +1662,332 @@ class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
     )
 
     nullable_fields = ('service_group', 'business_category', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time')
+
+
+class CutoverTaskForm(NetBoxModelForm):
+    """割接管理编辑表单"""
+    cutover_one_row_fields = (
+        'cutover_location',
+    )
+    cutover_two_row_fields = (
+        'planned_cutover_times',
+        'related_customers',
+        'cutover_reason',
+        'customer_approval_detail',
+        'timeout_reason',
+        'remaining_issues',
+        'rectification_description',
+        'rectification_completion_description',
+    )
+
+    cutover_no_display = forms.CharField(
+        required=False,
+        label='割接编号',
+        disabled=True,
+        help_text='割接编号创建后不可修改'
+    )
+    registrant = DynamicModelChoiceField(queryset=get_user_model().objects.all(), label='登记人')
+    province = DynamicModelChoiceField(queryset=Region.objects.all(), required=False, label='省份')
+    interruption_location_a = DynamicModelChoiceField(queryset=Site.objects.all(), label='割接位置A端站点')
+    interruption_location = DynamicModelMultipleChoiceField(queryset=Site.objects.all(), required=False, label='割接影响Z端站点')
+    handling_unit = DynamicModelChoiceField(queryset=ServiceProvider.objects.all(), required=False, label='代维方/租赁方')
+    contract = DynamicModelChoiceField(
+        queryset=Contract.objects.all(),
+        required=False,
+        label='代维/租赁合同',
+        query_params={
+            'external_party_object': '$handling_unit',
+        }
+    )
+    line_supervisor = DynamicModelChoiceField(queryset=get_user_model().objects.all(), required=False, label='线路主管')
+    related_customers = forms.JSONField(required=False, label='设置关联用户')
+    planned_cutover_times = forms.JSONField(required=False, label='计划割接时间记录')
+    customer_approval_detail = forms.JSONField(required=False, label='客户审核明细')
+    comments = CommentField(label='评论')
+
+    fieldsets = (
+        FieldSet('cutover_no_display', 'status', 'registered_at', 'registrant', 'management_unit', 'management_unit_name', 'cutover_reason', name='割接信息'),
+        FieldSet('province', 'cutover_longitude', 'cutover_latitude', 'cutover_location', 'interruption_location_a', 'interruption_location', name='割接位置'),
+        FieldSet('resource_type', 'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract', name='资源信息'),
+        FieldSet('implementation_unit', 'cutover_contact', 'cutover_contact_phone', 'line_supervisor', name='组织联系人'),
+        FieldSet('planned_cutover_time', 'planned_cutover_times', 'planned_impact_minutes', name='计划割接时间'),
+        FieldSet('related_customers', name='关联用户'),
+        FieldSet('started_at', 'completed_at', 'closed_at', name='实施时间线'),
+        FieldSet('customer_approval_detail', 'is_timeout', 'timeout_reason', 'cutover_result', 'remaining_issues', name='考核与闭环'),
+        FieldSet('rectification_status', 'rectification_measures', 'rectification_description', 'rectification_subject', 'rectification_progress', 'planned_completion_time', 'actual_completion_time', 'rectification_completion_description', name='整改信息'),
+        FieldSet('comments', 'tags', name='其他'),
+    )
+
+    class Meta:
+        model = CutoverTask
+        fields = (
+            'status', 'registered_at', 'registrant', 'planned_cutover_time', 'planned_cutover_times',
+            'province', 'cutover_location', 'cutover_longitude', 'cutover_latitude',
+            'interruption_location_a', 'interruption_location', 'related_customers', 'cutover_reason',
+            'resource_type', 'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract',
+            'management_unit', 'management_unit_name', 'implementation_unit',
+            'cutover_contact', 'cutover_contact_phone', 'customer_approval_detail',
+            'started_at', 'completed_at', 'closed_at',
+            'is_timeout', 'timeout_reason', 'cutover_result', 'remaining_issues',
+            'rectification_status', 'rectification_measures', 'rectification_description', 'rectification_subject',
+            'rectification_progress', 'planned_completion_time', 'actual_completion_time',
+            'rectification_completion_description', 'line_supervisor', 'planned_impact_minutes',
+            'comments', 'tags',
+        )
+        widgets = {
+            'registered_at': DateTimePicker(),
+            'planned_cutover_time': DateTimePicker(),
+            'started_at': DateTimePicker(),
+            'completed_at': DateTimePicker(),
+            'closed_at': DateTimePicker(),
+            'planned_completion_time': DateTimePicker(),
+            'actual_completion_time': DateTimePicker(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['cutover_no_display'].initial = getattr(self.instance, 'cutover_no', '') or '保存后自动生成'
+        for field_name in self.cutover_one_row_fields:
+            if field_name in self.fields:
+                self.fields[field_name].widget.attrs['rows'] = 1
+        for field_name in self.cutover_two_row_fields:
+            if field_name in self.fields:
+                self.fields[field_name].widget.attrs['rows'] = 2
+
+    def _clean_json_list_field(self, field_name: str) -> list[object]:
+        value = self.cleaned_data.get(field_name)
+        if value in (None, ''):
+            return []
+        if isinstance(value, list):
+            return value
+        raise ValidationError('请输入有效的 JSON 数组。')
+
+    def clean_planned_cutover_times(self) -> list[object]:
+        return self._clean_json_list_field('planned_cutover_times')
+
+    def clean_related_customers(self) -> list[object]:
+        return self._clean_json_list_field('related_customers')
+
+    def clean_customer_approval_detail(self) -> list[object]:
+        return self._clean_json_list_field('customer_approval_detail')
+
+
+class CutoverTaskFilterForm(NetBoxModelFilterSetForm):
+    """割接管理过滤表单"""
+    model = CutoverTask
+    tag = TagFilterField(CutoverTask)
+    registrant = DynamicModelChoiceField(queryset=get_user_model().objects.all(), required=False, label='登记人')
+    line_supervisor = DynamicModelChoiceField(queryset=get_user_model().objects.all(), required=False, label='线路主管')
+    province = DynamicModelChoiceField(queryset=Region.objects.all(), required=False, label='省份')
+    interruption_location_a = DynamicModelChoiceField(queryset=Site.objects.all(), required=False, label='割接位置A端站点')
+    status = forms.ChoiceField(choices=add_blank_choice(CutoverStatusChoices), required=False, label='状态')
+    management_unit = forms.ChoiceField(choices=add_blank_choice(CutoverManagementUnitChoices), required=False, label='割接管理单位')
+    is_timeout = forms.ChoiceField(choices=add_blank_choice(CutoverTimeoutStatusChoices), required=False, label='割接是否超时')
+    cutover_result = forms.ChoiceField(choices=add_blank_choice(CutoverResultChoices), required=False, label='割接效果')
+    planned_cutover_time_after = forms.DateTimeField(required=False, label='计划割接时间（开始）', widget=DateTimePicker())
+    planned_cutover_time_before = forms.DateTimeField(required=False, label='计划割接时间（结束）', widget=DateTimePicker())
+
+    fieldsets = (
+        FieldSet('q', 'filter_id', 'tag'),
+        FieldSet('cutover_no', 'status', 'province', 'management_unit', 'is_timeout', 'cutover_result', 'registrant', 'line_supervisor', 'interruption_location_a', name='割接信息'),
+        FieldSet('planned_cutover_time_after', 'planned_cutover_time_before', name='计划时间'),
+    )
+
+
+class CutoverTaskImportForm(NetBoxModelImportForm):
+    """割接管理导入表单"""
+    registrant = CSVModelChoiceField(queryset=get_user_model().objects.all(), to_field_name='username', help_text='登记人用户名')
+    interruption_location_a = CSVModelChoiceField(queryset=Site.objects.all(), to_field_name='name', help_text='割接位置A端站点')
+    interruption_location = CSVModelMultipleChoiceField(queryset=Site.objects.all(), to_field_name='name', required=False, help_text='割接影响Z端站点')
+    line_supervisor = CSVModelChoiceField(queryset=get_user_model().objects.all(), to_field_name='username', required=False, help_text='线路主管用户名')
+
+    class Meta:
+        model = CutoverTask
+        fields = (
+            'status', 'registered_at', 'registrant', 'planned_cutover_time', 'planned_cutover_times',
+            'province', 'cutover_location', 'cutover_longitude', 'cutover_latitude',
+            'interruption_location_a', 'interruption_location', 'related_customers', 'cutover_reason',
+            'resource_type', 'cable_route', 'resource_owner', 'maintenance_mode',
+            'management_unit', 'management_unit_name', 'implementation_unit',
+            'cutover_contact', 'cutover_contact_phone', 'customer_approval_detail',
+            'started_at', 'completed_at', 'closed_at',
+            'is_timeout', 'timeout_reason', 'cutover_result', 'remaining_issues',
+            'line_supervisor', 'planned_impact_minutes', 'comments', 'tags',
+        )
+
+
+class CutoverTaskBulkEditForm(NetBoxModelBulkEditForm):
+    """割接管理批量编辑表单"""
+    model = CutoverTask
+    status = forms.ChoiceField(choices=add_blank_choice(CutoverStatusChoices), required=False, label='状态')
+    management_unit = forms.ChoiceField(choices=add_blank_choice(CutoverManagementUnitChoices), required=False, label='割接管理单位')
+    is_timeout = forms.ChoiceField(choices=add_blank_choice(CutoverTimeoutStatusChoices), required=False, label='割接是否超时')
+    cutover_result = forms.ChoiceField(choices=add_blank_choice(CutoverResultChoices), required=False, label='割接效果')
+    planned_cutover_time = forms.DateTimeField(required=False, label='计划割接时间', widget=DateTimePicker())
+    line_supervisor = DynamicModelChoiceField(queryset=get_user_model().objects.all(), required=False, label='线路主管')
+    comments = CommentField(label='评论')
+
+    fieldsets = (
+        FieldSet('status', 'planned_cutover_time', 'management_unit', 'is_timeout', 'cutover_result', 'line_supervisor', 'comments', name='割接管理'),
+    )
+    nullable_fields = ('planned_cutover_time', 'line_supervisor', 'comments')
+
+
+def _build_circuit_service_catalog() -> tuple[list[dict[str, Any]], str, list[tuple[str, str]]]:
+    circuit_services = list(
+        CircuitService.objects.order_by('business_category', 'service_group', 'special_line_name', 'name').values(
+            'pk', 'business_category', 'service_group', 'special_line_name', 'name'
+        )
+    )
+    business_category_label_map = {value: label for value, label, *_ in BusinessCategoryChoices.CHOICES}
+    service_group_label_map = {value: label for value, label, *_ in ServiceGroupChoices.CHOICES}
+    for service in circuit_services:
+        service['business_category_label'] = business_category_label_map.get(service['business_category'], service['business_category'])
+        service['service_group_label'] = service_group_label_map.get(service['service_group'], service['service_group'])
+    special_line_choices = [('', '---------')]
+    for service in circuit_services:
+        label = service['special_line_name']
+        if service['name']:
+            label = f"{label} ({service['name']})"
+        special_line_choices.append((str(service['pk']), label))
+    return circuit_services, json.dumps(circuit_services, ensure_ascii=False), special_line_choices
+
+
+class CutoverImpactImportForm(NetBoxModelImportForm):
+    """割接影响业务导入表单"""
+    cutover_task = CSVModelChoiceField(queryset=CutoverTask.objects.all(), to_field_name='cutover_no', help_text='割接编号')
+    bare_fiber_service = CSVModelChoiceField(queryset=BareFiberService.objects.all(), to_field_name='name', required=False, help_text='裸纤业务')
+    circuit_service = CSVModelChoiceField(queryset=CircuitService.objects.all(), to_field_name='name', required=False, help_text='电路业务')
+    service_site_a = CSVModelChoiceField(queryset=Site.objects.all(), to_field_name='name', required=False, help_text='业务站点A')
+    service_site_z = CSVModelMultipleChoiceField(queryset=Site.objects.all(), to_field_name='name', required=False, help_text='业务站点Z')
+
+
+    class Meta:
+        model = CutoverImpact
+        fields = (
+            'cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service',
+            'service_site_a', 'service_site_z', 'business_impact',
+            'service_interruption_time', 'service_recovery_time', 'comments', 'tags',
+        )
+
+
+class CutoverImpactForm(NetBoxModelForm):
+    """割接影响业务编辑表单"""
+    cutover_task = DynamicModelChoiceField(queryset=CutoverTask.objects.all(), label='割接任务')
+    circuit_business_category = forms.ChoiceField(choices=[('', '---------')] + [(v, l) for v, l, *_ in BusinessCategoryChoices.CHOICES], required=False, label='业务门类')
+    circuit_service_group = forms.ChoiceField(choices=[('', '---------')] + [(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES], required=False, label='业务组')
+    circuit_special_line_name = forms.ChoiceField(choices=[('', '---------')], required=False, label='专线名称')
+    bare_fiber_service = DynamicModelChoiceField(queryset=BareFiberService.objects.all(), required=False, label='裸纤业务')
+    circuit_service = forms.ModelChoiceField(queryset=CircuitService.objects.all(), required=False, label='电路业务')
+    service_site_a = DynamicModelChoiceField(queryset=Site.objects.all(), required=False, label='业务站点A')
+    service_site_z = DynamicModelMultipleChoiceField(queryset=Site.objects.all(), required=False, label='业务站点Z')
+
+    comments = CommentField(label='评论')
+
+    fieldsets = (
+        FieldSet('cutover_task', name='割接任务'),
+        FieldSet('service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z', 'circuit_business_category', 'circuit_service_group', 'circuit_special_line_name', 'circuit_service', name='业务信息'),
+        FieldSet('business_impact', 'service_interruption_time', 'service_recovery_time', name='影响时间'),
+        FieldSet('comments', 'tags', name='其他'),
+    )
+
+    class Meta:
+        model = CutoverImpact
+        fields = (
+            'cutover_task', 'service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z',
+            'circuit_business_category', 'circuit_service_group', 'circuit_special_line_name', 'circuit_service',
+            'business_impact', 'service_interruption_time', 'service_recovery_time',
+            'comments', 'tags',
+        )
+        widgets = {
+            'service_interruption_time': DateTimePicker(),
+            'service_recovery_time': DateTimePicker(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        initial_data = kwargs.get('initial') or {}
+        super().__init__(*args, **kwargs)
+
+        _circuit_services, service_catalog, special_line_choices = _build_circuit_service_catalog()
+        self.fields['circuit_special_line_name'].choices = special_line_choices
+        self.fields['circuit_special_line_name'].widget.attrs['data-circuit-services'] = service_catalog
+        self.fields['circuit_service'].widget.attrs['data-circuit-services'] = service_catalog
+
+        if self.instance.pk and self.instance.circuit_service:
+            self.fields['circuit_business_category'].initial = self.instance.circuit_service.business_category
+            self.fields['circuit_service_group'].initial = self.instance.circuit_service.service_group
+            self.fields['circuit_special_line_name'].initial = str(self.instance.circuit_service.pk)
+            self.fields['circuit_service'].initial = self.instance.circuit_service.pk
+
+        cutover_task_id = initial_data.get('cutover_task') or getattr(self.instance, 'cutover_task_id', None)
+        if cutover_task_id:
+            try:
+                cutover = CutoverTask.objects.get(pk=cutover_task_id)
+                self.fields['cutover_task'].initial = cutover.pk
+                if cutover.planned_cutover_time:
+                    self.fields['service_interruption_time'].initial = cutover.planned_cutover_time
+                if cutover.interruption_location_a_id:
+                    self.fields['service_site_a'].initial = cutover.interruption_location_a_id
+                z_site_ids = list(cutover.interruption_location.values_list('pk', flat=True))
+                if z_site_ids:
+                    self.fields['service_site_z'].initial = z_site_ids
+            except (CutoverTask.DoesNotExist, ValueError):
+                pass
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data is None:
+            cleaned_data = getattr(self, 'cleaned_data', None) or {}
+        if cleaned_data.get('service_type') != ServiceTypeChoices.CIRCUIT:
+            return cleaned_data
+        selected_service = cleaned_data.get('circuit_service')
+        selected_special_line = cleaned_data.get('circuit_special_line_name')
+        if selected_service or not selected_special_line:
+            return cleaned_data
+        try:
+            cleaned_data['circuit_service'] = CircuitService.objects.get(pk=selected_special_line)
+        except CircuitService.DoesNotExist as exc:
+            raise ValidationError({'circuit_special_line_name': '所选专线名称对应的电路业务不存在。'}) from exc
+        return cleaned_data
+
+
+class CutoverImpactBulkEditForm(NetBoxModelBulkEditForm):
+    """割接影响业务批量编辑表单"""
+    model = CutoverImpact
+    cutover_task = DynamicModelChoiceField(queryset=CutoverTask.objects.all(), required=False, label='割接任务')
+    service_type = forms.ChoiceField(choices=add_blank_choice(ServiceTypeChoices), required=False, label='业务类型')
+    business_impact = forms.ChoiceField(choices=add_blank_choice(BusinessImpactChoices), required=False, label='业务影响')
+    bare_fiber_service = DynamicModelChoiceField(queryset=BareFiberService.objects.all(), required=False, label='裸纤业务')
+    circuit_service = DynamicModelChoiceField(queryset=CircuitService.objects.all(), required=False, label='电路业务')
+    service_interruption_time = forms.DateTimeField(required=False, label='业务中断时间', widget=DateTimePicker())
+    service_recovery_time = forms.DateTimeField(required=False, label='业务恢复时间', widget=DateTimePicker())
+    comments = CommentField(label='评论')
+
+    fieldsets = (
+        FieldSet('cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service', 'business_impact', 'service_interruption_time', 'service_recovery_time', 'comments', name='割接影响业务'),
+    )
+    nullable_fields = ('service_interruption_time', 'service_recovery_time', 'comments', 'bare_fiber_service', 'circuit_service')
+
+
+class CutoverImpactFilterForm(NetBoxModelFilterSetForm):
+    """割接影响业务过滤表单"""
+    model = CutoverImpact
+    tag = TagFilterField(CutoverImpact)
+    cutover_task = DynamicModelChoiceField(queryset=CutoverTask.objects.all(), required=False, label='割接任务')
+
+    service_type = forms.ChoiceField(choices=add_blank_choice(ServiceTypeChoices), required=False, label='业务类型')
+    bare_fiber_service = DynamicModelMultipleChoiceField(queryset=BareFiberService.objects.all(), required=False, label='裸纤业务')
+    circuit_service = DynamicModelMultipleChoiceField(queryset=CircuitService.objects.all(), required=False, label='电路业务')
+    circuit_business_category = forms.MultipleChoiceField(choices=[(v, l) for v, l, *_ in BusinessCategoryChoices.CHOICES], required=False, label='业务门类', widget=forms.SelectMultiple())
+    circuit_service_group = forms.MultipleChoiceField(choices=[(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES], required=False, label='业务组', widget=forms.SelectMultiple())
+    business_impact = forms.ChoiceField(choices=add_blank_choice(BusinessImpactChoices), required=False, label='业务影响')
+    service_interruption_time_after = forms.DateTimeField(required=False, label='业务中断时间（开始）', widget=DateTimePicker())
+    service_interruption_time_before = forms.DateTimeField(required=False, label='业务中断时间（结束）', widget=DateTimePicker())
+    service_recovery_time = forms.DateTimeField(required=False, label='业务恢复时间', widget=DateTimePicker())
+
+    fieldsets = (
+        FieldSet('q', 'filter_id', 'tag'),
+        FieldSet('cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service', 'business_impact', name='业务信息'),
+        FieldSet('circuit_business_category', 'circuit_service_group', name='电路业务'),
+        FieldSet('service_interruption_time_after', 'service_interruption_time_before', 'service_recovery_time', name='时间'),
+    )

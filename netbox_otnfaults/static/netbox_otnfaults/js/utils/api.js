@@ -1,5 +1,5 @@
 /**
- * NetBox OTN 故障分布图 API 工具类
+ * NetBox OTN 一张图 API 工具类
  * 处理所有与后端的数据交互
  */
 

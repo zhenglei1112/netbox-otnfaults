@@ -1,0 +1,609 @@
+{% extends 'generic/object.html' %}
+{% load helpers %}
+{% load l10n %}
+{% load render_table from django_tables2 %}
+{% load otnfault_display %}
+
+{% block content %}
+<div class="row mb-3 cutover-detail">
+  <div class="col col-md-6">
+    <div class="card">
+      <h5 class="card-header">割接信息</h5>
+      <table class="table table-hover attr-table">
+        <tr><th scope="row">割接编号</th><td><span class="fw-bold">{{ object.cutover_no|default:"—" }}</span></td></tr>
+        <tr>
+          <th scope="row">状态</th>
+          <td>
+            <span class="badge bg-{{ object.get_status_color|default:'secondary' }} text-white">{{ object.get_status_display|default:"—" }}</span>
+          </td>
+        </tr>
+        <tr><th scope="row">登记时间</th><td>{% if object.registered_at %}{{ object.registered_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
+        <tr><th scope="row">登记人</th><td>{{ object.registrant|default:"—" }}</td></tr>
+        <tr><th scope="row">割接管理单位</th><td>{{ object.get_management_unit_display|default:"—" }}</td></tr>
+        <tr><th scope="row">管理单位名称</th><td>{{ object.management_unit_name|default:"—" }}</td></tr>
+        <tr><th scope="row">割接原因</th><td>{{ object.cutover_reason|linebreaksbr }}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h5 class="card-header">割接位置</h5>
+      <table class="table table-hover attr-table">
+        <tr>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">割接位置</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">
+            <span class="text-muted small">A端:</span>
+            {% if object.interruption_location_a %}
+              {{ object.interruption_location_a|linkify }}
+            {% else %}
+              —
+            {% endif %}
+            <span class="mx-2 text-muted">/</span>
+            <span class="text-muted small">Z端:</span>
+            {% for site in object.interruption_location.all %}
+              {{ site|linkify }}{% if not forloop.last %}, {% endif %}
+            {% empty %}
+              —
+            {% endfor %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">省份与坐标</span></th>
+          <td class="position-relative" style="overflow-wrap: break-word; word-break: break-word;">
+            {% if object.province %}
+              {{ object.province|linkify }}
+            {% else %}
+              —
+            {% endif %}
+            {% if object.cutover_longitude and object.cutover_latitude %}
+              <span class="mx-2 text-muted">|</span>
+              <span class="text-muted small">GPS:</span>
+              <span>{{ object.cutover_latitude }}, {{ object.cutover_longitude }}</span>
+            {% endif %}
+            <div class="position-absolute top-50 end-0 me-2 translate-middle-y d-print-none">
+              {% url 'plugins:netbox_otnfaults:location_map' as location_map_url %}
+              <a href="{{ location_map_url }}?{% if object.interruption_location_a %}a_site={{ object.interruption_location_a.pk }}&{% endif %}{% if object.interruption_location.all %}z_sites={% for site in object.interruption_location.all %}{{ site.pk }}{% if not forloop.last %},{% endif %}{% endfor %}&{% endif %}{% if object.cutover_latitude and object.cutover_longitude %}q={{ object.cutover_latitude|unlocalize }},{{ object.cutover_longitude|unlocalize }}{% endif %}"
+                target="_blank" class="btn btn-primary btn-sm" style="background-color: #00897b; border-color: #00897b;">
+                <i class="mdi mdi-map-marker"></i> 地图
+              </a>
+            </div>
+          </td>
+        </tr>
+        <tr><th scope="row">割接具体地点</th><td>{{ object.cutover_location|linebreaksbr }}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">计划割接时间</h5>
+        <form method="post" action="{% url 'plugins:netbox_otnfaults:cutovertask_generate_planned_time' object.pk %}" id="generate-planned-time-form" class="m-0 d-flex gap-2 align-items-center">
+          {% csrf_token %}
+          <input type="datetime-local" name="planned_cutover_time" class="form-control form-control-sm" style="width: 210px;" value="{% if object.planned_cutover_time %}{{ object.planned_cutover_time|date:'Y-m-d\\TH:i' }}{% endif %}" required>
+          <button type="button" class="btn btn-ghost-primary btn-sm" onclick="showGeneratePlannedTimeModal()">
+            <i class="mdi mdi-plus"></i> 生成新的割接时间
+          </button>
+        </form>
+      </div>
+      <table class="table table-hover attr-table">
+        <tr><th scope="row">主计划时间</th><td>{% if object.planned_cutover_time %}{{ object.planned_cutover_time|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
+        <tr>
+          <th scope="row">时间记录</th>
+          <td>
+            {% if object.planned_cutover_times %}
+              <ul class="list-group mb-0">
+                {% for time in object.planned_cutover_times reversed %}
+                  <li class="list-group-item cutover-time-record {% if forloop.first %}is-latest{% endif %} d-flex justify-content-between align-items-center py-1 px-2" style="font-size: 0.875rem;">
+                    <span>
+                      <span class="badge bg-secondary text-white rounded-pill me-2" style="font-weight: normal;">第{{ forloop.revcounter }}次</span>
+                      <i class="mdi mdi-clock-outline me-1 text-muted"></i>
+                      {{ time }}
+                      {% if forloop.first %}
+                        <span class="badge bg-success text-white rounded-pill ms-2">最新</span>
+                      {% endif %}
+                    </span>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <span class="text-muted small">暂无历史时间记录</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr><th scope="row">预计影响时长</th><td>{% if object.planned_impact_minutes %}{{ object.planned_impact_minutes }} 分钟{% else %}—{% endif %}</td></tr>
+      </table>
+    </div>
+
+    <style>
+      #generatePlannedTimeBackdrop {
+        background-color: #808080;
+        opacity: 1;
+      }
+      .generate-planned-time-btn {
+        width: 120px;
+      }
+      .generate-planned-time-dialog {
+        width: min(560px, calc(100vw - 2rem));
+        max-width: 560px;
+      }
+      .cutover-customer-dialog {
+        width: min(760px, calc(100vw - 2rem));
+        max-width: 760px;
+      }
+      .cutover-customer-picker {
+        max-height: 52vh;
+      }
+      .cutover-customer-picker .table > :not(caption) > * > * {
+        padding: 0.35rem 0.75rem;
+      }
+      .cutover-detail .attr-table th[scope="row"] {
+        width: clamp(7rem, 14%, 9rem);
+        min-width: 7rem;
+        white-space: nowrap;
+        word-break: keep-all;
+      }
+      .cutover-detail .attr-table td {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      .cutover-time-record {
+        background-color: var(--bs-tertiary-bg);
+        color: var(--bs-body-color);
+        border-color: transparent;
+      }
+      .cutover-time-record.is-latest {
+        background-color: rgba(var(--bs-success-rgb), 0.16);
+        color: var(--bs-body-color);
+      }
+      [data-bs-theme="dark"] .cutover-time-record {
+        background-color: var(--bs-body-bg);
+        border-color: var(--bs-border-color);
+      }
+      [data-bs-theme="dark"] .cutover-time-record.is-latest {
+        background-color: rgba(var(--bs-success-rgb), 0.22);
+      }
+    </style>
+    <div class="modal fade" id="generatePlannedTimeModal" tabindex="-1" aria-labelledby="generatePlannedTimeModalLabel" aria-hidden="true" style="display: none;">
+      <div class="modal-dialog modal-dialog-centered generate-planned-time-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="generatePlannedTimeModalLabel">生成新的割接时间</h5>
+          </div>
+          <div class="modal-body">
+            <p id="generatePlannedTimeStatus" class="mb-0">生成新的割接时间，需要重新与每个关联用户确认，会清理掉已有的关联用户确认状态和协调时间，确定生成吗？</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary generate-planned-time-btn" id="generatePlannedTimeConfirmBtn" onclick="submitGeneratePlannedTimeForm()">
+              确认生成
+            </button>
+            <button type="button" class="btn btn-secondary generate-planned-time-btn" id="generatePlannedTimeCloseBtn" onclick="hideGeneratePlannedTimeModal()">
+              取消
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-backdrop fade show" id="generatePlannedTimeBackdrop" style="display: none;"></div>
+
+    <form method="post" action="{% url 'plugins:netbox_otnfaults:cutovertask_related_customers' object.pk %}" id="cutover-related-customers-form" class="card">
+      {% csrf_token %}
+      <input type="hidden" name="related_customers" id="cutover-related-customers-json">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="mdi mdi-account-group-outline me-1"></i>
+          关联用户
+        </h5>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-ghost-primary btn-sm" id="btn-set-related-customers">
+            <i class="mdi mdi-account-multiple-plus-outline"></i> 设置关联用户
+          </button>
+          <button type="submit" class="btn btn-ghost-primary btn-sm">
+            保存协调信息
+          </button>
+        </div>
+      </div>
+      <div class="table-responsive cutover-related-customers-table">
+        <table class="table table-hover table-sm mb-0" id="cutover-related-customers-table">
+          <thead class="table-light text-muted">
+            <tr>
+              <th class="ps-3">租户组</th>
+              <th>业务名称</th>
+              <th style="width: 120px;">已协调</th>
+              <th style="width: 220px;">协调时间</th>
+              <th class="text-end pe-3" style="width: 80px;">操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered cutover-customer-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">
+                <i class="mdi mdi-account-multiple-check-outline me-1"></i>设置关联用户
+              </h5>
+            </div>
+            <div class="modal-body p-0">
+              <div class="table-responsive cutover-customer-picker">
+                <table class="table table-hover table-sm mb-0">
+                  <thead class="table-light text-muted sticky-top">
+                    <tr>
+                      <th class="ps-3" style="width: 48px;"></th>
+                      <th>租户组</th>
+                      <th>业务名称</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cutover-customer-picker-options"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary generate-planned-time-btn" id="btn-save-customers">保存选择</button>
+              <button type="button" class="btn btn-secondary generate-planned-time-btn" id="btn-cancel-related-customers">取消</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div class="card">
+      <h5 class="card-header">实施时间线</h5>
+      <table class="table table-hover attr-table">
+        <tr><th scope="row">割接开始时间</th><td>{% if object.started_at %}{{ object.started_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
+        <tr><th scope="row">割接完成时间</th><td>{% if object.completed_at %}{{ object.completed_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
+        <tr><th scope="row">割接历时</th><td>{{ object.cutover_duration|default:"—" }}</td></tr>
+        <tr><th scope="row">割接封包时间</th><td>{% if object.closed_at %}{{ object.closed_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h5 class="card-header">考核与闭环</h5>
+      <table class="table table-hover attr-table">
+        <tr><th scope="row">割接是否超时</th><td>{{ object.get_is_timeout_display|default:"—" }}</td></tr>
+        <tr><th scope="row">割接效果</th><td>{{ object.get_cutover_result_display|default:"—" }}</td></tr>
+        <tr><th scope="row">超时原因</th><td>{{ object.timeout_reason|linebreaksbr|default:"—" }}</td></tr>
+        <tr><th scope="row">遗留问题</th><td>{{ object.remaining_issues|linebreaksbr|default:"—" }}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h5 class="card-header">整改信息</h5>
+      <table class="table table-hover attr-table">
+        <tr><th scope="row">是否整改</th><td>{{ object.get_rectification_status_display|default:"—" }}</td></tr>
+        <tr>
+          <th scope="row">整改措施</th>
+          <td>
+            {% if object.rectification_measures %}
+              {% for label in object.rectification_measures|otnfault_choice_labels:"rectification_measures" %}
+                <span class="badge rounded-pill border bg-body text-body">{{ label }}</span>
+              {% endfor %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        <tr><th scope="row">措施描述</th><td>{{ object.rectification_description|linebreaksbr|default:"—" }}</td></tr>
+        <tr><th scope="row">整改主体</th><td>{{ object.get_rectification_subject_display|default:"—" }}</td></tr>
+        <tr><th scope="row">整改进度</th><td>{{ object.get_rectification_progress_display|default:"—" }}</td></tr>
+        <tr><th scope="row">计划完成时间</th><td>{% if object.planned_completion_time %}{{ object.planned_completion_time|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
+        <tr><th scope="row">实际完成时间</th><td>{% if object.actual_completion_time %}{{ object.actual_completion_time|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
+        <tr><th scope="row">整改完成情况描述</th><td>{{ object.rectification_completion_description|linebreaksbr|default:"—" }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="col col-md-6">
+    <div class="card">
+      <h5 class="card-header">资源信息</h5>
+      <table class="table table-hover attr-table">
+        <tr><th scope="row">光纤来源</th><td>{{ object.get_resource_type_display|default:"—" }}</td></tr>
+        <tr><th scope="row">光缆路由属性</th><td>{{ object.get_cable_route_display|default:"—" }}</td></tr>
+        <tr><th scope="row">资源所有者</th><td>{{ object.get_resource_owner_display|default:"—" }}</td></tr>
+        <tr><th scope="row">维护方式</th><td>{{ object.get_maintenance_mode_display|default:"—" }}</td></tr>
+        <tr><th scope="row">代维方/租赁方</th><td>{{ object.handling_unit|linkify|default:"—" }}</td></tr>
+        <tr><th scope="row">代维/租赁合同</th><td>{{ object.contract|linkify|default:"—" }}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h5 class="card-header">组织联系人</h5>
+      <table class="table table-hover attr-table">
+        <tr><th scope="row">实施单位</th><td>{{ object.implementation_unit|default:"—" }}</td></tr>
+        <tr><th scope="row">联系人</th><td>{{ object.cutover_contact|default:"—" }}</td></tr>
+        <tr><th scope="row">联系电话</th><td>{{ object.cutover_contact_phone|default:"—" }}</td></tr>
+        <tr><th scope="row">线路主管</th><td>{{ object.line_supervisor|linkify|default:"—" }}</td></tr>
+      </table>
+    </div>
+
+    {% include 'inc/panels/tags.html' %}
+    {% include 'inc/panels/comments.html' %}
+  </div>
+</div>
+
+{# 割接影响业务面板 #}
+<div class="row mb-3">
+  <div class="col col-md-12">
+    <div class="card">
+      <h5 class="card-header">
+        影响业务
+        {% if perms.netbox_otnfaults.add_cutoverimpact %}
+        <div class="card-actions">
+          <a href="{% url 'plugins:netbox_otnfaults:cutoverimpact_add' %}?cutover_task={{ object.pk }}"
+            class="btn btn-ghost-primary btn-sm">
+            <i class="mdi mdi-plus-thick" aria-hidden="true"></i>
+            增加一个影响的业务
+          </a>
+        </div>
+        {% endif %}
+      </h5>
+      <div class="impacts-table-container">
+        {% render_table impacts_table %}
+      </div>
+    </div>
+  </div>
+</div>
+{{ bare_fiber_services|json_script:"cutover-detail-bare-fiber-services" }}
+{{ object.related_customers|json_script:"cutover-detail-related-customers" }}
+<script>
+(function() {
+  'use strict';
+
+  const servicesScript = document.getElementById('cutover-detail-bare-fiber-services');
+  const customersScript = document.getElementById('cutover-detail-related-customers');
+  const jsonInput = document.getElementById('cutover-related-customers-json');
+  const tableBody = document.querySelector('#cutover-related-customers-table tbody');
+  const modalEl = document.getElementById('customerModal');
+  const pickerOptions = document.getElementById('cutover-customer-picker-options');
+  const btnSet = document.getElementById('btn-set-related-customers');
+  const btnApply = document.getElementById('btn-save-customers');
+  const btnCancel = document.getElementById('btn-cancel-related-customers');
+  const plannedTimeForm = document.getElementById('generate-planned-time-form');
+  const plannedTimeModal = document.getElementById('generatePlannedTimeModal');
+  const plannedTimeBackdrop = document.getElementById('generatePlannedTimeBackdrop');
+  let backdrop = null;
+
+  window.showGeneratePlannedTimeModal = function() {
+    if (!plannedTimeForm || !plannedTimeModal || !plannedTimeBackdrop) {
+      return;
+    }
+
+    const plannedTimeInput = plannedTimeForm.querySelector('[name="planned_cutover_time"]');
+    if (plannedTimeInput && !plannedTimeInput.reportValidity()) {
+      return;
+    }
+
+    plannedTimeModal.classList.add('show');
+    plannedTimeModal.style.display = 'block';
+    plannedTimeModal.setAttribute('aria-hidden', 'false');
+    plannedTimeBackdrop.style.display = 'block';
+    document.body.classList.add('modal-open');
+  };
+
+  window.hideGeneratePlannedTimeModal = function() {
+    if (!plannedTimeModal || !plannedTimeBackdrop) {
+      return;
+    }
+
+    plannedTimeModal.classList.remove('show');
+    plannedTimeModal.style.display = 'none';
+    plannedTimeModal.setAttribute('aria-hidden', 'true');
+    plannedTimeBackdrop.style.display = 'none';
+    document.body.classList.remove('modal-open');
+  };
+
+  window.submitGeneratePlannedTimeForm = function() {
+    if (plannedTimeForm) {
+      plannedTimeForm.submit();
+    }
+  };
+
+  if (plannedTimeModal) {
+    plannedTimeModal.addEventListener('click', function(event) {
+      if (event.target === plannedTimeModal) {
+        window.hideGeneratePlannedTimeModal();
+      }
+    });
+  }
+
+  if (!servicesScript || !customersScript || !jsonInput || !tableBody) {
+    return;
+  }
+
+  const bareFiberServices = JSON.parse(servicesScript.textContent || '[]');
+  let relatedCustomers = JSON.parse(customersScript.textContent || '[]');
+  if (!Array.isArray(relatedCustomers)) {
+    relatedCustomers = [];
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function getCustomerKey(item) {
+    return item.service_id ? `id:${item.service_id}` : `name:${item.name || item.business || ''}`;
+  }
+
+  function normalizeCustomer(item) {
+    const name = item.name || item.business || '';
+    const time = item.time || item.coordination_time || '';
+    return {
+      service_id: item.service_id || item.id || '',
+      tenant_group: item.tenant_group || item.tenant || '',
+      name: name,
+      business: item.business || name,
+      is_coordinated: Boolean(item.is_coordinated),
+      time: time,
+      coordination_time: time
+    };
+  }
+
+  function formatCurrentMinute() {
+    const now = new Date();
+    const pad = value => String(value).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }
+
+  function syncJsonInput() {
+    jsonInput.value = JSON.stringify(relatedCustomers.map(normalizeCustomer));
+  }
+
+  function renderTable() {
+    tableBody.innerHTML = '';
+
+    if (relatedCustomers.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3 small">暂无关联用户记录</td></tr>';
+      syncJsonInput();
+      return;
+    }
+
+    relatedCustomers.forEach((item, index) => {
+      item = normalizeCustomer(item);
+      relatedCustomers[index] = item;
+      const checked = item.is_coordinated ? 'checked' : '';
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="align-middle ps-3 text-break" style="max-width: 180px;">${escapeHtml(item.tenant_group) || '-'}</td>
+        <td class="align-middle text-break" style="max-width: 260px;">${escapeHtml(item.business || item.name) || '-'}</td>
+        <td class="align-middle">
+          <input type="checkbox" class="form-check-input customer-coordinated" data-index="${index}" ${checked}>
+        </td>
+        <td class="align-middle">
+          <input type="text" class="form-control form-control-sm customer-coordination-time" data-index="${index}" value="${escapeHtml(item.time)}" placeholder="YYYY-MM-DD HH:MM">
+        </td>
+        <td class="align-middle text-end pe-3">
+          <button type="button" class="btn btn-sm btn-link text-danger p-0 btn-remove-related-customer" data-index="${index}" title="删除">
+            <i class="mdi mdi-trash-can-outline"></i>
+          </button>
+        </td>
+      `;
+      tableBody.appendChild(row);
+    });
+
+    tableBody.querySelectorAll('.customer-coordinated').forEach(input => {
+      input.addEventListener('change', function() {
+        const index = Number(this.dataset.index);
+        relatedCustomers[index].is_coordinated = this.checked;
+        if (this.checked && !relatedCustomers[index].time) {
+          const currentTime = formatCurrentMinute();
+          relatedCustomers[index].time = currentTime;
+          relatedCustomers[index].coordination_time = currentTime;
+          const timeInput = tableBody.querySelector(`.customer-coordination-time[data-index="${index}"]`);
+          if (timeInput) {
+            timeInput.value = currentTime;
+          }
+        }
+        syncJsonInput();
+      });
+    });
+    tableBody.querySelectorAll('.customer-coordination-time').forEach(input => {
+      input.addEventListener('input', function() {
+        const index = Number(this.dataset.index);
+        relatedCustomers[index].time = this.value;
+        relatedCustomers[index].coordination_time = this.value;
+        syncJsonInput();
+      });
+    });
+    tableBody.querySelectorAll('.btn-remove-related-customer').forEach(button => {
+      button.addEventListener('click', function() {
+        relatedCustomers.splice(Number(this.dataset.index), 1);
+        renderTable();
+      });
+    });
+
+    syncJsonInput();
+  }
+
+  function renderPicker() {
+    const selectedKeys = new Set(relatedCustomers.map(getCustomerKey));
+    pickerOptions.innerHTML = '';
+
+    if (bareFiberServices.length === 0) {
+      pickerOptions.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3 small">暂无裸纤业务</td></tr>';
+      return;
+    }
+
+    bareFiberServices.forEach(service => {
+      const key = `id:${service.id}`;
+      const checked = selectedKeys.has(key) ? 'checked' : '';
+      const option = document.createElement('tr');
+      option.innerHTML = `
+        <td class="ps-3 align-middle">
+          <input class="form-check-input bare-fiber-service-checkbox" type="checkbox" value="${escapeHtml(service.id)}" ${checked}>
+        </td>
+        <td class="align-middle text-break">${escapeHtml(service.tenant_group) || '-'}</td>
+        <td class="align-middle text-break">${escapeHtml(service.name) || '-'}</td>
+      `;
+      option.addEventListener('click', function(event) {
+        if (event.target.tagName.toLowerCase() !== 'input') {
+          const checkbox = option.querySelector('.bare-fiber-service-checkbox');
+          checkbox.checked = !checkbox.checked;
+        }
+      });
+      pickerOptions.appendChild(option);
+    });
+  }
+
+  function showModal() {
+    backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop fade show';
+    backdrop.style.zIndex = '1050';
+    backdrop.style.backgroundColor = '#808080';
+    backdrop.style.opacity = '1';
+    document.body.appendChild(backdrop);
+    modalEl.classList.add('show');
+    modalEl.style.display = 'block';
+    modalEl.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+  }
+
+  function hideModal() {
+    modalEl.classList.remove('show');
+    modalEl.style.display = 'none';
+    modalEl.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    if (backdrop) {
+      backdrop.remove();
+      backdrop = null;
+    }
+  }
+
+  btnSet.addEventListener('click', function() {
+    renderPicker();
+    showModal();
+  });
+  btnCancel.addEventListener('click', hideModal);
+  modalEl.addEventListener('click', function(event) {
+    if (event.target === modalEl) {
+      hideModal();
+    }
+  });
+  btnApply.addEventListener('click', function() {
+    const existing = new Map(relatedCustomers.map(item => [getCustomerKey(item), normalizeCustomer(item)]));
+    const next = [];
+    pickerOptions.querySelectorAll('.bare-fiber-service-checkbox:checked').forEach(input => {
+      const service = bareFiberServices.find(item => String(item.id) === String(input.value));
+      if (!service) return;
+      const key = `id:${service.id}`;
+      next.push(existing.get(key) || {
+        service_id: service.id,
+        tenant_group: service.tenant_group || '',
+        name: service.name || '',
+        business: service.name || '',
+        is_coordinated: false,
+        time: '',
+        coordination_time: ''
+      });
+    });
+    relatedCustomers = next;
+    hideModal();
+    renderTable();
+  });
+
+  renderTable();
+})();
+</script>
+{% endblock %}

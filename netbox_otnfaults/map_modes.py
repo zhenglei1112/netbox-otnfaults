@@ -11,7 +11,7 @@ MAP_MODE_DEFAULTS = {
 
 MAP_MODES = {
     'fault': {
-        'title': '故障分布图',
+        'title': '一张图',
         'plugin_file': 'fault_mode.js',
         'projection': 'globe',
         'header_actions': [

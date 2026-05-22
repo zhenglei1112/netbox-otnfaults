@@ -58,7 +58,29 @@ class PathGroupTopologyToggleTestCase(unittest.TestCase):
         self.assertIn("this.sections.timeRange", source)
         self.assertIn("this.sections.categories", source)
         self.assertIn("this.sections.topology", source)
-        self.assertIn("this.options.title || '视图与时间设置'", source)
+        self.assertIn("this.options.title || '故障视图与时间设置'", source)
+        self.assertIn("this.options.buttonIcon || window.mapBase.svgIcons.fault", source)
+        self.assertNotIn("this.options.buttonIcon || window.mapBase.svgIcons.filter", source)
+        self.assertIn("this.addHeader(menu, '故障视图模式')", source)
+        self.assertIn("this.addHeader(menu, '故障时间范围')", source)
+        self.assertNotIn("this.addHeader(menu, '视图模式')", source)
+        self.assertNotIn("this.addHeader(menu, '时间范围')", source)
+
+
+    def test_layer_toggle_floating_menu_opens_to_button_right(self) -> None:
+        source = LAYER_TOGGLE_CONTROL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("let left = buttonRect.right + 8;", source)
+        self.assertIn("if (left + menuWidth > viewportWidth - 12)", source)
+        self.assertNotIn("const rightOfMenu = viewportWidth - buttonRect.left + 8;", source)
+
+    def test_layer_toggle_inline_menu_opens_to_button_right(self) -> None:
+        source = LAYER_TOGGLE_CONTROL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("menu.style.top = '0';", source)
+        self.assertIn("menu.style.left = '48px';", source)
+        self.assertNotIn("menu.style.top = '40px';", source)
+        self.assertNotIn("menu.style.left = '0';", source)
 
 
 if __name__ == "__main__":

@@ -255,6 +255,74 @@ class CutoverReportStatusChoices(ChoiceSet):
     ]
 
 
+class CutoverStatusChoices(ChoiceSet):
+    key = 'CutoverTask.status'
+
+    APPLYING = 'applying'
+    PENDING_IMPLEMENTATION = 'pending_implementation'
+    COMPLETED = 'completed'
+    CANCELLED = 'cancelled'
+
+    CHOICES = [
+        (APPLYING, '申请中', 'blue'),
+        (PENDING_IMPLEMENTATION, '待实施', 'orange'),
+        (COMPLETED, '已完成', 'green'),
+        (CANCELLED, '被取消', 'gray'),
+    ]
+
+
+class CutoverTimeoutStatusChoices(ChoiceSet):
+    key = 'CutoverTask.is_timeout'
+
+    YES = 'yes'
+    NO = 'no'
+    PENDING = 'pending'
+
+    CHOICES = [
+        (YES, '是', 'red'),
+        (NO, '否', 'green'),
+        (PENDING, '待判定', 'gray'),
+    ]
+
+
+class CutoverResultChoices(ChoiceSet):
+    key = 'CutoverTask.cutover_result'
+
+    COMPLETED = 'completed'
+    INCOMPLETE = 'incomplete'
+    UNSATISFACTORY = 'unsatisfactory'
+
+    CHOICES = [
+        (COMPLETED, '完成', 'green'),
+        (INCOMPLETE, '未完成', 'red'),
+        (UNSATISFACTORY, '不理想', 'orange'),
+    ]
+
+
+class CutoverManagementUnitChoices(ChoiceSet):
+    key = 'CutoverTask.management_unit'
+
+    HEADQUARTERS = 'headquarters'
+    ZHEJIANG = 'zhejiang'
+    SHAANXI = 'shaanxi'
+    SICHUAN = 'sichuan'
+    INNER_MONGOLIA = 'inner_mongolia'
+    JIANGXI = 'jiangxi'
+    SHANDONG = 'shandong'
+    THIRD_PARTY = 'third_party'
+
+    CHOICES = [
+        (HEADQUARTERS, '本部', 'blue'),
+        (ZHEJIANG, '浙江子公司', 'green'),
+        (SHAANXI, '陕西子公司', 'orange'),
+        (SICHUAN, '四川子公司', 'purple'),
+        (INNER_MONGOLIA, '内蒙古子公司', 'teal'),
+        (JIANGXI, '江西子公司', 'yellow'),
+        (SHANDONG, '山东子公司', 'cyan'),
+        (THIRD_PARTY, '第三方', 'gray'),
+    ]
+
+
 class ResourceTypeChoices(ChoiceSet):
     key = 'OtnFault.resource_type'
 
@@ -347,6 +415,313 @@ class RecoveryModeChoices(ChoiceSet):
         (UTILITY_POWER_RESTORED, '市电恢复', 'green'),
         (ONSITE_HANDLING, '现场处置', 'blue'),
     ]
+
+
+class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
+    cutover_no = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name='割接编号',
+        blank=True,
+        help_text='系统自动生成，格式为CYYYYNNNN'
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=CutoverStatusChoices,
+        default=CutoverStatusChoices.APPLYING,
+        verbose_name='状态'
+    )
+    registered_at = models.DateTimeField(
+        default=timezone.now,
+        verbose_name='登记时间'
+    )
+    registrant = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='registered_cutover_tasks',
+        verbose_name='登记人'
+    )
+    planned_cutover_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='计划割接时间',
+        help_text='列表筛选和排序使用的主计划时间。多次计划时间可记录在计划割接时间记录中。'
+    )
+    planned_cutover_times = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='计划割接时间记录'
+    )
+    province = models.ForeignKey(
+        to='dcim.Region',
+        on_delete=models.PROTECT,
+        related_name='cutover_tasks',
+        verbose_name='省份',
+        blank=True,
+        null=True
+    )
+    cutover_location = models.TextField(
+        verbose_name='割接具体地点'
+    )
+    cutover_longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        verbose_name='割接位置经度'
+    )
+    cutover_latitude = models.DecimalField(
+        max_digits=8,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        verbose_name='割接位置纬度'
+    )
+    interruption_location_a = models.ForeignKey(
+        to=Site,
+        on_delete=models.PROTECT,
+        related_name='cutover_tasks_a',
+        verbose_name='割接位置A端站点'
+    )
+    interruption_location = models.ManyToManyField(
+        to=Site,
+        related_name='cutover_tasks_z',
+        verbose_name='割接影响Z端站点',
+        blank=True
+    )
+    related_customers = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='关联用户'
+    )
+    cutover_reason = models.TextField(
+        verbose_name='割接原因'
+    )
+    resource_type = models.CharField(
+        max_length=20,
+        choices=ResourceTypeChoices,
+        blank=True,
+        verbose_name='光纤来源'
+    )
+    cable_route = models.CharField(
+        max_length=20,
+        choices=CableRouteChoices,
+        blank=True,
+        verbose_name='光缆路由属性'
+    )
+    resource_owner = models.CharField(
+        max_length=30,
+        choices=ResourceOwnerChoices,
+        blank=True,
+        verbose_name='资源所有者'
+    )
+    maintenance_mode = models.CharField(
+        max_length=20,
+        choices=MaintenanceModeChoices,
+        blank=True,
+        verbose_name='维护方式'
+    )
+    handling_unit = models.ForeignKey(
+        to='netbox_contract.ServiceProvider',
+        on_delete=models.PROTECT,
+        related_name='handled_cutover_tasks',
+        verbose_name='代维方/租赁方',
+        blank=True,
+        null=True
+    )
+    contract = models.ForeignKey(
+        to='netbox_contract.Contract',
+        on_delete=models.PROTECT,
+        related_name='cutover_tasks',
+        verbose_name='代维/租赁合同',
+        blank=True,
+        null=True
+    )
+    management_unit = models.CharField(
+        max_length=30,
+        choices=CutoverManagementUnitChoices,
+        verbose_name='割接管理单位'
+    )
+    management_unit_name = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='割接管理单位名称'
+    )
+    implementation_unit = models.CharField(
+        max_length=100,
+        verbose_name='割接实施单位'
+    )
+    cutover_contact = models.CharField(
+        max_length=100,
+        verbose_name='割接联系人'
+    )
+    cutover_contact_phone = models.CharField(
+        max_length=50,
+        verbose_name='割接联系人电话'
+    )
+    customer_approval_detail = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='客户审核明细'
+    )
+    started_at = models.DateTimeField(blank=True, null=True, verbose_name='割接开始时间')
+    completed_at = models.DateTimeField(blank=True, null=True, verbose_name='割接完成时间')
+    closed_at = models.DateTimeField(blank=True, null=True, verbose_name='割接封包时间')
+    is_timeout = models.CharField(
+        max_length=20,
+        choices=CutoverTimeoutStatusChoices,
+        default=CutoverTimeoutStatusChoices.PENDING,
+        verbose_name='割接是否超时'
+    )
+    timeout_reason = models.TextField(blank=True, verbose_name='超时原因')
+    cutover_result = models.CharField(
+        max_length=32,
+        choices=CutoverResultChoices,
+        blank=True,
+        verbose_name='割接效果'
+    )
+    remaining_issues = models.TextField(blank=True, verbose_name='遗留问题')
+    rectification_status = models.CharField(
+        max_length=20,
+        choices=PowerRectificationStatusChoices,
+        blank=True,
+        verbose_name='是否整改'
+    )
+    rectification_measures = ArrayField(
+        models.CharField(max_length=30, choices=PowerRectificationMeasureChoices),
+        blank=True,
+        default=list,
+        verbose_name='整改措施'
+    )
+    rectification_description = models.TextField(blank=True, verbose_name='措施描述')
+    rectification_subject = models.CharField(
+        max_length=20,
+        choices=PowerRectificationSubjectChoices,
+        blank=True,
+        verbose_name='整改主体'
+    )
+    rectification_progress = models.CharField(
+        max_length=20,
+        choices=PowerRectificationProgressChoices,
+        blank=True,
+        verbose_name='整改进度'
+    )
+    planned_completion_time = models.DateTimeField(blank=True, null=True, verbose_name='计划完成时间')
+    actual_completion_time = models.DateTimeField(blank=True, null=True, verbose_name='实际完成时间')
+    rectification_completion_description = models.TextField(blank=True, verbose_name='整改完成情况描述')
+    line_supervisor = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='supervised_cutover_tasks',
+        verbose_name='线路主管',
+        blank=True,
+        null=True
+    )
+    planned_impact_minutes = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        verbose_name='预计影响时长（分钟）'
+    )
+    # remarks field removed
+    tags = taggit.managers.TaggableManager(
+        through='extras.TaggedItem',
+        to='extras.Tag',
+        blank=True
+    )
+    comments = models.TextField(blank=True, verbose_name='评论')
+
+    class Meta:
+        ordering = ('-registered_at', '-pk')
+        verbose_name = '割接'
+        verbose_name_plural = '割接'
+
+    def __str__(self) -> str:
+        return self.cutover_no
+
+    def get_absolute_url(self) -> str:
+        return reverse('plugins:netbox_otnfaults:cutovertask', args=[self.pk])
+
+    def get_status_color(self) -> str | None:
+        return CutoverStatusChoices.colors.get(self.status)
+
+    def get_is_timeout_color(self) -> str | None:
+        return CutoverTimeoutStatusChoices.colors.get(self.is_timeout)
+
+    def get_cutover_result_color(self) -> str | None:
+        return CutoverResultChoices.colors.get(self.cutover_result)
+
+    @property
+    def cutover_duration(self) -> str | None:
+        if self.started_at:
+            is_ongoing = not bool(self.completed_at)
+            end_time = self.completed_at if self.completed_at else timezone.localtime()
+            duration = end_time - self.started_at
+            days = duration.days
+            seconds = duration.seconds
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            seconds = seconds % 60
+            total_hours = duration.total_seconds() / 3600
+            ongoing_marker = " (未完成)" if is_ongoing else ""
+            duration_text = _format_duration_units(days, hours, minutes, seconds)
+            return f"{duration_text}（{total_hours:.2f}小时）{ongoing_marker}"
+        return None
+
+    def _normalize_json_list_fields(self) -> None:
+        for field_name in ('planned_cutover_times', 'related_customers', 'customer_approval_detail'):
+            if getattr(self, field_name) is None:
+                setattr(self, field_name, [])
+
+    def clean(self) -> None:
+        self._normalize_json_list_fields()
+        super().clean()
+        errors: dict[str, str] = {}
+        if self.is_timeout == CutoverTimeoutStatusChoices.YES and not self.timeout_reason:
+            errors['timeout_reason'] = '割接超时时必须填写超时原因。'
+        if self.status == CutoverStatusChoices.COMPLETED:
+            if not self.completed_at:
+                errors['completed_at'] = '割接完成时必须填写割接完成时间。'
+            if not self.cutover_result:
+                errors['cutover_result'] = '割接完成时必须填写割接效果。'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self.cutover_no:
+            super().save(*args, **kwargs)
+            return
+
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                with transaction.atomic():
+                    year = timezone.localdate().strftime('%Y')
+                    prefix = f'C{year}'
+                    last_cutover = (
+                        CutoverTask.objects.select_for_update()
+                        .filter(cutover_no__startswith=prefix)
+                        .order_by('-cutover_no')
+                        .first()
+                    )
+                    if last_cutover:
+                        last_number = int(last_cutover.cutover_no[5:])
+                        new_number = last_number + 1
+                    else:
+                        new_number = 1
+                    self.cutover_no = f'{prefix}{new_number:04d}'
+
+                    if kwargs.get('update_fields') is not None:
+                        kwargs['update_fields'] = {
+                            *kwargs['update_fields'],
+                            'cutover_no',
+                        }
+
+                    super().save(*args, **kwargs)
+                return
+            except IntegrityError:
+                self.cutover_no = ''
+                if attempt == max_attempts - 1:
+                    raise
 
 
 class OtnFault(NetBoxModel, ImageAttachmentsMixin):
@@ -2277,3 +2652,212 @@ class CircuitService(NetBoxModel):
             }
             for key, label in self.EXTRA_FIELD_DEFINITIONS
         ]
+
+
+class CutoverImpact(NetBoxModel, ImageAttachmentsMixin):
+    """割接影响业务模型 — 记录割接任务关联的受影响裸纤/电路业务"""
+    cutover_task = models.ForeignKey(
+        to='CutoverTask',
+        on_delete=models.CASCADE,
+        related_name='impacts',
+        verbose_name='割接任务'
+    )
+    service_type = models.CharField(
+        max_length=20,
+        choices=ServiceTypeChoices,
+        default=ServiceTypeChoices.BARE_FIBER,
+        verbose_name='业务类型'
+    )
+    bare_fiber_service = models.ForeignKey(
+        to='BareFiberService',
+        on_delete=models.PROTECT,
+        related_name='cutover_impacts',
+        verbose_name='裸纤业务',
+        blank=True,
+        null=True
+    )
+    circuit_service = models.ForeignKey(
+        to='CircuitService',
+        on_delete=models.PROTECT,
+        related_name='cutover_impacts',
+        verbose_name='电路业务',
+        blank=True,
+        null=True
+    )
+    service_site_a = models.ForeignKey(
+        to='dcim.Site',
+        on_delete=models.SET_NULL,
+        related_name='cutover_impact_service_site_a',
+        verbose_name='业务站点A',
+        blank=True,
+        null=True,
+        help_text='仅裸纤业务时使用'
+    )
+    service_site_z = models.ManyToManyField(
+        to='dcim.Site',
+        related_name='cutover_impact_service_site_z',
+        verbose_name='业务站点Z',
+        blank=True,
+        help_text='仅裸纤业务时使用，可选择多个Z端站点'
+    )
+    business_impact = models.CharField(
+        max_length=20,
+        choices=BusinessImpactChoices,
+        default=BusinessImpactChoices.INTERRUPTED,
+        verbose_name='业务影响'
+    )
+    service_interruption_time = models.DateTimeField(
+        verbose_name='业务中断时间'
+    )
+    service_recovery_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='业务恢复时间'
+    )
+
+    tags = taggit.managers.TaggableManager(
+        through='extras.TaggedItem',
+        to='extras.Tag',
+        blank=True
+    )
+    comments = models.TextField(blank=True, verbose_name='评论')
+
+    class Meta:
+        ordering = ('-service_interruption_time',)
+        verbose_name = '割接影响业务'
+        verbose_name_plural = '割接影响业务'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['cutover_task', 'bare_fiber_service'],
+                condition=models.Q(bare_fiber_service__isnull=False),
+                name='unique_cutover_bare_fiber',
+                violation_error_message='此割接任务下已经有该裸纤业务，不能重复添加。'
+            ),
+            models.UniqueConstraint(
+                fields=['cutover_task', 'circuit_service'],
+                condition=models.Q(circuit_service__isnull=False),
+                name='unique_cutover_circuit',
+                violation_error_message='此割接任务下已经有该电路业务，不能重复添加。'
+            )
+        ]
+
+    def __str__(self) -> str:
+        service = self.bare_fiber_service if self.service_type == ServiceTypeChoices.BARE_FIBER else self.circuit_service
+        return f"{self.cutover_task} - {service}"
+
+    def clean(self) -> None:
+        super().clean()
+
+        if self.service_type == ServiceTypeChoices.BARE_FIBER and not self.bare_fiber_service:
+            raise ValidationError({'bare_fiber_service': '选择裸纤业务类型时必须指定具体的裸纤业务。'})
+
+        if self.service_type == ServiceTypeChoices.CIRCUIT and not self.circuit_service:
+            raise ValidationError({'circuit_service': '选择电路业务类型时必须指定具体的电路业务。'})
+
+        # 清除未选中类型的数据
+        if self.service_type == ServiceTypeChoices.BARE_FIBER:
+            self.circuit_service = None
+        elif self.service_type == ServiceTypeChoices.CIRCUIT:
+            self.bare_fiber_service = None
+            self.service_site_a = None
+            # service_site_z 是 M2M 字段，需要在 save 之后清除
+
+        # 防止重复添加相同的业务
+        if hasattr(self, 'cutover_task_id') and self.cutover_task_id:
+            if self.service_type == ServiceTypeChoices.BARE_FIBER and self.bare_fiber_service:
+                qs = CutoverImpact.objects.filter(cutover_task_id=self.cutover_task_id, bare_fiber_service=self.bare_fiber_service)
+                if self.pk:
+                    qs = qs.exclude(pk=self.pk)
+                if qs.exists():
+                    raise ValidationError({'bare_fiber_service': '此割接任务下已经有该裸纤业务，不能重复添加。'})
+            elif self.service_type == ServiceTypeChoices.CIRCUIT and self.circuit_service:
+                qs = CutoverImpact.objects.filter(cutover_task_id=self.cutover_task_id, circuit_service=self.circuit_service)
+                if self.pk:
+                    qs = qs.exclude(pk=self.pk)
+                if qs.exists():
+                    raise ValidationError({'circuit_service': '此割接任务下已经有该电路业务，不能重复添加。'})
+
+    def save(self, *args, **kwargs) -> None:
+        super().save(*args, **kwargs)
+        # 电路业务时清除 M2M 站点数据
+        if self.service_type == ServiceTypeChoices.CIRCUIT:
+            self.service_site_z.clear()
+
+    def get_service_type_color(self) -> str | None:
+        return ServiceTypeChoices.colors.get(self.service_type)
+
+    def get_business_impact_color(self) -> str | None:
+        return BusinessImpactChoices.colors.get(self.business_impact)
+
+    def get_absolute_url(self) -> str:
+        return reverse('plugins:netbox_otnfaults:cutoverimpact', args=[self.pk])
+
+    @property
+    def service_duration(self) -> str | None:
+        if self.service_interruption_time:
+            is_ongoing = not bool(self.service_recovery_time)
+            end_time = self.service_recovery_time if self.service_recovery_time else timezone.localtime()
+            duration = end_time - self.service_interruption_time
+            days = duration.days
+            seconds = duration.seconds
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            seconds = seconds % 60
+            total_seconds = duration.total_seconds()
+            total_hours = total_seconds / 3600
+            ongoing_marker = " (未恢复)" if is_ongoing else ""
+            duration_text = _format_duration_units(days, hours, minutes, seconds)
+            return f"{duration_text}（{total_hours:.2f}小时）{ongoing_marker}"
+        return None
+
+    @property
+    def service_duration_hours(self) -> str | None:
+        """返回业务中断历时的小时数，格式为 xx.xx"""
+        if self.service_interruption_time:
+            is_ongoing = not bool(self.service_recovery_time)
+            end_time = self.service_recovery_time if self.service_recovery_time else timezone.localtime()
+            duration = end_time - self.service_interruption_time
+            total_hours = duration.total_seconds() / 3600
+            ongoing_marker = " (未恢复)" if is_ongoing else ""
+            return f"{total_hours:.2f}{ongoing_marker}"
+        return None
+
+    @property
+    def service_duration_info(self) -> dict[str, Any] | None:
+        """返回业务中断历时的结构化信息，用于可视化渲染"""
+        if self.service_interruption_time:
+            is_ongoing = not bool(self.service_recovery_time)
+            end_time = self.service_recovery_time if self.service_recovery_time else timezone.localtime()
+            duration = end_time - self.service_interruption_time
+            total_seconds = duration.total_seconds()
+            total_hours = total_seconds / 3600
+
+            days = duration.days
+            seconds = duration.seconds
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            secs = seconds % 60
+
+            if total_hours < 0.5:
+                color = 'green'
+            elif total_hours < 1:
+                color = 'yellow'
+            elif total_hours < 4:
+                color = 'orange'
+            else:
+                color = 'red'
+
+            max_hours = 8
+            percentage = min(100, (total_hours / max_hours) * 100)
+
+            ongoing_marker_display = " (持续中)" if is_ongoing else ""
+            ongoing_marker_full = " [未恢复，计算至当前时间]" if is_ongoing else ""
+
+            return {
+                'total_hours': total_hours,
+                'display': f"{total_hours:.2f}小时{ongoing_marker_display}",
+                'full_text': f"{_format_duration_units(days, hours, minutes, secs)}{ongoing_marker_full}",
+                'color': color,
+                'percentage': percentage,
+            }
+        return None

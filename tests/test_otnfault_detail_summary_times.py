@@ -38,6 +38,27 @@ class OtnFaultDetailSummaryTimesSourceTestCase(unittest.TestCase):
         self.assertIn('<span class="fw-semibold text-muted small me-2">故障历时:</span>', template_text)
         self.assertIn('<span class="fw-semibold text-muted small me-2">处理历时:</span>', template_text)
 
+    def test_detail_renders_all_fault_time_fields_as_rows(self) -> None:
+        template_text = TEMPLATE_PATH.read_text(encoding="utf-8-sig")
+
+        self.assertIn('<h5 class="card-header">时间记录</h5>', template_text)
+        time_record_block = template_text.split('<h5 class="card-header">时间记录</h5>', 1)[1].split('</table>', 1)[0]
+
+        expected_rows = {
+            "故障起始时间": "object.fault_occurrence_time",
+            "处理派发时间": "object.dispatch_time",
+            "维修出发时间": "object.departure_time",
+            "到达现场时间": "object.arrival_time",
+            "故障修复时间": "object.repair_time",
+            "故障恢复时间": "object.fault_recovery_time",
+            "封包完成时间": "object.closure_time",
+            "故障历时": "object.fault_duration",
+            "处理历时": "object.processing_duration",
+        }
+        for label, field_marker in expected_rows.items():
+            self.assertIn(label, time_record_block)
+            self.assertIn(field_marker, time_record_block)
+
 
 if __name__ == "__main__":
     unittest.main()
