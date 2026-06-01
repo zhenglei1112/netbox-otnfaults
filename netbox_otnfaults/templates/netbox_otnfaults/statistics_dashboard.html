@@ -17,20 +17,25 @@
                     <span class="statistics-period-label" id="period-display">加载中...</span>
                 </h2>
             </div>
-            
+
             <div class="d-flex gx-2 align-items-center filter-controls">
 
-                <div id="bare-fiber-service-card-scope-toggle" class="bare-fiber-service-card-scope-toggle btn-group d-none" role="group" aria-label="裸纤业务卡片显示范围">
-                    <input type="radio" class="btn-check" name="bareFiberServiceCardScope" id="bare-fiber-scope-faulted" value="faulted" autocomplete="off" checked>
+                <div id="bare-fiber-service-card-scope-toggle"
+                    class="bare-fiber-service-card-scope-toggle btn-group d-none" role="group" aria-label="裸纤业务卡片显示范围">
+                    <input type="radio" class="btn-check" name="bareFiberServiceCardScope" id="bare-fiber-scope-faulted"
+                        value="faulted" autocomplete="off" checked>
                     <label class="btn btn-outline-primary" for="bare-fiber-scope-faulted">发生故障业务</label>
-                    <input type="radio" class="btn-check" name="bareFiberServiceCardScope" id="bare-fiber-scope-all" value="all" autocomplete="off">
+                    <input type="radio" class="btn-check" name="bareFiberServiceCardScope" id="bare-fiber-scope-all"
+                        value="all" autocomplete="off">
                     <label class="btn btn-outline-primary" for="bare-fiber-scope-all">全部业务</label>
                 </div>
-                <button type="button" id="statistics-metric-help-btn" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#statisticsMetricHelpModal">
+                <button type="button" id="statistics-metric-help-btn" class="btn btn-outline-info"
+                    data-bs-toggle="modal" data-bs-target="#statisticsMetricHelpModal">
                     <i class="mdi mdi-information-outline me-1" aria-hidden="true"></i>指标说明
                 </button>
                 <div class="d-flex align-items-center statistics-period-control-group">
-                    <button type="button" id="btn-prev-period" class="btn btn-outline-secondary btn-icon" title="上一周期" aria-label="上一周期">
+                    <button type="button" id="btn-prev-period" class="btn btn-outline-secondary btn-icon" title="上一周期"
+                        aria-label="上一周期">
                         <i class="mdi mdi-chevron-left"></i>
                     </button>
                     <select id="filterType" class="form-select statistics-period-type-select">
@@ -41,12 +46,16 @@
                         <option value="week" {% if default_filter_type == 'week' %}selected{% endif %}>按周</option>
                     </select>
 
-                    <input type="date" id="filterDate" class="form-control" style="width: auto;" value="{{ default_date }}">
-                    <button type="button" id="btn-next-period" class="btn btn-outline-secondary btn-icon" title="下一周期" aria-label="下一周期">
+                    <input type="date" id="filterDate" class="form-control" style="width: auto;"
+                        value="{{ default_date }}">
+                    <button type="button" id="btn-next-period" class="btn btn-outline-secondary btn-icon" title="下一周期"
+                        aria-label="下一周期">
                         <i class="mdi mdi-chevron-right"></i>
                     </button>
                 </div>
-                <button type="button" id="statistics-fullscreen-btn" class="btn btn-outline-secondary btn-icon statistics-fullscreen-toggle" title="最大化故障统计页面" aria-label="最大化故障统计页面" aria-pressed="false">
+                <button type="button" id="statistics-fullscreen-btn"
+                    class="btn btn-outline-secondary btn-icon statistics-fullscreen-toggle" title="最大化故障统计页面"
+                    aria-label="最大化故障统计页面" aria-pressed="false">
                     <i class="mdi mdi-fullscreen" aria-hidden="true"></i>
                 </button>
             </div>
@@ -55,17 +64,22 @@
         <!-- Tab 导航 -->
         <ul class="nav nav-tabs mb-4" id="statisticsTab" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-physical-btn" data-bs-toggle="tab" data-bs-target="#tab-physical" type="button" role="tab" aria-controls="tab-physical" aria-selected="true">
+                <button class="nav-link active" id="tab-physical-btn" data-bs-toggle="tab"
+                    data-bs-target="#tab-physical" type="button" role="tab" aria-controls="tab-physical"
+                    aria-selected="true">
                     <i class="mdi mdi-cable-data me-1"></i>物理故障
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-service-btn" data-bs-toggle="tab" data-bs-target="#tab-service" type="button" role="tab" aria-controls="tab-service" aria-selected="false">
+                <button class="nav-link" id="tab-service-btn" data-bs-toggle="tab" data-bs-target="#tab-service"
+                    type="button" role="tab" aria-controls="tab-service" aria-selected="false">
                     <i class="mdi mdi-server-network me-1"></i>裸纤业务故障
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-circuit-service-btn" data-bs-toggle="tab" data-bs-target="#tab-circuit-service" type="button" role="tab" aria-controls="tab-circuit-service" aria-selected="false">
+                <button class="nav-link" id="tab-circuit-service-btn" data-bs-toggle="tab"
+                    data-bs-target="#tab-circuit-service" type="button" role="tab" aria-controls="tab-circuit-service"
+                    aria-selected="false">
                     <i class="mdi mdi-lan-connect me-1"></i>电路业务故障
                 </button>
             </li>
@@ -86,24 +100,33 @@
                     <div class="statistics-cable-break-summary-grid statistics-overall-card-grid mb-3">
                         <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-card">
                             <div class="statistics-strip-card-body">
-                            <div class="statistics-overall-metrics d-flex flex-row align-items-center w-100 py-1 statistics-strip-card-metrics">
-                                <div class="statistics-overall-main statistics-overall-metric-slot d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
-                                    <div class="statistics-overall-value-row d-flex align-items-baseline justify-content-center">
-                                        <span class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1" id="kpi-overall-total">--</span>
-                                        <span class="statistics-overall-unit statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
+                                <div
+                                    class="statistics-overall-metrics d-flex flex-row align-items-center w-100 py-1 statistics-strip-card-metrics">
+                                    <div
+                                        class="statistics-overall-main statistics-overall-metric-slot d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
+                                        <div
+                                            class="statistics-overall-value-row d-flex align-items-baseline justify-content-center">
+                                            <span
+                                                class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1"
+                                                id="kpi-overall-total">--</span>
+                                            <span
+                                                class="statistics-overall-unit statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
+                                        </div>
+                                        <div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1"
+                                            style="font-size: 12px;">故障总数</div>
                                     </div>
-                                    <div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">故障总数</div>
+                                    <div id="kpi-overall-categories-flex-list"
+                                        class="statistics-overall-categories-list statistics-kpi-grouped-list px-4 py-1 flex-grow-1">
+                                        <div class="text-muted small">数据加载中...</div>
+                                    </div>
                                 </div>
-                                <div id="kpi-overall-categories-flex-list" class="statistics-overall-categories-list statistics-kpi-grouped-list px-4 py-1 flex-grow-1">
-                                    <div class="text-muted small">数据加载中...</div>
-                                </div>
-                            </div>
                             </div>
                             <div class="statistics-strip-card-footer">物理故障</div>
                         </div>
                         <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-other-card">
                             <div class="statistics-strip-card-body">
-                                <div id="kpi-overall-other-flex-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                <div id="kpi-overall-other-flex-list"
+                                    class="statistics-kpi-grouped-list px-4 py-1 h-100">
                                     <div class="text-muted small">数据加载中...</div>
                                 </div>
                             </div>
@@ -117,18 +140,23 @@
                     <div class="statistics-cable-break-heading-row mb-3">
                         <h3 class="statistics-cable-break-heading mb-0">
                             <span>光缆中断情况</span>
-                            <button type="button" class="statistics-cable-break-map-action" id="statistics-cable-break-map-btn" title="打开光缆中断地图" aria-label="打开光缆中断地图">
+                            <button type="button" class="statistics-cable-break-map-action"
+                                id="statistics-cable-break-map-btn" title="打开光缆中断地图" aria-label="打开光缆中断地图">
                                 <i class="mdi mdi-map-marker-radius" aria-hidden="true"></i><span>定位地图</span>
                             </button>
                         </h3>
                     </div>
                     <div class="statistics-cable-break-summary-grid statistics-cable-break-primary-grid">
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-count-card statistics-cable-break-single-card statistics-strip-card">
+                        <div
+                            class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-count-card statistics-cable-break-single-card statistics-strip-card">
                             <div class="statistics-strip-card-body">
-                                <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
-                                    <div class="statistics-drill-metric text-center" data-filter-field="category" data-filter-value="光缆中断" data-filter-label="总起数">
+                                <div
+                                    class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                    <div class="statistics-drill-metric text-center" data-filter-field="category"
+                                        data-filter-value="光缆中断" data-filter-label="总起数">
                                         <div class="d-flex align-items-baseline justify-content-center">
-                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="cable-break-total-count">--</span>
+                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1"
+                                                id="cable-break-total-count">--</span>
                                             <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
                                         </div>
                                         <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">总起数</div>
@@ -138,30 +166,39 @@
                             <div class="statistics-strip-card-footer">中断起数</div>
                         </div>
 
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-strip-card">
+                        <div
+                            class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-strip-card">
                             <div class="statistics-strip-card-body">
-                                <div id="cable-break-reason-top3-flex-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                <div id="cable-break-reason-top3-flex-list"
+                                    class="statistics-kpi-grouped-list px-4 py-1 h-100">
                                     <div class="text-muted small">数据加载中...</div>
                                 </div>
                             </div>
                             <div class="statistics-strip-card-footer">原因TOP3</div>
                         </div>
 
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-primary statistics-cable-break-overview-card statistics-cable-break-four-card statistics-strip-card">
+                        <div
+                            class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-primary statistics-cable-break-overview-card statistics-cable-break-four-card statistics-strip-card">
                             <div class="statistics-strip-card-body">
-                                <div id="cable-break-duration-total-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                <div id="cable-break-duration-total-list"
+                                    class="statistics-kpi-grouped-list px-4 py-1 h-100">
                                     <div class="text-muted small">数据加载中...</div>
                                 </div>
                             </div>
                             <div class="statistics-strip-card-footer">中断历时</div>
                         </div>
 
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-repeat-card statistics-cable-break-single-card statistics-strip-card">
+                        <div
+                            class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-repeat-card statistics-cable-break-single-card statistics-strip-card">
                             <div class="statistics-strip-card-body">
-                                <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
-                                    <div class="statistics-drill-metric text-center" id="card-repeat-faults" data-filter-field="is_repeat" data-filter-value="true" data-filter-label="重复起数" title="点击过滤出重复故障">
+                                <div
+                                    class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                    <div class="statistics-drill-metric text-center" id="card-repeat-faults"
+                                        data-filter-field="is_repeat" data-filter-value="true" data-filter-label="重复起数"
+                                        title="点击过滤出重复故障">
                                         <div class="d-flex align-items-baseline justify-content-center">
-                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="kpi-repeat-faults">--</span>
+                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1"
+                                                id="kpi-repeat-faults">--</span>
                                             <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
                                         </div>
                                         <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">重复起数</div>
@@ -172,85 +209,110 @@
                         </div>
                     </div>
                     <section class="statistics-cable-break-deferred-metrics d-none" id="cable-break-deferred-metrics">
-                    <div class="statistics-cable-break-summary-grid statistics-cable-break-deferred-grid">
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-cable-break-deferred-card-third statistics-strip-card">
-                            <div class="statistics-strip-card-body">
-                                <div id="cable-break-source-flex-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
-                                    <div class="text-muted small">数据加载中...</div>
+                        <div class="statistics-cable-break-summary-grid statistics-cable-break-deferred-grid">
+                            <div
+                                class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-cable-break-deferred-card-third statistics-strip-card">
+                                <div class="statistics-strip-card-body">
+                                    <div id="cable-break-source-flex-list"
+                                        class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                        <div class="text-muted small">数据加载中...</div>
+                                    </div>
+                                </div>
+                                <div class="statistics-strip-card-footer">光缆属性</div>
+                            </div>
+                            <div
+                                class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-secondary statistics-cable-break-overview-card statistics-cable-break-five-card statistics-cable-break-deferred-card-long statistics-strip-card">
+                                <div class="statistics-strip-card-body">
+                                    <div id="cable-break-long-flex-list"
+                                        class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                        <div class="text-muted small">数据加载中...</div>
+                                    </div>
+                                </div>
+                                <div class="statistics-strip-card-footer">长时起数</div>
+                            </div>
+                            <div
+                                class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-cable-break-deferred-card-third statistics-cable-break-deferred-row-start statistics-strip-card">
+                                <div class="statistics-strip-card-body">
+                                    <div id="cable-break-duration-reason-flex-list"
+                                        class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                        <div class="text-muted small">数据加载中...</div>
+                                    </div>
+                                </div>
+                                <div class="statistics-strip-card-footer">原因TOP3历时</div>
+                            </div>
+                            <div
+                                class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-cable-break-deferred-card-third statistics-strip-card">
+                                <div class="statistics-strip-card-body">
+                                    <div id="cable-break-duration-source-flex-list"
+                                        class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                        <div class="text-muted small">数据加载中...</div>
+                                    </div>
+                                </div>
+                                <div class="statistics-strip-card-footer">光缆属性历时</div>
+                            </div>
+                            <div
+                                class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-double-card statistics-cable-break-deferred-card-narrow statistics-strip-card">
+                                <div class="statistics-strip-card-body">
+                                    <div id="cable-break-duration-metrics-flex-list"
+                                        class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                        <div class="text-muted small">数据加载中...</div>
+                                    </div>
+                                </div>
+                                <div class="statistics-strip-card-footer">P50/P90</div>
+                            </div>
+                            <div
+                                class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-four-card statistics-cable-break-deferred-card-third statistics-strip-card">
+                                <div class="statistics-strip-card-body">
+                                    <div id="cable-break-filtered-average-flex-list"
+                                        class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                        <div class="text-muted small">数据加载中...</div>
+                                    </div>
+                                </div>
+                                <div class="statistics-strip-card-footer">
+                                    <span>分项平均历时</span>
+                                    <span class="statistics-info-button statistics-inline-info" title="<=30分钟"
+                                        aria-label="分项平均历时说明"><i class="mdi mdi-information-outline"
+                                            aria-hidden="true"></i></span>
                                 </div>
                             </div>
-                            <div class="statistics-strip-card-footer">光缆属性</div>
-                        </div>
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-secondary statistics-cable-break-overview-card statistics-cable-break-five-card statistics-cable-break-deferred-card-long statistics-strip-card">
-                            <div class="statistics-strip-card-body">
-                                <div id="cable-break-long-flex-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
-                                    <div class="text-muted small">数据加载中...</div>
+                            <div
+                                class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-secondary statistics-cable-break-overview-card statistics-cable-break-five-card statistics-cable-break-deferred-card-long statistics-strip-card">
+                                <div class="statistics-strip-card-body">
+                                    <div id="cable-break-long-duration-flex-list"
+                                        class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                        <div class="text-muted small">数据加载中...</div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">长时起数</div>
-                        </div>
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-cable-break-deferred-card-third statistics-cable-break-deferred-row-start statistics-strip-card">
-                            <div class="statistics-strip-card-body">
-                                <div id="cable-break-duration-reason-flex-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
-                                    <div class="text-muted small">数据加载中...</div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">原因TOP3历时</div>
-                        </div>
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-cable-break-deferred-card-third statistics-strip-card">
-                            <div class="statistics-strip-card-body">
-                                <div id="cable-break-duration-source-flex-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
-                                    <div class="text-muted small">数据加载中...</div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">光缆属性历时</div>
-                        </div>
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-double-card statistics-cable-break-deferred-card-narrow statistics-strip-card">
-                            <div class="statistics-strip-card-body">
-                                <div id="cable-break-duration-metrics-flex-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
-                                    <div class="text-muted small">数据加载中...</div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">P50/P90</div>
-                        </div>
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-four-card statistics-cable-break-deferred-card-third statistics-strip-card">
-                            <div class="statistics-strip-card-body">
-                                <div id="cable-break-filtered-average-flex-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
-                                    <div class="text-muted small">数据加载中...</div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">
-                                <span>分项平均历时</span>
-                                <span class="statistics-info-button statistics-inline-info" title="<=30分钟" aria-label="分项平均历时说明"><i class="mdi mdi-information-outline" aria-hidden="true"></i></span>
+                                <div class="statistics-strip-card-footer">长时历时</div>
                             </div>
                         </div>
-                        <div class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-secondary statistics-cable-break-overview-card statistics-cable-break-five-card statistics-cable-break-deferred-card-long statistics-strip-card">
-                            <div class="statistics-strip-card-body">
-                                <div id="cable-break-long-duration-flex-list" class="statistics-kpi-grouped-list px-4 py-1 h-100">
-                                    <div class="text-muted small">数据加载中...</div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">长时历时</div>
-                        </div>
-                    </div>
                     </section>
                     <div class="statistics-cable-break-expand-divider">
-                        <button type="button" class="statistics-cable-break-expand-toggle" id="cable-break-metrics-toggle" aria-expanded="false" aria-controls="cable-break-deferred-metrics" data-expanded-label="&#8963;" data-collapsed-label="&#8964;">&#8964;</button>
+                        <button type="button" class="statistics-cable-break-expand-toggle"
+                            id="cable-break-metrics-toggle" aria-expanded="false"
+                            aria-controls="cable-break-deferred-metrics" data-expanded-label="&#8963;"
+                            data-collapsed-label="&#8964;">&#8964;</button>
                     </div>
                 </section>
 
                 <!-- ECharts 图表区 -->
                 <div class="row statistics-chart-area statistics-distribution-chart-row mb-4">
                     <!-- 三个图表：按 3/2/5 比例展示 -->
-                    <div class="statistics-distribution-chart-col statistics-distribution-chart-col-reason mb-3 mb-lg-0">
+                    <div
+                        class="statistics-distribution-chart-col statistics-distribution-chart-col-reason mb-3 mb-lg-0">
                         <div class="card shadow-sm h-100">
-                            <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
-                                <h3 class="card-title mb-0" style="font-size: 1rem;">主要原因分析</h3>
-                                <div class="btn-group btn-group-sm" role="group" aria-label="指标切换">
-                                    <input type="radio" class="btn-check" name="metricReason" id="metric-reason-count" value="count" autocomplete="off" checked>
-                                    <label class="btn btn-outline-primary" for="metric-reason-count" style="padding: 0.1rem 0.4rem; font-size: 0.75rem;">中断数量</label>
-                                    <input type="radio" class="btn-check" name="metricReason" id="metric-reason-duration" value="duration" autocomplete="off">
-                                    <label class="btn btn-outline-primary" for="metric-reason-duration" style="padding: 0.1rem 0.4rem; font-size: 0.75rem;">中断时长</label>
+                            <div
+                                class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                                <h3 class="card-title mb-0" style="font-size: 1rem;">主要原因</h3>
+                                <div class="d-flex gap-2">
+                                    <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="指标切换">
+                                        <input type="radio" class="btn-check" name="metricReason" id="metric-reason-count"
+                                            value="count" autocomplete="off" checked>
+                                        <label class="btn btn-outline-primary" for="metric-reason-count">中断数量</label>
+                                        <input type="radio" class="btn-check" name="metricReason"
+                                            id="metric-reason-duration" value="duration" autocomplete="off">
+                                        <label class="btn btn-outline-primary" for="metric-reason-duration">中断时长</label>
+                                    </div>
                                 </div>
                             </div>
                             <div class="card-body p-0">
@@ -258,15 +320,21 @@
                             </div>
                         </div>
                     </div>
-                    <div class="statistics-distribution-chart-col statistics-distribution-chart-col-resource mb-3 mb-lg-0">
+                    <div
+                        class="statistics-distribution-chart-col statistics-distribution-chart-col-resource mb-3 mb-lg-0">
                         <div class="card shadow-sm h-100">
-                            <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
-                                <h3 class="card-title mb-0" style="font-size: 1rem;">光缆属性分布</h3>
-                                <div class="btn-group btn-group-sm" role="group" aria-label="指标切换">
-                                    <input type="radio" class="btn-check" name="metricResource" id="metric-resource-count" value="count" autocomplete="off" checked>
-                                    <label class="btn btn-outline-primary" for="metric-resource-count" style="padding: 0.1rem 0.4rem; font-size: 0.75rem;">中断数量</label>
-                                    <input type="radio" class="btn-check" name="metricResource" id="metric-resource-duration" value="duration" autocomplete="off">
-                                    <label class="btn btn-outline-primary" for="metric-resource-duration" style="padding: 0.1rem 0.4rem; font-size: 0.75rem;">中断时长</label>
+                            <div
+                                class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                                <h3 class="card-title mb-0" style="font-size: 1rem;">光缆属性</h3>
+                                <div class="d-flex gap-2">
+                                    <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="指标切换">
+                                        <input type="radio" class="btn-check" name="metricResource"
+                                            id="metric-resource-count" value="count" autocomplete="off" checked>
+                                        <label class="btn btn-outline-primary" for="metric-resource-count">中断数量</label>
+                                        <input type="radio" class="btn-check" name="metricResource"
+                                            id="metric-resource-duration" value="duration" autocomplete="off">
+                                        <label class="btn btn-outline-primary" for="metric-resource-duration">中断时长</label>
+                                    </div>
                                 </div>
                             </div>
                             <div class="card-body p-0">
@@ -274,9 +342,12 @@
                             </div>
                         </div>
                     </div>
-                    <div class="statistics-distribution-chart-col statistics-distribution-chart-col-histogram mb-3 mb-lg-0">
+                    <div
+                        class="statistics-distribution-chart-col statistics-distribution-chart-col-histogram mb-3 mb-lg-0">
                         <div class="card shadow-sm h-100">
-                            <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">故障历时频数分布</h3></div>
+                            <div class="card-header border-bottom-0 py-2">
+                                <h3 class="card-title mb-0" style="font-size: 1rem;">历时频数</h3>
+                            </div>
                             <div class="card-body p-0">
                                 <div id="chart-cable-break-histogram" style="width: 100%; height: 340px;"></div>
                             </div>
@@ -286,18 +357,22 @@
 
                 <div class="card shadow-sm statistics-physical-daily-chart-card">
                     <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
-                        <h3 class="card-title mb-0" style="font-size: 1rem;">按故障日期分布</h3>
+                        <h3 class="card-title mb-0" style="font-size: 1rem;">故障日期</h3>
                         <div class="d-flex gap-2">
-                            <div class="btn-group btn-group-sm" role="group" aria-label="粒度切换">
-                                <input type="radio" class="btn-check" name="physicalDailyGranularity" id="physical-daily-granularity-day" value="day" autocomplete="off" checked>
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="粒度切换">
+                                <input type="radio" class="btn-check" name="physicalDailyGranularity"
+                                    id="physical-daily-granularity-day" value="day" autocomplete="off" checked>
                                 <label class="btn btn-outline-primary" for="physical-daily-granularity-day">按天</label>
-                                <input type="radio" class="btn-check" name="physicalDailyGranularity" id="physical-daily-granularity-week" value="week" autocomplete="off">
+                                <input type="radio" class="btn-check" name="physicalDailyGranularity"
+                                    id="physical-daily-granularity-week" value="week" autocomplete="off">
                                 <label class="btn btn-outline-primary" for="physical-daily-granularity-week">按周</label>
                             </div>
-                            <div class="btn-group btn-group-sm" role="group" aria-label="指标切换">
-                                <input type="radio" class="btn-check" name="physicalDailyMetric" id="physical-daily-metric-count" value="count" autocomplete="off" checked>
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="指标切换">
+                                <input type="radio" class="btn-check" name="physicalDailyMetric"
+                                    id="physical-daily-metric-count" value="count" autocomplete="off" checked>
                                 <label class="btn btn-outline-primary" for="physical-daily-metric-count">中断数量</label>
-                                <input type="radio" class="btn-check" name="physicalDailyMetric" id="physical-daily-metric-duration" value="duration" autocomplete="off">
+                                <input type="radio" class="btn-check" name="physicalDailyMetric"
+                                    id="physical-daily-metric-duration" value="duration" autocomplete="off">
                                 <label class="btn btn-outline-primary" for="physical-daily-metric-duration">中断时长</label>
                             </div>
                         </div>
@@ -310,154 +385,173 @@
                 <div class="card shadow-sm statistics-province-chart-card">
                     <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
                         <h3 class="card-title mb-0" style="font-size: 1rem;">各省份故障统计</h3>
-                        <div class="btn-group btn-group-sm" role="group" aria-label="指标切换">
-                            <input type="radio" class="btn-check" name="metricProvince" id="metric-province-count" value="count" autocomplete="off" checked>
-                            <label class="btn btn-outline-primary" for="metric-province-count">中断数量</label>
-                            <input type="radio" class="btn-check" name="metricProvince" id="metric-province-duration" value="duration" autocomplete="off">
+                        <div class="d-flex gap-2">
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="指标切换">
+                                <input type="radio" class="btn-check" name="metricProvince" id="metric-province-count"
+                                    value="count" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="metric-province-count">中断数量</label>
+                                <input type="radio" class="btn-check" name="metricProvince" id="metric-province-duration"
+                                    value="duration" autocomplete="off">
                             <label class="btn btn-outline-primary" for="metric-province-duration">中断时长</label>
                         </div>
                     </div>
-                    <div class="card-body p-0">
-                        <div id="chart-province" class="statistics-province-chart"></div>
-                    </div>
                 </div>
-
-                <div class="card shadow-sm statistics-physical-daily-chart-card">
-                    <div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">中断时长分布</h3></div>
-                    <div class="card-body p-0">
-                        <div class="statistics-boxplot-filter-controls" aria-label="中断时长分布筛选">
-                            <label class="form-check form-switch statistics-boxplot-filter-option mb-0">
-                                <input class="form-check-input" type="checkbox" id="physical-boxplot-filter-short">
-                                <span class="form-check-label">滤除短时</span>
-                            </label>
-                            <label class="form-check form-switch statistics-boxplot-filter-option mb-0">
-                                <input class="form-check-input" type="checkbox" id="physical-boxplot-filter-rectification">
-                                <span class="form-check-label">滤除整改</span>
-                            </label>
-                            <label class="form-check form-switch statistics-boxplot-filter-option mb-0">
-                                <input class="form-check-input" type="checkbox" id="physical-boxplot-log-scale" checked>
-                                <span class="form-check-label">对数刻度</span>
-                            </label>
-                        </div>
-                        <div id="chart-physical-duration-boxplot" class="statistics-physical-duration-boxplot"></div>
-                    </div>
-                </div>
-
-                <!-- 下钻局部汇总栏 -->
-                <div id="filtered-kpi-summary" class="alert alert-info d-none shadow-sm mb-4" role="alert" style="font-size: 15px;">
-                </div>
-
-                <!-- 下钻明细表格区 -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h3 class="card-title mb-0">
-                            故障明细
-                            <span class="badge bg-primary ms-2" id="drill-down-filter-badge" style="display:none"></span>
-                        </h3>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-filter" style="display:none">清除图表过滤</button>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover table-vcenter card-table">
-                            <thead>
-                                <tr>
-                                    <th>故障编号</th>
-                                    <th>发生时间</th>
-                                    <th>恢复时间</th>
-                                    <th>历时(小时)</th>
-                                    <th>分类</th>
-                                    <th>光缆属性</th>
-                                    <th>省份</th>
-                                    <th>一级原因</th>
-                                    <th>站点 (A -> Z)</th>
-                                    <th>标签</th>
-                                </tr>
-                            </thead>
-                            <tbody id="details-tbody">
-                                <tr><td colspan="10" class="text-center text-muted py-4">数据加载中...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="card-body p-0">
+                    <div id="chart-province" class="statistics-province-chart"></div>
                 </div>
             </div>
 
-            <!-- ===== 裸纤业务故障 Tab ===== -->
-            <div class="tab-pane fade" id="tab-service" role="tabpanel" aria-labelledby="tab-service-btn">
-                <div id="service-cards-container" class="service-strip-card-grid">
-                    <div class="col-12 text-center text-muted py-5">
-                        <i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...
-                    </div>
+            <div class="card shadow-sm statistics-physical-daily-chart-card">
+                <div class="card-header border-bottom-0 py-2">
+                    <h3 class="card-title mb-0" style="font-size: 1rem;">中断时长分布</h3>
                 </div>
-                <div class="card shadow-sm mt-4 mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h3 class="card-title mb-0">
-                            故障明细
-                            <span class="badge bg-success text-white ms-2" id="service-detail-filter-badge" style="display:none"></span>
-                        </h3>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-service-detail-filter" style="display:none">清除业务过滤</button>
+                <div class="card-body p-0">
+                    <div class="statistics-boxplot-filter-controls" aria-label="中断时长分布筛选">
+                        <label class="form-check form-switch statistics-boxplot-filter-option mb-0">
+                            <input class="form-check-input" type="checkbox" id="physical-boxplot-filter-short">
+                            <span class="form-check-label">滤除短时</span>
+                        </label>
+                        <label class="form-check form-switch statistics-boxplot-filter-option mb-0">
+                            <input class="form-check-input" type="checkbox" id="physical-boxplot-filter-rectification">
+                            <span class="form-check-label">滤除整改</span>
+                        </label>
+                        <label class="form-check form-switch statistics-boxplot-filter-option mb-0">
+                            <input class="form-check-input" type="checkbox" id="physical-boxplot-log-scale" checked>
+                            <span class="form-check-label">对数刻度</span>
+                        </label>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover table-vcenter card-table">
-                            <thead>
-                                <tr>
-                                    <th>故障编号</th>
-                                    <th>业务名称</th>
-                                    <th>中断时间</th>
-                                    <th>恢复时间</th>
-                                    <th>历时(小时)</th>
-                                    <th>分类</th>
-                                    <th>影响记录</th>
-                                    <th>标签</th>
-                                </tr>
-                            </thead>
-                            <tbody id="service-details-tbody">
-                                <tr><td colspan="8" class="text-center text-muted py-4">数据加载中...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <div id="chart-physical-duration-boxplot" class="statistics-physical-duration-boxplot"></div>
                 </div>
             </div>
 
-            <!-- ===== 电路业务故障 Tab ===== -->
-            <div class="tab-pane fade" id="tab-circuit-service" role="tabpanel" aria-labelledby="tab-circuit-service-btn">
-                <div id="circuit-service-cards-container" class="service-strip-card-grid">
-                    <div class="col-12 text-center text-muted py-5">
-                        <i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...
-                    </div>
+            <!-- 下钻局部汇总栏 -->
+            <div id="filtered-kpi-summary" class="alert alert-info d-none shadow-sm mb-4" role="alert"
+                style="font-size: 15px;">
+            </div>
+
+            <!-- 下钻明细表格区 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">
+                        故障明细
+                        <span class="badge bg-primary ms-2" id="drill-down-filter-badge" style="display:none"></span>
+                    </h3>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-filter"
+                        style="display:none">清除图表过滤</button>
                 </div>
-                <div class="card shadow-sm mt-4 mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h3 class="card-title mb-0">
-                            故障明细
-                            <span class="badge bg-success text-white ms-2" id="circuit-service-detail-filter-badge" style="display:none"></span>
-                        </h3>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-circuit-service-detail-filter" style="display:none">清除业务过滤</button>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover table-vcenter card-table">
-                            <thead>
-                                <tr>
-                                    <th>故障编号</th>
-                                    <th>业务名称</th>
-                                    <th>中断时间</th>
-                                    <th>恢复时间</th>
-                                    <th>历时(小时)</th>
-                                    <th>分类</th>
-                                    <th>影响记录</th>
-                                    <th>标签</th>
-                                </tr>
-                            </thead>
-                            <tbody id="circuit-service-details-tbody">
-                                <tr><td colspan="8" class="text-center text-muted py-4">数据加载中...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-vcenter card-table">
+                        <thead>
+                            <tr>
+                                <th>故障编号</th>
+                                <th>发生时间</th>
+                                <th>恢复时间</th>
+                                <th>历时(小时)</th>
+                                <th>分类</th>
+                                <th>光缆属性</th>
+                                <th>省份</th>
+                                <th>一级原因</th>
+                                <th>站点 (A -> Z)</th>
+                                <th>标签</th>
+                            </tr>
+                        </thead>
+                        <tbody id="details-tbody">
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-4">数据加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 裸纤业务故障 Tab ===== -->
+        <div class="tab-pane fade" id="tab-service" role="tabpanel" aria-labelledby="tab-service-btn">
+            <div id="service-cards-container" class="service-strip-card-grid">
+                <div class="col-12 text-center text-muted py-5">
+                    <i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...
+                </div>
+            </div>
+            <div class="card shadow-sm mt-4 mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">
+                        故障明细
+                        <span class="badge bg-success text-white ms-2" id="service-detail-filter-badge"
+                            style="display:none"></span>
+                    </h3>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-service-detail-filter"
+                        style="display:none">清除业务过滤</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-vcenter card-table">
+                        <thead>
+                            <tr>
+                                <th>故障编号</th>
+                                <th>业务名称</th>
+                                <th>中断时间</th>
+                                <th>恢复时间</th>
+                                <th>历时(小时)</th>
+                                <th>分类</th>
+                                <th>影响记录</th>
+                                <th>标签</th>
+                            </tr>
+                        </thead>
+                        <tbody id="service-details-tbody">
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">数据加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 电路业务故障 Tab ===== -->
+        <div class="tab-pane fade" id="tab-circuit-service" role="tabpanel" aria-labelledby="tab-circuit-service-btn">
+            <div id="circuit-service-cards-container" class="service-strip-card-grid">
+                <div class="col-12 text-center text-muted py-5">
+                    <i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...
+                </div>
+            </div>
+            <div class="card shadow-sm mt-4 mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">
+                        故障明细
+                        <span class="badge bg-success text-white ms-2" id="circuit-service-detail-filter-badge"
+                            style="display:none"></span>
+                    </h3>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                        id="btn-clear-circuit-service-detail-filter" style="display:none">清除业务过滤</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-vcenter card-table">
+                        <thead>
+                            <tr>
+                                <th>故障编号</th>
+                                <th>业务名称</th>
+                                <th>中断时间</th>
+                                <th>恢复时间</th>
+                                <th>历时(小时)</th>
+                                <th>分类</th>
+                                <th>影响记录</th>
+                                <th>标签</th>
+                            </tr>
+                        </thead>
+                        <tbody id="circuit-service-details-tbody">
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">数据加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
+</div>
 
-<div class="modal fade statistics-metric-help-modal" id="statisticsMetricHelpModal" tabindex="-1" aria-labelledby="statisticsMetricHelpModalLabel" aria-hidden="true">
+<div class="modal fade statistics-metric-help-modal" id="statisticsMetricHelpModal" tabindex="-1"
+    aria-labelledby="statisticsMetricHelpModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
@@ -477,7 +571,8 @@
                                 <li>挂起的故障（所有）为系统内所有挂起故障数量，不随当前统计周期变化。</li>
                                 <li>分类统计仅展示起数，包含光缆中断、空调故障、供电故障、设备故障。</li>
                                 <li>每日中断图固定展示当前自然年内未挂起光缆中断，可在中断数量和中断时长之间切换，并支持按天/按周查看。</li>
-                                <li>中断时长箱线图跟随当前统计周期，展示每日光缆中断历时的最小值、Q1、中位数、Q3、最大值；“滤除短时”表示仅保留历时大于 0.5 小时的样本，“滤除整改”表示排除一级原因为“光缆整改”的样本。</li>
+                                <li>中断时长箱线图跟随当前统计周期，展示每日光缆中断历时的最小值、Q1、中位数、Q3、最大值；“滤除短时”表示仅保留历时大于 0.5
+                                    小时的样本，“滤除整改”表示排除一级原因为“光缆整改”的样本。</li>
                             </ul>
                         </div>
                     </section>
@@ -516,7 +611,8 @@
                                 <li>裸纤业务不再限定故障类型为“光缆中断”，会纳入所有物理故障类型产生的中断影响；电路业务同样不再限定故障类型为“光缆中断”。</li>
                                 <li>业务卡片展示年度累计、本期间、运行月历和近三个月中断日历，并按业务所属租户组或业务门类分组。</li>
                                 <li>本期间按故障分类汇总故障总数和故障时长，分类明细仅显示非零项；业务累计时长从业务中断时间计算到业务恢复时间，未恢复影响按当前时间计算。</li>
-                                <li>年度累计按所选年份统计 SLA、中断时长和中断起数；SLA 先合并重叠不可用时段，再按“(年度小时数 - 不可用小时数) / 年度小时数”得到可用率，SLA 按两位小数向下截取展示。</li>
+                                <li>年度累计按所选年份统计 SLA、中断时长和中断起数；SLA 先合并重叠不可用时段，再按“(年度小时数 - 不可用小时数) / 年度小时数”得到可用率，SLA
+                                    按两位小数向下截取展示。</li>
                                 <li>运行月历按所选年份逐月展示故障数与故障时长；运行月历的 SLA 单元格只显示数字，不显示百分号。</li>
                                 <li>中断日历默认展示近三个月，可展开查看所选年份截至当前月份的业务中断次数。</li>
                             </ul>
@@ -531,7 +627,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="statisticsCableBreakMapModal" tabindex="-1" aria-labelledby="statisticsCableBreakMapModalLabel" aria-hidden="true">
+<div class="modal fade" id="statisticsCableBreakMapModal" tabindex="-1"
+    aria-labelledby="statisticsCableBreakMapModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered statistics-cable-break-map-dialog">
         <div class="modal-content">
             <div class="modal-header py-2 statistics-cable-break-map-header">
@@ -539,9 +636,11 @@
                     <h5 class="modal-title mb-0" id="statisticsCableBreakMapModalLabel">
                         <i class="mdi mdi-map-marker-radius me-1"></i>光缆中断故障地图
                     </h5>
-                    <span class="statistics-period-label statistics-cable-break-map-period" id="statistics-cable-break-map-period"></span>
+                    <span class="statistics-period-label statistics-cable-break-map-period"
+                        id="statistics-cable-break-map-period"></span>
                 </div>
-                <button type="button" class="btn-close" id="statisticsCableBreakMapCloseBtn" aria-label="Close"></button>
+                <button type="button" class="btn-close" id="statisticsCableBreakMapCloseBtn"
+                    aria-label="Close"></button>
             </div>
             <div class="modal-body p-0">
                 <div class="statistics-cable-break-map-frame-wrap">
@@ -549,7 +648,8 @@
                         <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
                         <span class="ms-2">地图加载中...</span>
                     </div>
-                    <iframe id="statistics-cable-break-map-iframe" class="statistics-cable-break-map-iframe" title="光缆中断故障地图" src="about:blank"></iframe>
+                    <iframe id="statistics-cable-break-map-iframe" class="statistics-cable-break-map-iframe"
+                        title="光缆中断故障地图" src="about:blank"></iframe>
                 </div>
             </div>
         </div>

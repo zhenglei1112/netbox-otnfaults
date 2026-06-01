@@ -13,7 +13,8 @@ from .forms import (
     BareFiberServiceForm, BareFiberServiceFilterForm, BareFiberServiceImportForm, BareFiberServiceBulkEditForm,
     CircuitServiceForm, CircuitServiceFilterForm, CircuitServiceImportForm, CircuitServiceBulkEditForm,
     CutoverTaskForm, CutoverTaskFilterForm, CutoverTaskImportForm, CutoverTaskBulkEditForm,
-    CutoverImpactForm, CutoverImpactFilterForm, CutoverImpactImportForm, CutoverImpactBulkEditForm
+    CutoverImpactForm, CutoverImpactFilterForm, CutoverImpactImportForm, CutoverImpactBulkEditForm,
+    CutoverFaultGenerationForm
 )
 from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet, CutoverTaskFilterSet, CutoverImpactFilterSet
 from .tables import (
@@ -51,8 +52,13 @@ from .services.fault_map_data import (
     build_fault_map_payload,
     build_statistics_cable_break_map_payload,
     get_sites_data,
+    build_cutover_map_payload,
 )
 from .services.fault_coordinates import resolve_fault_coordinates
+from .services.cutover_fault_generation import (
+    build_fault_initial_data,
+    create_fault_from_cutover,
+)
 from .view_mixins import ExcelFriendlyCSVExportMixin
 
 
@@ -121,11 +127,18 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
                 'sites_data': sites_data
             })
         
+        # 解析割接过滤参数
+        cutover_status = request.GET.getlist('cutover_status') or request.GET.getlist('cutover_status[]')
+        cutover_time_range = request.GET.get('cutover_time_range', 'all')
+        
         payload = build_fault_map_payload()
+        cutover_data = build_cutover_map_payload(status_list=cutover_status, time_range=cutover_time_range)
+        
         return JsonResponse({
             'sites_data': sites_data,
             'heatmap_data': payload['heatmap_data'],
             'marker_data': payload['marker_data'],
+            'cutover_data': cutover_data,
         })
 
 
@@ -1382,6 +1395,7 @@ class CutoverTaskView(generic.ObjectView):
         return {
             'impacts_table': impacts_table,
             'impacts_count': all_impacts.count(),
+            'generated_fault': instance.generated_faults.order_by('-created').first(),
             'bare_fiber_services': [
                 {
                     'id': service.pk,
@@ -1446,6 +1460,76 @@ class CutoverTaskGeneratePlannedTimeView(PermissionRequiredMixin, View):
             messages.info(request, '当前主计划时间已经是最新时间记录。')
 
         return redirect(task.get_absolute_url())
+
+
+class CutoverTaskGenerateFaultView(PermissionRequiredMixin, View):
+    """Preview and create an OTN fault from one cutover task."""
+    permission_required = 'netbox_otnfaults.add_otnfault'
+    template_name = 'netbox_otnfaults/cutovertask_generate_fault.html'
+
+    def _context(
+        self,
+        cutover: CutoverTask,
+        form: CutoverFaultGenerationForm,
+    ) -> dict[str, Any]:
+        return {
+            'object': cutover,
+            'form': form,
+            'existing_fault': cutover.generated_faults.order_by('-created').first(),
+            'impacts': cutover.impacts.all(),
+        }
+
+    def get(self, request: HttpRequest, pk: int) -> HttpResponse:
+        cutover = get_object_or_404(
+            CutoverTask.objects.prefetch_related(
+                'generated_faults',
+                'impacts',
+                'impacts__service_site_z',
+                'interruption_location',
+            ),
+            pk=pk,
+        )
+        form = CutoverFaultGenerationForm(
+            initial=build_fault_initial_data(cutover, request.user)
+        )
+        return render(request, self.template_name, self._context(cutover, form))
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        cutover = get_object_or_404(
+            CutoverTask.objects.prefetch_related(
+                'generated_faults',
+                'impacts',
+                'impacts__service_site_z',
+                'interruption_location',
+            ),
+            pk=pk,
+        )
+        existing_fault = cutover.generated_faults.order_by('-created').first()
+        if existing_fault:
+            messages.error(request, '当前割接已经生成过故障。')
+            return redirect(existing_fault.get_absolute_url())
+
+        form = CutoverFaultGenerationForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, self._context(cutover, form))
+
+        initial_data = build_fault_initial_data(cutover, request.user)
+        fault_data = {
+            **initial_data,
+            **form.cleaned_data,
+        }
+        try:
+            fault = create_fault_from_cutover(
+                cutover=cutover,
+                fault_data=fault_data,
+                user=request.user,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(cutover.get_absolute_url())
+
+        messages.success(request, f'已从割接 {cutover.cutover_no} 生成故障 {fault.fault_number}。')
+        return redirect(fault.get_absolute_url())
 
 
 class CutoverTaskEditView(generic.ObjectEditView):

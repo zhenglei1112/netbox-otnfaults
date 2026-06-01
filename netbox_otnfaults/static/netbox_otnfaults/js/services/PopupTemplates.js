@@ -104,6 +104,116 @@ class PopupTemplates {
   }
 
   /**
+   * 生成割接任务点悬停弹窗 HTML
+   * @param {Object} props - 割接点属性
+   * @returns {string} HTML 字符串
+   */
+  static cutoverPopup(props) {
+    // 1. 动态倒计时或超时计算
+    let countdownHtml = "";
+    if (props.planned_cutover_time && props.planned_cutover_time !== "未记录") {
+      try {
+        const plannedTime = new Date(props.planned_cutover_time.replace(/-/g, "/"));
+        const now = new Date();
+        const diffMs = plannedTime - now;
+        
+        if (props.status_key === "pending_implementation") {
+          if (diffMs > 0) {
+            // 未来，显示倒计时
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            let timeStr = "";
+            if (diffHours > 24) {
+              const diffDays = Math.floor(diffHours / 24);
+              timeStr = `${diffDays}天${diffHours % 24}小时`;
+            } else {
+              timeStr = `${diffHours}小时${diffMins}分钟`;
+            }
+            countdownHtml = `<div class="popup-row text-success fw-bold"><span class="popup-label">倒计时</span><span>${timeStr} 后开始</span></div>`;
+          } else {
+            // 过去，说明超时未实施，显示红色警告
+            const overdueHours = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60));
+            countdownHtml = `<div class="popup-row text-danger fw-bold overdue-alert"><span class="popup-label">警示</span><span>已超时 ${overdueHours} 小时未实施</span></div>`;
+          }
+        }
+      } catch (e) {
+        console.warn("计算割接倒计时失败:", e);
+      }
+    }
+
+    // 2. 影响业务
+    let impactsHtml = "";
+    try {
+      const impacts = typeof props.impacts_details === "string"
+        ? JSON.parse(props.impacts_details)
+        : props.impacts_details;
+        
+      if (impacts && impacts.length > 0) {
+        const impactItems = impacts
+          .slice(0, 5) // 最多展示5条，防止撑大Popup
+          .map((impact) => {
+            const typeLabel = impact.service_type === "bare_fiber" ? "裸纤" : "电路";
+            const durationText = impact.duration_hours ? `${impact.duration_hours}小时` : "—";
+            return `<div class="popup-impact-item">
+                      <span class="popup-impact-name" style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 180px;">[${typeLabel}] ${impact.name}</span>
+                      <span class="popup-impact-duration">${durationText}</span>
+                    </div>`;
+          })
+          .join("");
+          
+        const moreCountHtml = impacts.length > 5 
+          ? `<div class="text-muted small text-end mt-1">等共 ${impacts.length} 项...</div>`
+          : "";
+
+        impactsHtml = `
+          <div class="popup-impacts">
+            <div class="popup-impacts-title">影响业务 (${props.impact_count || impacts.length} 项)</div>
+            ${impactItems}
+            ${moreCountHtml}
+          </div>`;
+      }
+    } catch (e) {
+      console.warn("解析割接影响业务数据失败:", e);
+    }
+
+    // 3. 状态颜色
+    const cutoverStatusColors = {
+      applying: "#0d6efd",
+      pending_implementation: "#fd7e14",
+      completed: "#198754",
+      cancelled: "#6c757d",
+    };
+    const statusBgColor = cutoverStatusColors[props.status_key] || "#fd7e14";
+
+    // 站点显示
+    const sitesDisplay =
+      props.a_site +
+      (props.z_sites && props.z_sites !== "未指定" ? " ── " + props.z_sites : "");
+
+    return `
+      <div class="fault-popup cutover-popup">
+        <div class="popup-sites" style="border-bottom: 2px solid ${statusBgColor}; padding-bottom: 4px; margin-bottom: 8px;">
+          <i class="mdi mdi-content-cut text-primary" style="margin-right: 4px;"></i>
+          ${sitesDisplay}
+        </div>
+        <div class="popup-badges">
+          <span class="popup-badge" style="background-color: ${statusBgColor}; color: white;">割接：${props.status}</span>
+        </div>
+        <div class="popup-row"><span class="popup-label">计划时间</span><span>${props.planned_cutover_time}</span></div>
+        ${countdownHtml}
+        <div class="popup-row"><span class="popup-label">具体地点</span><span>${props.cutover_location}</span></div>
+        <div class="popup-row"><span class="popup-label">割接原因</span><span>${props.reason}</span></div>
+        <div class="popup-row"><span class="popup-label">实施单位</span><span>${props.implementation_unit}</span></div>
+        <div class="popup-row"><span class="popup-label">联系人</span><span>${props.cutover_contact} (${props.cutover_contact_phone})</span></div>
+        ${impactsHtml}
+        <div class="popup-footer">
+          <a href="${props.url}" target="_blank">${props.number}</a>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
    * 生成站点弹窗 HTML
    * @param {Object} params - 参数对象
    * @param {string} params.siteName - 站点名称

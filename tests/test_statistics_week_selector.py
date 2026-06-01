@@ -25,6 +25,14 @@ def test_statistics_dashboard_uses_single_calendar_date_selector() -> None:
     assert 'id="filterWeek"' not in template
 
 
+def test_statistics_dashboard_filter_type_options_use_valid_template_comparisons() -> None:
+    template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+    for filter_type in ("year", "half", "quarter", "month", "week"):
+        assert f"default_filter_type == '{filter_type}'" in template
+        assert f"default_filter_type=='{filter_type}'" not in template
+
+
 def test_statistics_page_context_provides_default_calendar_date() -> None:
     source = VIEWS_PATH.read_text(encoding="utf-8")
 

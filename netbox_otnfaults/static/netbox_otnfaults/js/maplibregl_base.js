@@ -3,6 +3,21 @@
  * 封装通用的地图操作和配置。
  */
 
+const HIDDEN_PLACE_LABEL_NAMES = [
+  "台湾",
+  "臺灣",
+  "台湾省",
+  "臺灣省",
+  "台北",
+  "臺北",
+  "台北市",
+  "臺北市",
+  "Taiwan",
+  "Taiwan Province",
+  "Taipei",
+  "Taipei City",
+];
+
 class NetBoxMapBase {
   constructor() {
     this.map = null;
@@ -23,6 +38,52 @@ class NetBoxMapBase {
       projection_flat:
         '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',
     };
+  }
+
+  getHiddenPlaceLabelExpression(labelExpression) {
+    const label = ["coalesce", labelExpression, ""];
+    return [
+      "case",
+      ["in", label, ["literal", HIDDEN_PLACE_LABEL_NAMES]],
+      "",
+      label,
+    ];
+  }
+
+  getHiddenPlaceIconOpacityExpression(labelExpression, fallbackOpacity) {
+    const label = ["coalesce", labelExpression, ""];
+    return [
+      "case",
+      ["in", label, ["literal", HIDDEN_PLACE_LABEL_NAMES]],
+      0,
+      fallbackOpacity,
+    ];
+  }
+
+  applyHiddenPlaceRulesToStyle(styleConfig) {
+    if (!styleConfig || !Array.isArray(styleConfig.layers)) return styleConfig;
+
+    const placeNameExpression = [
+      "coalesce",
+      ["get", "name:zh"],
+      ["get", "name"],
+    ];
+
+    styleConfig.layers.forEach((layer) => {
+      if (!layer || layer.type !== "symbol" || !layer.layout?.["text-field"]) return;
+
+      layer.layout["text-field"] = this.getHiddenPlaceLabelExpression(placeNameExpression);
+
+      if (layer.layout["icon-image"]) {
+        layer.paint = layer.paint || {};
+        layer.paint["icon-opacity"] = this.getHiddenPlaceIconOpacityExpression(
+          placeNameExpression,
+          layer.paint["icon-opacity"] || 1
+        );
+      }
+    });
+
+    return styleConfig;
   }
 
   /**
@@ -194,6 +255,7 @@ class NetBoxMapBase {
       }
     }
 
+    this.applyHiddenPlaceRulesToStyle(styleConfig);
     return styleConfig;
   }
 
@@ -336,7 +398,7 @@ class NetBoxMapBase {
           "source-layer": "place",
           minzoom: 3,
           layout: {
-            "text-field": "{name}",
+            "text-field": this.getHiddenPlaceLabelExpression(["get", "name"]),
             "text-size": {
               stops: [
                 [3, 10],
@@ -582,11 +644,27 @@ class NetBoxMapBase {
     const layers = this.map.getStyle().layers;
     layers.forEach((layer) => {
       if (layer.layout && layer.layout["text-field"]) {
-        this.map.setLayoutProperty(layer.id, "text-field", [
+        const placeNameExpression = [
           "coalesce",
           ["get", "name:zh"],
           ["get", "name"],
-        ]);
+        ];
+        this.map.setLayoutProperty(
+          layer.id,
+          "text-field",
+          this.getHiddenPlaceLabelExpression(placeNameExpression)
+        );
+
+        if (layer.layout["icon-image"]) {
+          this.map.setPaintProperty(
+            layer.id,
+            "icon-opacity",
+            this.getHiddenPlaceIconOpacityExpression(
+              placeNameExpression,
+              layer.paint?.["icon-opacity"] || 1
+            )
+          );
+        }
       }
     });
   }

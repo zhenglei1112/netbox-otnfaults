@@ -59,6 +59,17 @@ class CutoverEditTemplateTestCase(unittest.TestCase):
         self.assertIn("query_params={", contract_field)
         self.assertIn("'external_party_object': '$handling_unit'", contract_field)
 
+    def test_related_customer_coordination_checkbox_prefills_current_time(self) -> None:
+        template = CUTOVER_EDIT_TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn("function formatCurrentMinute()", template)
+        self.assertIn("String(value).padStart(2, '0')", template)
+        self.assertIn("this.checked && !customers[index].time", template)
+        self.assertIn("const currentTime = formatCurrentMinute();", template)
+        self.assertIn("customers[index].time = currentTime;", template)
+        self.assertIn("customers[index].coordination_time = currentTime;", template)
+        self.assertIn("timeInput.value = currentTime;", template)
+
 
 if __name__ == "__main__":
     unittest.main()

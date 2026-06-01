@@ -72,6 +72,10 @@ class OtnFaultTable(NetBoxTable):
         linkify=True,
         verbose_name='值守人员'
     )
+    source_cutover_task = tables.Column(
+        linkify=True,
+        verbose_name='来源割接'
+    )
     operations_manager = columns.ManyToManyColumn(
         linkify_item=True,
         verbose_name='运维主管'
@@ -222,7 +226,7 @@ class OtnFaultTable(NetBoxTable):
         fields = (
             'pk', 'fault_number', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
             'power_data_type', 'power_maintenance_mode',
-            'duty_officer', 'interruption_location_a', 'interruption_location',
+            'source_cutover_task', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'progress',
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
             'urgency', 'first_report_source',

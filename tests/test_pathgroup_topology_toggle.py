@@ -67,12 +67,12 @@ class PathGroupTopologyToggleTestCase(unittest.TestCase):
         self.assertNotIn("this.addHeader(menu, '时间范围')", source)
 
 
-    def test_layer_toggle_floating_menu_opens_to_button_right(self) -> None:
+    def test_layer_toggle_floating_menu_opens_to_button_left(self) -> None:
         source = LAYER_TOGGLE_CONTROL_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("let left = buttonRect.right + 8;", source)
-        self.assertIn("if (left + menuWidth > viewportWidth - 12)", source)
-        self.assertNotIn("const rightOfMenu = viewportWidth - buttonRect.left + 8;", source)
+        self.assertIn("const rightOfMenu = viewportWidth - buttonRect.left + 8;", source)
+        self.assertIn("let left = viewportWidth - rightOfMenu - menuWidth", source)
+        self.assertNotIn("let left = buttonRect.right + 8;", source)
 
     def test_layer_toggle_inline_menu_opens_to_button_right(self) -> None:
         source = LAYER_TOGGLE_CONTROL_PATH.read_text(encoding="utf-8")

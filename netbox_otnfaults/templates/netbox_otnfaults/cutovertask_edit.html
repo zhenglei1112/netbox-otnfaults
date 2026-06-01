@@ -882,6 +882,12 @@
             jsonInput.value = JSON.stringify(customers);
         }
 
+        function formatCurrentMinute() {
+            const now = new Date();
+            const pad = value => String(value).padStart(2, '0');
+            return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        }
+
         function initializeTimePickers() {
             if (!window.flatpickr) return;
             tbody.querySelectorAll('.customer-coordination-time').forEach(input => {
@@ -932,6 +938,12 @@
                     customers[index].is_coordinated = this.checked;
                     if (timeInput) {
                         timeInput.disabled = !this.checked;
+                        if (this.checked && !customers[index].time) {
+                            const currentTime = formatCurrentMinute();
+                            customers[index].time = currentTime;
+                            customers[index].coordination_time = currentTime;
+                            timeInput.value = currentTime;
+                        }
                         if (!this.checked) {
                             if (timeInput._flatpickr) {
                                 timeInput._flatpickr.clear();
@@ -939,6 +951,7 @@
                                 timeInput.value = '';
                             }
                             customers[index].time = '';
+                            customers[index].coordination_time = '';
                         }
                     }
                     syncJsonInput();
@@ -949,6 +962,7 @@
                 input.addEventListener('change', function() {
                     const index = parseInt(this.getAttribute('data-index'));
                     customers[index].time = this.value.trim();
+                    customers[index].coordination_time = this.value.trim();
                     syncJsonInput();
                 });
             });

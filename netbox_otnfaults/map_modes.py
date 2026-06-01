@@ -12,7 +12,7 @@ MAP_MODE_DEFAULTS = {
 MAP_MODES = {
     'fault': {
         'title': '一张图',
-        'plugin_file': 'fault_mode.js',
+        'plugin_file': 'fault_mode.js?v=cutover-layers-1',
         'projection': 'globe',
         'header_actions': [
             {
@@ -23,13 +23,13 @@ MAP_MODES = {
         ],
         'layers': {},
         'js_files': [
-            'utils/fault_icons.js',      # SVG图标库（必须在fault_mode.js之前）
+            'utils/fault_icons.js?v=cutover-layers-1',      # SVG图标库（必须在fault_mode.js之前）
             'core/config.js',
             'utils/api.js?v=path-pagination-1',
             'services/MapStylePreferenceService.js',
             'services/FaultDataService.js',
             'controls/MapStylePreferenceControl.js',
-            'controls/LayerToggleControl.js?v=pathgroup-overlays-3',
+            'controls/LayerToggleControl.js?v=cutover-layers-1',
             'controls/FaultStatisticsControl.js?v=top5-path-reverse-2',
             'controls/FaultLegendControl.js',
             'controls/SearchControl.js'

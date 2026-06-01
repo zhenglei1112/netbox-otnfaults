@@ -91,6 +91,11 @@ class NestedJournalEntrySerializer(WritableNestedSerializer):
         brief_fields = ('id', 'url', 'display', 'created', 'kind')
 
 class OtnFaultSerializer(NetBoxModelSerializer):
+    source_cutover_task = serializers.PrimaryKeyRelatedField(
+        queryset=CutoverTask.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     duty_officer = NestedUserSerializer()
     interruption_location_a = NestedSiteSerializer()
     interruption_location = NestedSiteSerializer(many=True, required=False)
@@ -129,7 +134,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
     class Meta:
         model = OtnFault
         fields = (
-            'id', 'url', 'display', 'fault_number', 'duty_officer', 'interruption_location_a', 'interruption_location',
+            'id', 'url', 'display', 'fault_number', 'source_cutover_task', 'duty_officer', 'interruption_location_a', 'interruption_location',
             'fault_occurrence_time', 'fault_recovery_time', 'fault_duration', 'processing_duration', 'timeline_data',
             'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
@@ -150,7 +155,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'journal_entries',
         )
         brief_fields = (
-            'id', 'url', 'display', 'fault_number', 'duty_officer', 'fault_occurrence_time',
+            'id', 'url', 'display', 'fault_number', 'source_cutover_task', 'duty_officer', 'fault_occurrence_time',
             'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
             'fault_status', 'is_suspended',
         )

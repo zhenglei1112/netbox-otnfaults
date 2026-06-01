@@ -8,7 +8,20 @@
 <div class="row mb-3 cutover-detail">
   <div class="col col-md-6">
     <div class="card">
-      <h5 class="card-header">割接信息</h5>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">割接信息</h5>
+        <div class="d-flex gap-2">
+          {% if generated_fault %}
+          <a href="{{ generated_fault.get_absolute_url }}" class="btn btn-ghost-primary btn-sm">
+            <i class="mdi mdi-alert-circle-check-outline"></i> 查看已生成故障
+          </a>
+          {% elif perms.netbox_otnfaults.add_otnfault %}
+          <a href="{% url 'plugins:netbox_otnfaults:cutovertask_generate_fault' object.pk %}" class="btn btn-ghost-primary btn-sm">
+            <i class="mdi mdi-alert-plus-outline"></i> 生成故障
+          </a>
+          {% endif %}
+        </div>
+      </div>
       <table class="table table-hover attr-table">
         <tr><th scope="row">割接编号</th><td><span class="fw-bold">{{ object.cutover_no|default:"—" }}</span></td></tr>
         <tr>

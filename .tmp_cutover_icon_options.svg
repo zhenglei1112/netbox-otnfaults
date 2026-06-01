@@ -1,0 +1,146 @@
+<svg width="1180" height="760" viewBox="0 0 1180 760" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1180" height="760" fill="#f8f9fa"/>
+  <style>
+    text { font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #1f2937; }
+    .title { font-size: 30px; font-weight: 700; }
+    .subtitle { font-size: 18px; fill: #6b7280; }
+    .name { font-size: 22px; font-weight: 700; }
+    .note { font-size: 15px; fill: #6b7280; }
+    .card { fill: #ffffff; stroke: #d1d5db; stroke-width: 1.5; rx: 10; }
+    .status { font-size: 14px; fill: #4b5563; }
+    .small-icon-bg { fill: #e5e7eb; }
+  </style>
+
+  <text x="590" y="48" text-anchor="middle" class="title">割接地图图标替代方案</text>
+  <text x="590" y="78" text-anchor="middle" class="subtitle">每个方案展示放大图、地图实际尺寸感，以及申请中/待实施状态色</text>
+
+  <defs>
+    <g id="icon-scissors">
+      <path d="M19,3A2,2 0 0,1 21,5A2,2 0 0,1 19,7A2,2 0 0,1 17,5A2,2 0 0,1 19,3M19,9A2,2 0 0,1 21,11A2,2 0 0,1 19,13A2,2 0 0,1 17,11A2,2 0 0,1 19,9M9.64,7.64C9.87,7.14 10,6.59 10,6A4,4 0 0,0 6,2A4,4 0 0,0 6,10C6.59,10 7.14,9.87 7.64,9.64L10,12L7.64,14.36C7.14,14.13 6.59,14 6,14A4,4 0 0,0 2,18A4,4 0 0,0 6,22A4,4 0 0,0 10,18C10,17.41 9.87,16.86 9.64,16.36L12,14L19,21H22V20L9.64,7.64M6,4A2,2 0 0,1 8,6A2,2 0 0,1 6,8A2,2 0 0,1 4,6A2,2 0 0,1 6,4M6,16A2,2 0 0,1 8,18A2,2 0 0,1 6,20A2,2 0 0,1 4,18A2,2 0 0,1 6,16M14,12A1.5,1.5 0 0,1 12.5,13.5A1.5,1.5 0 0,1 11,12A1.5,1.5 0 0,1 12.5,10.5A1.5,1.5 0 0,1 14,12Z" fill="white"/>
+    </g>
+    <g id="icon-calendar-clock" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="5" y="6" width="17" height="16" rx="2"/>
+      <path d="M8 3v5M19 3v5M5 11h17"/>
+      <circle cx="16.5" cy="16.5" r="3.5"/>
+      <path d="M16.5 14.5v2.3l1.7 1"/>
+    </g>
+    <g id="icon-route-cut" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="7" r="2.5"/>
+      <circle cx="21" cy="19" r="2.5"/>
+      <path d="M8.2 8.4c4.1 2.1 7.4 4.9 10.6 9.2"/>
+      <path d="M10 19l10-10"/>
+      <path d="M17 9h3v3"/>
+      <path d="M10 16v3h3"/>
+    </g>
+    <g id="icon-wrench-clock" fill="none" stroke="white" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.6 5.1a5 5 0 0 0-6.2 6.2L3.5 16.2a2.4 2.4 0 0 0 3.4 3.4l4.9-4.9a5 5 0 0 0 6.2-6.2l-3.1 3.1-3-3 2.7-3.5z"/>
+      <circle cx="18" cy="18" r="4"/>
+      <path d="M18 16v2.3l1.7.9"/>
+    </g>
+    <g id="icon-switch-window" fill="none" stroke="white" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 7h11l-3-3M17 7l-3 3"/>
+      <path d="M20 17H9l3 3M9 17l3-3"/>
+      <rect x="4" y="4" width="16" height="16" rx="3" opacity="0.35"/>
+    </g>
+    <g id="icon-cone" fill="none" stroke="white" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 4l6 17H6L12 4z"/>
+      <path d="M9.5 12h5M8 17h8M5 21h14"/>
+    </g>
+  </defs>
+
+  <g id="card-template">
+    <rect class="card" x="0" y="0" width="340" height="290"/>
+  </g>
+
+  <!-- Card 1 -->
+  <g transform="translate(45, 115)">
+    <use href="#card-template"/>
+    <text x="170" y="34" text-anchor="middle" class="name">A 当前剪刀</text>
+    <text x="170" y="59" text-anchor="middle" class="note">语义直接：割接/剪断</text>
+    <circle cx="116" cy="132" r="58" fill="#0d6efd"/>
+    <circle cx="116" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(68,84) scale(4)"><use href="#icon-scissors"/></g>
+    <circle cx="224" cy="132" r="58" fill="#fd7e14"/>
+    <circle cx="224" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(176,84) scale(4)"><use href="#icon-scissors"/></g>
+    <text x="116" y="214" text-anchor="middle" class="status">申请中</text>
+    <text x="224" y="214" text-anchor="middle" class="status">待实施</text>
+    <circle cx="142" cy="246" r="18" fill="#0d6efd"/><g transform="translate(127.6,231.6) scale(1.2)"><use href="#icon-scissors"/></g>
+    <circle cx="198" cy="246" r="18" fill="#fd7e14"/><g transform="translate(183.6,231.6) scale(1.2)"><use href="#icon-scissors"/></g>
+  </g>
+
+  <!-- Card 2 -->
+  <g transform="translate(420, 115)">
+    <use href="#card-template"/>
+    <text x="170" y="34" text-anchor="middle" class="name">B 日历时钟</text>
+    <text x="170" y="59" text-anchor="middle" class="note">强调计划时间，适合割接任务</text>
+    <circle cx="116" cy="132" r="58" fill="#0d6efd"/><circle cx="116" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(68,84) scale(4)"><use href="#icon-calendar-clock"/></g>
+    <circle cx="224" cy="132" r="58" fill="#fd7e14"/><circle cx="224" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(176,84) scale(4)"><use href="#icon-calendar-clock"/></g>
+    <text x="116" y="214" text-anchor="middle" class="status">申请中</text>
+    <text x="224" y="214" text-anchor="middle" class="status">待实施</text>
+    <circle cx="142" cy="246" r="18" fill="#0d6efd"/><g transform="translate(127.6,231.6) scale(1.2)"><use href="#icon-calendar-clock"/></g>
+    <circle cx="198" cy="246" r="18" fill="#fd7e14"/><g transform="translate(183.6,231.6) scale(1.2)"><use href="#icon-calendar-clock"/></g>
+  </g>
+
+  <!-- Card 3 -->
+  <g transform="translate(795, 115)">
+    <use href="#card-template"/>
+    <text x="170" y="34" text-anchor="middle" class="name">C 路径切换</text>
+    <text x="170" y="59" text-anchor="middle" class="note">强调网络路径变更</text>
+    <circle cx="116" cy="132" r="58" fill="#0d6efd"/><circle cx="116" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(68,84) scale(4)"><use href="#icon-route-cut"/></g>
+    <circle cx="224" cy="132" r="58" fill="#fd7e14"/><circle cx="224" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(176,84) scale(4)"><use href="#icon-route-cut"/></g>
+    <text x="116" y="214" text-anchor="middle" class="status">申请中</text>
+    <text x="224" y="214" text-anchor="middle" class="status">待实施</text>
+    <circle cx="142" cy="246" r="18" fill="#0d6efd"/><g transform="translate(127.6,231.6) scale(1.2)"><use href="#icon-route-cut"/></g>
+    <circle cx="198" cy="246" r="18" fill="#fd7e14"/><g transform="translate(183.6,231.6) scale(1.2)"><use href="#icon-route-cut"/></g>
+  </g>
+
+  <!-- Card 4 -->
+  <g transform="translate(45, 445)">
+    <use href="#card-template"/>
+    <text x="170" y="34" text-anchor="middle" class="name">D 工具时钟</text>
+    <text x="170" y="59" text-anchor="middle" class="note">强调施工/维护窗口</text>
+    <circle cx="116" cy="132" r="58" fill="#0d6efd"/><circle cx="116" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(68,84) scale(4)"><use href="#icon-wrench-clock"/></g>
+    <circle cx="224" cy="132" r="58" fill="#fd7e14"/><circle cx="224" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(176,84) scale(4)"><use href="#icon-wrench-clock"/></g>
+    <text x="116" y="214" text-anchor="middle" class="status">申请中</text>
+    <text x="224" y="214" text-anchor="middle" class="status">待实施</text>
+    <circle cx="142" cy="246" r="18" fill="#0d6efd"/><g transform="translate(127.6,231.6) scale(1.2)"><use href="#icon-wrench-clock"/></g>
+    <circle cx="198" cy="246" r="18" fill="#fd7e14"/><g transform="translate(183.6,231.6) scale(1.2)"><use href="#icon-wrench-clock"/></g>
+  </g>
+
+  <!-- Card 5 -->
+  <g transform="translate(420, 445)">
+    <use href="#card-template"/>
+    <text x="170" y="34" text-anchor="middle" class="name">E 双向切换</text>
+    <text x="170" y="59" text-anchor="middle" class="note">强调割接倒换/回退</text>
+    <circle cx="116" cy="132" r="58" fill="#0d6efd"/><circle cx="116" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(68,84) scale(4)"><use href="#icon-switch-window"/></g>
+    <circle cx="224" cy="132" r="58" fill="#fd7e14"/><circle cx="224" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(176,84) scale(4)"><use href="#icon-switch-window"/></g>
+    <text x="116" y="214" text-anchor="middle" class="status">申请中</text>
+    <text x="224" y="214" text-anchor="middle" class="status">待实施</text>
+    <circle cx="142" cy="246" r="18" fill="#0d6efd"/><g transform="translate(127.6,231.6) scale(1.2)"><use href="#icon-switch-window"/></g>
+    <circle cx="198" cy="246" r="18" fill="#fd7e14"/><g transform="translate(183.6,231.6) scale(1.2)"><use href="#icon-switch-window"/></g>
+  </g>
+
+  <!-- Card 6 -->
+  <g transform="translate(795, 445)">
+    <use href="#card-template"/>
+    <text x="170" y="34" text-anchor="middle" class="name">F 施工锥</text>
+    <text x="170" y="59" text-anchor="middle" class="note">强调现场施工，辨识度高</text>
+    <circle cx="116" cy="132" r="58" fill="#0d6efd"/><circle cx="116" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(68,84) scale(4)"><use href="#icon-cone"/></g>
+    <circle cx="224" cy="132" r="58" fill="#fd7e14"/><circle cx="224" cy="132" r="58" stroke="#fff" stroke-width="8" fill="none"/>
+    <g transform="translate(176,84) scale(4)"><use href="#icon-cone"/></g>
+    <text x="116" y="214" text-anchor="middle" class="status">申请中</text>
+    <text x="224" y="214" text-anchor="middle" class="status">待实施</text>
+    <circle cx="142" cy="246" r="18" fill="#0d6efd"/><g transform="translate(127.6,231.6) scale(1.2)"><use href="#icon-cone"/></g>
+    <circle cx="198" cy="246" r="18" fill="#fd7e14"/><g transform="translate(183.6,231.6) scale(1.2)"><use href="#icon-cone"/></g>
+  </g>
+</svg>

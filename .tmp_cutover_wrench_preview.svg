@@ -1,0 +1,52 @@
+<svg width="760" height="420" viewBox="0 0 760 420" xmlns="http://www.w3.org/2000/svg">
+  <rect width="760" height="420" fill="#f8f9fa"/>
+  <style>
+    text { font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #1f2937; }
+    .title { font-size: 30px; font-weight: 700; }
+    .subtitle { font-size: 17px; fill: #6b7280; }
+    .label { font-size: 22px; font-weight: 700; }
+    .caption { font-size: 15px; fill: #6b7280; }
+  </style>
+
+  <defs>
+    <g id="icon-wrench-only" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21.2 6.1a6.2 6.2 0 0 1-7.6 7.6L7.1 20.2a2.8 2.8 0 0 1-4-4l6.5-6.5A6.2 6.2 0 0 1 17.2 2l-3.8 3.8 4 4 3.8-3.7z"/>
+      <circle cx="5.1" cy="18.2" r="0.8" fill="white" stroke="none"/>
+    </g>
+  </defs>
+
+  <text x="380" y="46" text-anchor="middle" class="title">D 方案调整：只保留扳手</text>
+  <text x="380" y="76" text-anchor="middle" class="subtitle">去掉时钟后，图形更简洁，强调割接施工/维护动作</text>
+
+  <g transform="translate(110, 120)">
+    <circle cx="90" cy="90" r="82" fill="#0d6efd"/>
+    <circle cx="90" cy="90" r="82" stroke="#ffffff" stroke-width="10" fill="none"/>
+    <g transform="translate(30, 30) scale(5)">
+      <use href="#icon-wrench-only"/>
+    </g>
+    <text x="90" y="215" text-anchor="middle" class="label">申请中</text>
+    <text x="90" y="241" text-anchor="middle" class="caption">蓝色状态底 #0d6efd</text>
+  </g>
+
+  <g transform="translate(470, 120)">
+    <circle cx="90" cy="90" r="82" fill="#fd7e14"/>
+    <circle cx="90" cy="90" r="82" stroke="#ffffff" stroke-width="10" fill="none"/>
+    <g transform="translate(30, 30) scale(5)">
+      <use href="#icon-wrench-only"/>
+    </g>
+    <text x="90" y="215" text-anchor="middle" class="label">待实施</text>
+    <text x="90" y="241" text-anchor="middle" class="caption">橙色状态底 #fd7e14</text>
+  </g>
+
+  <g transform="translate(318, 345)">
+    <circle cx="18" cy="18" r="18" fill="#0d6efd"/>
+    <g transform="translate(5.5, 5.5) scale(1.05)">
+      <use href="#icon-wrench-only"/>
+    </g>
+    <circle cx="74" cy="18" r="18" fill="#fd7e14"/>
+    <g transform="translate(61.5, 5.5) scale(1.05)">
+      <use href="#icon-wrench-only"/>
+    </g>
+    <text x="46" y="55" text-anchor="middle" class="caption">地图实际小尺寸参考</text>
+  </g>
+</svg>

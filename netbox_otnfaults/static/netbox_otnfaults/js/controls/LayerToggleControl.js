@@ -14,14 +14,25 @@ class LayerToggleControl {
             viewMode: true,
             timeRange: true,
             categories: true,
-            topology: true
+            topology: true,
+            cutover: false
         }, this.options.sections || {});
         if (this.options.topologyOnly === true) {
             this.sections = {
                 viewMode: false,
                 timeRange: false,
                 categories: false,
-                topology: true
+                topology: true,
+                cutover: false
+            };
+        }
+        if (this.options.cutoverOnly === true) {
+            this.sections = {
+                viewMode: false,
+                timeRange: false,
+                categories: false,
+                topology: false,
+                cutover: true
             };
         }
         this.boundPositionMenu = () => this.positionMenu();
@@ -52,12 +63,20 @@ class LayerToggleControl {
             { label: '3月', value: '3months' },
             { label: '1年', value: '1year' }
         ];
+
+        // 割接过滤默认状态
+        this.showCutover = false; // 默认不勾选显示割接计划
+        this.cutoverTimeRange = 'all'; // 默认全部时间范围
+        this.selectedCutoverStatuses = ['pending_implementation']; // 默认仅勾选“待实施”
     }
 
     onAdd(map) {
         this.map = map;
         this.container = document.createElement('div');
         this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group layer-toggle-control bg-body';
+        if (this.options.controlClass) {
+            this.container.classList.add(this.options.controlClass);
+        }
         this.container.style.overflow = 'visible';
 
         // 主按钮图标
@@ -198,9 +217,26 @@ class LayerToggleControl {
                 this.arcgisVisible = checked;
                 this.updateArcgisLayersVisibility();
             });
+
             if (this.enablePathGroupOverlays) {
                 this.createPathGroupOverlaySelector(menu);
             }
+        }
+
+        if (this.sections.cutover) {
+            addSectionDivider();
+            this.addHeader(menu, '割接显示');
+            this.createCheckbox(menu, '显示割接计划', this.showCutover, (checked) => {
+                this.showCutover = checked;
+                if (this.cutoverFilterPanel) {
+                    this.cutoverFilterPanel.style.display = checked ? 'block' : 'none';
+                }
+                this.updateCutoverLayersVisibility();
+                this.fetchCutoverDataAndRefresh();
+            });
+
+            // 割接过滤器子面板
+            this.createCutoverFilterPanel(menu);
         }
 
         // 定位菜单
@@ -227,11 +263,9 @@ class LayerToggleControl {
         const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
         const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
         const menuWidth = Math.min(360, Math.max(300, viewportWidth - 24));
-        let left = buttonRect.right + 8;
-
-        if (left + menuWidth > viewportWidth - 12) {
-            left = Math.max(12, viewportWidth - menuWidth - 12);
-        }
+        const rightOfMenu = viewportWidth - buttonRect.left + 8;
+        let left = viewportWidth - rightOfMenu - menuWidth;
+        left = Math.max(12, left);
 
         const top = Math.max(8, Math.min(buttonRect.top, viewportHeight - 120));
         this.menu.style.width = `${menuWidth}px`;
@@ -984,5 +1018,159 @@ class LayerToggleControl {
                 this.map.setLayoutProperty(id, 'visibility', visibility);
             }
         });
+    }
+
+    createCutoverFilterPanel(container) {
+        const panel = document.createElement('div');
+        panel.className = 'cutover-filter-panel';
+        panel.style.cssText = `
+            margin-left: 20px;
+            padding: 8px 12px;
+            margin-top: 4px;
+            margin-bottom: 8px;
+            border-left: 2px solid var(--bs-primary, #0d6efd);
+            background-color: var(--bs-tertiary-bg, rgba(0,0,0,0.02));
+            border-radius: 0 6px 6px 0;
+            display: ${this.showCutover ? 'block' : 'none'};
+            transition: all 0.25s ease-in-out;
+        `;
+        this.cutoverFilterPanel = panel;
+
+        // 1. 时间范围下拉菜单
+        const selectWrapper = document.createElement('div');
+        selectWrapper.className = 'mb-2';
+        selectWrapper.innerHTML = `
+            <div class="text-muted small mb-1" style="font-size: 10px; font-weight: 600;">割接时间范围</div>
+        `;
+        const select = document.createElement('select');
+        select.className = 'form-select form-select-sm';
+        select.style.fontSize = '12px';
+        select.style.padding = '2px 8px';
+        select.innerHTML = `
+            <option value="all">全部时间范围</option>
+            <option value="24h">未来 24 小时</option>
+            <option value="7d">未来 7 天</option>
+            <option value="30d">未来 30 天</option>
+            <option value="past30d">过去 30 天</option>
+        `;
+        select.value = this.cutoverTimeRange;
+        select.onchange = (e) => {
+            this.cutoverTimeRange = e.target.value;
+            this.fetchCutoverDataAndRefresh();
+        };
+        selectWrapper.appendChild(select);
+        panel.appendChild(selectWrapper);
+
+        // 2. 状态多选
+        const statusWrapper = document.createElement('div');
+        statusWrapper.innerHTML = `
+            <div class="text-muted small mb-1" style="font-size: 10px; font-weight: 600;">割接状态</div>
+        `;
+        
+        const grid = document.createElement('div');
+        grid.style.cssText = `
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 8px;
+        `;
+
+        const statuses = [
+            { key: 'applying', name: '申请中', color: '#0d6efd' },
+            { key: 'pending_implementation', name: '待实施', color: '#fd7e14' },
+            { key: 'completed', name: '已完成', color: '#198754' },
+            { key: 'cancelled', name: '被取消', color: '#6c757d' }
+        ];
+
+        statuses.forEach(status => {
+            const item = document.createElement('label');
+            item.className = 'd-flex align-items-center mb-0';
+            item.style.cssText = 'cursor: pointer; font-size: 12px; padding: 2px 0; user-select: none;';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'form-check-input mt-0 me-1';
+            checkbox.style.width = '13px';
+            checkbox.style.height = '13px';
+            checkbox.checked = this.selectedCutoverStatuses.includes(status.key);
+            
+            const dot = document.createElement('span');
+            dot.style.cssText = `
+                display: inline-block;
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background-color: ${status.color};
+                margin-right: 4px;
+                flex-shrink: 0;
+            `;
+            
+            const labelText = document.createElement('span');
+            labelText.innerText = status.name;
+            labelText.style.fontSize = '11px';
+            
+            item.appendChild(checkbox);
+            item.appendChild(dot);
+            item.appendChild(labelText);
+            
+            item.onclick = (e) => {
+                e.stopPropagation();
+                if (e.target !== checkbox) checkbox.checked = !checkbox.checked;
+                
+                if (checkbox.checked) {
+                    if (!this.selectedCutoverStatuses.includes(status.key)) {
+                        this.selectedCutoverStatuses.push(status.key);
+                    }
+                } else {
+                    this.selectedCutoverStatuses = this.selectedCutoverStatuses.filter(s => s !== status.key);
+                }
+                
+                this.fetchCutoverDataAndRefresh();
+            };
+            
+            grid.appendChild(item);
+        });
+
+        statusWrapper.appendChild(grid);
+        panel.appendChild(statusWrapper);
+        container.appendChild(panel);
+    }
+
+    fetchCutoverDataAndRefresh() {
+        const config = window.OTNFaultMapConfig || (typeof FaultModePlugin !== 'undefined' ? FaultModePlugin.config : null);
+        if (!config || !config.mapDataUrl) return;
+
+        const url = new URL(config.mapDataUrl, window.location.origin);
+        url.searchParams.append('mode', 'fault');
+
+        this.selectedCutoverStatuses.forEach(status => {
+            url.searchParams.append('cutover_status', status);
+        });
+        url.searchParams.append('cutover_time_range', this.cutoverTimeRange);
+
+        fetch(url.toString(), { credentials: 'same-origin' })
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+            })
+            .then(data => {
+                if (config) {
+                    config.cutoverData = data.cutover_data || [];
+                }
+                if (typeof FaultModePlugin !== 'undefined') {
+                    FaultModePlugin.cutoverData = data.cutover_data || [];
+                }
+                this.triggerGlobalUpdate();
+            })
+            .catch(err => {
+                console.error('[LayerToggleControl] 获取割接数据失败:', err);
+            });
+    }
+
+    updateCutoverLayersVisibility() {
+        if (!this.map) return;
+        const visibility = this.showCutover ? 'visible' : 'none';
+        if (this.map.getLayer('cutover-points-layer')) {
+            this.map.setLayoutProperty('cutover-points-layer', 'visibility', visibility);
+        }
     }
 }

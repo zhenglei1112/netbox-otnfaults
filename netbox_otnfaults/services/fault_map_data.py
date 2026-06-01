@@ -4,7 +4,7 @@ from typing import Any
 from dcim.models import Site
 from django.utils import timezone
 
-from ..models import FaultCategoryChoices, FaultStatusChoices, OtnFault
+from ..models import FaultCategoryChoices, FaultStatusChoices, OtnFault, CutoverTask, CutoverStatusChoices
 from ..statistics_views import _source_group_for_fault
 from .fault_coordinates import resolve_fault_coordinates
 
@@ -335,3 +335,133 @@ def build_statistics_cable_break_map_payload(
         'skipped_count': skipped_count,
         'defaulted_count': defaulted_count,
     }
+
+
+class CutoverMapMarkerSerializer:
+    """Serialize a cutover task into the legacy fault-map marker payload."""
+
+    def __init__(self, cutover: CutoverTask) -> None:
+        self.cutover = cutover
+
+    def data(self) -> dict | None:
+        cutover = self.cutover
+        
+        # 1. 优先经纬度定位，其次用 A端站点 的经纬度
+        lat = None
+        lng = None
+        coords_from_site = False
+        coords_source = 'direct'
+        
+        if cutover.cutover_latitude is not None and cutover.cutover_longitude is not None:
+            lat = float(cutover.cutover_latitude)
+            lng = float(cutover.cutover_longitude)
+        elif cutover.interruption_location_a and cutover.interruption_location_a.latitude is not None and cutover.interruption_location_a.longitude is not None:
+            lat = float(cutover.interruption_location_a.latitude)
+            lng = float(cutover.interruption_location_a.longitude)
+            coords_from_site = True
+            coords_source = 'site_a'
+            
+        if lat is None or lng is None:
+            return None # 无法定位，不上图
+            
+        # 2. 关联Z端站点
+        z_sites = [site.name for site in cutover.interruption_location.all()]
+        z_site_ids = [site.pk for site in cutover.interruption_location.all()]
+        
+        # 3. 关联影响业务和受影响业务数
+        impacted_businesses: list[str] = []
+        impacts_details: list[dict] = []
+        for impact in cutover.impacts.all():
+            business_name = None
+            if impact.service_type == 'bare_fiber' and impact.bare_fiber_service:
+                business_name = impact.bare_fiber_service.name
+            elif impact.service_type == 'circuit' and impact.circuit_service:
+                business_name = impact.circuit_service.name
+
+            if business_name:
+                impacted_businesses.append(business_name)
+                
+                duration_hours = None
+                if impact.service_recovery_time and impact.service_interruption_time:
+                    duration_hours = round((impact.service_recovery_time - impact.service_interruption_time).total_seconds() / 3600.0, 2)
+                
+                impacts_details.append({
+                    'name': business_name,
+                    'service_type': impact.service_type,
+                    'duration_hours': duration_hours,
+                })
+                
+        return {
+            'id': cutover.pk,
+            'lat': lat,
+            'lng': lng,
+            'coords_from_site': coords_from_site,
+            'coords_source': coords_source,
+            'number': cutover.cutover_no,
+            'url': cutover.get_absolute_url(),
+            'status': cutover.get_status_display() or '未知状态',
+            'status_key': cutover.status or 'pending_implementation',
+            'status_color': cutover.get_status_color() or 'orange',
+            'planned_cutover_time': _format_fault_datetime(cutover.planned_cutover_time, '未记录'),
+            'started_at': _format_fault_datetime(cutover.started_at, '未开始'),
+            'completed_at': _format_fault_datetime(cutover.completed_at, '未完成'),
+            'cutover_location': cutover.cutover_location or '-',
+            'a_site': cutover.interruption_location_a.name if cutover.interruption_location_a else '未指定',
+            'a_site_id': cutover.interruption_location_a.pk if cutover.interruption_location_a else None,
+            'z_sites': '、'.join(z_sites) if z_sites else '未指定',
+            'z_site_ids': z_site_ids,
+            'impacted_business': '、'.join(impacted_businesses) if impacted_businesses else '无影响业务',
+            'impacts_details': impacts_details,
+            'impact_count': len(impacted_businesses),
+            'reason': cutover.cutover_reason or '-',
+            'implementation_unit': cutover.implementation_unit or '-',
+            'cutover_contact': cutover.cutover_contact or '-',
+            'cutover_contact_phone': cutover.cutover_contact_phone or '-',
+        }
+
+
+def build_cutover_map_payload(status_list=None, time_range=None) -> list[dict]:
+    """Build the map payload for Cutover Tasks."""
+    now = timezone.localtime()
+    
+    # 默认只显示 pending_implementation 状态
+    if not status_list:
+        status_list = [CutoverStatusChoices.PENDING_IMPLEMENTATION]
+        
+    queryset = CutoverTask.objects.filter(status__in=status_list)
+    
+    if time_range and time_range != 'all':
+        if time_range == '24h':
+            start_time = now
+            end_time = now + timedelta(hours=24)
+            queryset = queryset.filter(planned_cutover_time__gte=start_time, planned_cutover_time__lte=end_time)
+        elif time_range == '7d':
+            start_time = now
+            end_time = now + timedelta(days=7)
+            queryset = queryset.filter(planned_cutover_time__gte=start_time, planned_cutover_time__lte=end_time)
+        elif time_range == '30d':
+            start_time = now
+            end_time = now + timedelta(days=30)
+            queryset = queryset.filter(planned_cutover_time__gte=start_time, planned_cutover_time__lte=end_time)
+        elif time_range == 'past30d':
+            start_time = now - timedelta(days=30)
+            end_time = now
+            queryset = queryset.filter(planned_cutover_time__gte=start_time, planned_cutover_time__lte=end_time)
+            
+    marker_cutovers = queryset.select_related(
+        'interruption_location_a',
+        'province',
+    ).prefetch_related(
+        'interruption_location',
+        'impacts',
+        'impacts__bare_fiber_service',
+        'impacts__circuit_service',
+    )
+    
+    marker_data = []
+    for cutover in marker_cutovers:
+        data = CutoverMapMarkerSerializer(cutover).data()
+        if data is not None:
+            marker_data.append(data)
+            
+    return marker_data

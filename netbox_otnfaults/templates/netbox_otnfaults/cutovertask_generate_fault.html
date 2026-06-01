@@ -1,0 +1,107 @@
+{% extends 'base/layout.html' %}
+{% load form_helpers %}
+{% load helpers %}
+
+{% block content %}
+<form method="post">
+  {% csrf_token %}
+
+  <div class="card mb-3">
+    <h5 class="card-header">来源割接</h5>
+    <div class="card-body">
+      {% if existing_fault %}
+      <div class="alert alert-warning mb-3">
+        当前割接已经生成过故障：{{ existing_fault|linkify }}
+      </div>
+      {% endif %}
+      <div class="row mb-2">
+        <div class="col-md-3 text-muted">割接编号</div>
+        <div class="col-md-9">{{ object|linkify }}</div>
+      </div>
+      <div class="row mb-2">
+        <div class="col-md-3 text-muted">计划割接时间</div>
+        <div class="col-md-9">
+          {% if object.planned_cutover_time %}{{ object.planned_cutover_time|date:"Y年n月j日 H:i" }}{% else %}{{ object.planned_cutover_time|placeholder }}{% endif %}
+        </div>
+      </div>
+      <div class="row mb-2">
+        <div class="col-md-3 text-muted">割接位置</div>
+        <div class="col-md-9">
+          {{ object.interruption_location_a|linkify|placeholder }}
+          {% if object.interruption_location.all %}
+          <span class="mx-2 text-muted">/</span>
+          {% for site in object.interruption_location.all %}
+            {{ site|linkify }}{% if not forloop.last %}, {% endif %}
+          {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-3 text-muted">割接原因</div>
+        <div class="col-md-9">{{ object.cutover_reason|linebreaksbr|placeholder }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <h5 class="card-header">故障预填信息</h5>
+    <div class="card-body">
+      {% render_field form.duty_officer %}
+      {% render_field form.fault_category %}
+      {% render_field form.urgency %}
+      {% render_field form.fault_status %}
+      {% render_field form.interruption_reason %}
+      {% render_field form.interruption_reason_detail %}
+      {% render_field form.cutover_report_status %}
+      {% render_field form.cutover_report_time %}
+      {% render_field form.fault_occurrence_time %}
+      {% render_field form.fault_recovery_time %}
+      {% render_field form.closure_time %}
+      {% render_field form.comments %}
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <h5 class="card-header">影响业务</h5>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>业务类型</th>
+            <th>业务名称</th>
+            <th>业务影响</th>
+            <th>中断时间</th>
+            <th>恢复时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for impact in impacts %}
+          <tr>
+            <td>{{ impact.get_service_type_display }}</td>
+            <td>
+              {% if impact.bare_fiber_service %}
+                {{ impact.bare_fiber_service|linkify }}
+              {% else %}
+                {{ impact.circuit_service|linkify }}
+              {% endif %}
+            </td>
+            <td>{{ impact.get_business_impact_display }}</td>
+            <td>{% if impact.service_interruption_time %}{{ impact.service_interruption_time|date:"Y年n月j日 H:i" }}{% else %}{{ impact.service_interruption_time|placeholder }}{% endif %}</td>
+            <td>{% if impact.service_recovery_time %}{{ impact.service_recovery_time|date:"Y年n月j日 H:i" }}{% else %}{{ impact.service_recovery_time|placeholder }}{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-muted">当前割接没有维护影响业务，将只生成故障主记录。</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2">
+    <a href="{{ object.get_absolute_url }}" class="btn btn-secondary">返回割接</a>
+    <button type="submit" class="btn btn-primary" {% if existing_fault %}disabled{% endif %}>确认生成故障</button>
+  </div>
+</form>
+{% endblock %}

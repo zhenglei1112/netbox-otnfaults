@@ -544,6 +544,76 @@ from utilities.forms.utils import add_blank_choice
 from utilities.forms.fields import TagFilterField, CommentField
 from netbox.forms import NetBoxModelBulkEditForm
 
+
+class CutoverFaultGenerationForm(forms.Form):
+    duty_officer = DynamicModelChoiceField(
+        queryset=get_user_model().objects.all(),
+        label='值守人员'
+    )
+    fault_category = forms.ChoiceField(
+        choices=FaultCategoryChoices,
+        label='故障分类'
+    )
+    urgency = forms.ChoiceField(
+        choices=UrgencyChoices,
+        label='紧急程度'
+    )
+    fault_status = forms.ChoiceField(
+        choices=FaultStatusChoices,
+        label='处理状态'
+    )
+    interruption_reason = forms.ChoiceField(
+        choices=OtnFault.INTERRUPTION_REASON_CHOICES,
+        label='一级原因'
+    )
+    interruption_reason_detail = forms.ChoiceField(
+        choices=OtnFault.INTERRUPTION_REASON_DETAIL_CHOICES,
+        required=False,
+        label='二级原因'
+    )
+    cutover_report_status = forms.ChoiceField(
+        choices=add_blank_choice(CutoverReportStatusChoices),
+        required=False,
+        label='割接报备情况'
+    )
+    cutover_report_time = forms.DateTimeField(
+        required=False,
+        label='报备时间',
+        widget=DateTimePicker()
+    )
+    fault_occurrence_time = forms.DateTimeField(
+        label='故障起始时间',
+        widget=DateTimePicker()
+    )
+    fault_recovery_time = forms.DateTimeField(
+        required=False,
+        label='故障恢复时间',
+        widget=DateTimePicker()
+    )
+    closure_time = forms.DateTimeField(
+        required=False,
+        label='封包完成时间',
+        widget=DateTimePicker()
+    )
+    comments = CommentField(
+        label='评论',
+        required=False
+    )
+
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean()
+        occurrence = cleaned_data.get('fault_occurrence_time')
+        recovery = cleaned_data.get('fault_recovery_time')
+        closure = cleaned_data.get('closure_time')
+
+        if occurrence and recovery and recovery < occurrence:
+            self.add_error('fault_recovery_time', '故障恢复时间需晚于故障起始时间。')
+        if occurrence and closure and closure < occurrence:
+            self.add_error('closure_time', '封包完成时间需晚于故障起始时间。')
+
+        return cleaned_data
+
+
 class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
     """OTN故障批量编辑表单"""
     model = OtnFault
@@ -801,7 +871,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
         FieldSet(
-            'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'fault_status', 'is_suspended', 'urgency', 'province',
+            'source_cutover_task', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'fault_status', 'is_suspended', 'urgency', 'province',
             'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
             'first_report_source', 'duty_officer',
@@ -833,6 +903,11 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         queryset=get_user_model().objects.all(),
         required=False,
         label='值守人员'
+    )
+    source_cutover_task = DynamicModelChoiceField(
+        queryset=CutoverTask.objects.all(),
+        required=False,
+        label='来源割接'
     )
     interruption_location_a = DynamicModelChoiceField(
         queryset=Site.objects.all(),

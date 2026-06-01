@@ -34,6 +34,14 @@ MAP_CONTROLS_CSS_PATH = (
     / "css"
     / "otnfault_map_controls.css"
 )
+MAP_GLOBE_CSS_PATH = (
+    REPO_ROOT
+    / "netbox_otnfaults"
+    / "static"
+    / "netbox_otnfaults"
+    / "css"
+    / "otnfault_map_globe.css"
+)
 
 
 class FaultMapPathGroupOverlayTestCase(unittest.TestCase):
@@ -88,10 +96,22 @@ class FaultMapPathGroupOverlayTestCase(unittest.TestCase):
         self.assertIn("styleControl.parentNode.insertBefore(this.layerVisibilityControl.container, styleControl)", source)
         self.assertIn("window.layerVisibilityControl = this.layerVisibilityControl", source)
 
+    def test_fault_mode_reads_cutover_visibility_from_cutover_control(self) -> None:
+        source = FAULT_MODE_PATH.read_text(encoding="utf-8")
+
+        visibility_block = source.split("_updateCutoverLayerVisibility() {", 1)[1].split("\n  },", 1)[0]
+        self.assertIn("this.cutoverToggleControl", visibility_block)
+        self.assertIn("this.cutoverToggleControl.showCutover", visibility_block)
+        self.assertNotIn("this.layerVisibilityControl.showCutover", visibility_block)
+        self.assertNotIn("this.layerToggleControl.showCutover", visibility_block)
+
     def test_map_modes_cache_bust_layer_toggle_control(self) -> None:
         source = MAP_MODES_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("'controls/LayerToggleControl.js?v=pathgroup-overlays-3'", source)
+        fault_mode_block = source.split("'fault':", 1)[1].split("'statistics_cable_break':", 1)[0]
+        self.assertIn("'plugin_file': 'fault_mode.js?v=cutover-layers-1'", fault_mode_block)
+        self.assertIn("'utils/fault_icons.js?v=cutover-layers-1'", fault_mode_block)
+        self.assertIn("'controls/LayerToggleControl.js?v=cutover-layers-1'", fault_mode_block)
 
     def test_layer_toggle_renders_and_toggles_path_group_overlays(self) -> None:
         source = LAYER_TOGGLE_CONTROL_PATH.read_text(encoding="utf-8")
@@ -113,12 +133,14 @@ class FaultMapPathGroupOverlayTestCase(unittest.TestCase):
         source = LAYER_TOGGLE_CONTROL_PATH.read_text(encoding="utf-8")
 
         self.assertIn("this.floatingMenu = this.options.floatingMenu === true", source)
-        self.assertIn("this.button.innerHTML = this.options.buttonIcon || window.mapBase.svgIcons.filter", source)
+        self.assertIn("this.button.innerHTML = this.options.buttonIcon || window.mapBase.svgIcons.fault", source)
         self.assertIn("menu.classList.add('layer-display-menu')", source)
         self.assertIn("document.body.appendChild(menu)", source)
         self.assertIn("positionMenu()", source)
         self.assertIn("const buttonRect = this.container.getBoundingClientRect()", source)
         self.assertIn("const rightOfMenu = viewportWidth - buttonRect.left + 8", source)
+        self.assertIn("let left = viewportWidth - rightOfMenu - menuWidth", source)
+        self.assertNotIn("let left = buttonRect.right + 8", source)
         self.assertNotIn("getMenuAnchorRect()", source)
         self.assertNotIn("querySelector('.map-style-control')", source)
         self.assertIn("window.addEventListener('resize', this.boundPositionMenu)", source)
@@ -130,6 +152,15 @@ class FaultMapPathGroupOverlayTestCase(unittest.TestCase):
         self.assertIn(".layer-toggle-control .mdi-layers-outline", css_source)
         self.assertIn("font-size: 22px;", css_source)
         self.assertIn("line-height: 1;", css_source)
+
+    def test_top_left_map_controls_stack_vertically(self) -> None:
+        css_source = MAP_GLOBE_CSS_PATH.read_text(encoding="utf-8")
+        top_left_block = css_source.split(".maplibregl-ctrl-top-left {", 1)[1].split("}", 1)[0]
+
+        self.assertIn("display: flex;", top_left_block)
+        self.assertIn("flex-direction: column;", top_left_block)
+        self.assertIn("align-items: flex-start;", top_left_block)
+        self.assertNotIn("flex-direction: row;", top_left_block)
 
     def test_path_group_overlays_are_inserted_above_fault_map_layers(self) -> None:
         source = LAYER_TOGGLE_CONTROL_PATH.read_text(encoding="utf-8")

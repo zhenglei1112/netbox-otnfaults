@@ -734,6 +734,14 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             'unique': '已存在相同编号的故障记录。'
         }
     )
+    source_cutover_task = models.ForeignKey(
+        to='CutoverTask',
+        on_delete=models.SET_NULL,
+        related_name='generated_faults',
+        verbose_name='来源割接',
+        blank=True,
+        null=True,
+    )
     duty_officer = models.ForeignKey(
         to=settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,

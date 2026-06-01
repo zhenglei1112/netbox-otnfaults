@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 一张图模式插件
  */
 
@@ -29,6 +29,7 @@ const FaultModePlugin = {
   // 控件引用
   layerToggleControl: null,
   layerVisibilityControl: null,
+  cutoverToggleControl: null,
   statsControl: null,
   legendControl: null,
   searchControl: null,
@@ -69,6 +70,9 @@ const FaultModePlugin = {
     if (this.layerVisibilityControl) {
       window.layerVisibilityControl = this.layerVisibilityControl;
     }
+    if (this.cutoverToggleControl) {
+      window.cutoverToggleControl = this.cutoverToggleControl;
+    }
     if (this.statsControl) {
       window.faultStatisticsControl = this.statsControl;
     }
@@ -87,6 +91,9 @@ const FaultModePlugin = {
 
     // 预处理标记数据
     this.markerData = this.config.markerData || [];
+
+    // 预处理割接数据
+    this.cutoverData = this.config.cutoverData || [];
 
     // 预设时间范围（通常由URL参数传递，这里暂时简化，视图层并未传此具体参数，默认year）
     // 实际应该从 config 中读取 current_time_range，但在 map_modes 中未配置传参
@@ -239,6 +246,65 @@ const FaultModePlugin = {
         "icon-size": ["interpolate", ["linear"], ["zoom"], 4, 0.7, 10, 1.4],  // 缩小尺寸
         "icon-allow-overlap": true,
         visibility: "none", // 初始隐藏，由 updateMapState 控制
+      }
+    });
+
+    // --- 割接点源与图层 ---
+    mapBase.addGeoJsonSource("cutover-points", {
+      type: "FeatureCollection",
+      features: []
+    });
+
+    // 割接点卡片图标层
+    const cutoverIconImageExpression = [
+      "concat",
+      "cutover-card-",
+      ["to-string", ["get", "id"]],
+      "-",
+      ["coalesce", ["get", "status_key"], "pending_implementation"]
+    ];
+
+    mapBase.addLayer({
+      id: "cutover-points-layer",
+      type: "symbol",
+      source: "cutover-points",
+      layout: {
+        "icon-image": cutoverIconImageExpression,
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 4, 0.55, 10, 1.15],
+        "icon-anchor": "bottom",
+        "icon-offset": [0, -10],
+        "icon-allow-overlap": true,
+        visibility: "none" // 初始隐藏，由 updateMapState 控制
+      }
+    });
+
+    // --- 高亮站点源与图层 ---
+    mapBase.addGeoJsonSource("highlighted-sites", {
+      type: "FeatureCollection",
+      features: []
+    });
+
+    mapBase.addLayer({
+      id: "highlighted-sites-glow",
+      type: "circle",
+      source: "highlighted-sites",
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 12, 10, 22],
+        "circle-color": "#0d6efd",
+        "circle-opacity": 0.6,
+        "circle-blur": 0.5
+      }
+    });
+
+    mapBase.addLayer({
+      id: "highlighted-sites-layer",
+      type: "circle",
+      source: "highlighted-sites",
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 6, 10, 10],
+        "circle-color": "#ffffff",
+        "circle-stroke-width": 3,
+        "circle-stroke-color": "#0d6efd"
       }
     });
 
@@ -413,6 +479,26 @@ const FaultModePlugin = {
         });
       });
 
+      // 割接状态图标注册
+      const cutoverStatusColors = {
+        'applying': '#0d6efd',
+        'pending_implementation': '#fd7e14',
+        'completed': '#198754',
+        'cancelled': '#6c757d'
+      };
+
+      Object.entries(cutoverStatusColors).forEach(([status, color]) => {
+        const iconName = `cutover-marker-${status}`;
+        promises.push(
+          createColoredIcon(FAULT_SVG_ICONS.cutover || FAULT_SVG_ICONS.other, color)
+            .then(result => {
+              if (!map.hasImage(iconName)) {
+                map.addImage(iconName, result.imageData, { pixelRatio: 2 });
+              }
+            })
+        );
+      });
+
       await Promise.all(promises);
       console.log('[FaultMode] Loaded', promises.length, 'colored Canvas icons (SVG-based)');
     };
@@ -442,6 +528,8 @@ const FaultModePlugin = {
 
     if (suspended) {
       this._stopIconAnimation();
+    } else {
+      this._startIconAnimation();
     }
   },
 
@@ -473,6 +561,14 @@ const FaultModePlugin = {
         },
       });
       this.mapBase.addControl(this.layerToggleControl, "top-left");
+
+      this.cutoverToggleControl = new LayerToggleControl({
+        title: "割接显示",
+        buttonIcon: '<i class="mdi mdi-calendar-clock"></i>',
+        controlClass: "cutover-toggle-control",
+        cutoverOnly: true,
+      });
+      this.mapBase.addControl(this.cutoverToggleControl, "top-left");
 
       this.layerVisibilityControl = new LayerToggleControl({
         title: "图层显示",
@@ -547,6 +643,20 @@ const FaultModePlugin = {
       map.getCanvas().style.cursor = "";
       // 启动延迟关闭
       this._startPopupCloseTimer();
+    });
+
+    // 割接点交互 (鼠标进入展示气泡，悬浮发光高亮联动受影响站点和路径流光)
+    map.on("mouseenter", "cutover-points-layer", (e) => {
+      map.getCanvas().style.cursor = "pointer";
+      if (e.features.length) {
+        this._showCutoverPopup(e.features[0]);
+      }
+    });
+
+    map.on("mouseleave", "cutover-points-layer", () => {
+      map.getCanvas().style.cursor = "";
+      this._startPopupCloseTimer();
+      this._clearCutoverHighlights();
     });
 
     // 2. 点击事件 (保留站点和路径的点击)
@@ -1006,6 +1116,8 @@ const FaultModePlugin = {
       mode = map.getZoom() >= 9 ? "points" : "heatmap";
     }
 
+    this._updateCutoverLayerVisibility();
+
     // 性能优化: 只在模式变化时才更新图层
     if (this.currentDisplayMode === mode) {
       return; // 无变化,跳过
@@ -1025,9 +1137,23 @@ const FaultModePlugin = {
       map.setLayoutProperty("fault-points-layer", "visibility", "none");
     }
 
+    this._updateCutoverLayerVisibility();
+
     // 更新图例可见性
     if (this.legendControl) {
       this.legendControl.updateVisibility(mode);
+    }
+  },
+
+  _updateCutoverLayerVisibility() {
+    const map = this.map;
+    let showCutover = false;
+    if (this.cutoverToggleControl) {
+      showCutover = this.cutoverToggleControl.showCutover || false;
+    }
+    const cutoverVisibility = showCutover ? "visible" : "none";
+    if (map.getLayer("cutover-points-layer")) {
+      map.setLayoutProperty("cutover-points-layer", "visibility", cutoverVisibility);
     }
   },
 
@@ -1061,6 +1187,7 @@ const FaultModePlugin = {
     const filterKey = `${timeRange}_${selectedCategories.sort().join(',')}`;
     if (this.cachedFilterKey === filterKey && this.cachedFilteredFeatures) {
       // 筛选条件未变化,复用缓存数据
+      this._updateCutoverDataSource();
       return;
     }
 
@@ -1107,6 +1234,9 @@ const FaultModePlugin = {
       const faultDataList = filteredFeatures.map((f) => f.properties);
       this.statsControl.setData(faultDataList);
     }
+
+    // 更新割接数据源
+    this._updateCutoverDataSource();
   },
 
   _loadPathMetadata() {
@@ -1228,6 +1358,357 @@ const FaultModePlugin = {
       // 如果没有动画器，直接显示
       showStaticHighlight();
     }
+  },
+
+  _showCutoverPopup(feature) {
+    if (typeof PopupTemplates !== "undefined") {
+      const cutoverId = feature.properties.id || feature.properties.number;
+
+      // 清除未执行的关闭定时器和动画移除定时器
+      if (this.popupCloseTimer) {
+        clearTimeout(this.popupCloseTimer);
+        this.popupCloseTimer = null;
+      }
+      if (this.popupRemoveTimer) {
+        clearTimeout(this.popupRemoveTimer);
+        this.popupRemoveTimer = null;
+      }
+
+      // 如果当前已经显示同一个割接弹窗，跳过
+      if (this.currentFaultPopup && this.currentFaultId === cutoverId) {
+        return; 
+      }
+
+      const html = PopupTemplates.cutoverPopup(feature.properties);
+
+      // 清理旧弹窗事件监听
+      this._cleanupPopupListeners();
+
+      if (this.currentFaultPopup) {
+        this.currentFaultPopup.remove();
+      }
+
+      this.currentFaultId = cutoverId;
+
+      this.currentFaultPopup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        className: "fault-popup-container cutover-popup-container"
+      })
+        .setLngLat(feature.geometry.coordinates)
+        .setHTML(html)
+        .addTo(this.map);
+
+      const popupEl = this.currentFaultPopup.getElement();
+
+      const handleAnimationEnd = (e) => {
+        if (e.animationName === 'faultPopupFadeIn') {
+          popupEl.classList.remove('popup-enter-active');
+        }
+      };
+
+      const handleMouseEnter = () => {
+        if (this._isHandlingPopupInteraction) return;
+        this._isHandlingPopupInteraction = true;
+        setTimeout(() => {
+          this._isHandlingPopupInteraction = false;
+        }, 100);
+
+        if (this.popupCloseTimer) {
+          clearTimeout(this.popupCloseTimer);
+          this.popupCloseTimer = null;
+        }
+        if (this.popupRemoveTimer) {
+          clearTimeout(this.popupRemoveTimer);
+          this.popupRemoveTimer = null;
+          if (popupEl.classList.contains('popup-leave-active')) {
+            this._resetPopupAnimation(popupEl, 'enter');
+          }
+        }
+      };
+
+      const handleMouseLeave = () => {
+        this._startPopupCloseTimer();
+        this._clearCutoverHighlights();
+      };
+
+      popupEl.addEventListener('animationend', handleAnimationEnd);
+      popupEl.addEventListener("mouseenter", handleMouseEnter);
+      popupEl.addEventListener("mouseleave", handleMouseLeave);
+
+      this.currentPopupListeners = {
+        'animationend': handleAnimationEnd,
+        'mouseenter': handleMouseEnter,
+        'mouseleave': handleMouseLeave
+      };
+
+      requestAnimationFrame(() => {
+        popupEl.classList.add('popup-enter-active');
+      });
+
+      // 联动高亮 A-Z 站点与受影响路径
+      this._highlightCutoverImpacts(feature.properties);
+    }
+  },
+
+  _highlightCutoverImpacts(props) {
+    const map = this.map;
+    const aSiteId = props.a_site_id;
+    let zSiteIds = props.z_site_ids;
+    if (typeof zSiteIds === "string") {
+      try {
+        zSiteIds = JSON.parse(zSiteIds);
+      } catch (e) {
+        zSiteIds = [];
+      }
+    }
+    
+    if (!zSiteIds) zSiteIds = [];
+
+    // 1. 高亮关联站点
+    const sites = this.config.sitesData || [];
+    const siteFeatures = sites
+      .filter(site => site.id == aSiteId || zSiteIds.includes(site.id))
+      .map(site => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [parseFloat(site.longitude), parseFloat(site.latitude)]
+        },
+        properties: {
+          name: site.name
+        }
+      }));
+
+    if (map.getSource("highlighted-sites")) {
+      map.getSource("highlighted-sites").setData({
+        type: "FeatureCollection",
+        features: siteFeatures
+      });
+    }
+
+    // 2. 高亮关联光缆路径并启动流光
+    const pathFeatures = this._getImpactedPathFeatures(aSiteId, zSiteIds);
+    if (pathFeatures.length > 0) {
+      const featureCollection = {
+        type: "FeatureCollection",
+        features: pathFeatures
+      };
+      this.highlightPath(featureCollection);
+    }
+  },
+
+  _getImpactedPathFeatures(aSiteId, zSiteIds) {
+    if (!aSiteId || !zSiteIds || !zSiteIds.length || !window.OTNPathsMetadata) {
+      return [];
+    }
+    
+    const zIds = zSiteIds.map(id => String(id));
+    const aId = String(aSiteId);
+    
+    return window.OTNPathsMetadata.filter(path => {
+      const pSiteA = String(path.properties.site_a_id);
+      const pSiteZ = String(path.properties.site_z_id);
+      return (pSiteA === aId && zIds.includes(pSiteZ)) || (pSiteZ === aId && zIds.includes(pSiteA));
+    });
+  },
+
+  _clearCutoverHighlights() {
+    const map = this.map;
+    // 清除高亮站点
+    if (map.getSource("highlighted-sites")) {
+      map.getSource("highlighted-sites").setData({
+        type: "FeatureCollection",
+        features: []
+      });
+    }
+    // 清除路径高亮与流光
+    if (this.flowAnimator) {
+      this.flowAnimator.clearHighlight();
+    }
+    if (map.getSource("otn-paths-highlight")) {
+      map.getSource("otn-paths-highlight").setData({
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: [] },
+      });
+    }
+    // 隐藏高亮图层
+    if (map.getLayer("otn-paths-highlight-outline"))
+      map.setLayoutProperty("otn-paths-highlight-outline", "visibility", "none");
+    if (map.getLayer("otn-paths-highlight-layer"))
+      map.setLayoutProperty("otn-paths-highlight-layer", "visibility", "none");
+  },
+
+  _updateCutoverDataSource() {
+    const map = this.map;
+    const source = map.getSource("cutover-points");
+    if (source) {
+      const features = this._getCutoverGeoJsonFeatures();
+
+      // 动态生成并注册每一个割接专属的高清卡片图标
+      features.forEach(feature => {
+        const props = feature.properties;
+        const iconName = `cutover-card-${props.id}-${props.status_key}`;
+        if (!map.hasImage(iconName)) {
+          try {
+            const canvas = this._createCutoverCardIcon(props);
+            map.addImage(iconName, canvas, { pixelRatio: 2 });
+          } catch (e) {
+            console.error("生成或注册割接卡片图标失败:", e);
+          }
+        }
+      });
+
+      source.setData({
+        type: "FeatureCollection",
+        features: features
+      });
+    }
+  },
+
+  _createCutoverCardIcon(item) {
+    const statusColors = {
+      'applying': '#0d6efd',
+      'pending_implementation': '#fd7e14',
+      'completed': '#198754',
+      'cancelled': '#6c757d'
+    };
+    const bgColor = statusColors[item.status_key] || '#fd7e14';
+    
+    const logicalWidth = 80;
+    const logicalHeight = 90;
+    const scale = 2; // 高清双倍像素
+    
+    // 1. 临时底色 Canvas（避免重叠阴影污染）
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = logicalWidth * scale;
+    tempCanvas.height = logicalHeight * scale;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.scale(scale, scale);
+    
+    tempCtx.fillStyle = bgColor;
+    
+    // 绘制向下三角形（尖角顶点位于 x=40, y=80，为下方阴影预留 10px 富余空间）
+    tempCtx.beginPath();
+    tempCtx.moveTo(40, 80);
+    tempCtx.lineTo(30, 54);
+    tempCtx.lineTo(50, 54);
+    tempCtx.closePath();
+    tempCtx.fill();
+    
+    // 绘制主圆形气泡（圆心位于 x=40, y=36，半径 R=24。其下边缘 y=60 与三角形基底完美融合，四周均有超安全阴影边缘）
+    tempCtx.beginPath();
+    tempCtx.arc(40, 36, 24, 0, Math.PI * 2);
+    tempCtx.fill();
+    
+    // 2. 主输出 Canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = logicalWidth * scale;
+    canvas.height = logicalHeight * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    
+    // 应用高保真柔和微阴影（完全保留在 10px 的富余空间内，不会被画布切边）
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.16)';
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+    
+    ctx.drawImage(tempCanvas, 0, 0, logicalWidth, logicalHeight);
+    
+    // 关闭阴影画前景
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // 3. 绘制圆形内的白色割接分叉线
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2.0;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // 水平段从 (24, 36) 到 (36, 36)
+    ctx.beginPath();
+    ctx.moveTo(24, 36);
+    ctx.lineTo(36, 36);
+    ctx.stroke();
+    
+    // 下分支 (实线)
+    ctx.beginPath();
+    ctx.moveTo(36, 36);
+    ctx.bezierCurveTo(41, 36, 44, 44, 52, 44);
+    ctx.stroke();
+    
+    // 下分支实心三角头
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.moveTo(52, 44);
+    ctx.lineTo(47, 41);
+    ctx.lineTo(47, 47);
+    ctx.closePath();
+    ctx.fill();
+    
+    // 上分支 (虚线)
+    ctx.save();
+    ctx.setLineDash([2.5, 1.5]);
+    ctx.beginPath();
+    ctx.moveTo(36, 36);
+    ctx.bezierCurveTo(41, 36, 44, 28, 52, 28);
+    ctx.stroke();
+    ctx.restore();
+    
+    // 上分支实心三角头
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.moveTo(52, 28);
+    ctx.lineTo(47, 25);
+    ctx.lineTo(47, 31);
+    ctx.closePath();
+    ctx.fill();
+    
+    // 实心分叉小圆点
+    ctx.beginPath();
+    ctx.arc(36, 36, 3.0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return imageData;
+  },
+
+  _getCutoverGeoJsonFeatures() {
+    const now = new Date();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    
+    return this.cutoverData.map((item) => {
+      let isNear24h = false;
+      if (item.planned_cutover_time && item.status_key === "pending_implementation") {
+        try {
+          const plannedTime = new Date(item.planned_cutover_time.replace(/-/g, "/"));
+          const diffMs = plannedTime - now;
+          if (diffMs > 0 && diffMs <= oneDayMs) {
+            isNear24h = true;
+          }
+        } catch (e) {
+          console.warn("计算割接24小时临近状态失败:", e);
+        }
+      }
+
+      return {
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [parseFloat(item.lng), parseFloat(item.lat)]
+        },
+        properties: {
+          ...item,
+          is_near_24h: isNear24h
+        }
+      };
+    });
   },
 };
 
@@ -1428,3 +1909,4 @@ class DeckGLFlowAnimator {
 }
 
 window.initOTNMap(FaultModePlugin);
+

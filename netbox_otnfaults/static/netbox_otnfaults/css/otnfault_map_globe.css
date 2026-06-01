@@ -1,4 +1,4 @@
-/* MapLibre Globle Styles */
+﻿/* MapLibre Globle Styles */
 
 #map {
   position: relative;
@@ -212,10 +212,10 @@
 }
 
 /* Time Range Slider styles moved to otnfault_map_controls.css */
-/* --- 左上角控件容器水平布局 --- */
+/* --- Top-left controls: vertical stack --- */
 .maplibregl-ctrl-top-left {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: flex-start;
 }
 

@@ -55,6 +55,12 @@
           <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">故障编号</span></th>
           <td style="overflow-wrap: break-word; word-break: break-word;"><span class="fw-bold">{{ object.fault_number|default:"—" }}</span></td>
         </tr>
+        {% if object.source_cutover_task %}
+        <tr>
+          <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">来源割接</span></th>
+          <td style="overflow-wrap: break-word; word-break: break-word;">{{ object.source_cutover_task|linkify }}</td>
+        </tr>
+        {% endif %}
         <tr>
           <th scope="row"><span style="white-space: nowrap; word-break: keep-all;">故障类型</span></th>
           <td style="overflow-wrap: break-word; word-break: break-word;">

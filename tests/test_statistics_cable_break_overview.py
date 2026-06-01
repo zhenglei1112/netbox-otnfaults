@@ -2198,6 +2198,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("const renderedBoxplotData = useLogScale ? normalizeBoxplotDataForLogScale(boxplotData) : boxplotData;", source)
         self.assertIn("const renderedOutlierData = useLogScale ? normalizeOutlierDataForLogScale(outlierData) : outlierData;", source)
         boxplot_source = source.split("function renderPhysicalDurationBoxplot(dailyData, filterType)", 1)[1].split("function formatTrendDiff", 1)[0]
+
         self.assertIn("function getBoxplotTooltipValues(params)", source)
         self.assertIn("function getBoxplotOutlierTooltipValues(params)", source)
         self.assertIn("const rawValue = Array.isArray(params.data && params.data.rawValue) ? params.data.rawValue : (Array.isArray(params.value) ? params.value : (params.data || []));", source)
@@ -2369,6 +2370,27 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("Q(fault_recovery_time__isnull=True) | Q(fault_recovery_time__gt=physical_daily_start)", views_source)
         self.assertIn("physical_daily_stats = _build_physical_daily_fault_series(physical_daily_start, physical_daily_end, physical_daily_faults, now)", views_source)
         self.assertIn("'physical_daily': physical_daily_stats", views_source)
+
+    def test_statistics_chart_metric_toggles_have_consistent_sizing(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        for group_name in (
+            "metricReason",
+            "metricResource",
+            "physicalDailyGranularity",
+            "physicalDailyMetric",
+            "metricProvince",
+        ):
+            input_index = template.index(f'name="{group_name}"')
+            group_markup = template[:input_index].rsplit('<div class="', 1)[1].split("</div>", 1)[0]
+            self.assertIn("btn-group btn-group-sm statistics-chart-toggle-group", group_markup)
+
+        self.assertNotIn('style="padding: 0.1rem 0.4rem; font-size: 0.75rem;"', template)
+        self.assertIn(".statistics-chart-toggle-group .btn", css)
+        self.assertIn("min-height: 1.35rem;", css)
+        self.assertIn("line-height: 1;", css)
+        self.assertIn("padding: 0.1rem 0.45rem;", css)
 
 
 if __name__ == "__main__":

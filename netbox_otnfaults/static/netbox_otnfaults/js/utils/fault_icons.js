@@ -54,6 +54,13 @@ const FAULT_SVG_ICONS = {
 
   other: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
     <circle cx="16" cy="16" r="6" stroke="white" stroke-width="1.8" fill="none"/>
+  </svg>`,
+
+  cutover: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+    <g transform="translate(4, 4)" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21.2 6.1a6.2 6.2 0 0 1-7.6 7.6L7.1 20.2a2.8 2.8 0 0 1-4-4l6.5-6.5A6.2 6.2 0 0 1 17.2 2l-3.8 3.8 4 4 3.8-3.7z"/>
+      <circle cx="5.1" cy="18.2" r="0.8" fill="white" stroke="none"/>
+    </g>
   </svg>`
 };
 

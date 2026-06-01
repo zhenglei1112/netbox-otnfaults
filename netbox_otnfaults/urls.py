@@ -40,6 +40,7 @@ urlpatterns = [
     path('cutovers/bulk-delete/', views.CutoverTaskBulkDeleteView.as_view(), name='cutovertask_bulk_delete'),
     path('cutovers/<int:pk>/related-customers/', views.CutoverTaskRelatedCustomersView.as_view(), name='cutovertask_related_customers'),
     path('cutovers/<int:pk>/generate-planned-time/', views.CutoverTaskGeneratePlannedTimeView.as_view(), name='cutovertask_generate_planned_time'),
+    path('cutovers/<int:pk>/generate-fault/', views.CutoverTaskGenerateFaultView.as_view(), name='cutovertask_generate_fault'),
     path('cutovers/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'cutovertask'))),
     path('cutovers/<int:pk>/edit/', views.CutoverTaskEditView.as_view(), name='cutovertask_edit'),
     path('cutovers/<int:pk>/delete/', views.CutoverTaskDeleteView.as_view(), name='cutovertask_delete'),

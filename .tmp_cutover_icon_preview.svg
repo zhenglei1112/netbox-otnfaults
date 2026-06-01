@@ -1,0 +1,31 @@
+<svg width="520" height="260" viewBox="0 0 520 260" xmlns="http://www.w3.org/2000/svg">
+  <rect width="520" height="260" fill="#f8f9fa"/>
+  <style>
+    text { font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #212529; }
+    .label { font-size: 18px; font-weight: 600; }
+    .caption { font-size: 14px; fill: #6c757d; }
+  </style>
+
+  <text x="260" y="32" text-anchor="middle" class="label">割接地图图标放大预览</text>
+  <text x="260" y="55" text-anchor="middle" class="caption">当前使用剪刀 SVG，按状态套用圆形底色</text>
+
+  <g transform="translate(68, 82)">
+    <circle cx="64" cy="64" r="58" fill="#0d6efd"/>
+    <circle cx="64" cy="64" r="58" stroke="#ffffff" stroke-width="8" fill="none"/>
+    <g transform="translate(16, 16) scale(4)">
+      <path d="M19,3A2,2 0 0,1 21,5A2,2 0 0,1 19,7A2,2 0 0,1 17,5A2,2 0 0,1 19,3M19,9A2,2 0 0,1 21,11A2,2 0 0,1 19,13A2,2 0 0,1 17,11A2,2 0 0,1 19,9M9.64,7.64C9.87,7.14 10,6.59 10,6A4,4 0 0,0 6,2A4,4 0 0,0 6,10C6.59,10 7.14,9.87 7.64,9.64L10,12L7.64,14.36C7.14,14.13 6.59,14 6,14A4,4 0 0,0 2,18A4,4 0 0,0 6,22A4,4 0 0,0 10,18C10,17.41 9.87,16.86 9.64,16.36L12,14L19,21H22V20L9.64,7.64M6,4A2,2 0 0,1 8,6A2,2 0 0,1 6,8A2,2 0 0,1 4,6A2,2 0 0,1 6,4M6,16A2,2 0 0,1 8,18A2,2 0 0,1 6,20A2,2 0 0,1 4,18A2,2 0 0,1 6,16M14,12A1.5,1.5 0 0,1 12.5,13.5A1.5,1.5 0 0,1 11,12A1.5,1.5 0 0,1 12.5,10.5A1.5,1.5 0 0,1 14,12Z" fill="white"/>
+    </g>
+    <text x="64" y="155" text-anchor="middle" class="label">申请中</text>
+    <text x="64" y="177" text-anchor="middle" class="caption">#0d6efd</text>
+  </g>
+
+  <g transform="translate(324, 82)">
+    <circle cx="64" cy="64" r="58" fill="#fd7e14"/>
+    <circle cx="64" cy="64" r="58" stroke="#ffffff" stroke-width="8" fill="none"/>
+    <g transform="translate(16, 16) scale(4)">
+      <path d="M19,3A2,2 0 0,1 21,5A2,2 0 0,1 19,7A2,2 0 0,1 17,5A2,2 0 0,1 19,3M19,9A2,2 0 0,1 21,11A2,2 0 0,1 19,13A2,2 0 0,1 17,11A2,2 0 0,1 19,9M9.64,7.64C9.87,7.14 10,6.59 10,6A4,4 0 0,0 6,2A4,4 0 0,0 6,10C6.59,10 7.14,9.87 7.64,9.64L10,12L7.64,14.36C7.14,14.13 6.59,14 6,14A4,4 0 0,0 2,18A4,4 0 0,0 6,22A4,4 0 0,0 10,18C10,17.41 9.87,16.86 9.64,16.36L12,14L19,21H22V20L9.64,7.64M6,4A2,2 0 0,1 8,6A2,2 0 0,1 6,8A2,2 0 0,1 4,6A2,2 0 0,1 6,4M6,16A2,2 0 0,1 8,18A2,2 0 0,1 6,20A2,2 0 0,1 4,18A2,2 0 0,1 6,16M14,12A1.5,1.5 0 0,1 12.5,13.5A1.5,1.5 0 0,1 11,12A1.5,1.5 0 0,1 12.5,10.5A1.5,1.5 0 0,1 14,12Z" fill="white"/>
+    </g>
+    <text x="64" y="155" text-anchor="middle" class="label">待实施</text>
+    <text x="64" y="177" text-anchor="middle" class="caption">#fd7e14</text>
+  </g>
+</svg>
