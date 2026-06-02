@@ -12,8 +12,21 @@ document.addEventListener("DOMContentLoaded", function() {
     let chartPhysicalDaily = chartPhysicalDailyElement ? echarts.init(chartPhysicalDailyElement) : null;
     const chartPhysicalDurationBoxplotElement = document.getElementById('chart-physical-duration-boxplot');
     let chartPhysicalDurationBoxplot = chartPhysicalDurationBoxplotElement ? echarts.init(chartPhysicalDurationBoxplotElement) : null;
+    const chartBranchCompanyCountElement = document.getElementById('chart-branch-company-count');
+    let chartBranchCompanyCount = chartBranchCompanyCountElement ? echarts.init(chartBranchCompanyCountElement) : null;
+    const chartBranchCompanyDurationElement = document.getElementById('chart-branch-company-duration');
+    let chartBranchCompanyDuration = chartBranchCompanyDurationElement ? echarts.init(chartBranchCompanyDurationElement) : null;
+    const chartBranchCompanyBoxplotElement = document.getElementById('chart-branch-company-boxplot');
+    let chartBranchCompanyBoxplot = chartBranchCompanyBoxplotElement ? echarts.init(chartBranchCompanyBoxplotElement) : null;
+    const chartBranchCompanyValidDurationElement = document.getElementById('chart-branch-company-valid-duration');
+    let chartBranchCompanyValidDuration = chartBranchCompanyValidDurationElement ? echarts.init(chartBranchCompanyValidDurationElement) : null;
+    const chartBranchCompanyWeeklyElement = document.getElementById('chart-branch-company-weekly');
+    let chartBranchCompanyWeekly = chartBranchCompanyWeeklyElement ? echarts.init(chartBranchCompanyWeeklyElement) : null;
     const physicalDailyMetricInputs = Array.from(document.querySelectorAll('input[name="physicalDailyMetric"]'));
     const physicalDailyGranularityInputs = Array.from(document.querySelectorAll('input[name="physicalDailyGranularity"]'));
+    const branchCompanyMetricInputs = Array.from(document.querySelectorAll(
+        'input[name="branchCompanyCountMetric"], input[name="branchCompanyDurationMetric"], input[name="branchCompanyBoxplotMetric"], input[name="branchCompanyValidMetric"], input[name="branchCompanyWeeklyMetric"], input[name="branchCompanyWeeklyScale"]'
+    ));
     const physicalBoxplotFilterShort = document.getElementById('physical-boxplot-filter-short');
     const physicalBoxplotFilterRectification = document.getElementById('physical-boxplot-filter-rectification');
     const physicalBoxplotLogScale = document.getElementById('physical-boxplot-log-scale');
@@ -66,6 +79,11 @@ document.addEventListener("DOMContentLoaded", function() {
         if (chartHistogram) chartHistogram.resize();
         if (chartPhysicalDaily) chartPhysicalDaily.resize();
         if (chartPhysicalDurationBoxplot) chartPhysicalDurationBoxplot.resize();
+        if (chartBranchCompanyCount) chartBranchCompanyCount.resize();
+        if (chartBranchCompanyDuration) chartBranchCompanyDuration.resize();
+        if (chartBranchCompanyBoxplot) chartBranchCompanyBoxplot.resize();
+        if (chartBranchCompanyValidDuration) chartBranchCompanyValidDuration.resize();
+        if (chartBranchCompanyWeekly) chartBranchCompanyWeekly.resize();
         resizeServiceCalendarCharts();
     }
 
@@ -113,6 +131,11 @@ document.addEventListener("DOMContentLoaded", function() {
     chartProvince.on('click', params => handleChartClick(params, 'province'));
     chartReason.on('click', params => handleChartClick(params, 'reason'));
     if (chartHistogram) chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket'));
+    if (chartBranchCompanyCount) chartBranchCompanyCount.on('click', params => handleBranchCompanyChartClick(params, 'province'));
+    if (chartBranchCompanyDuration) chartBranchCompanyDuration.on('click', params => handleBranchCompanyChartClick(params, 'province'));
+    if (chartBranchCompanyBoxplot) chartBranchCompanyBoxplot.on('click', params => handleBranchCompanyChartClick(params, 'province'));
+    if (chartBranchCompanyValidDuration) chartBranchCompanyValidDuration.on('click', params => handleBranchCompanyChartClick(params, 'province'));
+    if (chartBranchCompanyWeekly) chartBranchCompanyWeekly.on('click', params => handleBranchCompanyChartClick({ name: params.seriesName }, 'province'));
     
     // 图例切换（过滤剔除）
     chartResource.on('legendselectchanged', params => { updateExcludedSet('resource_type', params.selected); renderDetailsTable(); });
@@ -122,6 +145,10 @@ document.addEventListener("DOMContentLoaded", function() {
     document.addEventListener('click', function(event) {
         const metric = event.target.closest('.statistics-drill-metric');
         if (!metric) return;
+        if (metric.closest('#tab-branch-company')) {
+            handleBranchCompanyMetricFilterClick(metric);
+            return;
+        }
         handleMetricFilterClick(metric);
     });
 
@@ -129,11 +156,20 @@ document.addEventListener("DOMContentLoaded", function() {
     let currentChartsData = null;
     let currentCableBreakOverview = null;
     let currentPrevCableBreakOverview = null;
+    let currentBranchCompanyData = null;
+    let currentPrevBranchCompanyData = null;
+    let currentBranchCompanyDetails = [];
+    let branchCompanyProvinceSet = new Set();
     let activeFilterField = null; // 'resource_type', 'province', 'reason'
     let activeFilterValue = null;
     let activeFilterExtraField = null;
     let activeFilterExtraValue = null;
     let activeFilterLabel = null;
+    let activeBranchCompanyFilterField = null;
+    let activeBranchCompanyFilterValue = null;
+    let activeBranchCompanyFilterExtraField = null;
+    let activeBranchCompanyFilterExtraValue = null;
+    let activeBranchCompanyFilterLabel = null;
 
     if (physicalBoxplotFilterShort) {
         physicalBoxplotFilterShort.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_duration_boxplot, selFilterType.value));
@@ -146,6 +182,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     physicalDailyMetricInputs.forEach(input => input.addEventListener('change', () => renderOverallDailyFaultChart(currentChartsData && currentChartsData.physical_daily)));
     physicalDailyGranularityInputs.forEach(input => input.addEventListener('change', () => renderOverallDailyFaultChart(currentChartsData && currentChartsData.physical_daily)));
+    branchCompanyMetricInputs.forEach(input => input.addEventListener('change', () => renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData)));
 
     if (cableBreakMetricsToggle && cableBreakDeferredMetrics) {
         cableBreakMetricsToggle.addEventListener('click', () => {
@@ -257,6 +294,9 @@ document.addEventListener("DOMContentLoaded", function() {
             renderCharts(currentChartsData);
             renderOverallDailyFaultChart(currentChartsData.physical_daily);
             renderPhysicalDurationBoxplot(currentChartsData.physical_duration_boxplot, selFilterType.value);
+        }
+        if (currentBranchCompanyData) {
+            renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData);
         }
     }
 
@@ -646,7 +686,13 @@ document.addEventListener("DOMContentLoaded", function() {
             currentCableBreakOverview = data.cable_break_overview || null;
             currentPrevCableBreakOverview = data.prev_cable_break_overview || null;
             currentChartsData = data.charts || null;
+            currentBranchCompanyData = data.branch_company || null;
+            currentPrevBranchCompanyData = data.prev_branch_company || null;
+            branchCompanyProvinceSet = new Set(((currentBranchCompanyData && currentBranchCompanyData.provinces) || []).map(normalizeBranchCompanyProvince));
+            currentBranchCompanyDetails = currentAllDetails.filter(item => branchCompanyProvinceSet.has(item.province) || branchCompanyProvinceSet.has(normalizeBranchCompanyProvince(item.province)));
             renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview);
+            renderBranchCompanySection(data.branch_company, data.prev_branch_company);
+            renderBranchCompanyDetailsTable();
             renderCharts(data.charts);
         } catch (error) {
             console.error('Fetch error:', error);
@@ -729,16 +775,22 @@ document.addEventListener("DOMContentLoaded", function() {
 
         otherOverview = otherOverview || {};
         prevOtherOverview = prevOtherOverview || {};
+        const suspendedDisplayValue = `${otherOverview.suspended_faults || 0}/${otherOverview.suspended_faults_total || 0}`;
+        const prevSuspendedDisplayValue = `${prevOtherOverview.suspended_faults || 0}/${prevOtherOverview.suspended_faults_total || 0}`;
 
         const items = [
             { name: '光缆劣化', value: otherOverview.fiber_degradation || 0 },
             { name: '光缆抖动', value: otherOverview.fiber_jitter || 0 },
-            { name: '挂起的故障（所有）', value: otherOverview.suspended_faults || 0 },
+            {
+                name: '挂起的故障（未关闭/总数）',
+                value: otherOverview.suspended_faults || 0,
+                displayValue: suspendedDisplayValue
+            },
         ];
         const prevItems = [
             { name: '光缆劣化', value: prevOtherOverview.fiber_degradation || 0 },
             { name: '光缆抖动', value: prevOtherOverview.fiber_jitter || 0 },
-            { name: '挂起的故障（所有）', value: prevOtherOverview.suspended_faults || 0 },
+            { name: '挂起的故障（未关闭/总数）', value: prevOtherOverview.suspended_faults || 0, displayValue: prevSuspendedDisplayValue },
         ];
 
         otherList.innerHTML = buildFlexGroup(items, "起", "", "text-indigo", prevItems);
@@ -1110,10 +1162,12 @@ document.addEventListener("DOMContentLoaded", function() {
         trendEl.innerHTML = buildTrendArrow(currentValue, previousValue, integer);
     }
 
-    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue, filterLabel, valueId, filterExtraField, filterExtraValue, infoTitle, infoLabel) {
+    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue, filterLabel, valueId, filterExtraField, filterExtraValue, infoTitle, infoLabel, displayValueOverride) {
         const countUnit = isCountUnit(unit);
         const arrow = buildTrendArrow(value, prevValue, countUnit);
-        const displayValue = isCountUnit(unit) ? formatCardCountValue(value) : formatCardMetricValue(value);
+        const displayValue = displayValueOverride !== undefined
+            ? displayValueOverride
+            : (isCountUnit(unit) ? formatCardCountValue(value) : formatCardMetricValue(value));
         const effectiveColorClass = getTrendValueClass(value, prevValue);
         const infoHtml = infoTitle
             ? `<span class="statistics-info-button statistics-inline-info" title="${infoTitle}" aria-label="${infoLabel || title + '说明'}"><i class="mdi mdi-information-outline" aria-hidden="true"></i></span>`
@@ -1154,8 +1208,9 @@ document.addEventListener("DOMContentLoaded", function() {
             const itemFilterExtraValue = item && item.filterExtraValue !== undefined ? item.filterExtraValue : undefined;
             const itemInfoTitle = item && item.infoTitle !== undefined ? item.infoTitle : undefined;
             const itemInfoLabel = item && item.infoLabel !== undefined ? item.infoLabel : undefined;
+            const itemDisplayValue = item && item.displayValue !== undefined ? item.displayValue : undefined;
             const itemUnit = item && item.unit !== undefined ? item.unit : unit;
-            groupHtml += buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel);
+            groupHtml += buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel, itemDisplayValue);
         });
         groupHtml += `</div>`;
         if (groupTitle) {
@@ -1696,6 +1751,429 @@ document.addEventListener("DOMContentLoaded", function() {
 
     }
 
+    function getCheckedValue(name, fallback) {
+        const checked = document.querySelector(`input[name="${name}"]:checked`);
+        return checked ? checked.value : fallback;
+    }
+
+    function normalizeBranchCompanyProvince(name) {
+        const value = String(name || '').trim();
+        if (!value) return '';
+        if (value.startsWith('内蒙古')) return '内蒙';
+        return value
+            .replace('维吾尔自治区', '')
+            .replace('壮族自治区', '')
+            .replace('回族自治区', '')
+            .replace('自治区', '')
+            .replace('省', '')
+            .replace('市', '');
+    }
+
+    function renderBranchCompanySection(branchData, prevBranchData = currentPrevBranchCompanyData) {
+        if (!branchData) return;
+        renderBranchCompanyPerformanceCards(branchData.performance_cards || []);
+        renderBranchCompanyOverview(branchData, prevBranchData);
+        renderBranchCompanyBarCharts(branchData);
+        renderBranchCompanyBoxplot(branchData);
+        renderBranchCompanyValidDurationChart(branchData);
+        renderBranchCompanyWeeklyChart(branchData);
+    }
+
+    function formatBranchPerformanceValue(value, digits = 1) {
+        const numeric = Number(value || 0);
+        return numeric.toFixed(digits).replace(/\.0$/, '');
+    }
+
+    function formatBranchPerformanceDeductionValue(value) {
+        const numeric = Number(value || 0);
+        if (numeric <= 0) {
+            return '0';
+        }
+        return `-${formatBranchPerformanceValue(numeric)}`;
+    }
+
+    function renderBranchPerformanceReasonList(items) {
+        const source = Array.isArray(items) ? items : [];
+        if (source.length === 0) {
+            return '<span class="branch-performance-empty">暂无</span>';
+        }
+        return source.map(item => {
+            const name = item.name || item.label || '-';
+            const value = Number(item.value || item.count || 0);
+            return `<span class="branch-performance-reason-pill">${escapeHtml(name)} ${formatBranchPerformanceValue(value)}</span>`;
+        }).join('');
+    }
+
+    function renderBranchCompanyPerformanceCard(card) {
+        const responsibilityMetrics = card.responsibility_metrics || {};
+        const overallMetrics = card.overall_metrics || {};
+        const deductions = Array.isArray(card.deductions) ? card.deductions : [];
+        const status = card.status || 'stable';
+        const deductionHtml = deductions.map(item => `
+            <button type="button" class="branch-performance-deduction" data-deduction-key="${escapeHtml(item.key || '')}">
+                <span>${escapeHtml(item.label || '-')}</span>
+                <strong>${formatBranchPerformanceDeductionValue(item.value || 0)}</strong>
+            </button>
+        `).join('');
+        return `
+            <article class="card shadow-sm statistics-branch-performance-card statistics-branch-performance-card--${escapeHtml(status)}" data-province="${escapeHtml(card.province || '')}">
+                <div class="statistics-branch-performance-header">
+                    <button type="button" class="branch-performance-title">
+                        <span>${escapeHtml(card.label || card.province || '-')}</span>
+                        <small>${escapeHtml(card.grade || '-')}</small>
+                    </button>
+                    <div class="branch-performance-score">
+                        <span class="branch-performance-score-value">${formatBranchPerformanceValue(card.responsibility_score || 0)}</span>
+                        <span class="branch-performance-score-unit">分</span>
+                    </div>
+                </div>
+                <div class="branch-performance-score-subline">
+                    <span>责任得分 ${formatBranchPerformanceValue(card.responsibility_score || 0)}</span>
+                    <span>全量得分 ${formatBranchPerformanceValue(card.overall_score || 0)}</span>
+                </div>
+                <div class="branch-performance-kpi-grid">
+                    <div><strong>${formatCardMetricValue(responsibilityMetrics.count || 0)}</strong><span>责任起数</span></div>
+                    <div><strong>${formatCardMetricValue(responsibilityMetrics.duration || 0)}</strong><span>责任时长</span></div>
+                    <div><strong>${formatCardMetricValue(responsibilityMetrics.valid_duration || 0)}</strong><span>有效平均</span></div>
+                    <div><strong>${formatCardMetricValue(responsibilityMetrics.count_per_100km || 0)}</strong><span>百公里起数</span></div>
+                    <div><strong>${formatCardMetricValue(responsibilityMetrics.duration_per_100km || 0)}</strong><span>百公里时长</span></div>
+                    <div><strong>${formatCardMetricValue(responsibilityMetrics.repeat_count || 0)}</strong><span>重复</span></div>
+                </div>
+                <div class="branch-performance-overall-line">
+                    全量影响 ${formatCardMetricValue(overallMetrics.count || 0)} 起 / ${formatCardMetricValue(overallMetrics.duration || 0)} 小时
+                </div>
+                <div class="branch-performance-deduction-heading">责任扣分</div>
+                <div class="branch-performance-deduction-grid">${deductionHtml}</div>
+                <div class="branch-performance-reasons">
+                    <div><span>责任原因</span>${renderBranchPerformanceReasonList(card.responsibility_reason_top3)}</div>
+                    <div><span>全量原因</span>${renderBranchPerformanceReasonList(card.overall_reason_top3)}</div>
+                </div>
+            </article>`;
+    }
+
+    function renderBranchCompanyPerformanceCards(cards) {
+        const container = document.getElementById('branch-company-performance-cards');
+        if (!container) return;
+        const source = Array.isArray(cards) ? cards : [];
+        if (source.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted py-4">暂无分公司绩效考核数据</div>';
+            return;
+        }
+        container.innerHTML = source.map(renderBranchCompanyPerformanceCard).join('');
+        container.querySelectorAll('.statistics-branch-performance-card').forEach(cardEl => {
+            const province = cardEl.dataset.province || '';
+            const card = source.find(item => item.province === province);
+            const title = cardEl.querySelector('.branch-performance-title');
+            if (title && card) {
+                title.addEventListener('click', () => handleBranchCompanyPerformanceCardClick(card));
+            }
+            cardEl.querySelectorAll('.branch-performance-deduction').forEach(button => {
+                const deduction = (card && Array.isArray(card.deductions))
+                    ? card.deductions.find(item => item.key === button.dataset.deductionKey)
+                    : null;
+                if (card && deduction) {
+                    button.addEventListener('click', event => {
+                        event.stopPropagation();
+                        handleBranchCompanyPerformanceDeductionClick(card, deduction);
+                    });
+                }
+            });
+        });
+    }
+
+    function handleBranchCompanyPerformanceCardClick(card) {
+        handleBranchCompanyChartClick({ name: card.province }, 'province');
+    }
+
+    function handleBranchCompanyPerformanceDeductionClick(card, deduction) {
+        activeBranchCompanyFilterField = 'province';
+        activeBranchCompanyFilterValue = normalizeFilterValue('province', card.province);
+        activeBranchCompanyFilterExtraField = null;
+        activeBranchCompanyFilterExtraValue = null;
+        activeBranchCompanyFilterLabel = `${card.province} ${deduction.label || ''}`;
+        if (deduction.key === 'repeat') {
+            activeBranchCompanyFilterExtraField = 'is_repeat';
+            activeBranchCompanyFilterExtraValue = true;
+        } else if (deduction.key === 'severity') {
+            activeBranchCompanyFilterExtraField = 'is_long';
+            activeBranchCompanyFilterExtraValue = true;
+        } else if (deduction.key === 'valid_duration') {
+            activeBranchCompanyFilterExtraField = 'is_valid_duration';
+            activeBranchCompanyFilterExtraValue = true;
+        }
+        const tbl = document.getElementById('branch-company-details-tbody');
+        if (tbl) {
+            tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        renderBranchCompanyDetailsTable();
+    }
+
+    function renderBranchCompanyOverview(branchData, prevBranchData = currentPrevBranchCompanyData) {
+        const overview = branchData.overview || {};
+        const cableBreak = branchData.cable_break_overview || {};
+        const prevOverview = (prevBranchData && prevBranchData.overview) || {};
+        const prevCableBreak = (prevBranchData && prevBranchData.cable_break_overview) || {};
+        const totalEl = document.getElementById('branch-company-overall-total');
+        if (totalEl) totalEl.textContent = formatCardCountValue(overview.total_count || 0);
+        renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, true);
+
+        const categoryEl = document.getElementById('branch-company-overall-categories-flex-list');
+        if (categoryEl) {
+            const categories = (overview.categories || []).map(item => ({
+                id: `branch-company-overall-${item.name}`,
+                name: item.name,
+                value: item.value || 0,
+                filterField: 'category',
+                filterValue: item.name,
+                filterLabel: item.name,
+            }));
+            categoryEl.innerHTML = buildFlexGroup(categories, '起', '', 'text-indigo', prevOverview.categories || []);
+        }
+
+        const otherEl = document.getElementById('branch-company-overall-other-flex-list');
+        if (otherEl) {
+            const other = overview.other || {};
+            const prevOther = prevOverview.other || {};
+            const otherItems = [
+                { id: 'branch-company-fiber-degradation', name: '光缆劣化', value: other.fiber_degradation || 0, filterField: 'category', filterValue: '光缆劣化', filterLabel: '光缆劣化' },
+                { id: 'branch-company-fiber-jitter', name: '光缆抖动', value: other.fiber_jitter || 0, filterField: 'category', filterValue: '光缆抖动', filterLabel: '光缆抖动' },
+                { id: 'branch-company-suspended', name: '挂起', value: other.suspended_faults || 0 },
+            ];
+            const prevOtherItems = [
+                { name: '光缆劣化', value: prevOther.fiber_degradation || 0 },
+                { name: '光缆抖动', value: prevOther.fiber_jitter || 0 },
+                { name: '挂起', value: prevOther.suspended_faults || 0 },
+            ];
+            otherEl.innerHTML = buildFlexGroup(otherItems, '起', '', 'text-indigo', prevOtherItems);
+        }
+
+        const cableBreakTotalEl = document.getElementById('branch-company-cable-break-total-count');
+        if (cableBreakTotalEl) cableBreakTotalEl.textContent = formatCardCountValue(cableBreak.total_count || 0);
+        renderTrendBesideMetric(cableBreakTotalEl, cableBreak.total_count || 0, prevCableBreak.total_count, true);
+
+        const reasonEl = document.getElementById('branch-company-cable-break-reason-top3-flex-list');
+        if (reasonEl) {
+            reasonEl.innerHTML = buildFlexGroup((cableBreak.reason_top3 || []).map(item => ({
+                ...item,
+                filterField: 'reason',
+                filterValue: item.name,
+                filterLabel: item.name,
+            })), '起', '', 'text-indigo', prevCableBreak.reason_top3 || []);
+        }
+
+        const durationEl = document.getElementById('branch-company-cable-break-duration-total-list');
+        if (durationEl) {
+            const metrics = cableBreak.avg_metrics || {};
+            const prevMetrics = prevCableBreak.avg_metrics || {};
+            const durationItems = [
+                { id: 'branch-company-total-duration', name: '总历时', value: cableBreak.total_duration || 0, prevValue: prevCableBreak.total_duration, unit: '小时', filterField: 'category', filterValue: '光缆中断', filterLabel: '中断历时' },
+                { id: 'branch-company-overall-avg', name: '全口径平均', value: metrics.overall_avg || 0, prevValue: prevMetrics.overall_avg, unit: '小时', filterField: 'category', filterValue: '光缆中断', filterLabel: '全口径平均' },
+                { id: 'branch-company-valid-avg', name: '有效平均', value: metrics.valid_avg || 0, prevValue: prevMetrics.valid_avg, unit: '小时', filterField: 'is_valid_duration', filterValue: 'true', filterLabel: '有效平均' },
+                { id: 'branch-company-timeout-rate', name: '超时率', value: metrics.timeout_rate || 0, prevValue: prevMetrics.timeout_rate, unit: '%', filterField: 'duration_min', filterValue: '4', filterLabel: '超时率' },
+            ];
+            durationEl.innerHTML = buildFlexGroup(durationItems, '', '', 'text-indigo');
+        }
+
+        const repeatEl = document.getElementById('branch-company-kpi-repeat-faults');
+        if (repeatEl) repeatEl.textContent = formatCardCountValue(cableBreak.repeat_faults_count || 0);
+        renderTrendBesideMetric(repeatEl, cableBreak.repeat_faults_count || 0, prevCableBreak.repeat_faults_count, true);
+    }
+
+    function getSortedBranchBars(data, metric) {
+        return (data || []).slice().sort((a, b) => Number(b[metric] || 0) - Number(a[metric] || 0));
+    }
+
+    function buildBranchCompanyGrid(isWeekly = false) {
+        return {
+            top: isWeekly ? 76 : 52,
+            left: 64,
+            right: 28,
+            bottom: 42,
+            containLabel: true
+        };
+    }
+
+    function buildBranchCompanyYAxis(unit, chartTheme) {
+        return {
+            type: 'value',
+            name: unit,
+            nameGap: 16,
+            nameLocation: 'end',
+            nameTextStyle: {
+                color: chartTheme.muted,
+                fontWeight: 600,
+                align: 'right',
+                padding: [0, 0, 4, 0]
+            },
+            ...buildAxisTheme(chartTheme)
+        };
+    }
+
+    function renderBranchBarChart(chart, data, metric, title, unit, tooltipFormatter = null) {
+        if (!chart) return;
+        const chartTheme = getChartTheme();
+        const sortedData = getSortedBranchBars(data, metric);
+        chart.setOption({
+            textStyle: { color: chartTheme.text },
+            tooltip: {
+                ...buildTooltipTheme(chartTheme),
+                trigger: 'axis',
+                axisPointer: { type: 'shadow', shadowStyle: { color: chartTheme.dark ? 'rgba(110, 168, 254, 0.14)' : 'rgba(32, 107, 196, 0.1)' } },
+                formatter: params => {
+                    const p = params[0];
+                    const raw = p.data || {};
+                    if (typeof tooltipFormatter === 'function') {
+                        return tooltipFormatter(p, raw);
+                    }
+                    return `${p.marker || ''}${p.name}<br/>故障数: ${raw._count || 0} 起<br/>故障历时: ${formatCardMetricValue(raw._duration || 0)} 小时<br/>光缆长度: ${formatCardMetricValue(raw._pathLength || 0)} 公里`;
+                }
+            },
+            grid: buildBranchCompanyGrid(),
+            xAxis: {
+                type: 'category',
+                data: sortedData.map(item => item.name),
+                ...buildAxisTheme(chartTheme, { interval: 0 })
+            },
+            yAxis: buildBranchCompanyYAxis(unit, chartTheme),
+            series: [{
+                name: title,
+                type: 'bar',
+                barMaxWidth: 34,
+                label: {
+                    show: true,
+                    position: 'top',
+                    color: chartTheme.heading,
+                    fontWeight: 600,
+                    formatter: params => Number(params.value || 0) > 0 ? formatCardMetricValue(params.value) : ''
+                },
+                itemStyle: { color: chartTheme.primary, borderRadius: [4, 4, 0, 0] },
+                data: sortedData.map(item => ({
+                    value: Number(item[metric] || 0),
+                    _count: item.value || 0,
+                    _duration: item.duration || 0,
+                    _validDurationTotal: item.valid_duration_total || 0,
+                    _validCount: item.valid_count || 0,
+                    _pathLength: item.path_length || 0,
+                }))
+            }]
+        });
+    }
+
+    function renderBranchCompanyBarCharts(branchData) {
+        const countMetric = getCheckedValue('branchCompanyCountMetric', 'count');
+        const durationMetric = getCheckedValue('branchCompanyDurationMetric', 'duration');
+        renderBranchBarChart(
+            chartBranchCompanyCount,
+            branchData.province_bars || [],
+            countMetric,
+            countMetric === 'count' ? '故障数' : '百公里故障数',
+            countMetric === 'count' ? '起' : '起/百公里'
+        );
+        renderBranchBarChart(
+            chartBranchCompanyDuration,
+            branchData.province_bars || [],
+            durationMetric,
+            durationMetric === 'duration' ? '故障历时' : '百公里故障历时',
+            durationMetric === 'duration' ? '小时' : '小时/百公里'
+        );
+    }
+
+    function renderBranchCompanyBoxplot(branchData) {
+        if (!chartBranchCompanyBoxplot) return;
+        const chartTheme = getChartTheme();
+        const metric = getCheckedValue('branchCompanyBoxplotMetric', 'duration');
+        const boxplotData = (branchData.duration_boxplot || []).map(item => ({
+            name: item.name,
+            value: metric === 'per_100km' ? (item.per_100km || []) : (item.value || []),
+        }));
+        chartBranchCompanyBoxplot.setOption({
+            textStyle: { color: chartTheme.text },
+            tooltip: {
+                ...buildTooltipTheme(chartTheme),
+                trigger: 'axis',
+                axisPointer: { type: 'shadow', shadowStyle: { color: chartTheme.dark ? 'rgba(110, 168, 254, 0.14)' : 'rgba(32, 107, 196, 0.1)' } },
+                formatter: params => {
+                    const p = Array.isArray(params) ? params[0] : params;
+                    const value = Array.isArray(p.data) ? p.data : (p.data && p.data.value) || [];
+                    return `${p.name}<br/>最小: ${formatCardMetricValue(value[0] || 0)}<br/>Q1: ${formatCardMetricValue(value[1] || 0)}<br/>中位: ${formatCardMetricValue(value[2] || 0)}<br/>Q3: ${formatCardMetricValue(value[3] || 0)}<br/>上须: ${formatCardMetricValue(value[4] || 0)}`;
+                }
+            },
+            grid: buildBranchCompanyGrid(),
+            xAxis: {
+                type: 'category',
+                data: boxplotData.map(item => item.name),
+                ...buildAxisTheme(chartTheme, { interval: 0 })
+            },
+            yAxis: buildBranchCompanyYAxis(metric === 'per_100km' ? '小时/百公里' : '小时', chartTheme),
+            series: [{
+                name: '中断时长分布',
+                type: 'boxplot',
+                boxWidth: ['22%', '58%'],
+                itemStyle: { color: chartTheme.surface, borderColor: chartTheme.primary },
+                data: boxplotData.map(item => item.value)
+            }]
+        });
+    }
+
+    function renderBranchCompanyValidDurationChart(branchData) {
+        const metric = getCheckedValue('branchCompanyValidMetric', 'valid_duration');
+        renderBranchBarChart(
+            chartBranchCompanyValidDuration,
+            branchData.valid_duration_bars || [],
+            metric,
+            metric === 'valid_duration' ? '有效平均历时' : '百公里有效平均历时',
+            metric === 'valid_duration' ? '小时' : '小时/百公里',
+            (p, raw) => `${p.marker || ''}${p.name}<br/>有效平均历时: ${formatCardMetricValue(p.value || 0)} ${metric === 'valid_duration' ? '小时' : '小时/百公里'}<br/>有效故障数: ${raw._validCount || 0} 起<br/>有效总历时: ${formatCardMetricValue(raw._validDurationTotal || 0)} 小时<br/>光缆长度: ${formatCardMetricValue(raw._pathLength || 0)} 公里`
+        );
+    }
+
+    function renderBranchCompanyWeeklyChart(branchData) {
+        if (!chartBranchCompanyWeekly) return;
+        const chartTheme = getChartTheme();
+        const metric = getCheckedValue('branchCompanyWeeklyMetric', 'count');
+        const scale = getCheckedValue('branchCompanyWeeklyScale', 'raw');
+        const weeklyData = branchData.weekly_trends || {};
+        const labels = weeklyData.labels || [];
+        const metricKey = scale === 'per_100km'
+            ? (metric === 'count' ? 'week_count_per_100km' : metric === 'duration' ? 'week_duration_per_100km' : 'week_valid_duration_per_100km')
+            : (metric === 'count' ? 'counts' : metric === 'duration' ? 'durations' : 'valid_durations');
+        const unit = scale === 'per_100km'
+            ? (metric === 'count' ? '起/百公里' : '小时/百公里')
+            : (metric === 'count' ? '起' : '小时');
+        chartBranchCompanyWeekly.setOption({
+            textStyle: { color: chartTheme.text },
+            color: chartTheme.chartPalette,
+            tooltip: {
+                ...buildTooltipTheme(chartTheme),
+                trigger: 'axis'
+            },
+            legend: {
+                top: 8,
+                left: 'center',
+                ...buildLegendTheme(chartTheme)
+            },
+            grid: buildBranchCompanyGrid(true),
+            xAxis: {
+                type: 'category',
+                data: labels,
+                ...buildAxisTheme(chartTheme, {
+                    interval: Math.max(0, Math.floor(labels.length / 12)),
+                    rotate: labels.length > 18 ? 30 : 0,
+                })
+            },
+            yAxis: buildBranchCompanyYAxis(unit, chartTheme),
+            series: (weeklyData.series || []).map(item => ({
+                name: item.name,
+                type: 'line',
+                smooth: true,
+                symbol: 'circle',
+                symbolSize: 4,
+                lineStyle: { width: 2 },
+                data: item[metricKey] || []
+            }))
+        });
+    }
+
     // ---------------- 渲染下钻表格 ----------------
     function normalizeFilterValue(fieldName, value) {
         if (value === 'true') return true;
@@ -1704,6 +2182,9 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function applyDetailFilter(item, fieldName, value) {
+        if (fieldName === 'province') {
+            return item[fieldName] === value || normalizeBranchCompanyProvince(item[fieldName]) === normalizeBranchCompanyProvince(value);
+        }
         if (fieldName === 'duration_min') {
             return Number(item.duration || 0) >= Number(value || 0);
         }
@@ -1821,6 +2302,92 @@ document.addEventListener("DOMContentLoaded", function() {
         tbody.innerHTML = html;
     }
 
+    function renderDetailRows(details, emptyText) {
+        if (details.length === 0) {
+            return `<tr><td colspan="10" class="text-center py-4 text-muted">${emptyText}</td></tr>`;
+        }
+
+        return details.map(item => {
+            let badges = '';
+            if (item.is_repeat) badges += '<span class="badge bg-purple text-white ms-1">重复</span>';
+            if (item.is_long) badges += '<span class="badge bg-warning text-dark ms-1">≥6h</span>';
+
+            return `<tr>
+                <td><a href="${item.url}" target="_blank">${item.fault_number}</a></td>
+                <td>${item.fault_occurrence_time}</td>
+                <td>${item.fault_recovery_time}</td>
+                <td><strong class="${item.is_long ? 'text-danger' : ''}">${item.duration}</strong></td>
+                <td>${item.category}</td>
+                <td>${item.resource_type}</td>
+                <td>${item.province}</td>
+                <td>${item.reason}</td>
+                <td><small>${item.site_a}${item.site_z ? ' &rarr; ' + item.site_z : ''}</small></td>
+                <td>${badges}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderBranchCompanyDetailsTable() {
+        let filteredDetails = currentBranchCompanyDetails;
+        let activeConditions = [];
+        const badge = document.getElementById('branch-company-drill-down-filter-badge');
+        const clearButton = document.getElementById('branch-company-btn-clear-filter');
+        const summaryDiv = document.getElementById('branch-company-filtered-kpi-summary');
+        const tbody = document.getElementById('branch-company-details-tbody');
+        if (!tbody) return;
+
+        if (activeBranchCompanyFilterField && activeBranchCompanyFilterValue !== null) {
+            filteredDetails = filteredDetails.filter(item => {
+                if (!applyDetailFilter(item, activeBranchCompanyFilterField, activeBranchCompanyFilterValue)) return false;
+                if (activeBranchCompanyFilterExtraField && activeBranchCompanyFilterExtraValue !== null) {
+                    return applyDetailFilter(item, activeBranchCompanyFilterExtraField, activeBranchCompanyFilterExtraValue);
+                }
+                return true;
+            });
+
+            let filterName = '';
+            let filterValueDisp = activeBranchCompanyFilterLabel || activeBranchCompanyFilterValue;
+            if (activeBranchCompanyFilterField === 'province') filterName = '省份';
+            else if (activeBranchCompanyFilterField === 'category') filterName = '分类';
+            else if (activeBranchCompanyFilterField === 'reason') filterName = '原因';
+            else if (activeBranchCompanyFilterField === 'is_valid_duration') { filterName = '特殊标签'; filterValueDisp = '有效平均'; }
+            else if (activeBranchCompanyFilterField === 'is_long') { filterName = '特殊标签'; filterValueDisp = '长时故障(≥6h)'; }
+            else filterName = activeBranchCompanyFilterField;
+            activeConditions.push(`下钻：${filterName}=${filterValueDisp}`);
+        }
+
+        if (activeConditions.length > 0) {
+            const conditionsText = activeConditions.join(' | ');
+            if (badge) {
+                badge.textContent = conditionsText;
+                badge.className = 'badge bg-primary text-white ms-2';
+                badge.style.display = 'inline-block';
+            }
+            if (clearButton) clearButton.style.display = 'inline-block';
+
+            const fCount = filteredDetails.length;
+            let fDur = 0.0;
+            let fLong = 0;
+            let fRepeat = 0;
+            filteredDetails.forEach(item => {
+                fDur += Number(item.duration || 0);
+                if (item.is_long) fLong++;
+                if (item.is_repeat) fRepeat++;
+            });
+            const fAvg = fCount > 0 ? (fDur / fCount).toFixed(2) : "0.00";
+            if (summaryDiv) {
+                summaryDiv.innerHTML = `<div><i class="mdi mdi-filter-outline me-1"></i> <strong>当前过滤条件：${conditionsText}</strong> 的局部统计：共发生故障 <strong class="text-primary">${fCount}</strong> 次，累计时长 <strong class="text-primary">${fDur.toFixed(2)}</strong> 小时，平均故障时长 <strong class="text-primary">${fAvg}</strong> 小时。其中长时故障（≥6h） <strong class="text-warning text-dark">${fLong}</strong> 条，涉及历史重复故障 <strong class="text-purple">${fRepeat}</strong> 条。</div>`;
+                summaryDiv.classList.remove('d-none');
+            }
+        } else {
+            if (badge) badge.style.display = 'none';
+            if (clearButton) clearButton.style.display = 'none';
+            if (summaryDiv) summaryDiv.classList.add('d-none');
+        }
+
+        tbody.innerHTML = renderDetailRows(filteredDetails, '当前分公司范围及过滤条件下，无可展示的故障数据');
+    }
+
     function formatPieSliceLabel(params) {
         if (!params.value) return params.name;
         return `${params.name}\n${params.value}次 ${params.percent}%`;
@@ -1868,6 +2435,40 @@ document.addEventListener("DOMContentLoaded", function() {
         renderDetailsTable();
     }
 
+    function handleBranchCompanyChartClick(params, fieldName) {
+        const name = params && params.name ? params.name : null;
+        if (!name) return;
+        activeBranchCompanyFilterField = fieldName;
+        activeBranchCompanyFilterValue = name;
+        activeBranchCompanyFilterExtraField = null;
+        activeBranchCompanyFilterExtraValue = null;
+        activeBranchCompanyFilterLabel = null;
+        const tbl = document.getElementById('branch-company-details-tbody');
+        if (tbl) {
+            tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        renderBranchCompanyDetailsTable();
+    }
+
+    function handleBranchCompanyMetricFilterClick(metric) {
+        const fieldName = metric.dataset.filterField;
+        if (!fieldName) return;
+
+        activeBranchCompanyFilterField = fieldName;
+        activeBranchCompanyFilterValue = normalizeFilterValue(fieldName, metric.dataset.filterValue);
+        activeBranchCompanyFilterExtraField = metric.dataset.filterExtraField || null;
+        activeBranchCompanyFilterExtraValue = activeBranchCompanyFilterExtraField
+            ? normalizeFilterValue(activeBranchCompanyFilterExtraField, metric.dataset.filterExtraValue)
+            : null;
+        activeBranchCompanyFilterLabel = metric.dataset.filterLabel || metric.dataset.filterValue;
+
+        const tbl = document.getElementById('branch-company-details-tbody');
+        if (tbl) {
+            tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        renderBranchCompanyDetailsTable();
+    }
+
     // ---------------- 清除过滤 ----------------
     btnClearFilter.addEventListener('click', () => {
         activeFilterField = null;
@@ -1885,6 +2486,18 @@ document.addEventListener("DOMContentLoaded", function() {
         
         renderDetailsTable();
     });
+
+    const btnClearBranchCompanyFilter = document.getElementById('branch-company-btn-clear-filter');
+    if (btnClearBranchCompanyFilter) {
+        btnClearBranchCompanyFilter.addEventListener('click', () => {
+            activeBranchCompanyFilterField = null;
+            activeBranchCompanyFilterValue = null;
+            activeBranchCompanyFilterExtraField = null;
+            activeBranchCompanyFilterExtraValue = null;
+            activeBranchCompanyFilterLabel = null;
+            renderBranchCompanyDetailsTable();
+        });
+    }
 
     // ---------------- 业务故障统计 ----------------
     let serviceDataLoaded = false;
@@ -2508,6 +3121,8 @@ document.addEventListener("DOMContentLoaded", function() {
         const activeTab = document.querySelector('#statisticsTab .nav-link.active');
         if (activeTab && (activeTab.id === 'tab-service-btn' || activeTab.id === 'tab-circuit-service-btn')) {
             loadServiceData();
+        } else if (activeTab && (activeTab.id === 'tab-branch-company-btn' || activeTab.id === 'tab-branch-performance-btn')) {
+            loadData();
         } else {
             loadData();
         }
@@ -2520,6 +3135,11 @@ document.addEventListener("DOMContentLoaded", function() {
             syncBareFiberServiceCardScopeToggle();
             if (event.target.id === 'tab-service-btn' || event.target.id === 'tab-circuit-service-btn') {
                 loadServiceData();
+            } else if (event.target.id === 'tab-branch-company-btn' || event.target.id === 'tab-branch-performance-btn') {
+                loadData();
+                setTimeout(() => {
+                    resizeStatisticsCharts();
+                }, 100);
             } else if (event.target.id === 'tab-physical-btn') {
                 loadData();
                 setTimeout(() => {

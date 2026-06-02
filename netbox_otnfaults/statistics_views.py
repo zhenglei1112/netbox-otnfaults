@@ -18,7 +18,7 @@ from urllib.parse import quote
 from typing import Any
 
 from .models import (
-    OtnFault, OtnFaultImpact, OtnPath, BareFiberService,
+    OtnFault, OtnFaultImpact, BareFiberService,
     FaultCategoryChoices, ResourceTypeChoices, CableTypeChoices,
     ServiceTypeChoices, FaultStatusChoices, BusinessImpactChoices
 )
@@ -68,6 +68,36 @@ RESOURCE_TYPE_ORDER = [
     ResourceTypeChoices.LEASED,
     'unfilled',
 ]
+
+BRANCH_PROVINCE_NAMES: list[str] = ['浙江', '山东', '内蒙', '陕西', '四川', '江西']
+
+BRANCH_PROVINCE_PATH_LENGTHS: dict[str, float] = {
+    '江西': 3545.0,
+    '浙江': 2804.0,
+    '陕西': 2182.0,
+    '山东': 1464.0,
+    '四川': 985.0,
+    '内蒙': 972.0,
+}
+
+BRANCH_PROVINCE_ALIASES: dict[str, str] = {
+    '浙江': '浙江',
+    '山东': '山东',
+    '内蒙': '内蒙',
+    '内蒙古': '内蒙',
+    '陕西': '陕西',
+    '四川': '四川',
+    '江西': '江西',
+}
+
+BRANCH_PERFORMANCE_DEDUCTION_LABELS: dict[str, str] = {
+    'frequency': '频次',
+    'duration': '历时',
+    'valid_duration': '有效平均',
+    'severity': '长时/超时',
+    'repeat': '重复',
+    'trend': '趋势',
+}
 
 
 def truncate_sla(value: float) -> float:
@@ -338,11 +368,16 @@ def _build_physical_daily_fault_series(period_start, period_end, faults: list, n
     }
 
 
-def _build_other_fault_summary(faults: list, suspended_faults_count: int) -> dict[str, int]:
+def _build_other_fault_summary(
+    faults: list,
+    suspended_faults_count: int,
+    suspended_faults_total_count: int | None = None,
+) -> dict[str, int]:
     return {
         'fiber_degradation': sum(1 for f in faults if f.fault_category == FaultCategoryChoices.FIBER_DEGRADATION),
         'fiber_jitter': sum(1 for f in faults if f.fault_category == FaultCategoryChoices.FIBER_JITTER),
         'suspended_faults': suspended_faults_count,
+        'suspended_faults_total': suspended_faults_total_count if suspended_faults_total_count is not None else suspended_faults_count,
     }
 
 
@@ -527,6 +562,510 @@ def _compute_cable_break_overview(faults: list, now) -> dict:
     }
 
 
+def _normalize_branch_province_name(name: str | None) -> str | None:
+    if not name:
+        return None
+    normalized = str(name).strip()
+    for suffix in ('省', '市', '自治区', '回族自治区', '壮族自治区', '维吾尔自治区'):
+        normalized = normalized.replace(suffix, '')
+    for alias, province in BRANCH_PROVINCE_ALIASES.items():
+        if normalized.startswith(alias):
+            return province
+    return None
+
+
+def _branch_province_for_fault(fault) -> str | None:
+    province_name = fault.province.name if getattr(fault, 'province', None) else None
+    return _normalize_branch_province_name(province_name)
+
+
+def _duration_hours_for_fault(fault, now) -> float:
+    if not fault.fault_occurrence_time:
+        return 0.0
+    end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
+    return (end_t - fault.fault_occurrence_time).total_seconds() / 3600.0
+
+
+def _per_100km(value: float, length_km: float) -> float:
+    if length_km <= 0:
+        return 0.0
+    return round(value * 100.0 / length_km, 2)
+
+
+def _build_branch_week_ranges(year_start, year_end) -> list[dict[str, str]]:
+    ranges: list[dict[str, str]] = []
+    cursor = year_start.date()
+    end_day = year_end.date()
+    while cursor < end_day:
+        week_end = min(cursor + timedelta(days=7), end_day)
+        ranges.append({
+            'key': cursor.isoformat(),
+            'label': f"{cursor.month}/{cursor.day}",
+            'start': cursor.isoformat(),
+            'end': (week_end - timedelta(days=1)).isoformat(),
+        })
+        cursor = week_end
+    return ranges
+
+
+def _count_repeat_fiber_faults(faults: list, end_date, now) -> int:
+    fiber_faults = [
+        fault for fault in faults
+        if getattr(fault, 'is_fiber_fault', False) and fault.fault_occurrence_time
+    ]
+    if not fiber_faults:
+        return 0
+
+    min_occurrence = min(fault.fault_occurrence_time for fault in fiber_faults)
+    check_start = min_occurrence - timedelta(days=60)
+    comparison_end = end_date if end_date else now
+    comparison_faults = list(
+        OtnFault.objects.filter(
+            fault_occurrence_time__gte=check_start,
+            fault_occurrence_time__lt=comparison_end,
+            fault_category__in=[
+                FaultCategoryChoices.FIBER_BREAK,
+                FaultCategoryChoices.FIBER_DEGRADATION,
+                FaultCategoryChoices.FIBER_JITTER,
+            ],
+        )
+        .select_related('interruption_location_a')
+        .prefetch_related('interruption_location')
+    )
+    z_sites_cache = {
+        fault.id: set(site.id for site in fault.interruption_location.all())
+        for fault in comparison_faults
+    }
+
+    repeat_count = 0
+    for fault in fiber_faults:
+        fault_z_site_ids = z_sites_cache.get(
+            fault.id,
+            set(site.id for site in fault.interruption_location.all()),
+        )
+        for previous_fault in comparison_faults:
+            if previous_fault.id == fault.id:
+                continue
+            if previous_fault.fault_occurrence_time >= fault.fault_occurrence_time:
+                continue
+            if (fault.fault_occurrence_time - previous_fault.fault_occurrence_time) > timedelta(days=60):
+                continue
+            if previous_fault.interruption_location_a_id != fault.interruption_location_a_id:
+                continue
+            if z_sites_cache.get(previous_fault.id, set()).intersection(fault_z_site_ids):
+                repeat_count += 1
+                break
+    return repeat_count
+
+
+def _classify_branch_fault_responsibility(fault) -> dict[str, object]:
+    if fault.interruption_reason == 'natural_disaster' or fault.interruption_reason_detail == 'planned_reporting':
+        return {
+            'weight': 0.0,
+            'scope': 'overall_only',
+            'label': '仅全量计入',
+            'basis': '自然灾害或计划报备不纳入责任考核',
+        }
+    if fault.resource_type == ResourceTypeChoices.LEASED or fault.interruption_reason in {'construction', 'traffic_accident'}:
+        return {
+            'weight': 0.5,
+            'scope': 'weighted',
+            'label': '降权计入',
+            'basis': '租赁资源、第三方施工或交通事故按 50% 计入责任考核',
+        }
+    return {
+        'weight': 1.0,
+        'scope': 'responsibility',
+        'label': '责任计入',
+        'basis': '按责任口径全量计入',
+    }
+
+
+def _calculate_branch_performance_score(metrics: dict[str, float]) -> dict[str, object]:
+    deductions = {
+        'frequency': min(30.0, metrics.get('count_per_100km', 0.0) * 18.0),
+        'duration': min(25.0, metrics.get('duration_per_100km', 0.0) * 4.0),
+        'valid_duration': min(15.0, max(0.0, metrics.get('valid_duration', 0.0) - 4.0) * 3.0),
+        'severity': min(
+            15.0,
+            (metrics.get('long_count', 0.0) * 2.0)
+            + (metrics.get('timeout_count', 0.0) * 2.0)
+            + (metrics.get('open_count', 0.0) * 3.0),
+        ),
+        'repeat': min(10.0, metrics.get('repeat_count', 0.0) * 2.0),
+        'trend': min(5.0, max(0.0, metrics.get('trend_delta', 0.0)) * 2.0),
+    }
+    total_deduction = sum(deductions.values())
+    score = max(0.0, round(100.0 - total_deduction, 2))
+    if score >= 90.0:
+        grade = '优秀'
+        status = 'stable'
+    elif score >= 80.0:
+        grade = '良好'
+        status = 'good'
+    elif score >= 70.0:
+        grade = '关注'
+        status = 'warning'
+    else:
+        grade = '待整改'
+        status = 'danger'
+    return {
+        'score': score,
+        'grade': grade,
+        'status': status,
+        'deductions': [
+            {
+                'key': key,
+                'label': BRANCH_PERFORMANCE_DEDUCTION_LABELS[key],
+                'value': round(value, 2),
+            }
+            for key, value in deductions.items()
+        ],
+        'total_deduction': round(total_deduction, 2),
+    }
+
+
+def _build_repeat_fault_id_set(faults: list, end_date, now) -> set[int]:
+    fiber_faults = [
+        fault for fault in faults
+        if getattr(fault, 'is_fiber_fault', False) and fault.fault_occurrence_time
+    ]
+    if not fiber_faults:
+        return set()
+
+    min_occurrence = min(fault.fault_occurrence_time for fault in fiber_faults)
+    check_start = min_occurrence - timedelta(days=60)
+    comparison_end = end_date if end_date else now
+    comparison_faults = list(
+        OtnFault.objects.filter(
+            fault_occurrence_time__gte=check_start,
+            fault_occurrence_time__lt=comparison_end,
+            fault_category__in=[
+                FaultCategoryChoices.FIBER_BREAK,
+                FaultCategoryChoices.FIBER_DEGRADATION,
+                FaultCategoryChoices.FIBER_JITTER,
+            ],
+        )
+        .select_related('interruption_location_a')
+        .prefetch_related('interruption_location')
+    )
+    z_sites_cache = {
+        fault.id: set(site.id for site in fault.interruption_location.all())
+        for fault in comparison_faults
+    }
+
+    repeat_ids: set[int] = set()
+    for fault in fiber_faults:
+        fault_z_site_ids = z_sites_cache.get(
+            fault.id,
+            set(site.id for site in fault.interruption_location.all()),
+        )
+        for previous_fault in comparison_faults:
+            if previous_fault.id == fault.id:
+                continue
+            if previous_fault.fault_occurrence_time >= fault.fault_occurrence_time:
+                continue
+            if (fault.fault_occurrence_time - previous_fault.fault_occurrence_time) > timedelta(days=60):
+                continue
+            if previous_fault.interruption_location_a_id != fault.interruption_location_a_id:
+                continue
+            if z_sites_cache.get(previous_fault.id, set()).intersection(fault_z_site_ids):
+                repeat_ids.add(fault.id)
+                break
+    return repeat_ids
+
+
+def _empty_branch_performance_metrics(length_km: float) -> dict[str, float]:
+    return {
+        'count': 0.0,
+        'duration': 0.0,
+        'valid_duration': 0.0,
+        'valid_duration_total': 0.0,
+        'valid_count': 0.0,
+        'count_per_100km': 0.0,
+        'duration_per_100km': 0.0,
+        'long_count': 0.0,
+        'timeout_count': 0.0,
+        'repeat_count': 0.0,
+        'open_count': 0.0,
+        'path_length': length_km,
+    }
+
+
+def _finalize_branch_performance_metrics(metrics: dict[str, float], length_km: float) -> dict[str, float]:
+    valid_count = metrics.get('valid_count', 0.0)
+    valid_duration_total = metrics.get('valid_duration_total', 0.0)
+    metrics['valid_duration'] = round(valid_duration_total / valid_count, 2) if valid_count > 0 else 0.0
+    metrics['count_per_100km'] = _per_100km(metrics.get('count', 0.0), length_km)
+    metrics['duration_per_100km'] = _per_100km(metrics.get('duration', 0.0), length_km)
+    return {
+        key: round(value, 2) if isinstance(value, float) else value
+        for key, value in metrics.items()
+    }
+
+
+def _build_branch_company_performance_cards(
+    branch_faults: list,
+    path_lengths: dict[str, float],
+    start_date,
+    end_date,
+    now,
+) -> list[dict[str, object]]:
+    repeat_fault_ids = _build_repeat_fault_id_set(branch_faults, end_date, now)
+    fault_groups: dict[str, list] = {province: [] for province in BRANCH_PROVINCE_NAMES}
+    for fault in branch_faults:
+        province = _branch_province_for_fault(fault)
+        if province in fault_groups:
+            fault_groups[province].append(fault)
+
+    tz = timezone.get_current_timezone()
+    selected_year = start_date.year
+    year_start = timezone.datetime(selected_year, 1, 1, tzinfo=tz)
+    year_end = now if now.year == selected_year else timezone.datetime(selected_year + 1, 1, 1, tzinfo=tz)
+    week_ranges = _build_branch_week_ranges(year_start, year_end)
+    week_labels = [week['label'] for week in week_ranges]
+
+    cards: list[dict[str, object]] = []
+    for province in BRANCH_PROVINCE_NAMES:
+        length_km = path_lengths.get(province, 0.0)
+        responsibility_metrics = _empty_branch_performance_metrics(length_km)
+        overall_metrics = _empty_branch_performance_metrics(length_km)
+        responsibility_reason_counts: dict[str, float] = {}
+        overall_reason_counts: dict[str, int] = {}
+        responsibility_basis: dict[str, int] = {'责任计入': 0, '降权计入': 0, '仅全量计入': 0}
+
+        for fault in fault_groups[province]:
+            duration_hours = _duration_hours_for_fault(fault, now)
+            weight = float(_classify_branch_fault_responsibility(fault)['weight'])
+            responsibility_label = str(_classify_branch_fault_responsibility(fault)['label'])
+            responsibility_basis[responsibility_label] = responsibility_basis.get(responsibility_label, 0) + 1
+            reason = fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知'
+
+            overall_metrics['count'] += 1.0
+            overall_metrics['duration'] += duration_hours
+            if duration_hours > 0.5:
+                overall_metrics['valid_duration_total'] += duration_hours
+                overall_metrics['valid_count'] += 1.0
+            if duration_hours >= 6.0:
+                overall_metrics['long_count'] += 1.0
+            if getattr(fault, 'timeout', False):
+                overall_metrics['timeout_count'] += 1.0
+            if not getattr(fault, 'fault_recovery_time', None):
+                overall_metrics['open_count'] += 1.0
+            if fault.id in repeat_fault_ids:
+                overall_metrics['repeat_count'] += 1.0
+            overall_reason_counts[reason] = overall_reason_counts.get(reason, 0) + 1
+
+            if weight > 0:
+                responsibility_metrics['count'] += weight
+                responsibility_metrics['duration'] += duration_hours * weight
+                if duration_hours > 0.5:
+                    responsibility_metrics['valid_duration_total'] += duration_hours * weight
+                    responsibility_metrics['valid_count'] += weight
+                if duration_hours >= 6.0:
+                    responsibility_metrics['long_count'] += weight
+                if getattr(fault, 'timeout', False):
+                    responsibility_metrics['timeout_count'] += weight
+                if not getattr(fault, 'fault_recovery_time', None):
+                    responsibility_metrics['open_count'] += weight
+                if fault.id in repeat_fault_ids:
+                    responsibility_metrics['repeat_count'] += weight
+                responsibility_reason_counts[reason] = responsibility_reason_counts.get(reason, 0.0) + weight
+
+        responsibility_metrics = _finalize_branch_performance_metrics(responsibility_metrics, length_km)
+        overall_metrics = _finalize_branch_performance_metrics(overall_metrics, length_km)
+        responsibility_score = _calculate_branch_performance_score(responsibility_metrics)
+        overall_score = _calculate_branch_performance_score(overall_metrics)
+        cards.append({
+            'province': province,
+            'label': f'{province}分公司',
+            'responsibility_score': responsibility_score['score'],
+            'overall_score': overall_score['score'],
+            'grade': responsibility_score['grade'],
+            'status': responsibility_score['status'],
+            'deductions': responsibility_score['deductions'],
+            'responsibility_metrics': responsibility_metrics,
+            'overall_metrics': overall_metrics,
+            'responsibility_reason_top3': _sorted_count_items(responsibility_reason_counts)[:3],
+            'overall_reason_top3': _sorted_count_items(overall_reason_counts)[:3],
+            'weekly_trend': {
+                'labels': week_labels,
+                'responsibility_scores': [],
+                'overall_scores': [],
+            },
+            'responsibility_basis': [
+                {'label': label, 'count': count}
+                for label, count in responsibility_basis.items()
+            ],
+        })
+    return cards
+
+
+def _build_branch_company_statistics(
+    all_faults: list,
+    cable_break_faults: list,
+    suspended_faults_count: int,
+    start_date,
+    end_date,
+    now,
+) -> dict[str, object]:
+    path_lengths = BRANCH_PROVINCE_PATH_LENGTHS.copy()
+    branch_all_faults = [
+        fault for fault in all_faults
+        if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
+    ]
+    branch_cable_break_faults = [
+        fault for fault in cable_break_faults
+        if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
+    ]
+    branch_suspended_faults_count = sum(
+        1
+        for fault in OtnFault.objects.select_related('province').filter(_suspended_fault_q())
+        if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
+    )
+
+    overview_faults = [
+        fault for fault in branch_all_faults
+        if fault.fault_category not in OVERALL_EXCLUDED_TOTAL_CATEGORIES
+    ]
+    province_stats: dict[str, dict[str, float | int]] = {
+        province: {'count': 0, 'duration': 0.0, 'valid_duration': 0.0, 'valid_count': 0}
+        for province in BRANCH_PROVINCE_NAMES
+    }
+    province_samples: dict[str, list[float]] = {province: [] for province in BRANCH_PROVINCE_NAMES}
+
+    for fault in branch_cable_break_faults:
+        province = _branch_province_for_fault(fault)
+        if province not in province_stats:
+            continue
+        duration_hours = _duration_hours_for_fault(fault, now)
+        province_stats[province]['count'] += 1
+        province_stats[province]['duration'] += duration_hours
+        province_samples[province].append(duration_hours)
+        if duration_hours > 0.5:
+            province_stats[province]['valid_duration'] += duration_hours
+            province_stats[province]['valid_count'] += 1
+
+    province_bars = []
+    duration_boxplot = []
+    valid_duration_bars = []
+    for province in BRANCH_PROVINCE_NAMES:
+        length_km = path_lengths.get(province, 0.0)
+        count = int(province_stats[province]['count'])
+        duration = float(province_stats[province]['duration'])
+        valid_duration = float(province_stats[province]['valid_duration'])
+        valid_count = int(province_stats[province]['valid_count'])
+        valid_duration_avg = valid_duration / valid_count if valid_count > 0 else 0.0
+        province_bars.append({
+            'name': province,
+            'value': count,
+            'count': count,
+            'duration': round(duration, 2),
+            'path_length': length_km,
+            'count_per_100km': _per_100km(count, length_km),
+            'duration_per_100km': _per_100km(duration, length_km),
+            'per_100km': _per_100km(count, length_km),
+        })
+        duration_boxplot.append({
+            'name': province,
+            'value': _calculate_boxplot_values(province_samples[province]),
+            'per_100km': [
+                _per_100km(value, length_km)
+                for value in _calculate_boxplot_values(province_samples[province])
+            ],
+        })
+        valid_duration_bars.append({
+            'name': province,
+            'value': round(valid_duration_avg, 2),
+            'valid_duration': round(valid_duration_avg, 2),
+            'valid_duration_total': round(valid_duration, 2),
+            'valid_count': valid_count,
+            'path_length': length_km,
+            'valid_duration_per_100km': _per_100km(valid_duration_avg, length_km),
+            'per_100km': _per_100km(valid_duration_avg, length_km),
+        })
+
+    tz = timezone.get_current_timezone()
+    selected_year = start_date.year
+    year_start = timezone.datetime(selected_year, 1, 1, tzinfo=tz)
+    year_end = now if now.year == selected_year else timezone.datetime(selected_year + 1, 1, 1, tzinfo=tz)
+    if year_end <= year_start:
+        year_end = timezone.datetime(selected_year + 1, 1, 1, tzinfo=tz)
+    week_ranges = _build_branch_week_ranges(year_start, year_end)
+    weekly_by_province = {
+        province: {
+            week['key']: {'count': 0, 'duration': 0.0, 'valid_duration': 0.0}
+            for week in week_ranges
+        }
+        for province in BRANCH_PROVINCE_NAMES
+    }
+
+    year_faults = [
+        fault for fault in get_cable_break_base_queryset(year_start, year_end)
+        if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
+    ]
+    for fault in year_faults:
+        province = _branch_province_for_fault(fault)
+        if not province or not fault.fault_occurrence_time:
+            continue
+        local_day = timezone.localtime(fault.fault_occurrence_time).date().isoformat()
+        week_key = next((week['key'] for week in week_ranges if week['start'] <= local_day <= week['end']), None)
+        if not week_key:
+            continue
+        duration_hours = _duration_hours_for_fault(fault, now)
+        weekly_by_province[province][week_key]['count'] += 1
+        weekly_by_province[province][week_key]['duration'] += duration_hours
+        if duration_hours > 0.5:
+            weekly_by_province[province][week_key]['valid_duration'] += duration_hours
+
+    weekly_trends = {
+        'labels': [week['label'] for week in week_ranges],
+        'weeks': week_ranges,
+        'series': [],
+    }
+    for province in BRANCH_PROVINCE_NAMES:
+        length_km = path_lengths.get(province, 0.0)
+        weekly_trends['series'].append({
+            'name': province,
+            'counts': [weekly_by_province[province][week['key']]['count'] for week in week_ranges],
+            'durations': [round(weekly_by_province[province][week['key']]['duration'], 2) for week in week_ranges],
+            'valid_durations': [round(weekly_by_province[province][week['key']]['valid_duration'], 2) for week in week_ranges],
+            'week_count_per_100km': [_per_100km(weekly_by_province[province][week['key']]['count'], length_km) for week in week_ranges],
+            'week_duration_per_100km': [_per_100km(weekly_by_province[province][week['key']]['duration'], length_km) for week in week_ranges],
+            'week_valid_duration_per_100km': [_per_100km(weekly_by_province[province][week['key']]['valid_duration'], length_km) for week in week_ranges],
+        })
+
+    branch_cable_break_overview = _compute_cable_break_overview(branch_cable_break_faults, now)
+    branch_cable_break_overview['repeat_faults_count'] = _count_repeat_fiber_faults(
+        branch_cable_break_faults,
+        end_date,
+        now,
+    )
+    performance_cards = _build_branch_company_performance_cards(
+        branch_cable_break_faults,
+        path_lengths,
+        start_date,
+        end_date,
+        now,
+    )
+
+    return {
+        'provinces': BRANCH_PROVINCE_NAMES,
+        'path_lengths': path_lengths,
+        'overview': {
+            'total_count': len(overview_faults),
+            'categories': _build_fault_category_summary(overview_faults, now),
+            'other': _build_other_fault_summary(branch_all_faults, branch_suspended_faults_count),
+        },
+        'cable_break_overview': branch_cable_break_overview,
+        'province_bars': province_bars,
+        'duration_boxplot': duration_boxplot,
+        'valid_duration_bars': valid_duration_bars,
+        'weekly_trends': weekly_trends,
+        'performance_cards': performance_cards,
+    }
+
+
 def _parse_time_range(request):
     """从请求参数解析时间范围，返回 (start_date, end_date, prev_start_date, prev_end_date, filter_type)"""
     filter_type: str = request.GET.get('filter_type', 'year')
@@ -706,7 +1245,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         qs_all = OtnFault.objects.select_related('province', 'interruption_location_a').prefetch_related('interruption_location')
         all_current_qs = qs_all.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
         all_faults = list(all_current_qs)
-        all_suspended_faults_count = qs_all.filter(_suspended_fault_q()).count()
+        all_suspended_faults_total_count = qs_all.filter(_suspended_fault_q()).count()
+        all_open_suspended_faults_count = qs_all.filter(_suspended_fault_q()).exclude(fault_status=FaultStatusChoices.CLOSED).count()
 
         overall_faults = [
             f for f in all_faults
@@ -714,7 +1254,11 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         ]
         overall_total_count = len(overall_faults)
         overall_category_stats = _build_fault_category_summary(overall_faults, now)
-        other_overview = _build_other_fault_summary(all_faults, all_suspended_faults_count)
+        other_overview = _build_other_fault_summary(
+            all_faults,
+            all_open_suspended_faults_count,
+            all_suspended_faults_total_count,
+        )
         physical_daily_start, physical_daily_end = _resolve_physical_daily_range(now)
         physical_daily_faults = list(
             qs_all.filter(
@@ -733,6 +1277,15 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         physical_duration_boxplot_faults = list(get_cable_break_base_queryset(start_date, end_date))
         physical_duration_boxplot_stats = _build_physical_daily_fault_series(start_date, end_date, physical_duration_boxplot_faults, now)
         faults = physical_duration_boxplot_faults
+        branch_company_stats = _build_branch_company_statistics(
+            all_faults,
+            faults,
+            all_open_suspended_faults_count,
+            start_date,
+            end_date,
+            now,
+        )
+        prev_branch_company_stats = {}
         
         # 提取上一期故障并计算其 KPI
         prev_total_count = 0
@@ -935,7 +1488,11 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         # 计算上周期的全维度对比数据
         prev_overall_category_stats = _build_fault_category_summary([], now)
         prev_cable_break_overview = {}
-        prev_other_overview = _build_other_fault_summary([], all_suspended_faults_count)
+        prev_other_overview = _build_other_fault_summary(
+            [],
+            all_open_suspended_faults_count,
+            all_suspended_faults_total_count,
+        )
         if prev_start_date and prev_end_date:
             # 上周期全量故障（用于总体情况分类对比）
             prev_all_qs = qs_all.filter(fault_occurrence_time__gte=prev_start_date, fault_occurrence_time__lt=prev_end_date)
@@ -945,10 +1502,22 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 if f.fault_category not in OVERALL_EXCLUDED_TOTAL_CATEGORIES
             ]
             prev_overall_category_stats = _build_fault_category_summary(prev_overall_faults, now)
-            prev_other_overview = _build_other_fault_summary(prev_all_faults, all_suspended_faults_count)
+            prev_other_overview = _build_other_fault_summary(
+                prev_all_faults,
+                all_open_suspended_faults_count,
+                all_suspended_faults_total_count,
+            )
 
             # 上周期光缆中断概览（用于各子指标趋势对比）
             prev_cable_break_overview = _compute_cable_break_overview(prev_faults, now)
+            prev_branch_company_stats = _build_branch_company_statistics(
+                prev_all_faults,
+                prev_faults,
+                all_open_suspended_faults_count,
+                prev_start_date,
+                prev_end_date,
+                now,
+            )
 
         # 为了展示准确的截止自然日（例如周日而非下周一，10月31日而非11月1日），展示日期需减去一天
         display_end_date_str = ''
@@ -986,6 +1555,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             },
             'cable_break_overview': cable_break_overview,
             'prev_cable_break_overview': prev_cable_break_overview,
+            'branch_company': branch_company_stats,
+            'prev_branch_company': prev_branch_company_stats,
             'other_overview': other_overview,
             'prev_other_overview': prev_other_overview,
             'details': details

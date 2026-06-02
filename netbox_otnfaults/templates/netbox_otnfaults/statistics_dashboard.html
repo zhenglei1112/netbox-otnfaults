@@ -83,6 +83,20 @@
                     <i class="mdi mdi-lan-connect me-1"></i>电路业务故障
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-branch-company-btn" data-bs-toggle="tab"
+                    data-bs-target="#tab-branch-company" type="button" role="tab" aria-controls="tab-branch-company"
+                    aria-selected="false">
+                    <i class="mdi mdi-office-building-marker me-1"></i>分公司（省份）故障
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-branch-performance-btn" data-bs-toggle="tab"
+                    data-bs-target="#tab-branch-performance" type="button" role="tab" aria-controls="tab-branch-performance"
+                    aria-selected="false">
+                    <i class="mdi mdi-chart-timeline-variant me-1"></i>分公司绩效评分
+                </button>
+            </li>
         </ul>
 
         <!-- Tab 内容 -->
@@ -546,6 +560,274 @@
                 </div>
             </div>
         </div>
+
+        <!-- ===== 分公司故障统计 Tab ===== -->
+        <div class="tab-pane fade" id="tab-branch-company" role="tabpanel" aria-labelledby="tab-branch-company-btn">
+            <section class="statistics-overall-overview mb-4">
+                <div class="statistics-cable-break-heading-row mb-3">
+                    <h3 class="statistics-cable-break-heading mb-0">
+                        <span>总体情况</span>
+                    </h3>
+                </div>
+                <div class="statistics-cable-break-summary-grid statistics-overall-card-grid mb-3">
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-card">
+                        <div class="statistics-strip-card-body">
+                            <div
+                                class="statistics-overall-metrics d-flex flex-row align-items-center w-100 py-1 statistics-strip-card-metrics">
+                                <div
+                                    class="statistics-overall-main statistics-overall-metric-slot d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
+                                    <div class="statistics-overall-value-row d-flex align-items-baseline justify-content-center">
+                                        <span
+                                            class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1"
+                                            id="branch-company-overall-total">--</span>
+                                        <span class="statistics-overall-unit statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
+                                    </div>
+                                    <div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1"
+                                        style="font-size: 12px;">故障总数</div>
+                                </div>
+                                <div id="branch-company-overall-categories-flex-list"
+                                    class="statistics-overall-categories-list statistics-kpi-grouped-list px-4 py-1 flex-grow-1">
+                                    <div class="text-muted small">数据加载中...</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">六省分公司</div>
+                    </div>
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-other-card">
+                        <div class="statistics-strip-card-body">
+                            <div id="branch-company-overall-other-flex-list"
+                                class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                <div class="text-muted small">数据加载中...</div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">其他</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="statistics-cable-break-overview mb-4">
+                <div class="statistics-cable-break-heading-row mb-3">
+                    <h3 class="statistics-cable-break-heading mb-0">
+                        <span>光缆中断情况</span>
+                    </h3>
+                </div>
+                <div class="statistics-cable-break-summary-grid statistics-cable-break-primary-grid">
+                    <div
+                        class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-count-card statistics-cable-break-single-card statistics-strip-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center" data-filter-field="category"
+                                    data-filter-value="光缆中断" data-filter-label="总起数">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1"
+                                            id="branch-company-cable-break-total-count">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">总起数</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">中断起数</div>
+                    </div>
+                    <div
+                        class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-strip-card">
+                        <div class="statistics-strip-card-body">
+                            <div id="branch-company-cable-break-reason-top3-flex-list"
+                                class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                <div class="text-muted small">数据加载中...</div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">原因TOP3</div>
+                    </div>
+                    <div
+                        class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-primary statistics-cable-break-overview-card statistics-cable-break-four-card statistics-strip-card">
+                        <div class="statistics-strip-card-body">
+                            <div id="branch-company-cable-break-duration-total-list"
+                                class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                <div class="text-muted small">数据加载中...</div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">中断历时</div>
+                    </div>
+                    <div
+                        class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-repeat-card statistics-cable-break-single-card statistics-strip-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center" data-filter-field="is_repeat"
+                                    data-filter-value="true" data-filter-label="重复起数"
+                                    title="点击过滤出重复故障">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1"
+                                            id="branch-company-kpi-repeat-faults">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">重复起数</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">重复中断</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="statistics-branch-company-section mb-4">
+                <div class="statistics-branch-company-chart-grid">
+                    <div class="card shadow-sm">
+                        <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0" style="font-size: 1rem;">故障数</h3>
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司故障数指标切换">
+                                <input type="radio" class="btn-check" name="branchCompanyCountMetric"
+                                    id="branch-company-count-raw" value="count" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="branch-company-count-raw">起数</label>
+                                <input type="radio" class="btn-check" name="branchCompanyCountMetric"
+                                    id="branch-company-count-normalized" value="count_per_100km" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="branch-company-count-normalized">百公里起数</label>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="chart-branch-company-count" class="statistics-branch-company-chart"></div>
+                        </div>
+                    </div>
+                    <div class="card shadow-sm">
+                        <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0" style="font-size: 1rem;">故障历时</h3>
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司故障历时指标切换">
+                                <input type="radio" class="btn-check" name="branchCompanyDurationMetric"
+                                    id="branch-company-duration-raw" value="duration" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="branch-company-duration-raw">时长</label>
+                                <input type="radio" class="btn-check" name="branchCompanyDurationMetric"
+                                    id="branch-company-duration-normalized" value="duration_per_100km" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="branch-company-duration-normalized">百公里时长</label>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="chart-branch-company-duration" class="statistics-branch-company-chart"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="statistics-branch-company-section mb-4">
+                <div class="statistics-branch-company-chart-grid">
+                    <div class="card shadow-sm">
+                        <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0" style="font-size: 1rem;">中断时长箱线图</h3>
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司箱线图指标切换">
+                                <input type="radio" class="btn-check" name="branchCompanyBoxplotMetric"
+                                    id="branch-company-boxplot-raw" value="duration" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="branch-company-boxplot-raw">时长</label>
+                                <input type="radio" class="btn-check" name="branchCompanyBoxplotMetric"
+                                    id="branch-company-boxplot-normalized" value="per_100km" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="branch-company-boxplot-normalized">百公里平均</label>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="chart-branch-company-boxplot" class="statistics-branch-company-chart"></div>
+                        </div>
+                    </div>
+                    <div class="card shadow-sm">
+                        <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0" style="font-size: 1rem;">有效平均历时</h3>
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司有效平均历时指标切换">
+                                <input type="radio" class="btn-check" name="branchCompanyValidMetric"
+                                    id="branch-company-valid-raw" value="valid_duration" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="branch-company-valid-raw">平均历时</label>
+                                <input type="radio" class="btn-check" name="branchCompanyValidMetric"
+                                    id="branch-company-valid-normalized" value="valid_duration_per_100km" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="branch-company-valid-normalized">百公里平均</label>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="chart-branch-company-valid-duration" class="statistics-branch-company-chart"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="statistics-branch-company-section mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0" style="font-size: 1rem;">年初至今周趋势</h3>
+                        <div class="d-flex gap-2 flex-wrap justify-content-end">
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司周趋势指标切换">
+                                <input type="radio" class="btn-check" name="branchCompanyWeeklyMetric"
+                                    id="branch-company-weekly-count" value="count" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="branch-company-weekly-count">故障数量</label>
+                                <input type="radio" class="btn-check" name="branchCompanyWeeklyMetric"
+                                    id="branch-company-weekly-duration" value="duration" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="branch-company-weekly-duration">故障时长</label>
+                                <input type="radio" class="btn-check" name="branchCompanyWeeklyMetric"
+                                    id="branch-company-weekly-valid" value="valid_duration" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="branch-company-weekly-valid">有效时长</label>
+                            </div>
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司周趋势百公里切换">
+                                <input type="radio" class="btn-check" name="branchCompanyWeeklyScale"
+                                    id="branch-company-weekly-scale-raw" value="raw" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="branch-company-weekly-scale-raw">原始值</label>
+                                <input type="radio" class="btn-check" name="branchCompanyWeeklyScale"
+                                    id="branch-company-weekly-scale-normalized" value="per_100km" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="branch-company-weekly-scale-normalized">百公里</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="chart-branch-company-weekly" class="statistics-branch-company-weekly-chart"></div>
+                    </div>
+                </div>
+            </section>
+
+            <div id="branch-company-filtered-kpi-summary" class="alert alert-info d-none shadow-sm mb-4" role="alert"
+                style="font-size: 15px;">
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">
+                        故障明细
+                        <span class="badge bg-primary ms-2" id="branch-company-drill-down-filter-badge" style="display:none"></span>
+                    </h3>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="branch-company-btn-clear-filter"
+                        style="display:none">清除图表过滤</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-vcenter card-table">
+                        <thead>
+                            <tr>
+                                <th>故障编号</th>
+                                <th>发生时间</th>
+                                <th>恢复时间</th>
+                                <th>历时(小时)</th>
+                                <th>分类</th>
+                                <th>光缆属性</th>
+                                <th>省份</th>
+                                <th>一级原因</th>
+                                <th>站点 (A -> Z)</th>
+                                <th>标签</th>
+                            </tr>
+                        </thead>
+                        <tbody id="branch-company-details-tbody">
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-4">数据加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 分公司绩效评分 Tab ===== -->
+        <div class="tab-pane fade" id="tab-branch-performance" role="tabpanel" aria-labelledby="tab-branch-performance-btn">
+            <section class="statistics-branch-performance-section mb-4">
+                <div class="statistics-cable-break-heading-row mb-3">
+                    <h3 class="statistics-cable-break-heading mb-0">
+                        <span>六省绩效考核</span>
+                    </h3>
+                </div>
+                <div id="branch-company-performance-cards" class="statistics-branch-performance-grid">
+                    <div class="text-center text-muted py-4">数据加载中...</div>
+                </div>
+            </section>
+        </div>
     </div>
 </div>
 </div>
@@ -568,7 +850,7 @@
                             <ul class="mb-0">
                                 <li>统计周期由页面右上角的年、半年、季度、月、周和日期共同决定；总体情况、光缆中断概览、下钻明细和业务故障按对应发生/中断时间落入周期统计。</li>
                                 <li>故障总数统计物理故障中除“光缆劣化”“光缆抖动”以外的故障；这两类展示在“其他”卡片中，不纳入总体故障总数。</li>
-                                <li>挂起的故障（所有）为系统内所有挂起故障数量，不随当前统计周期变化。</li>
+                                <li>挂起的故障显示未关闭的挂起故障数量，括号内为系统内总挂起故障数量，不随当前统计周期变化。</li>
                                 <li>分类统计仅展示起数，包含光缆中断、空调故障、供电故障、设备故障。</li>
                                 <li>每日中断图固定展示当前自然年内未挂起光缆中断，可在中断数量和中断时长之间切换，并支持按天/按周查看。</li>
                                 <li>中断时长箱线图跟随当前统计周期，展示每日光缆中断历时的最小值、Q1、中位数、Q3、最大值；“滤除短时”表示仅保留历时大于 0.5
@@ -611,8 +893,7 @@
                                 <li>裸纤业务不再限定故障类型为“光缆中断”，会纳入所有物理故障类型产生的中断影响；电路业务同样不再限定故障类型为“光缆中断”。</li>
                                 <li>业务卡片展示年度累计、本期间、运行月历和近三个月中断日历，并按业务所属租户组或业务门类分组。</li>
                                 <li>本期间按故障分类汇总故障总数和故障时长，分类明细仅显示非零项；业务累计时长从业务中断时间计算到业务恢复时间，未恢复影响按当前时间计算。</li>
-                                <li>年度累计按所选年份统计 SLA、中断时长和中断起数；SLA 先合并重叠不可用时段，再按“(年度小时数 - 不可用小时数) / 年度小时数”得到可用率，SLA
-                                    按两位小数向下截取展示。</li>
+                                <li>年度累计按所选年份统计 SLA、中断时长和中断起数；SLA 先合并重叠不可用时段，再按“(年度小时数 - 不可用小时数) / 年度小时数”得到可用率，SLA 按两位小数向下截取展示。</li>
                                 <li>运行月历按所选年份逐月展示故障数与故障时长；运行月历的 SLA 单元格只显示数字，不显示百分号。</li>
                                 <li>中断日历默认展示近三个月，可展开查看所选年份截至当前月份的业务中断次数。</li>
                             </ul>

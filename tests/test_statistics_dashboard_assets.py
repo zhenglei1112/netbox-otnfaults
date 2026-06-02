@@ -111,7 +111,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn("指标说明", template)
         self.assertIn("统计周期", template)
         self.assertIn("不纳入总体故障总数", template)
-        self.assertIn("挂起的故障（所有）为系统内所有挂起故障数量，不随当前统计周期变化", template)
+        self.assertIn("挂起的故障显示未关闭的挂起故障数量，括号内为系统内总挂起故障数量，不随当前统计周期变化", template)
         self.assertIn("分类统计仅展示起数", template)
         self.assertIn("每日中断图固定展示当前自然年内未挂起光缆中断", template)
         self.assertIn("中断时长箱线图跟随当前统计周期", template)

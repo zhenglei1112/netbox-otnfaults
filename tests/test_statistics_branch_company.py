@@ -1,0 +1,229 @@
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+VIEWS_PATH = REPO_ROOT / "netbox_otnfaults" / "statistics_views.py"
+TEMPLATE_PATH = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults" / "statistics_dashboard.html"
+JS_PATH = REPO_ROOT / "netbox_otnfaults" / "static" / "netbox_otnfaults" / "js" / "statistics_dashboard.js"
+CSS_PATH = REPO_ROOT / "netbox_otnfaults" / "static" / "netbox_otnfaults" / "css" / "statistics_dashboard.css"
+
+
+class StatisticsBranchCompanyTestCase(unittest.TestCase):
+    def test_backend_builds_branch_company_payload_for_fixed_six_provinces(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("BRANCH_PROVINCE_NAMES: list[str] = ['浙江', '山东', '内蒙', '陕西', '四川', '江西']", source)
+        self.assertIn("'江西': 3545.0", source)
+        self.assertIn("'浙江': 2804.0", source)
+        self.assertIn("'陕西': 2182.0", source)
+        self.assertIn("'山东': 1464.0", source)
+        self.assertIn("'四川': 985.0", source)
+        self.assertIn("'内蒙': 972.0", source)
+        self.assertIn("def _normalize_branch_province_name(name: str | None) -> str | None:", source)
+        self.assertIn("def _build_branch_company_statistics(", source)
+        self.assertIn("path_lengths = BRANCH_PROVINCE_PATH_LENGTHS.copy()", source)
+        self.assertNotIn("def _build_branch_company_path_lengths() -> dict[str, float]:", source)
+        self.assertNotIn("OtnPath.objects.select_related('site_a__region', 'site_z__region')", source)
+        self.assertIn("branch_company_stats = _build_branch_company_statistics(", source)
+        self.assertIn("'branch_company': branch_company_stats", source)
+        self.assertIn("prev_branch_company_stats = {}", source)
+        self.assertIn("'prev_branch_company': prev_branch_company_stats", source)
+
+    def test_backend_branch_company_payload_contains_all_chart_datasets(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        branch_source = source.split("def _build_branch_company_statistics(", 1)[1].split("\n\n\ndef _parse_time_range", 1)[0]
+
+        for province in ("浙江", "山东", "内蒙", "陕西", "四川", "江西"):
+            self.assertIn(province, source)
+
+        for key in (
+            "'overview'",
+            "'cable_break_overview'",
+            "'province_bars'",
+            "'duration_boxplot'",
+            "'valid_duration_bars'",
+            "'weekly_trends'",
+            "'path_lengths'",
+            "'per_100km'",
+        ):
+            self.assertIn(key, branch_source)
+
+        self.assertIn("'count_per_100km'", branch_source)
+        self.assertIn("'count': count", branch_source)
+        self.assertIn("'duration_per_100km'", branch_source)
+        self.assertIn("valid_duration_avg = valid_duration / valid_count if valid_count > 0 else 0.0", branch_source)
+        self.assertIn("'valid_duration': round(valid_duration_avg, 2)", branch_source)
+        self.assertIn("'valid_duration_total': round(valid_duration, 2)", branch_source)
+        self.assertIn("'valid_count': valid_count", branch_source)
+        self.assertIn("'valid_duration_per_100km'", branch_source)
+        self.assertIn("'week_count_per_100km'", branch_source)
+        self.assertIn("'week_duration_per_100km'", branch_source)
+        self.assertIn("'week_valid_duration_per_100km'", branch_source)
+        self.assertIn("_calculate_boxplot_values(province_samples[province])", branch_source)
+        self.assertIn("branch_cable_break_overview['repeat_faults_count']", branch_source)
+        self.assertIn("'performance_cards'", branch_source)
+
+    def test_backend_branch_company_payload_contains_performance_cards(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("BRANCH_PERFORMANCE_DEDUCTION_LABELS: dict[str, str]", source)
+        self.assertIn("def _classify_branch_fault_responsibility(fault) -> dict[str, object]:", source)
+        self.assertIn("def _calculate_branch_performance_score(metrics: dict[str, float]) -> dict[str, object]:", source)
+        self.assertIn("def _build_branch_company_performance_cards(", source)
+        self.assertIn("performance_cards = _build_branch_company_performance_cards(", source)
+        self.assertIn("'performance_cards': performance_cards", source)
+
+        performance_source = source.split("def _build_branch_company_performance_cards(", 1)[1].split("\n\n\ndef _build_branch_company_statistics", 1)[0]
+        for province in ("娴欐睙", "灞变笢", "鍐呰挋", "闄曡タ", "鍥涘窛", "姹熻タ"):
+            self.assertIn("for province in BRANCH_PROVINCE_NAMES:", performance_source)
+        for key in (
+            "'responsibility_score'",
+            "'overall_score'",
+            "'grade'",
+            "'status'",
+            "'deductions'",
+            "'responsibility_metrics'",
+            "'overall_metrics'",
+            "'responsibility_reason_top3'",
+            "'overall_reason_top3'",
+            "'weekly_trend'",
+            "'responsibility_basis'",
+        ):
+            self.assertIn(key, performance_source)
+
+    def test_backend_branch_company_score_uses_double_scope_and_deductions(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        score_source = source.split("def _calculate_branch_performance_score(", 1)[1].split("\n\n\ndef _build_branch_company_performance_cards", 1)[0]
+        classify_source = source.split("def _classify_branch_fault_responsibility(", 1)[1].split("\n\n\ndef _calculate_branch_performance_score", 1)[0]
+        performance_source = source.split("def _build_branch_company_performance_cards(", 1)[1].split("\n\n\ndef _build_branch_company_statistics", 1)[0]
+
+        for key in (
+            "'frequency'",
+            "'duration'",
+            "'valid_duration'",
+            "'severity'",
+            "'repeat'",
+            "'trend'",
+        ):
+            self.assertIn(key, score_source)
+        self.assertIn("max(0.0, round(100.0 - total_deduction, 2))", score_source)
+        self.assertIn("ResourceTypeChoices.LEASED", classify_source)
+        self.assertIn("fault.interruption_reason == 'natural_disaster'", classify_source)
+        self.assertIn("fault.interruption_reason_detail == 'planned_reporting'", classify_source)
+        self.assertIn("responsibility_reason_counts: dict[str, float]", performance_source)
+        self.assertIn("responsibility_reason_counts[reason] = responsibility_reason_counts.get(reason, 0.0) + weight", performance_source)
+
+    def test_template_places_branch_company_tab_after_circuit_service(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        circuit_index = template.index('id="tab-circuit-service-btn"')
+        branch_index = template.index('id="tab-branch-company-btn"')
+        performance_index = template.index('id="tab-branch-performance-btn"')
+        self.assertLess(circuit_index, branch_index)
+        self.assertLess(branch_index, performance_index)
+        self.assertIn('data-bs-target="#tab-branch-company"', template)
+        self.assertIn('data-bs-target="#tab-branch-performance"', template)
+        self.assertIn('分公司（省份）故障', template)
+        self.assertIn('分公司绩效评分', template)
+        self.assertIn('id="branch-company-overall-total"', template)
+        self.assertIn('id="branch-company-cable-break-total-count"', template)
+        self.assertIn('id="branch-company-kpi-repeat-faults"', template)
+        self.assertIn('data-filter-label="重复起数"', template)
+        self.assertIn('id="chart-branch-company-count"', template)
+        self.assertIn('id="chart-branch-company-duration"', template)
+        self.assertIn('id="chart-branch-company-boxplot"', template)
+        self.assertIn('id="chart-branch-company-valid-duration"', template)
+        self.assertIn('id="chart-branch-company-weekly"', template)
+        self.assertIn('id="branch-company-drill-down-filter-badge"', template)
+        self.assertIn('id="branch-company-btn-clear-filter"', template)
+        self.assertIn('id="branch-company-filtered-kpi-summary"', template)
+        self.assertIn('id="branch-company-details-tbody"', template)
+        self.assertIn('id="branch-company-performance-cards"', template)
+        branch_tab = template.split('id="tab-branch-company"', 1)[1].split('id="tab-branch-performance"', 1)[0]
+        performance_tab = template.split('id="tab-branch-performance"', 1)[1]
+        self.assertNotIn('id="branch-company-performance-cards"', branch_tab)
+        self.assertIn('id="branch-company-performance-cards"', performance_tab)
+
+    def test_template_exposes_branch_company_metric_switches(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        for group_name in (
+            "branchCompanyCountMetric",
+            "branchCompanyDurationMetric",
+            "branchCompanyBoxplotMetric",
+            "branchCompanyValidMetric",
+            "branchCompanyWeeklyMetric",
+            "branchCompanyWeeklyScale",
+        ):
+            self.assertIn(f'name="{group_name}"', template)
+
+    def test_dashboard_script_renders_branch_company_charts(self) -> None:
+        source = JS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("const chartBranchCompanyCountElement = document.getElementById('chart-branch-company-count');", source)
+        self.assertIn("let chartBranchCompanyCount = chartBranchCompanyCountElement ? echarts.init(chartBranchCompanyCountElement) : null;", source)
+        self.assertIn("let currentPrevBranchCompanyData = null;", source)
+        self.assertIn("function renderBranchCompanySection(branchData, prevBranchData = currentPrevBranchCompanyData)", source)
+        self.assertIn("function renderBranchCompanyPerformanceCards(cards)", source)
+        self.assertIn("renderBranchCompanyPerformanceCards(branchData.performance_cards || []);", source)
+        self.assertIn("function renderBranchCompanyPerformanceCard(card)", source)
+        self.assertIn("function formatBranchPerformanceDeductionValue(value)", source)
+        self.assertIn("function handleBranchCompanyPerformanceCardClick(card)", source)
+        self.assertIn("function handleBranchCompanyPerformanceDeductionClick(card, deduction)", source)
+        self.assertIn("branch-company-performance-cards", source)
+        self.assertIn("branch-performance-score-value", source)
+        self.assertIn("branch-performance-deduction", source)
+        self.assertIn("branch-performance-deduction-heading", source)
+        self.assertIn("责任扣分", source)
+        self.assertIn("全量影响", source)
+        self.assertNotIn("<strong>-${formatBranchPerformanceValue(item.value || 0)}</strong>", source)
+        self.assertIn("function renderBranchCompanyOverview(branchData, prevBranchData = currentPrevBranchCompanyData)", source)
+        self.assertIn("renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, true);", source)
+        self.assertIn("renderTrendBesideMetric(cableBreakTotalEl, cableBreak.total_count || 0, prevCableBreak.total_count, true);", source)
+        self.assertIn("const repeatEl = document.getElementById('branch-company-kpi-repeat-faults');", source)
+        self.assertIn("renderTrendBesideMetric(repeatEl, cableBreak.repeat_faults_count || 0, prevCableBreak.repeat_faults_count, true);", source)
+        self.assertIn("id: 'branch-company-timeout-rate'", source)
+        self.assertIn("function renderBranchCompanyBarCharts(branchData)", source)
+        self.assertIn("function renderBranchCompanyBoxplot(branchData)", source)
+        self.assertIn("function renderBranchCompanyValidDurationChart(branchData)", source)
+        self.assertIn("function renderBranchCompanyWeeklyChart(branchData)", source)
+        self.assertIn("function buildBranchCompanyGrid(isWeekly = false)", source)
+        self.assertIn("top: isWeekly ? 76 : 52", source)
+        self.assertIn("function buildBranchCompanyYAxis(unit, chartTheme)", source)
+        self.assertIn("nameGap: 16", source)
+        self.assertIn("nameTextStyle", source)
+        self.assertIn("tooltipFormatter = null", source)
+        self.assertIn("_validDurationTotal: item.valid_duration_total || 0", source)
+        self.assertIn("_validCount: item.valid_count || 0", source)
+        self.assertIn("function renderBranchCompanyDetailsTable()", source)
+        self.assertIn("function handleBranchCompanyChartClick(params, fieldName)", source)
+        self.assertIn("function handleBranchCompanyMetricFilterClick(metric)", source)
+        self.assertIn("currentBranchCompanyDetails = currentAllDetails.filter", source)
+        self.assertIn("branchCompanyProvinceSet.has(item.province)", source)
+        self.assertIn("chartBranchCompanyCount.on('click', params => handleBranchCompanyChartClick(params, 'province'));", source)
+        self.assertIn("branch-company-details-tbody", source)
+        self.assertIn("有效平均历时", source)
+        self.assertIn("currentPrevBranchCompanyData = data.prev_branch_company || null;", source)
+        self.assertIn("renderBranchCompanySection(data.branch_company, data.prev_branch_company);", source)
+        self.assertIn("if (chartBranchCompanyCount) chartBranchCompanyCount.resize();", source)
+        self.assertIn("renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData);", source)
+        self.assertIn("activeTab.id === 'tab-branch-company-btn'", source)
+        self.assertIn("activeTab.id === 'tab-branch-performance-btn'", source)
+        self.assertIn("event.target.id === 'tab-branch-performance-btn'", source)
+
+    def test_css_defines_branch_company_chart_layout(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".statistics-branch-performance-section", css)
+        self.assertIn(".statistics-branch-performance-grid", css)
+        self.assertIn(".statistics-branch-performance-card", css)
+        self.assertIn(".branch-performance-score-value", css)
+        self.assertIn(".branch-performance-deduction", css)
+        self.assertIn(".statistics-branch-company-chart-grid", css)
+        self.assertIn(".statistics-branch-company-chart", css)
+        self.assertIn(".statistics-branch-company-weekly-chart", css)
+
+
+if __name__ == "__main__":
+    unittest.main()
