@@ -84,6 +84,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (chartBranchCompanyBoxplot) chartBranchCompanyBoxplot.resize();
         if (chartBranchCompanyValidDuration) chartBranchCompanyValidDuration.resize();
         if (chartBranchCompanyWeekly) chartBranchCompanyWeekly.resize();
+        resizeBranchPerformanceCalendarCharts();
         resizeServiceCalendarCharts();
     }
 
@@ -170,6 +171,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let activeBranchCompanyFilterExtraField = null;
     let activeBranchCompanyFilterExtraValue = null;
     let activeBranchCompanyFilterLabel = null;
+    let branchPerformanceCalendarCharts = [];
 
     if (physicalBoxplotFilterShort) {
         physicalBoxplotFilterShort.addEventListener('change', () => renderPhysicalDurationBoxplot(currentChartsData && currentChartsData.physical_duration_boxplot, selFilterType.value));
@@ -654,7 +656,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ---------------- 获取物理故障数据 ----------------
     async function loadData() {
-        let url = `${window.STATISTICS_DATA_API}?${buildTimeParams()}`;
+        const selectedDateParts = inputDate.value.split('-').map(Number);
+        let url = `${window.STATISTICS_DATA_API}?${buildTimeParams()}&calendar_year=${selectedDateParts[0]}&calendar_month=${selectedDateParts[1]}`;
 
         try {
             document.getElementById('details-tbody').innerHTML = '<tr><td colspan="10" class="text-center py-4">加载中...</td></tr>';
@@ -1792,16 +1795,184 @@ document.addEventListener("DOMContentLoaded", function() {
         return `-${formatBranchPerformanceValue(numeric)}`;
     }
 
-    function renderBranchPerformanceReasonList(items) {
+    function renderBranchPerformanceReasonList(items, type = 'responsibility') {
         const source = Array.isArray(items) ? items : [];
         if (source.length === 0) {
             return '<span class="branch-performance-empty">暂无</span>';
         }
+        const pillClass = type === 'responsibility' ? 'branch-performance-reason-pill--responsibility' : 'branch-performance-reason-pill--overall';
         return source.map(item => {
             const name = item.name || item.label || '-';
             const value = Number(item.value || item.count || 0);
-            return `<span class="branch-performance-reason-pill">${escapeHtml(name)} ${formatBranchPerformanceValue(value)}</span>`;
+            return `<span class="branch-performance-reason-pill ${pillClass}">${escapeHtml(name)} ${formatBranchPerformanceValue(value)}</span>`;
         }).join('');
+    }
+
+    function renderBranchPerformanceRuntimeCalendar(card) {
+        return `
+                <div class="branch-performance-runtime-calendar">
+                    <div class="branch-performance-runtime-calendar-chart" aria-label="本年分公司故障月度统计"></div>
+                </div>`;
+    }
+
+    function renderBranchPerformanceInterruptCalendar(card, interruptCalendarMaxCount) {
+        const months = Array.isArray(card.interrupt_calendar) ? card.interrupt_calendar : [];
+        const expandedMonths = Array.isArray(card.interrupt_calendar_full) ? card.interrupt_calendar_full : months;
+        const maxCount = Number(interruptCalendarMaxCount || 0);
+        return `
+                <div class="branch-performance-interrupt-calendar service-interrupt-calendar" aria-label="近六个月分公司中断日历">
+                    <div class="service-interrupt-calendar-months service-interrupt-calendar-months--default">${renderServiceInterruptCalendarMonthGrid(months, maxCount)}</div>
+                    <div class="service-interrupt-calendar-months service-interrupt-calendar-months--expanded d-none">${renderServiceInterruptCalendarMonthGrid(expandedMonths, maxCount)}</div>
+                    <button type="button" class="branch-performance-interrupt-calendar-toggle service-interrupt-calendar-toggle" aria-label="展开本年中断日历" title="展开本年中断日历">
+                        <i class="mdi mdi-arrow-expand-all"></i>
+                    </button>
+                </div>`;
+    }
+
+    function disposeBranchPerformanceCalendarCharts() {
+        branchPerformanceCalendarCharts.forEach(chart => chart.dispose());
+        branchPerformanceCalendarCharts = [];
+    }
+
+    function resizeBranchPerformanceCalendarCharts() {
+        branchPerformanceCalendarCharts.forEach(chart => chart.resize());
+    }
+
+    function initBranchPerformanceRuntimeCalendarCharts(container, cardsByProvince) {
+        container.querySelectorAll('.branch-performance-runtime-calendar-chart').forEach(element => {
+            const cardEl = element.closest('.statistics-branch-performance-card[data-province]');
+            const card = cardEl ? cardsByProvince.get(cardEl.dataset.province) || {} : {};
+            const monthlyStats = Array.isArray(card.monthly_stats) ? card.monthly_stats : [];
+            const monthLabels = Array.from({ length: 12 }, (_item, index) => `${index + 1}月`);
+            const countValues = monthLabels.map((_label, index) => Number(monthlyStats[index] && monthlyStats[index].count || 0));
+            const durationValues = monthLabels.map((_label, index) => Number(monthlyStats[index] && monthlyStats[index].duration || 0));
+            const maxCount = Math.max(...countValues, 0);
+            const maxDuration = Math.max(...durationValues, 0);
+            const countAxisMax = Math.max(1, Math.ceil(maxCount * 2.6));
+            const durationAxisMin = -Math.max(1, Math.ceil(maxDuration * 1.5));
+            const durationAxisMax = Math.max(1, Math.ceil(maxDuration * 1.15));
+            const theme = getChartTheme();
+            const chart = echarts.init(element);
+            chart.setOption({
+                animation: false,
+                backgroundColor: 'transparent',
+                grid: { top: 16, left: 4, right: 18, bottom: 20, containLabel: false },
+                tooltip: Object.assign({
+                    trigger: 'axis',
+                    confine: true,
+                    formatter(params) {
+                        const label = params && params[0] ? params[0].axisValue : '';
+                        const labelIndex = monthLabels.indexOf(label);
+                        const count = countValues[labelIndex] || 0;
+                        const duration = durationValues[labelIndex] || 0;
+                        return `${label}<br/>故障数：${count}次<br/>故障时长：${formatCardMetricValue(duration)}时`;
+                    }
+                }, buildTooltipTheme(theme)),
+                xAxis: {
+                    type: 'category',
+                    data: monthLabels,
+                    axisLine: { show: true, lineStyle: { color: 'rgba(154, 168, 186, 0.45)', width: 1 } },
+                    axisTick: { show: false },
+                    axisLabel: { color: theme.muted, fontSize: 10, interval: 0, margin: 8, hideOverlap: false },
+                    splitLine: { show: false }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        minInterval: 1,
+                        min: 0,
+                        max: countAxisMax,
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        axisLabel: { show: false },
+                        splitLine: { show: false }
+                    },
+                    {
+                        name: '时',
+                        type: 'value',
+                        position: 'right',
+                        nameLocation: 'end',
+                        nameGap: 2,
+                        nameTextStyle: { color: '#078087', fontSize: 10, fontWeight: 600 },
+                        min: durationAxisMin,
+                        max: durationAxisMax,
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        axisLabel: { show: false },
+                        splitLine: { show: false }
+                    }
+                ],
+                series: [
+                    {
+                        name: '故障时长',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: durationValues,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 4,
+                        label: {
+                            show: true,
+                            position: 'top',
+                            distance: 4,
+                            color: '#078087',
+                            fontSize: 9,
+                            formatter(params) {
+                                const value = Number(params.value || 0);
+                                return value > 0 ? formatCardMetricValue(value) : '';
+                            }
+                        },
+                        lineStyle: { width: 1.8, color: '#078087' },
+                        itemStyle: { color: '#078087' },
+                        areaStyle: { color: 'rgba(7, 128, 135, 0.08)' }
+                    },
+                    {
+                        name: '故障数',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        data: countValues,
+                        barWidth: 8,
+                        label: {
+                            show: true,
+                            position: 'top',
+                            distance: 2,
+                            color: theme.muted,
+                            fontSize: 9,
+                            formatter(params) {
+                                const value = Number(params.value || 0);
+                                return value > 0 ? `${formatCardCountValue(value)}次` : '';
+                            }
+                        },
+                        itemStyle: {
+                            color: 'rgba(32, 107, 196, 0.55)',
+                            borderRadius: [3, 3, 0, 0]
+                        }
+                    }
+                ]
+            });
+            branchPerformanceCalendarCharts.push(chart);
+        });
+    }
+
+    function initBranchPerformanceInterruptCalendarToggles(container) {
+        container.querySelectorAll('.branch-performance-interrupt-calendar-toggle').forEach(button => {
+            button.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                const calendar = button.closest('.branch-performance-interrupt-calendar');
+                if (!calendar) return;
+                const defaultMonths = calendar.querySelector('.service-interrupt-calendar-months--default');
+                const expandedMonths = calendar.querySelector('.service-interrupt-calendar-months--expanded');
+                const icon = button.querySelector('.mdi');
+                const expanded = !calendar.classList.contains('service-interrupt-calendar--expanded');
+                calendar.classList.toggle('service-interrupt-calendar--expanded', expanded);
+                if (defaultMonths) defaultMonths.classList.toggle('d-none', expanded);
+                if (expandedMonths) expandedMonths.classList.toggle('d-none', !expanded);
+                button.setAttribute('aria-label', expanded ? '收回中断日历' : '展开本年中断日历');
+                button.setAttribute('title', expanded ? '收回中断日历' : '展开本年中断日历');
+                if (icon) icon.className = expanded ? 'mdi mdi-arrow-collapse-all' : 'mdi mdi-arrow-expand-all';
+            });
+        });
     }
 
     function renderBranchCompanyPerformanceCard(card) {
@@ -1809,45 +1980,82 @@ document.addEventListener("DOMContentLoaded", function() {
         const overallMetrics = card.overall_metrics || {};
         const deductions = Array.isArray(card.deductions) ? card.deductions : [];
         const status = card.status || 'stable';
-        const deductionHtml = deductions.map(item => `
-            <button type="button" class="branch-performance-deduction" data-deduction-key="${escapeHtml(item.key || '')}">
-                <span>${escapeHtml(item.label || '-')}</span>
-                <strong>${formatBranchPerformanceDeductionValue(item.value || 0)}</strong>
-            </button>
+        const deductionIconMap = {
+            frequency: 'mdi-pulse',
+            duration: 'mdi-clock-outline',
+            valid_duration: 'mdi-bullseye-arrow',
+            severity: 'mdi-timer-sand',
+            repeat: 'mdi-sync',
+            trend: 'mdi-trending-up',
+        };
+        const metricItems = [
+            { icon: 'mdi-account', tone: 'blue', value: responsibilityMetrics.count || 0, label: '责任起数' },
+            { icon: 'mdi-clock-outline', tone: 'green', value: responsibilityMetrics.duration || 0, label: '责任时长（小时）' },
+            { icon: 'mdi-chart-bar', tone: 'orange', value: responsibilityMetrics.valid_duration || 0, label: '有效平均（小时）' },
+            { icon: 'mdi-road-variant', tone: 'purple', value: responsibilityMetrics.count_per_100km || 0, label: '百公里起数' },
+            { icon: 'mdi-speedometer', tone: 'cyan', value: responsibilityMetrics.duration_per_100km || 0, label: '百公里时长（小时）' },
+            { icon: 'mdi-sync', tone: 'blue', value: responsibilityMetrics.repeat_count || 0, label: '重复率（%）' },
+        ];
+        const metricHtml = metricItems.map(item => `
+            <div class="branch-performance-metric branch-performance-metric--${item.tone}">
+                <span class="branch-performance-metric-icon"><i class="mdi ${item.icon}" aria-hidden="true"></i></span>
+                <span class="branch-performance-metric-text">
+                    <strong>${formatCardMetricValue(item.value)}</strong>
+                    <span>${item.label}</span>
+                </span>
+            </div>
         `).join('');
+        const deductionHtml = deductions.map(item => {
+            const hasDeduction = Number(item.value || 0) > 0;
+            const icon = deductionIconMap[item.key] || 'mdi-minus-circle-outline';
+            return `
+                <button type="button" class="branch-performance-deduction ${hasDeduction ? 'branch-performance-deduction--active' : ''}" data-deduction-key="${escapeHtml(item.key || '')}">
+                    <span class="branch-performance-deduction-label">
+                        <span class="branch-performance-deduction-icon"><i class="mdi ${icon}" aria-hidden="true"></i></span>
+                        <span>${escapeHtml(item.label || '-')}</span>
+                    </span>
+                    <strong>${formatBranchPerformanceDeductionValue(item.value || 0)}</strong>
+                </button>
+            `;
+        }).join('');
         return `
             <article class="card shadow-sm statistics-branch-performance-card statistics-branch-performance-card--${escapeHtml(status)}" data-province="${escapeHtml(card.province || '')}">
-                <div class="statistics-branch-performance-header">
-                    <button type="button" class="branch-performance-title">
-                        <span>${escapeHtml(card.label || card.province || '-')}</span>
-                        <small>${escapeHtml(card.grade || '-')}</small>
-                    </button>
-                    <div class="branch-performance-score">
-                        <span class="branch-performance-score-value">${formatBranchPerformanceValue(card.responsibility_score || 0)}</span>
-                        <span class="branch-performance-score-unit">分</span>
+                <div class="branch-performance-card-top">
+                    <div class="branch-performance-company">
+                        <span class="branch-performance-company-icon"><i class="mdi mdi-office-building" aria-hidden="true"></i></span>
+                        <div class="branch-performance-company-main">
+                            <button type="button" class="branch-performance-title">
+                                <span>${escapeHtml(card.label || card.province || '-')}</span>
+                            </button>
+                            <div class="branch-performance-score-subline">
+                                <span>责任得分 ${formatBranchPerformanceValue(card.responsibility_score || 0)}</span>
+                                <span>全量得分 ${formatBranchPerformanceValue(card.overall_score || 0)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="branch-performance-score-panel">
+                        <div class="branch-performance-score">
+                            <span class="branch-performance-score-value branch-performance-score-total">${formatBranchPerformanceValue(card.responsibility_score || 0)}</span>
+                        </div>
+                        <span class="branch-performance-grade-pill branch-performance-grade-badge branch-performance-grade-badge--${escapeHtml(status)}">
+                            <i class="mdi mdi-medal" aria-hidden="true"></i>
+                            ${escapeHtml(card.grade || '-')}
+                        </span>
                     </div>
                 </div>
-                <div class="branch-performance-score-subline">
-                    <span>责任得分 ${formatBranchPerformanceValue(card.responsibility_score || 0)}</span>
-                    <span>全量得分 ${formatBranchPerformanceValue(card.overall_score || 0)}</span>
-                </div>
-                <div class="branch-performance-kpi-grid">
-                    <div><strong>${formatCardMetricValue(responsibilityMetrics.count || 0)}</strong><span>责任起数</span></div>
-                    <div><strong>${formatCardMetricValue(responsibilityMetrics.duration || 0)}</strong><span>责任时长</span></div>
-                    <div><strong>${formatCardMetricValue(responsibilityMetrics.valid_duration || 0)}</strong><span>有效平均</span></div>
-                    <div><strong>${formatCardMetricValue(responsibilityMetrics.count_per_100km || 0)}</strong><span>百公里起数</span></div>
-                    <div><strong>${formatCardMetricValue(responsibilityMetrics.duration_per_100km || 0)}</strong><span>百公里时长</span></div>
-                    <div><strong>${formatCardMetricValue(responsibilityMetrics.repeat_count || 0)}</strong><span>重复</span></div>
-                </div>
-                <div class="branch-performance-overall-line">
-                    全量影响 ${formatCardMetricValue(overallMetrics.count || 0)} 起 / ${formatCardMetricValue(overallMetrics.duration || 0)} 小时
+                <div class="branch-performance-kpi-grid">${metricHtml}</div>
+                <div class="branch-performance-impact-line">
+                    <i class="mdi mdi-pulse" aria-hidden="true"></i>
+                    <span>全量影响 ${formatCardMetricValue(overallMetrics.count || 0)} 起 / ${formatCardMetricValue(overallMetrics.duration || 0)} 小时</span>
                 </div>
                 <div class="branch-performance-deduction-heading">责任扣分</div>
                 <div class="branch-performance-deduction-grid">${deductionHtml}</div>
-                <div class="branch-performance-reasons">
-                    <div><span>责任原因</span>${renderBranchPerformanceReasonList(card.responsibility_reason_top3)}</div>
-                    <div><span>全量原因</span>${renderBranchPerformanceReasonList(card.overall_reason_top3)}</div>
+                <div class="branch-performance-reasons branch-performance-reasons-panel">
+                    <div><span>责任原因</span>${renderBranchPerformanceReasonList(card.responsibility_reason_top3, 'responsibility')}</div>
+                    <div><span>全量原因</span>${renderBranchPerformanceReasonList(card.overall_reason_top3, 'overall')}</div>
                 </div>
+                ${renderBranchPerformanceRuntimeCalendar(card)}
+                ${renderBranchPerformanceInterruptCalendar(card, card.interruptCalendarMaxCount)}
             </article>`;
     }
 
@@ -1855,14 +2063,20 @@ document.addEventListener("DOMContentLoaded", function() {
         const container = document.getElementById('branch-company-performance-cards');
         if (!container) return;
         const source = Array.isArray(cards) ? cards : [];
+        disposeBranchPerformanceCalendarCharts();
         if (source.length === 0) {
             container.innerHTML = '<div class="text-center text-muted py-4">暂无分公司绩效考核数据</div>';
             return;
         }
-        container.innerHTML = source.map(renderBranchCompanyPerformanceCard).join('');
+        const interruptCalendarMaxCount = getMaxServiceInterruptCalendarCount(source);
+        const cardsWithCalendar = source.map(card => Object.assign({}, card, { interruptCalendarMaxCount }));
+        const cardsByProvince = new Map(cardsWithCalendar.map(card => [card.province, card]));
+        container.innerHTML = cardsWithCalendar.map(renderBranchCompanyPerformanceCard).join('');
+        initBranchPerformanceRuntimeCalendarCharts(container, cardsByProvince);
+        initBranchPerformanceInterruptCalendarToggles(container);
         container.querySelectorAll('.statistics-branch-performance-card').forEach(cardEl => {
             const province = cardEl.dataset.province || '';
-            const card = source.find(item => item.province === province);
+            const card = cardsWithCalendar.find(item => item.province === province);
             const title = cardEl.querySelector('.branch-performance-title');
             if (title && card) {
                 title.addEventListener('click', () => handleBranchCompanyPerformanceCardClick(card));
@@ -2777,7 +2991,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const expandedMonths = Array.isArray(svc.interrupt_calendar_full) ? svc.interrupt_calendar_full : months;
         const maxCount = Number(interruptCalendarMaxCount || 0);
         return `
-                    <div class="service-interrupt-calendar" aria-label="近三个月业务中断日历">
+                    <div class="service-interrupt-calendar" aria-label="近六个月业务中断日历">
                         <div class="service-interrupt-calendar-months service-interrupt-calendar-months--default">${renderServiceInterruptCalendarMonthGrid(months, maxCount)}</div>
                         <div class="service-interrupt-calendar-months service-interrupt-calendar-months--expanded d-none">${renderServiceInterruptCalendarMonthGrid(expandedMonths, maxCount)}</div>
                         <button type="button" class="service-interrupt-calendar-toggle" aria-label="展开本年中断日历" title="展开本年中断日历">

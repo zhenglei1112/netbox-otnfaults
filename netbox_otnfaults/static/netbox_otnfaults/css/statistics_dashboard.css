@@ -730,7 +730,7 @@ body.modal-open {
 
 .service-interrupt-calendar-months {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0.9rem;
     align-items: start;
 }
@@ -2334,6 +2334,15 @@ body.modal-open {
 .branch-performance-title small {
     color: var(--tblr-muted, #667382);
     font-size: 0.75rem;
+    display: none; /* 移动到右上角评分下，因此在标题中隐藏 */
+}
+
+/* 右上角评分和级徽容器 */
+.branch-performance-header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
 }
 
 .branch-performance-score {
@@ -2352,6 +2361,39 @@ body.modal-open {
 .branch-performance-score-unit {
     color: var(--tblr-muted, #667382);
     font-size: 0.75rem;
+}
+
+/* 绩效评级精致徽章/级徽 */
+.branch-performance-grade-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.18rem 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 4px;
+    line-height: 1;
+    border: 1px solid transparent;
+}
+.branch-performance-grade-badge--stable {
+    background-color: rgba(47, 179, 68, 0.1);
+    color: #2fb344;
+    border-color: rgba(47, 179, 68, 0.2);
+}
+.branch-performance-grade-badge--good {
+    background-color: rgba(32, 107, 196, 0.1);
+    color: #206bc4;
+    border-color: rgba(32, 107, 196, 0.2);
+}
+.branch-performance-grade-badge--warning {
+    background-color: rgba(245, 159, 0, 0.1);
+    color: #f59f00;
+    border-color: rgba(245, 159, 0, 0.2);
+}
+.branch-performance-grade-badge--danger {
+    background-color: rgba(214, 57, 57, 0.1);
+    color: #d63939;
+    border-color: rgba(214, 57, 57, 0.2);
 }
 
 .branch-performance-score-subline,
@@ -2396,6 +2438,25 @@ body.modal-open {
     margin-top: 0.1rem;
 }
 
+/* 责任扣分标题与 Accent Bar 竖线修饰 */
+.branch-performance-deduction-heading {
+    font-size: 0.82rem;
+    font-weight: 650;
+    color: var(--tblr-body-color, #1f2937);
+    padding: 0.5rem 0.875rem 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.branch-performance-deduction-heading::before {
+    content: "";
+    display: inline-block;
+    width: 3px;
+    height: 0.82rem;
+    background-color: var(--tblr-primary, #206bc4);
+    border-radius: 99px;
+}
+
 .branch-performance-deduction-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2403,6 +2464,7 @@ body.modal-open {
     padding: 0 0.875rem 0.75rem;
 }
 
+/* 扣分卡片与微交互分级 */
 .branch-performance-deduction {
     align-items: center;
     background: var(--tblr-bg-surface-secondary, #f8fafc);
@@ -2414,6 +2476,8 @@ body.modal-open {
     gap: 0.25rem;
     min-width: 0;
     padding: 0.35rem 0.45rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .branch-performance-deduction span {
@@ -2425,9 +2489,25 @@ body.modal-open {
 }
 
 .branch-performance-deduction strong {
-    color: #d63939;
+    color: var(--tblr-muted, #667382);
     font-size: 0.78rem;
     white-space: nowrap;
+}
+
+/* 激活的扣分项（扣分大于0） */
+.branch-performance-deduction--active {
+    background: rgba(214, 57, 57, 0.02) !important;
+    border-color: rgba(214, 57, 57, 0.15) !important;
+}
+
+.branch-performance-deduction--active strong {
+    color: #d63939 !important;
+    font-weight: 600;
+}
+
+.branch-performance-deduction:hover {
+    border-color: var(--tblr-primary, #206bc4) !important;
+    background: var(--tblr-bg-surface-secondary, #f8fafc) !important;
 }
 
 .branch-performance-reasons {
@@ -2450,17 +2530,482 @@ body.modal-open {
     min-width: 3.5rem;
 }
 
+/* 原因胶囊标签（主次分级） */
 .branch-performance-reason-pill {
-    background: rgba(32, 107, 196, 0.08);
     border-radius: 999px;
-    color: var(--tblr-primary, #206bc4);
     font-size: 0.7rem;
     padding: 0.12rem 0.45rem;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.branch-performance-reason-pill--responsibility {
+    background: rgba(32, 107, 196, 0.06);
+    color: var(--tblr-primary, #206bc4);
+    border-color: rgba(32, 107, 196, 0.12);
+}
+
+.branch-performance-reason-pill--responsibility:hover {
+    background: rgba(32, 107, 196, 0.1);
+    border-color: rgba(32, 107, 196, 0.2);
+}
+
+.branch-performance-reason-pill--overall {
+    background: var(--tblr-bg-surface-secondary, #f8fafc);
+    color: var(--tblr-muted, #667382);
+    border-color: var(--tblr-border-color, rgba(98, 105, 118, 0.16));
+}
+
+.branch-performance-reason-pill--overall:hover {
+    background: var(--tblr-border-color, rgba(98, 105, 118, 0.08));
 }
 
 .branch-performance-empty {
     color: var(--tblr-muted, #667382);
     font-size: 0.72rem;
+}
+
+.statistics-branch-performance-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.1rem;
+}
+
+.statistics-branch-performance-card {
+    background: #ffffff;
+    border: 1px solid rgba(222, 228, 238, 0.95) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.10), 0 2px 10px rgba(15, 23, 42, 0.06) !important;
+    min-width: 0;
+    padding: 1.25rem 1.35rem 1.1rem;
+}
+
+.statistics-branch-performance-card--stable,
+.statistics-branch-performance-card--good,
+.statistics-branch-performance-card--warning,
+.statistics-branch-performance-card--danger {
+    border-top: 1px solid rgba(222, 228, 238, 0.95) !important;
+}
+
+.branch-performance-card-top {
+    align-items: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(7rem, 8rem);
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.branch-performance-company {
+    align-items: center;
+    display: flex;
+    gap: 0.8rem;
+    min-width: 0;
+}
+
+.branch-performance-company-icon {
+    align-items: center;
+    background: linear-gradient(145deg, #dbe8ff, #eef5ff);
+    border-radius: 999px;
+    box-shadow: 0 14px 28px rgba(37, 99, 235, 0.12);
+    color: #2563eb;
+    display: inline-flex;
+    flex: 0 0 3.2rem;
+    font-size: 1.55rem;
+    height: 3.2rem;
+    justify-content: center;
+    width: 3.2rem;
+}
+
+.branch-performance-company-main {
+    min-width: 0;
+}
+
+.branch-performance-title span {
+    color: #101b3c;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.15;
+}
+
+.branch-performance-score-subline {
+    align-items: center;
+    color: #667085;
+    display: flex;
+    font-size: 0.78rem;
+    font-weight: 400;
+    gap: 0.55rem;
+    margin-top: 0.55rem;
+    padding: 0;
+}
+
+.branch-performance-score-subline span + span {
+    border-left: 1px solid #d7dfed;
+    padding-left: 0.55rem;
+}
+
+.branch-performance-score-panel {
+    align-items: center;
+    border-left: 1px solid #d7dfed;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    justify-content: center;
+    min-height: 3.9rem;
+}
+
+.branch-performance-score {
+    align-items: baseline;
+}
+
+.branch-performance-score-value,
+.branch-performance-score-total {
+    color: #16a34a;
+    font-size: 2.85rem;
+    font-weight: 850;
+    letter-spacing: 0;
+    line-height: 0.95;
+}
+
+.branch-performance-grade-pill {
+    background: linear-gradient(180deg, #effaf4, #e6f7ed);
+    border: 1px solid #bfead1;
+    border-radius: 999px;
+    color: #16a34a;
+    font-size: 0.86rem;
+    font-weight: 800;
+    gap: 0.35rem;
+    min-width: 6.8rem;
+    padding: 0.32rem 0.75rem;
+}
+
+.branch-performance-grade-pill .mdi {
+    font-size: 0.95rem;
+}
+
+.statistics-branch-performance-card--good .branch-performance-score-total {
+    color: #16a34a;
+}
+
+.statistics-branch-performance-card--good .branch-performance-grade-pill {
+    background: linear-gradient(180deg, #effaf4, #e6f7ed);
+    border-color: #bfead1;
+    color: #16a34a;
+}
+
+.statistics-branch-performance-card--stable .branch-performance-score-total {
+    color: #0ea5a3;
+}
+
+.statistics-branch-performance-card--stable .branch-performance-grade-pill {
+    background: linear-gradient(180deg, #ecfeff, #e6f7f7);
+    border-color: #b7eceb;
+    color: #0f8f8d;
+}
+
+.statistics-branch-performance-card--warning .branch-performance-score-total {
+    color: #f28c18;
+}
+
+.statistics-branch-performance-card--warning .branch-performance-grade-pill {
+    background: linear-gradient(180deg, #fff8ec, #fff1d9);
+    border-color: #f8d8a8;
+    color: #d97706;
+}
+
+.statistics-branch-performance-card--danger .branch-performance-score-total {
+    color: #e11d2e;
+}
+
+.statistics-branch-performance-card--danger .branch-performance-grade-pill {
+    background: linear-gradient(180deg, #fff1f2, #ffe4e8);
+    border-color: #ffc2ca;
+    color: #e11d2e;
+}
+
+.branch-performance-kpi-grid {
+    background: #ffffff;
+    border: 1px solid #dfe6f0;
+    border-radius: 10px;
+    display: grid;
+    gap: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0 0 0.95rem;
+    padding: 0.65rem 0.6rem;
+}
+
+.branch-performance-kpi-grid .branch-performance-metric {
+    align-items: center;
+    background: #ffffff;
+    display: flex;
+    flex-direction: row;
+    gap: 0.55rem;
+    justify-content: center;
+    min-height: 3.75rem;
+    padding: 0.5rem 0.35rem;
+    text-align: center;
+}
+
+.branch-performance-metric:nth-child(1),
+.branch-performance-metric:nth-child(2),
+.branch-performance-metric:nth-child(3) {
+    border-bottom: 1px solid #edf1f6;
+}
+
+.branch-performance-metric:nth-child(2),
+.branch-performance-metric:nth-child(3),
+.branch-performance-metric:nth-child(5),
+.branch-performance-metric:nth-child(6) {
+    border-left: 1px solid #dfe6f0;
+}
+
+.branch-performance-kpi-grid .branch-performance-metric-icon {
+    align-items: center;
+    border-radius: 999px;
+    display: inline-flex;
+    flex: 0 0 2rem;
+    font-size: 1.05rem;
+    height: 2rem;
+    justify-content: center;
+    justify-self: center;
+    width: 2rem;
+}
+
+.branch-performance-metric--blue .branch-performance-metric-icon {
+    background: #dfeaff;
+    color: #2563eb;
+}
+
+.branch-performance-metric--green .branch-performance-metric-icon {
+    background: #dff6e7;
+    color: #16a34a;
+}
+
+.branch-performance-metric--orange .branch-performance-metric-icon {
+    background: #fff0d9;
+    color: #f28c18;
+}
+
+.branch-performance-metric--purple .branch-performance-metric-icon {
+    background: #eee3ff;
+    color: #7c3aed;
+}
+
+.branch-performance-metric--cyan .branch-performance-metric-icon {
+    background: #dff4ff;
+    color: #0ea5e9;
+}
+
+.branch-performance-kpi-grid .branch-performance-metric-text {
+    display: block;
+    flex: 0 1 5.85rem;
+    min-width: 0;
+    text-align: center;
+}
+
+.branch-performance-kpi-grid .branch-performance-metric-text strong {
+    color: #2563eb;
+    display: block;
+    font-size: 1.18rem;
+    font-weight: 800;
+    line-height: 1.05;
+}
+
+.branch-performance-metric--green .branch-performance-metric-text strong {
+    color: #16a34a;
+}
+
+.branch-performance-metric--orange .branch-performance-metric-text strong {
+    color: #f28c18;
+}
+
+.branch-performance-metric--purple .branch-performance-metric-text strong {
+    color: #7c3aed;
+}
+
+.branch-performance-metric--cyan .branch-performance-metric-text strong {
+    color: #0ea5e9;
+}
+
+.branch-performance-kpi-grid .branch-performance-metric-text span {
+    color: #263854;
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 500;
+    line-height: 1.25;
+    margin-top: 0.25rem;
+    white-space: nowrap;
+}
+
+.branch-performance-impact-line {
+    align-items: center;
+    color: #667085;
+    display: flex;
+    font-size: 0.86rem;
+    font-weight: 400;
+    gap: 0.45rem;
+    margin: 0 0 0.85rem 0.1rem;
+}
+
+.branch-performance-impact-line .mdi {
+    color: #667085;
+    font-size: 1.05rem;
+}
+
+.branch-performance-deduction-heading {
+    color: #101b3c;
+    font-size: 1rem;
+    font-weight: 800;
+    gap: 0.5rem;
+    padding: 0 0 0.55rem;
+}
+
+.branch-performance-deduction-heading::before {
+    background: #ef233c;
+    border-radius: 999px;
+    height: 1.05rem;
+    width: 0.22rem;
+}
+
+.branch-performance-deduction-grid {
+    gap: 0.55rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 0 0 0.95rem;
+}
+
+.branch-performance-deduction {
+    background: #ffffff;
+    border: 1px solid #dfe6f0;
+    border-radius: 10px;
+    min-height: 2.65rem;
+    padding: 0.42rem 0.48rem;
+}
+
+.branch-performance-deduction .branch-performance-deduction-label {
+    align-items: center;
+    color: #263854;
+    display: flex;
+    font-size: 0.75rem;
+    font-weight: 600;
+    gap: 0.38rem;
+    min-width: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+}
+
+.branch-performance-deduction .branch-performance-deduction-icon {
+    align-items: center;
+    background: #f1f4f8;
+    border-radius: 10px;
+    color: #64748b;
+    display: inline-flex;
+    flex: 0 0 1.65rem;
+    font-size: 0.9rem;
+    height: 1.65rem;
+    justify-content: center;
+    overflow: visible;
+    width: 1.65rem;
+}
+
+.branch-performance-deduction strong {
+    color: #101b3c;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.branch-performance-deduction--active {
+    background: linear-gradient(180deg, rgba(239, 35, 60, 0.045), rgba(255, 255, 255, 0.98)) !important;
+    border-color: rgba(239, 35, 60, 0.25) !important;
+}
+
+.branch-performance-deduction--active .branch-performance-deduction-icon {
+    background: #ffe9ec;
+    color: #ef233c;
+}
+
+.branch-performance-deduction--active strong {
+    color: #e11d2e !important;
+}
+
+.branch-performance-reasons-panel {
+    background: linear-gradient(180deg, #f8fbff, #f4f8fd);
+    border: 0;
+    border-radius: 9px;
+    gap: 0.45rem;
+    padding: 0.65rem 0.75rem;
+}
+
+.branch-performance-reasons-panel > div > span:first-child {
+    color: #263854;
+    font-size: 0.82rem;
+    font-weight: 800;
+    min-width: 4.25rem;
+}
+
+.branch-performance-reason-pill {
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+}
+
+.branch-performance-reason-pill--responsibility {
+    background: #e8f3ff;
+    border-color: #d4e8ff;
+    color: #0b68d8;
+}
+
+.branch-performance-reason-pill--overall {
+    background: #eef2f7;
+    border-color: #e5eaf0;
+    color: #263854;
+}
+
+.branch-performance-runtime-calendar {
+    border-top: 1px solid #edf1f6;
+    margin-top: 0.8rem;
+    padding: 0.65rem 0 0;
+}
+
+.branch-performance-runtime-calendar-chart {
+    background: transparent;
+    height: 8.2rem;
+    width: 100%;
+}
+
+.branch-performance-interrupt-calendar {
+    border-top: 1px solid #edf1f6;
+    margin-top: 0.3rem;
+    padding: 0.65rem 0 0.25rem;
+}
+
+.branch-performance-interrupt-calendar .service-interrupt-calendar-months {
+    gap: 0.42rem;
+}
+
+.branch-performance-interrupt-calendar .service-interrupt-calendar-months--expanded {
+    grid-template-columns: repeat(auto-fill, minmax(4.7rem, 1fr));
+    padding-right: 1.35rem;
+}
+
+.branch-performance-interrupt-calendar .service-interrupt-calendar-month-label {
+    font-size: 0.72rem;
+}
+
+.branch-performance-interrupt-calendar .service-interrupt-calendar-days {
+    gap: 0.13rem;
+    grid-auto-rows: 0.34rem;
+    grid-template-columns: repeat(7, 0.34rem);
+    margin-top: 0.3rem;
+}
+
+.branch-performance-interrupt-calendar .service-interrupt-calendar-day {
+    height: 0.34rem;
+    width: 0.34rem;
+}
+
+.branch-performance-interrupt-calendar .service-interrupt-calendar-toggle {
+    bottom: 0.08rem;
+    right: 0;
 }
 
 .statistics-branch-company-chart-grid {
@@ -2479,11 +3024,13 @@ body.modal-open {
     height: 380px;
 }
 
-@media (max-width: 991.98px) {
+@media (max-width: 1199.98px) {
     .statistics-branch-performance-grid {
         grid-template-columns: minmax(0, 1fr);
     }
+}
 
+@media (max-width: 991.98px) {
     .statistics-branch-company-chart-grid {
         grid-template-columns: minmax(0, 1fr);
     }

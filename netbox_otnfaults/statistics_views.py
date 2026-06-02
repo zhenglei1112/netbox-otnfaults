@@ -804,9 +804,58 @@ def _finalize_branch_performance_metrics(metrics: dict[str, float], length_km: f
     }
 
 
+def _build_empty_branch_performance_calendar_stats(
+    calendar_months: list[dict[str, object]],
+    calendar_full_months: list[dict[str, object]],
+) -> dict[str, object]:
+    return {
+        'monthly_stats': {
+            month: {'count': 0, 'duration': 0.0}
+            for month in range(1, 13)
+        },
+        'interrupt_calendar': {
+            str(month_info['key']): {
+                day: 0
+                for day in range(1, int(month_info['days']) + 1)
+            }
+            for month_info in calendar_months
+        },
+        'interrupt_calendar_full': {
+            str(month_info['key']): {
+                day: 0
+                for day in range(1, int(month_info['days']) + 1)
+            }
+            for month_info in calendar_full_months
+        },
+    }
+
+
+def _build_branch_performance_calendar_payload(
+    month_info_list: list[dict[str, object]],
+    calendar_counts: dict[str, dict[int, int]],
+) -> list[dict[str, object]]:
+    payload: list[dict[str, object]] = []
+    for month_info in month_info_list:
+        month_key = str(month_info['key'])
+        day_counts = calendar_counts.get(month_key, {})
+        payload.append({
+            'key': month_key,
+            'label': month_info['label'],
+            'weekday_offset': month_info['weekday_offset'],
+            'days': [
+                {'day': day, 'count': day_counts.get(day, 0)}
+                for day in range(1, int(month_info['days']) + 1)
+            ],
+        })
+    return payload
+
+
 def _build_branch_company_performance_cards(
     branch_faults: list,
+    year_faults: list,
     path_lengths: dict[str, float],
+    calendar_months: list[dict[str, object]],
+    calendar_full_months: list[dict[str, object]],
     start_date,
     end_date,
     now,
@@ -817,6 +866,27 @@ def _build_branch_company_performance_cards(
         province = _branch_province_for_fault(fault)
         if province in fault_groups:
             fault_groups[province].append(fault)
+
+    calendar_stats: dict[str, dict[str, object]] = {
+        province: _build_empty_branch_performance_calendar_stats(calendar_months, calendar_full_months)
+        for province in BRANCH_PROVINCE_NAMES
+    }
+    for fault in year_faults:
+        province = _branch_province_for_fault(fault)
+        if province not in calendar_stats or not fault.fault_occurrence_time:
+            continue
+        occurrence = timezone.localtime(fault.fault_occurrence_time)
+        duration_hours = _duration_hours_for_fault(fault, now)
+        monthly_stats = calendar_stats[province]['monthly_stats']
+        monthly_stats[occurrence.month]['count'] += 1
+        monthly_stats[occurrence.month]['duration'] += duration_hours
+        month_key = f'{occurrence.year:04d}-{occurrence.month:02d}'
+        interrupt_calendar = calendar_stats[province]['interrupt_calendar']
+        if month_key in interrupt_calendar and occurrence.day in interrupt_calendar[month_key]:
+            interrupt_calendar[month_key][occurrence.day] += 1
+        interrupt_calendar_full = calendar_stats[province]['interrupt_calendar_full']
+        if month_key in interrupt_calendar_full and occurrence.day in interrupt_calendar_full[month_key]:
+            interrupt_calendar_full[month_key][occurrence.day] += 1
 
     tz = timezone.get_current_timezone()
     selected_year = start_date.year
@@ -876,6 +946,8 @@ def _build_branch_company_performance_cards(
         overall_metrics = _finalize_branch_performance_metrics(overall_metrics, length_km)
         responsibility_score = _calculate_branch_performance_score(responsibility_metrics)
         overall_score = _calculate_branch_performance_score(overall_metrics)
+        province_calendar_stats = calendar_stats[province]
+        province_monthly_stats = province_calendar_stats['monthly_stats']
         cards.append({
             'province': province,
             'label': f'{province}分公司',
@@ -888,6 +960,23 @@ def _build_branch_company_performance_cards(
             'overall_metrics': overall_metrics,
             'responsibility_reason_top3': _sorted_count_items(responsibility_reason_counts)[:3],
             'overall_reason_top3': _sorted_count_items(overall_reason_counts)[:3],
+            'monthly_stats': [
+                {
+                    'month': month,
+                    'label': f'{month}月',
+                    'count': int(province_monthly_stats[month]['count']),
+                    'duration': round(float(province_monthly_stats[month]['duration']), 2),
+                }
+                for month in range(1, 13)
+            ],
+            'interrupt_calendar': _build_branch_performance_calendar_payload(
+                calendar_months,
+                province_calendar_stats['interrupt_calendar'],
+            ),
+            'interrupt_calendar_full': _build_branch_performance_calendar_payload(
+                calendar_full_months,
+                province_calendar_stats['interrupt_calendar_full'],
+            ),
             'weekly_trend': {
                 'labels': week_labels,
                 'responsibility_scores': [],
@@ -908,6 +997,8 @@ def _build_branch_company_statistics(
     start_date,
     end_date,
     now,
+    calendar_year: int | None = None,
+    calendar_month: int | None = None,
 ) -> dict[str, object]:
     path_lengths = BRANCH_PROVINCE_PATH_LENGTHS.copy()
     branch_all_faults = [
@@ -1023,6 +1114,10 @@ def _build_branch_company_statistics(
         'weeks': week_ranges,
         'series': [],
     }
+    selected_calendar_year = calendar_year or selected_year
+    selected_calendar_month = calendar_month or timezone.localtime(start_date).month
+    calendar_months = _build_recent_calendar_months(selected_calendar_year, selected_calendar_month, tz)
+    calendar_full_months = _build_year_to_month_calendar_months(selected_calendar_year, selected_calendar_month, tz)
     for province in BRANCH_PROVINCE_NAMES:
         length_km = path_lengths.get(province, 0.0)
         weekly_trends['series'].append({
@@ -1043,7 +1138,10 @@ def _build_branch_company_statistics(
     )
     performance_cards = _build_branch_company_performance_cards(
         branch_cable_break_faults,
+        year_faults,
         path_lengths,
+        calendar_months,
+        calendar_full_months,
         start_date,
         end_date,
         now,
@@ -1140,9 +1238,9 @@ def _parse_time_range(request):
 
 
 def _build_recent_calendar_months(year: int, month: int, tz) -> list[dict[str, object]]:
-    """Return month metadata for previous-previous, previous, and current month."""
+    """Return month metadata for the six months ending at the requested month."""
     months: list[dict[str, object]] = []
-    for offset in (2, 1, 0):
+    for offset in range(5, -1, -1):
         month_index = (year * 12 + month - 1) - offset
         item_year = month_index // 12
         item_month = (month_index % 12) + 1
@@ -1240,6 +1338,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
     def get(self, request) -> JsonResponse:
         start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
         now = timezone.localtime()
+        calendar_year = int(request.GET.get('calendar_year', start_date.year))
+        calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
 
         # 先预抓取一段无过滤条件的全量当前期基础查询集，仅用于提取“总体情况面板” Banner 数据
         qs_all = OtnFault.objects.select_related('province', 'interruption_location_a').prefetch_related('interruption_location')
@@ -1284,6 +1384,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             start_date,
             end_date,
             now,
+            calendar_year,
+            calendar_month,
         )
         prev_branch_company_stats = {}
         
@@ -1517,6 +1619,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 prev_start_date,
                 prev_end_date,
                 now,
+                calendar_year,
+                calendar_month,
             )
 
         # 为了展示准确的截止自然日（例如周日而非下周一，10月31日而非11月1日），展示日期需减去一天
