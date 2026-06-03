@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpRequest, HttpResponse
 from utilities.views import register_model_view, ViewTab
 from django_tables2 import RequestConfig
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, CutoverTask, CutoverImpact
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, CutoverTask, CutoverImpact, HeavyDuty
 from dcim.models import Site
 from .forms import (
     OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
@@ -14,15 +14,17 @@ from .forms import (
     CircuitServiceForm, CircuitServiceFilterForm, CircuitServiceImportForm, CircuitServiceBulkEditForm,
     CutoverTaskForm, CutoverTaskFilterForm, CutoverTaskImportForm, CutoverTaskBulkEditForm,
     CutoverImpactForm, CutoverImpactFilterForm, CutoverImpactImportForm, CutoverImpactBulkEditForm,
-    CutoverFaultGenerationForm
+    CutoverFaultGenerationForm,
+    HeavyDutyForm, HeavyDutyFilterForm, HeavyDutyImportForm, HeavyDutyBulkEditForm
 )
-from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet, CutoverTaskFilterSet, CutoverImpactFilterSet
+from .filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet, CutoverTaskFilterSet, CutoverImpactFilterSet, HeavyDutyFilterSet
 from .tables import (
     OtnFaultTable, OtnFaultImpactTable, OtnPathTable, OtnPathGroupTable,
     OtnPathGroupSiteTable, BareFiberServiceTable, CircuitServiceTable,
     OtnFaultImpactSummaryTable, OtnFaultImpactDetailTable, SiteHistoryFaultTable,
     CutoverTaskTable,
-    CutoverImpactTable, CutoverImpactSummaryTable
+    CutoverImpactTable, CutoverImpactSummaryTable,
+    HeavyDutyTable, HeavyDutySiteTable
 )
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -1789,6 +1791,104 @@ class CircuitServiceBulkEditView(generic.BulkEditView):
     filterset = CircuitServiceFilterSet
     table = CircuitServiceTable
     form = CircuitServiceBulkEditForm
+
+
+# ========== 重要保障视图 ==========
+
+class HeavyDutyListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
+    """重要保障列表视图"""
+    queryset = HeavyDuty.objects.all()
+    table = HeavyDutyTable
+    filterset = HeavyDutyFilterSet
+    filterset_form = HeavyDutyFilterForm
+    template_name = 'netbox_otnfaults/heavyduty_list.html'
+
+
+@register_model_view(HeavyDuty)
+class HeavyDutyView(generic.ObjectView):
+    """重要保障详情视图"""
+    queryset = HeavyDuty.objects.all()
+    template_name = 'netbox_otnfaults/heavyduty.html'
+
+    def get_extra_context(self, request, instance):
+        # 关联站点的分页展示
+        sites_table = HeavyDutySiteTable(instance.sites.all(), prefix='site-')
+        sites_table.columns.hide('pk') if 'pk' in sites_table.columns else None
+        sites_page = request.GET.get('sites_page', 1)
+        try:
+            sites_page = int(sites_page)
+        except ValueError:
+            sites_page = 1
+        sites_table.paginate(page=sites_page, per_page=10)
+
+        # 关联电路的分页展示
+        circuits_table = CircuitServiceTable(instance.circuit_services.all(), prefix='circuit-')
+        circuits_table.columns.hide('pk') if 'pk' in circuits_table.columns else None
+        circuits_page = request.GET.get('circuits_page', 1)
+        try:
+            circuits_page = int(circuits_page)
+        except ValueError:
+            circuits_page = 1
+        circuits_table.paginate(page=circuits_page, per_page=10)
+
+        # 关联裸纤的分页展示
+        bare_fibers_table = BareFiberServiceTable(instance.bare_fiber_services.all(), prefix='bare-')
+        bare_fibers_table.columns.hide('pk') if 'pk' in bare_fibers_table.columns else None
+        bare_fibers_page = request.GET.get('bare_fibers_page', 1)
+        try:
+            bare_fibers_page = int(bare_fibers_page)
+        except ValueError:
+            bare_fibers_page = 1
+        bare_fibers_table.paginate(page=bare_fibers_page, per_page=10)
+
+        return {
+            'sites_table': sites_table,
+            'circuits_table': circuits_table,
+            'bare_fibers_table': bare_fibers_table,
+        }
+
+
+class HeavyDutyEditView(generic.ObjectEditView):
+    """重要保障编辑视图"""
+    queryset = HeavyDuty.objects.all()
+    form = HeavyDutyForm
+
+
+class HeavyDutyDeleteView(generic.ObjectDeleteView):
+    """重要保障删除视图"""
+    queryset = HeavyDuty.objects.all()
+
+
+class HeavyDutyBulkImportView(generic.BulkImportView):
+    """重要保障批量导入视图"""
+    queryset = HeavyDuty.objects.all()
+    model = HeavyDuty
+    model_form = HeavyDutyImportForm
+    table = HeavyDutyTable
+
+
+class HeavyDutyBulkDeleteView(generic.BulkDeleteView):
+    """重要保障批量删除视图"""
+    queryset = HeavyDuty.objects.all()
+    table = HeavyDutyTable
+
+
+@register_model_view(HeavyDuty, 'bulk_edit', path='edit', detail=False)
+class HeavyDutyBulkEditView(generic.BulkEditView):
+    """重要保障批量编辑视图"""
+    queryset = HeavyDuty.objects.all()
+    filterset = HeavyDutyFilterSet
+    table = HeavyDutyTable
+    form = HeavyDutyBulkEditForm
+
+    def get_required_permission(self):
+        return 'netbox_otnfaults.change_heavyduty'
+
+    def get_object(self, **kwargs):
+        return None
+
+    def get_return_url(self, request, obj=None):
+        return reverse('plugins:netbox_otnfaults:heavyduty_list')
 
 
 

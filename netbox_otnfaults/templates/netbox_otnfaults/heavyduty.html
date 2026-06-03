@@ -1,0 +1,188 @@
+{% extends 'generic/object.html' %}
+{% load plugins %}
+{% load render_table from django_tables2 %}
+
+{% block content %}
+<style>
+  .attr-table th {
+    width: 30%;
+  }
+  .attr-table td {
+    width: 70%;
+  }
+  /* 隐藏django_tables2默认分页 */
+  .sites-table-container ul.pagination,
+  .circuits-table-container ul.pagination,
+  .bare-fibers-table-container ul.pagination {
+    display: none !important;
+  }
+</style>
+
+<div class="row mb-3">
+  <div class="col col-md-6">
+    <div class="card">
+      <h5 class="card-header">重保通知基本信息</h5>
+      <table class="table table-hover attr-table">
+        <tr>
+          <th scope="row">重保标题</th>
+          <td>{{ object.name }}</td>
+        </tr>
+        <tr>
+          <th scope="row">开始时间</th>
+          <td>{{ object.start_time|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">结束时间</th>
+          <td>{{ object.end_time|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">重保描述/通知</th>
+          <td>{{ object.description|linebreaksbr }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <div class="col col-md-6">
+    {% include 'inc/panels/tags.html' %}
+    {% include 'inc/panels/comments.html' %}
+  </div>
+</div>
+
+<!-- 关联站点 -->
+<div class="row mb-3" id="heavy-duty-sites">
+  <div class="col col-md-12">
+    <div class="card">
+      <h5 class="card-header">保障站点</h5>
+      <div class="sites-table-container">
+        {% render_table sites_table %}
+      </div>
+      {% if sites_table.page %}
+      <div class="card-footer d-flex justify-content-between align-items-center noprint">
+        <nav aria-label="站点分页">
+          <ul class="pagination pagination-sm mb-0">
+            {% if sites_table.page.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?sites_page={{ sites_table.page.previous_page_number }}#heavy-duty-sites">&lsaquo;</a>
+            </li>
+            {% endif %}
+            {% for num in sites_table.paginator.page_range %}
+              {% if num == sites_table.page.number %}
+              <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+              </li>
+              {% elif num == 1 or num == sites_table.paginator.num_pages or num >= sites_table.page.number|add:"-2" and num <= sites_table.page.number|add:"2" %}
+              <li class="page-item">
+                <a class="page-link" href="?sites_page={{ num }}#heavy-duty-sites">{{ num }}</a>
+              </li>
+              {% elif num == sites_table.page.number|add:"-3" or num == sites_table.page.number|add:"3" %}
+              <li class="page-item disabled">
+                <span class="page-link">...</span>
+              </li>
+              {% endif %}
+            {% endfor %}
+            {% if sites_table.page.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?sites_page={{ sites_table.page.next_page_number }}#heavy-duty-sites">&rsaquo;</a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+        <span class="text-muted small">显示 {{ sites_table.page.start_index }}-{{ sites_table.page.end_index }} 共 {{ sites_table.paginator.count }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- 关联电路 -->
+<div class="row mb-3" id="heavy-duty-circuits">
+  <div class="col col-md-12">
+    <div class="card">
+      <h5 class="card-header">保障电路</h5>
+      <div class="circuits-table-container">
+        {% render_table circuits_table %}
+      </div>
+      {% if circuits_table.page %}
+      <div class="card-footer d-flex justify-content-between align-items-center noprint">
+        <nav aria-label="电路分页">
+          <ul class="pagination pagination-sm mb-0">
+            {% if circuits_table.page.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?circuits_page={{ circuits_table.page.previous_page_number }}#heavy-duty-circuits">&lsaquo;</a>
+            </li>
+            {% endif %}
+            {% for num in circuits_table.paginator.page_range %}
+              {% if num == circuits_table.page.number %}
+              <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+              </li>
+              {% elif num == 1 or num == circuits_table.paginator.num_pages or num >= circuits_table.page.number|add:"-2" and num <= circuits_table.page.number|add:"2" %}
+              <li class="page-item">
+                <a class="page-link" href="?circuits_page={{ num }}#heavy-duty-circuits">{{ num }}</a>
+              </li>
+              {% elif num == circuits_table.page.number|add:"-3" or num == circuits_table.page.number|add:"3" %}
+              <li class="page-item disabled">
+                <span class="page-link">...</span>
+              </li>
+              {% endif %}
+            {% endfor %}
+            {% if circuits_table.page.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?circuits_page={{ circuits_table.page.next_page_number }}#heavy-duty-circuits">&rsaquo;</a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+        <span class="text-muted small">显示 {{ circuits_table.page.start_index }}-{{ circuits_table.page.end_index }} 共 {{ circuits_table.paginator.count }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- 关联裸纤 -->
+<div class="row mb-3" id="heavy-duty-bare-fibers">
+  <div class="col col-md-12">
+    <div class="card">
+      <h5 class="card-header">保障裸纤</h5>
+      <div class="bare-fibers-table-container">
+        {% render_table bare_fibers_table %}
+      </div>
+      {% if bare_fibers_table.page %}
+      <div class="card-footer d-flex justify-content-between align-items-center noprint">
+        <nav aria-label="裸纤分页">
+          <ul class="pagination pagination-sm mb-0">
+            {% if bare_fibers_table.page.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?bare_fibers_page={{ bare_fibers_table.page.previous_page_number }}#heavy-duty-bare-fibers">&lsaquo;</a>
+            </li>
+            {% endif %}
+            {% for num in bare_fibers_table.paginator.page_range %}
+              {% if num == bare_fibers_table.page.number %}
+              <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+              </li>
+              {% elif num == 1 or num == bare_fibers_table.paginator.num_pages or num >= bare_fibers_table.page.number|add:"-2" and num <= bare_fibers_table.page.number|add:"2" %}
+              <li class="page-item">
+                <a class="page-link" href="?bare_fibers_page={{ num }}#heavy-duty-bare-fibers">{{ num }}</a>
+              </li>
+              {% elif num == bare_fibers_table.page.number|add:"-3" or num == bare_fibers_table.page.number|add:"3" %}
+              <li class="page-item disabled">
+                <span class="page-link">...</span>
+              </li>
+              {% endif %}
+            {% endfor %}
+            {% if bare_fibers_table.page.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?bare_fibers_page={{ bare_fibers_table.page.next_page_number }}#heavy-duty-bare-fibers">&rsaquo;</a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+        <span class="text-muted small">显示 {{ bare_fibers_table.page.start_index }}-{{ bare_fibers_table.page.end_index }} 共 {{ bare_fibers_table.paginator.count }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

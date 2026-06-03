@@ -1,4 +1,4 @@
-﻿"""
+"""
 OTN 全国网络故障自动化大屏 - 后端视图
 
 提供大屏页面渲染和聚合数据 API。
@@ -8,7 +8,7 @@ from django.templatetags.static import static
 from django.http import JsonResponse
 from django.utils import timezone
 from django.conf import settings
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.views import View
 from django.core.serializers.json import DjangoJSONEncoder
@@ -17,7 +17,8 @@ import json
 
 from .models import (
     OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup,
-    FaultCategoryChoices, FaultStatusChoices, UrgencyChoices,
+    CutoverTask, HeavyDuty,
+    CutoverStatusChoices, FaultCategoryChoices, FaultStatusChoices, UrgencyChoices,
 )
 from .dashboard_topology import build_fault_path_overlays
 from .services.fault_coordinates import resolve_fault_coordinates
@@ -114,16 +115,15 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
     def get(self, request) -> JsonResponse:
         now = timezone.localtime()
         twenty_four_hours_ago = now - timedelta(hours=24)
+        cutover_window_end = now + timedelta(days=7)
         year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
         # ── 1. 活跃故障（处理中）──
         processing_faults_qs = OtnFault.objects.filter(
-            fault_status='processing'
+            fault_status=FaultStatusChoices.PROCESSING
         )
 
-        active_faults_qs = OtnFault.objects.filter(
-            Q(fault_status='processing') | Q(fault_occurrence_time__gte=twenty_four_hours_ago)
-        ).select_related(
+        active_faults_qs = processing_faults_qs.select_related(
             'province', 'interruption_location_a', 'handling_unit'
         ).prefetch_related(
             'interruption_location', 'impacts', 'impacts__bare_fiber_service', 'impacts__circuit_service'
@@ -155,7 +155,7 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
                     impact_names.append(imp.circuit_service.name)
 
             # 计算优先级得分
-            age_minutes = (now - fault.fault_occurrence_time).total_seconds() / 60
+            age_minutes = (now - fault.fault_occurrence_time).total_seconds() / 60 if fault.fault_occurrence_time else 0
             severity = CATEGORY_SEVERITY.get(fault.fault_category, 'minor')
             severity_weight = {'critical': 10, 'major': 5, 'minor': 2}.get(severity, 1)
             urgency_weight = {'high': 3, 'medium': 2, 'low': 1}.get(fault.urgency, 1)
@@ -199,34 +199,12 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
         # 按优先级排序
         active_faults.sort(key=lambda x: x['priority_score'], reverse=True)
 
-        # ── 2. 故障统计（当年）──
+        # ── 2. 运行看板核心数字 ──
         all_faults = OtnFault.objects.filter(fault_occurrence_time__gte=year_start)
         total_count = all_faults.count()
         active_count = processing_faults_qs.count()
         temporary_recovery_count = all_faults.filter(fault_status='temporary_recovery').count()
         suspended_count = all_faults.filter(fault_status='suspended').count()
-        closed_count = all_faults.filter(fault_status='closed').count()
-
-        # 按分类统计
-        category_stats = list(
-            all_faults.values('fault_category')
-            .annotate(count=Count('id'))
-            .order_by('-count')
-        )
-
-        # 按状态统计
-        status_stats = list(
-            all_faults.values('fault_status')
-            .annotate(count=Count('id'))
-            .order_by('-count')
-        )
-
-        # 按省份统计（年度故障）
-        province_stats = list(
-            all_faults.values('province__name')
-            .annotate(count=Count('id'))
-            .order_by('-count')
-        )
 
         # ── 3. 24H 趋势 ──
         trend_data = []
@@ -266,36 +244,8 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             fault_site_pairs=fault_site_pairs,
         )
 
-        # ── 6. 已关闭故障坐标（用于热力图）──
-        closed_faults_qs = OtnFault.objects.filter(
-            fault_status='closed',
-            fault_occurrence_time__gte=year_start
-        ).select_related('interruption_location_a').prefetch_related('interruption_location')
-
-        closed_fault_points = []
-        for fault in closed_faults_qs:
-            resolved = resolve_fault_coordinates(fault)
-            if resolved is None:
-                continue
-            lat, lng = resolved.lat, resolved.lng
-
-            # 智能对位纠偏（与活跃故障逻辑一致）
-            if lat > 70.0 and lng < 60.0:
-                lat, lng = lng, lat
-
-            # 根据故障分类确定权重（严重度越高权重越大）
-            severity = CATEGORY_SEVERITY.get(fault.fault_category, 'minor')
-            weight = {'critical': 1.0, 'major': 0.7, 'minor': 0.4}.get(severity, 0.3)
-
-            closed_fault_points.append({
-                'lat': lat,
-                'lng': lng,
-                'weight': weight,
-                'category': fault.fault_category or 'unknown',
-            })
-
-        # ── 7. 最近故障事件（用于 Ticker）──
-        recent_faults = OtnFault.objects.select_related(
+        # ── 6. 处理中故障事件（用于底部事件流）──
+        recent_faults = processing_faults_qs.select_related(
             'interruption_location_a'
         ).prefetch_related(
             'interruption_location'
@@ -334,6 +284,57 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
                 'severity': CATEGORY_SEVERITY.get(fault.fault_category, 'minor'),
             })
 
+        # ── 7. 即将到来的割接 ──
+        upcoming_cutovers_qs = CutoverTask.objects.filter(
+            planned_cutover_time__gte=now,
+            planned_cutover_time__lte=cutover_window_end,
+            status__in=[CutoverStatusChoices.APPLYING, CutoverStatusChoices.PENDING_IMPLEMENTATION],
+        ).select_related(
+            'province', 'interruption_location_a'
+        ).prefetch_related(
+            'interruption_location', 'impacts'
+        ).annotate(
+            impact_count=Count('impacts', distinct=True)
+        ).order_by('planned_cutover_time', 'pk')[:20]
+
+        cutovers_data = []
+        for cutover in upcoming_cutovers_qs:
+            z_sites = [s.name for s in cutover.interruption_location.all()]
+            minutes_until = int((cutover.planned_cutover_time - now).total_seconds() // 60)
+            cutovers_data.append({
+                'id': cutover.pk,
+                'cutover_no': cutover.cutover_no,
+                'status': cutover.status,
+                'status_display': cutover.get_status_display() if cutover.status else '',
+                'planned_cutover_time': cutover.planned_cutover_time.isoformat(),
+                'planned_time_display': cutover.planned_cutover_time.strftime('%m-%d %H:%M'),
+                'minutes_until': minutes_until,
+                'province': cutover.province.name if cutover.province else '',
+                'location': cutover.cutover_location,
+                'site_a': cutover.interruption_location_a.name if cutover.interruption_location_a else '',
+                'sites_z': z_sites,
+                'impact_count': getattr(cutover, 'impact_count', 0),
+                'implementation_unit': cutover.implementation_unit,
+                'contact': cutover.cutover_contact,
+                'url': cutover.get_absolute_url(),
+            })
+
+        # ── 8. 重要保障通知（仅文字展示）──
+        active_heavy_duties = HeavyDuty.objects.filter(
+            start_time__lte=now,
+            end_time__gte=now
+        )
+        heavy_duties_data = []
+        for hd in active_heavy_duties:
+            heavy_duties_data.append({
+                'id': hd.pk,
+                'name': hd.name,
+                'description': hd.description,
+                'start_time_display': hd.start_time.strftime('%m月%d日 %H:%M') if hd.start_time else '',
+                'end_time_display': hd.end_time.strftime('%m月%d日 %H:%M') if hd.end_time else '',
+                'url': hd.get_absolute_url(),
+            })
+
         return JsonResponse({
             'timestamp': now.isoformat(),
             'summary': {
@@ -341,17 +342,16 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
                 'active_faults': active_count,
                 'temporary_recovery_faults': temporary_recovery_count,
                 'suspended_faults': suspended_count,
-                'closed_faults': closed_count,
+                'upcoming_cutovers': len(cutovers_data),
+                'active_heavy_duties': len(heavy_duties_data),
                 'health_score': max(0, 100 - active_count * 5),  # 简单健康度公式
             },
             'active_faults': active_faults,
-            'category_stats': category_stats,
-            'status_stats': status_stats,
-            'province_stats': province_stats,
             'trend_24h': trend_data,
             'sites': sites,
             'fault_paths': fault_paths,
             'ticker_events': ticker_events,
-            'closed_fault_points': closed_fault_points,
+            'cutovers': cutovers_data,
+            'heavy_duties': heavy_duties_data,
         }, json_dumps_params={'ensure_ascii': False})
 

@@ -1,4 +1,4 @@
-﻿from django.db import models
+from django.db import models
 from typing import Any
 
 from django.contrib.postgres.fields import ArrayField
@@ -2869,3 +2869,61 @@ class CutoverImpact(NetBoxModel, ImageAttachmentsMixin):
                 'percentage': percentage,
             }
         return None
+
+
+class HeavyDuty(NetBoxModel):
+    """重要保障信息模型"""
+    name = models.CharField(
+        max_length=200,
+        verbose_name='重保标题'
+    )
+    start_time = models.DateTimeField(
+        verbose_name='开始时间'
+    )
+    end_time = models.DateTimeField(
+        verbose_name='结束时间'
+    )
+    description = models.TextField(
+        verbose_name='重保描述/通知'
+    )
+    comments = models.TextField(
+        blank=True,
+        verbose_name='评论'
+    )
+    sites = models.ManyToManyField(
+        to='dcim.Site',
+        blank=True,
+        related_name='heavy_duties',
+        verbose_name='保障站点'
+    )
+    circuit_services = models.ManyToManyField(
+        to='CircuitService',
+        blank=True,
+        related_name='heavy_duties',
+        verbose_name='保障电路'
+    )
+    bare_fiber_services = models.ManyToManyField(
+        to='BareFiberService',
+        blank=True,
+        related_name='heavy_duties',
+        verbose_name='保障裸纤'
+    )
+
+    class Meta:
+        ordering = ('-start_time', '-pk')
+        verbose_name = '重要保障'
+        verbose_name_plural = '重要保障'
+
+    def __str__(self) -> str:
+        return self.name
+
+    def get_absolute_url(self) -> str:
+        return reverse('plugins:netbox_otnfaults:heavyduty', args=[self.pk])
+
+    def clean(self) -> None:
+        super().clean()
+        if self.start_time and self.end_time:
+            if self.end_time < self.start_time:
+                raise ValidationError({
+                    'end_time': '结束时间需晚于开始时间。'
+                })

@@ -12,7 +12,7 @@ from .models import (
     CircuitService, ServiceGroupChoices, BusinessCategoryChoices, ServiceTypeChoices,
     BusinessImpactChoices, CircuitOperationStatusChoices, SLALevelChoices,
     CutoverTask, CutoverImpact, CutoverStatusChoices,
-    CutoverTimeoutStatusChoices, CutoverResultChoices, CutoverManagementUnitChoices
+    CutoverTimeoutStatusChoices, CutoverResultChoices, CutoverManagementUnitChoices, HeavyDuty
 )
 import json
 
@@ -2066,3 +2066,153 @@ class CutoverImpactFilterForm(NetBoxModelFilterSetForm):
         FieldSet('circuit_business_category', 'circuit_service_group', name='电路业务'),
         FieldSet('service_interruption_time_after', 'service_interruption_time_before', 'service_recovery_time', name='时间'),
     )
+
+
+class HeavyDutyForm(NetBoxModelForm):
+    sites = DynamicModelMultipleChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        label='保障站点'
+    )
+    circuit_services = DynamicModelMultipleChoiceField(
+        queryset=CircuitService.objects.all(),
+        required=False,
+        label='保障电路'
+    )
+    bare_fiber_services = DynamicModelMultipleChoiceField(
+        queryset=BareFiberService.objects.all(),
+        required=False,
+        label='保障裸纤'
+    )
+
+    fieldsets = (
+        FieldSet('name', 'start_time', 'end_time', 'description', name='重要保障基本信息'),
+        FieldSet('sites', 'circuit_services', 'bare_fiber_services', name='保障范围'),
+        FieldSet('tags', name='标签'),
+    )
+
+    class Meta:
+        model = HeavyDuty
+        fields = (
+            'name', 'start_time', 'end_time', 'description',
+            'sites', 'circuit_services', 'bare_fiber_services',
+            'comments', 'tags'
+        )
+        widgets = {
+            'start_time': DateTimePicker(),
+            'end_time': DateTimePicker(),
+            'description': forms.Textarea(attrs={'rows': 5}),
+        }
+
+
+class HeavyDutyFilterForm(NetBoxModelFilterSetForm):
+    model = HeavyDuty
+    tag = TagFilterField(HeavyDuty)
+    sites = DynamicModelMultipleChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        label='保障站点'
+    )
+    circuit_services = DynamicModelMultipleChoiceField(
+        queryset=CircuitService.objects.all(),
+        required=False,
+        label='保障电路'
+    )
+    bare_fiber_services = DynamicModelMultipleChoiceField(
+        queryset=BareFiberService.objects.all(),
+        required=False,
+        label='保障裸纤'
+    )
+    start_time_after = forms.DateTimeField(
+        required=False,
+        label='保障开始时间（后）',
+        widget=DateTimePicker()
+    )
+    end_time_before = forms.DateTimeField(
+        required=False,
+        label='保障结束时间（前）',
+        widget=DateTimePicker()
+    )
+
+    fieldsets = (
+        FieldSet('q', 'filter_id', 'tag'),
+        FieldSet('sites', 'circuit_services', 'bare_fiber_services', name='保障范围'),
+        FieldSet('start_time_after', 'end_time_before', name='保障时间'),
+    )
+
+
+class HeavyDutyImportForm(NetBoxModelImportForm):
+    sites = CSVModelMultipleChoiceField(
+        queryset=Site.objects.all(),
+        to_field_name='name',
+        required=False,
+        help_text='保障站点名称，多个以逗号分隔'
+    )
+    circuit_services = CSVModelMultipleChoiceField(
+        queryset=CircuitService.objects.all(),
+        to_field_name='name',
+        required=False,
+        help_text='保障电路名称，多个以逗号分隔'
+    )
+    bare_fiber_services = CSVModelMultipleChoiceField(
+        queryset=BareFiberService.objects.all(),
+        to_field_name='name',
+        required=False,
+        help_text='保障裸纤名称，多个以逗号分隔'
+    )
+
+    class Meta:
+        model = HeavyDuty
+        fields = (
+            'name', 'start_time', 'end_time', 'description',
+            'sites', 'circuit_services', 'bare_fiber_services',
+            'comments', 'tags'
+        )
+
+
+class HeavyDutyBulkEditForm(NetBoxModelBulkEditForm):
+    model = HeavyDuty
+    start_time = forms.DateTimeField(
+        required=False,
+        label='开始时间',
+        widget=DateTimePicker()
+    )
+    end_time = forms.DateTimeField(
+        required=False,
+        label='结束时间',
+        widget=DateTimePicker()
+    )
+    description = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'rows': 5}),
+        label='重保描述/通知'
+    )
+    sites = DynamicModelMultipleChoiceField(
+        queryset=Site.objects.all(),
+        required=False,
+        label='保障站点'
+    )
+    circuit_services = DynamicModelMultipleChoiceField(
+        queryset=CircuitService.objects.all(),
+        required=False,
+        label='保障电路'
+    )
+    bare_fiber_services = DynamicModelMultipleChoiceField(
+        queryset=BareFiberService.objects.all(),
+        required=False,
+        label='保障裸纤'
+    )
+    comments = CommentField(
+        required=False,
+        label='评论'
+    )
+
+    fieldsets = (
+        FieldSet('start_time', 'end_time', 'description', 'comments', name='重保信息'),
+        FieldSet('sites', 'circuit_services', 'bare_fiber_services', name='保障范围'),
+    )
+
+    nullable_fields = (
+        'comments', 'sites', 'circuit_services', 'bare_fiber_services'
+    )
+

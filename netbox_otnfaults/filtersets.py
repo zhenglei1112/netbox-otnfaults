@@ -15,6 +15,7 @@ from .models import (
     PowerRectificationMeasureChoices,
     PowerRootCauseAnalysisChoices,
     RecoveryModeChoices,
+    HeavyDuty,
 )
 
 
@@ -413,3 +414,44 @@ class CutoverImpactFilterSet(NetBoxModelFilterSet):
             | Q(circuit_service__special_line_name__icontains=value)
             | Q(comments__icontains=value)
         )
+
+
+from dcim.models import Site
+
+class HeavyDutyFilterSet(NetBoxModelFilterSet):
+    """重要保障过滤器"""
+    start_time_after = django_filters.DateTimeFilter(
+        field_name='start_time', lookup_expr='gte'
+    )
+    end_time_before = django_filters.DateTimeFilter(
+        field_name='end_time', lookup_expr='lte'
+    )
+    sites = django_filters.ModelMultipleChoiceFilter(
+        queryset=Site.objects.all(),
+        label='保障站点'
+    )
+    circuit_services = django_filters.ModelMultipleChoiceFilter(
+        queryset=CircuitService.objects.all(),
+        label='保障电路'
+    )
+    bare_fiber_services = django_filters.ModelMultipleChoiceFilter(
+        queryset=BareFiberService.objects.all(),
+        label='保障裸纤'
+    )
+
+    class Meta:
+        model = HeavyDuty
+        fields = (
+            'id', 'name', 'start_time_after', 'end_time_before',
+            'sites', 'circuit_services', 'bare_fiber_services',
+        )
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(name__icontains=value)
+            | Q(description__icontains=value)
+            | Q(comments__icontains=value)
+        )
+

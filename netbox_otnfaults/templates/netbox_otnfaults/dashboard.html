@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>中交信通网络运行态势图</title>
-    <meta name="description" content="全国OTN光传送网络运行实时监控与自动化态势展示系统">
+    <meta name="description" content="全国OTN光传送网络运行实时监控与自动化态势展示 system">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,6 +16,7 @@
     <link href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}" rel="stylesheet">
     <script src="{% static 'netbox_otnfaults/lib/maplibre-gl.js' %}"></script>
     <script>
+        window.maplibregl = window.maplibregl || window.mapboxgl;
         window.mapboxgl = window.maplibregl;
     </script>
     <script src="{% static 'netbox_otnfaults/lib/mapbox-gl-framerate.js' %}"></script>
@@ -54,13 +55,13 @@
 
     <!-- ═══ 主体区域 ═══ -->
     <main id="main-content">
-        <!-- 左翼面板 - 宏观态势 -->
+        <!-- 左翼面板 - 运行核心数字 -->
         <aside id="panel-left" class="side-panel">
             <!-- 网络健康度 -->
-            <div class="panel-card" id="health-card">
+            <div class="panel-card" id="situation-metrics-card">
                 <div class="card-header">
                     <span class="card-icon">◈</span>
-                    <span class="card-title">网络健康度</span>
+                    <span class="card-title">实时运行看板</span>
                 </div>
                 <div class="card-body">
                     <div class="health-gauge" id="health-gauge">
@@ -72,68 +73,47 @@
                             <text x="60" y="76" class="gauge-label">健康指数</text>
                         </svg>
                     </div>
-                    <div class="health-stats">
+                    <div class="situation-metrics">
                         <div class="stat-item">
                             <span class="stat-value text-critical" id="stat-active">--</span>
-                            <span class="stat-label">活跃故障</span>
+                            <span class="stat-label">故障处理中</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-value text-normal" id="stat-temp-recovery">--</span>
-                            <span class="stat-label">临时恢复</span>
+                            <span class="stat-value text-major" id="stat-upcoming-cutovers">--</span>
+                            <span class="stat-label">待实施割接</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-value text-minor" id="stat-suspended">--</span>
-                            <span class="stat-label">延后处置</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-value text-normal" id="stat-closed">--</span>
-                            <span class="stat-label">已关闭</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-value text-minor" id="stat-total">--</span>
-                            <span class="stat-label">年度总数</span>
+                            <span class="stat-value text-success" id="stat-active-heavy-duties">--</span>
+                            <span class="stat-label">重保进行中</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 24H趋势 -->
+            <!-- 运行说明 -->
             <div class="panel-card" id="trend-card">
                 <div class="card-header">
                     <span class="card-icon">◈</span>
-                    <span class="card-title">24H 告警趋势</span>
+                    <span class="card-title">24H 故障趋势</span>
                 </div>
                 <div class="card-body">
                     <canvas id="trend-canvas" width="320" height="120"></canvas>
                 </div>
             </div>
 
-            <!-- 故障分类统计 -->
-            <div class="panel-card" id="category-card">
-                <div class="card-header">
-                    <span class="card-icon">◈</span>
-                    <span class="card-title">故障分类统计</span>
-                </div>
-                <div class="card-body">
-                    <div class="bar-chart" id="category-chart"></div>
-                </div>
-            </div>
-
-            <!-- 省份分布 -->
-            <div class="panel-card" id="province-card">
-                <div class="card-header">
-                    <span class="card-icon">◈</span>
-                    <span class="card-title">故障分布</span>
-                </div>
-                <div class="card-body">
-                    <div class="province-list" id="province-list"></div>
-                </div>
-            </div>
         </aside>
 
         <!-- 核心演播区 - 地图 -->
         <div id="map-stage">
             <div id="map-container"></div>
+
+            <!-- 重保通知横幅 -->
+            <div id="heavy-duty-banner" class="heavy-duty-banner hidden">
+                <span class="banner-badge">🛡️ 重保中</span>
+                <div class="banner-marquee">
+                    <span id="heavy-duty-text" class="banner-text"></span>
+                </div>
+            </div>
 
             <!-- 播控状态指示器 -->
             <div id="directing-indicator">
@@ -152,58 +132,30 @@
             </div>
         </div>
 
-        <!-- 右翼面板 - 微观详情 -->
+        <!-- 右翼面板 - 综合事件 -->
         <aside id="panel-right" class="side-panel">
-            <!-- 当前焦点故障 -->
-            <div class="panel-card" id="focus-card">
+            <!-- 综合事件队列 -->
+            <div class="panel-card" id="event-queue-card">
                 <div class="card-header">
                     <span class="card-icon">◈</span>
-                    <span class="card-title">当前焦点故障</span>
-                </div>
-                <div class="card-body" id="focus-content">
-                    <div class="empty-state">
-                        <div class="empty-icon">⊘</div>
-                        <div class="empty-text">等待故障事件...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 受影响业务 -->
-            <div class="panel-card" id="impact-card">
-                <div class="card-header">
-                    <span class="card-icon">◈</span>
-                    <span class="card-title">受影响业务</span>
-                </div>
-                <div class="card-body" id="impact-content">
-                    <div class="empty-state">
-                        <div class="empty-icon">⊘</div>
-                        <div class="empty-text">暂无数据</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 故障时间线 -->
-            <div class="panel-card" id="timeline-card" style="display: none;">
-                <div class="card-header">
-                    <span class="card-icon">◈</span>
-                    <span class="card-title">处理时间线</span>
-                </div>
-                <div class="card-body" id="timeline-content">
-                    <div class="empty-state">
-                        <div class="empty-icon">⊘</div>
-                        <div class="empty-text">暂无数据</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 故障队列 -->
-            <div class="panel-card" id="queue-card">
-                <div class="card-header">
-                    <span class="card-icon">◈</span>
-                    <span class="card-title">故障优先队列</span>
+                    <span class="card-title">综合事件队列</span>
                 </div>
                 <div class="card-body">
-                    <div class="fault-queue" id="fault-queue"></div>
+                    <div class="event-queue" id="event-queue"></div>
+                </div>
+            </div>
+
+            <!-- 焦点事件详情 -->
+            <div class="panel-card" id="event-focus-card">
+                <div class="card-header">
+                    <span class="card-icon">◈</span>
+                    <span class="card-title">焦点详情</span>
+                </div>
+                <div class="card-body" id="event-focus-content">
+                    <div class="empty-state">
+                        <div class="empty-icon">⊘</div>
+                        <div class="empty-text">等待事件数据...</div>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -213,7 +165,7 @@
     <footer id="footer-bar">
         <div class="ticker-container">
             <div class="ticker-label">
-                <span class="ticker-icon">⚡</span> 实时告警
+                <span class="ticker-icon">⚡</span> 运行事件
             </div>
             <div class="ticker-track">
                 <div class="ticker-content" id="ticker-content"></div>

@@ -10,17 +10,17 @@ DASHBOARD_VIEWS_PATH = REPO_ROOT / "netbox_otnfaults" / "dashboard_views.py"
 
 
 class DashboardProvinceScopeTestCase(unittest.TestCase):
-    def test_dashboard_template_labels_province_panel_as_annual_fault_distribution(self) -> None:
+    def test_dashboard_template_removes_province_fault_distribution_panel(self) -> None:
         template = DASHBOARD_TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("故障分布", template)
-        self.assertNotIn("活跃故障分布", template)
+        self.assertNotIn('id="province-card"', template)
+        self.assertNotIn('id="province-list"', template)
 
-    def test_dashboard_views_builds_province_stats_from_annual_faults(self) -> None:
+    def test_dashboard_views_no_longer_builds_province_stats_for_running_board(self) -> None:
         source = DASHBOARD_VIEWS_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("province_stats = list(", source)
-        self.assertIn("all_faults.values('province__name')", source)
+        self.assertNotIn("province_stats = list(", source)
+        self.assertNotIn("all_faults.values('province__name')", source)
         self.assertNotIn("active_faults_qs.values('province__name')", source)
 
 

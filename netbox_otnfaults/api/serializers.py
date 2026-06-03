@@ -4,7 +4,7 @@ from ..models import (
     OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite,
     BareFiberService, CircuitService, OtnMapPreference, PowerRectificationMeasureChoices,
     PowerRootCauseAnalysisChoices,
-    RecoveryModeChoices, CutoverTask, CutoverImpact,
+    RecoveryModeChoices, CutoverTask, CutoverImpact, HeavyDuty,
 )
 from django.contrib.auth import get_user_model
 from dcim.models import Site, Region
@@ -339,3 +339,19 @@ class CutoverImpactSerializer(NetBoxModelSerializer):
             'business_impact', 'service_interruption_time', 'service_recovery_time',
         )
         read_only_fields = ('service_duration',)
+
+
+class HeavyDutySerializer(NetBoxModelSerializer):
+    """重要保障序列化器"""
+    sites = NestedSiteSerializer(many=True, required=False)
+    circuit_services = NestedCircuitServiceSerializer(many=True, required=False)
+    bare_fiber_services = NestedBareFiberServiceSerializer(many=True, required=False)
+
+    class Meta:
+        model = HeavyDuty
+        fields = (
+            'id', 'url', 'display', 'name', 'start_time', 'end_time', 'description',
+            'sites', 'circuit_services', 'bare_fiber_services',
+            'comments', 'tags', 'custom_fields', 'created', 'last_updated',
+        )
+

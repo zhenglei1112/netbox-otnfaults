@@ -72,22 +72,28 @@
      * 处理数据并分发给各模块
      */
     function _processData(data) {
-        // 更新左翼面板
-        Panels.updateOverview(data);
+        // 更新运行看板核心数字
+        Panels.updateSituationMetrics(data.summary || {});
+        Panels.updateTrendChart(data.trend_24h || []);
 
-        // 更新底部 Ticker
-        Panels.updateTicker(data.ticker_events || []);
+        // 更新底部综合事件 Ticker
+        Panels.updateTicker(Panels.buildDashboardEvents(data));
+
+        // 更新顶部重保横幅跑马灯
+        Panels.updateHeavyDuty(data.heavy_duties || []);
 
         // 更新地图图层
         MapEngine.renderSites(data.sites || []);
         MapEngine.renderFaultPaths(data.fault_paths || []);
-        MapEngine.renderHeatmap(data.closed_fault_points || []);
         MapEngine.renderFaultMarkers(data.active_faults || []);
 
         // 更新播控引擎的故障队列
         DirectingEngine.updateFaultQueue(data.active_faults || []);
 
-        // 更新故障队列面板
+        // 更新右侧综合事件队列
+        Panels.updateEventQueue(data);
+
+        // 保持故障播控高亮状态
         var currentState = DirectingEngine.getState();
         var activeFaultId = currentState.fault ? currentState.fault.id : null;
         Panels.updateFaultQueue(data.active_faults || [], activeFaultId);

@@ -8,8 +8,9 @@ from .models import (
     MaintenanceModeChoices, RecoveryModeChoices, ResourceTypeChoices, ResourceOwnerChoices,
     CableRouteChoices, CableBreakLocationChoices, ServiceTypeChoices,
     ServiceGroupChoices, BusinessCategoryChoices, CableTypeChoices,
-    CutoverTask, CutoverImpact
+    CutoverTask, CutoverImpact, HeavyDuty
 )
+from dcim.models import Site
 
 
 def _display_or_empty(value: str | None) -> str:
@@ -1228,6 +1229,68 @@ class CutoverImpactSummaryTable(CutoverImpactTable):
         default_columns = (
             'id', 'service_type', 'service_name',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
-            'business_impact', 'service_site_a', 'service_site_z',
         )
         exclude = ('cutover_task', 'service_group', 'comments', 'tags', 'pk')
+
+
+class HeavyDutyTable(NetBoxTable):
+    """重要保障表格"""
+    name = tables.Column(
+        linkify=True,
+        verbose_name='重保标题'
+    )
+    start_time = tables.DateTimeColumn(
+        format='Y-m-d H:i:s',
+        verbose_name='开始时间'
+    )
+    end_time = tables.DateTimeColumn(
+        format='Y-m-d H:i:s',
+        verbose_name='结束时间'
+    )
+    description = tables.Column(
+        verbose_name='重保描述/通知'
+    )
+    sites = columns.ManyToManyColumn(
+        linkify_item=True,
+        verbose_name='保障站点'
+    )
+    circuit_services = columns.ManyToManyColumn(
+        linkify_item=True,
+        verbose_name='保障电路'
+    )
+    bare_fiber_services = columns.ManyToManyColumn(
+        linkify_item=True,
+        verbose_name='保障裸纤'
+    )
+    actions = columns.ActionsColumn()
+
+    class Meta(NetBoxTable.Meta):
+        model = HeavyDuty
+        fields = (
+            'pk', 'id', 'name', 'start_time', 'end_time', 'description',
+            'sites', 'circuit_services', 'bare_fiber_services', 'actions'
+        )
+        default_columns = (
+            'name', 'start_time', 'end_time', 'description', 'actions'
+        )
+
+
+class HeavyDutySiteTable(NetBoxTable):
+    """重保详情页关联站点的精简表格"""
+    name = tables.Column(
+        linkify=True,
+        verbose_name='站点名称'
+    )
+    region = tables.Column(
+        verbose_name='区域/省份'
+    )
+    status = tables.Column(
+        verbose_name='状态'
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = Site
+        fields = ('pk', 'name', 'region', 'status')
+        default_columns = ('name', 'region', 'status')
+
+

@@ -500,6 +500,7 @@ window.MapEngine = (function () {
         }
 
         _applyFocusedSiteFilter();
+        _applyRegularSiteLabelFilter();
         _applyRegularSiteFilter();
         if (layerAdded) {
             _restackDashboardLayers();
@@ -544,7 +545,6 @@ window.MapEngine = (function () {
 
         if (!focusedSiteIds || focusedSiteIds.length === 0) {
             // 清除所有普通站点层的过滤器
-            if (map.getLayer('sites-label')) map.setFilter('sites-label', null);
             if (map.getLayer('sites-glow'))  map.setFilter('sites-glow', null);
             if (map.getLayer('sites-core'))  map.setFilter('sites-core', null);
             return;
@@ -552,9 +552,20 @@ window.MapEngine = (function () {
 
         // 排除聚焦站点，由 focus 层单独渲染
         var excludeFilter = ['!', ['in', ['get', 'id'], ['literal', focusedSiteIds]]];
-        if (map.getLayer('sites-label')) map.setFilter('sites-label', excludeFilter);
         if (map.getLayer('sites-glow'))  map.setFilter('sites-glow', excludeFilter);
         if (map.getLayer('sites-core'))  map.setFilter('sites-core', excludeFilter);
+    }
+
+    function _applyRegularSiteLabelFilter() {
+        if (!map) return;
+
+        if (!focusedSiteIds || focusedSiteIds.length === 0) {
+            if (map.getLayer('sites-label')) map.setFilter('sites-label', null);
+            return;
+        }
+
+        var excludeFilter = ['!', ['in', ['get', 'id'], ['literal', focusedSiteIds]]];
+        if (map.getLayer('sites-label')) map.setFilter('sites-label', excludeFilter);
     }
 
     function _setRegularSiteLabelCollision(enabled) {
@@ -567,6 +578,7 @@ window.MapEngine = (function () {
     function focusFaultSites(fault) {
         focusedSiteIds = _extractFaultSiteIds(fault);
         _applyFocusedSiteFilter();
+        _applyRegularSiteLabelFilter();
         _applyRegularSiteFilter();
         _setRegularSiteLabelCollision(false);
         // 不再调用 _restackDashboardLayers()：图层顺序仅在首次创建时确定，
@@ -576,6 +588,7 @@ window.MapEngine = (function () {
     function clearFaultSiteFocus() {
         focusedSiteIds = [];
         _applyFocusedSiteFilter();
+        _applyRegularSiteLabelFilter();
         _applyRegularSiteFilter();
         _setRegularSiteLabelCollision(true);
         // 同上，不再重排图层

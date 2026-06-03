@@ -36,6 +36,21 @@ menu = PluginMenu(
                 permissions=['netbox_otnfaults.view_otnfault'],
             ),
         )),
+        ('重要保障', (
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:heavyduty_list',
+                link_text='重要保障',
+                permissions=['netbox_otnfaults.view_heavyduty'],
+                buttons=(
+                    PluginMenuButton(
+                        link='plugins:netbox_otnfaults:heavyduty_add',
+                        title='添加',
+                        icon_class='mdi mdi-plus-thick',
+                        permissions=['netbox_otnfaults.add_heavyduty'],
+                    ),
+                )
+            ),
+        )),
         ('割接', (
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:cutovertask_list',

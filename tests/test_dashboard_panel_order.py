@@ -9,13 +9,17 @@ DASHBOARD_TEMPLATE_PATH = (
 
 
 class DashboardPanelOrderTestCase(unittest.TestCase):
-    def test_trend_panel_appears_before_category_panel(self) -> None:
+    def test_running_board_metrics_and_trend_appear_before_event_queue(self) -> None:
         template = DASHBOARD_TEMPLATE_PATH.read_text(encoding="utf-8")
 
+        metrics_index = template.index('<div class="panel-card" id="situation-metrics-card">')
         trend_index = template.index('<div class="panel-card" id="trend-card">')
-        category_index = template.index('<div class="panel-card" id="category-card">')
+        event_queue_index = template.index('<div class="panel-card" id="event-queue-card">')
 
-        self.assertLess(trend_index, category_index)
+        self.assertLess(metrics_index, trend_index)
+        self.assertLess(trend_index, event_queue_index)
+        self.assertNotIn('id="situation-scope-card"', template)
+        self.assertNotIn('id="category-card"', template)
 
 
 if __name__ == "__main__":

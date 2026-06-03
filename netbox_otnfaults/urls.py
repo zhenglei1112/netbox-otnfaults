@@ -5,6 +5,7 @@ from . import models, views
 from . import dashboard_views
 from . import weekly_report_views
 from . import statistics_views
+
 urlpatterns = [
     # OTN故障 (OtnFault)
     path('faults/', views.OtnFaultListView.as_view(), name='otnfault_list'),
@@ -105,6 +106,16 @@ urlpatterns = [
     path('circuit-services/<int:pk>/delete/', views.CircuitServiceDeleteView.as_view(), name='circuitservice_delete'),
     path('circuit-services/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='circuitservice_changelog', kwargs={'model': models.CircuitService}),
 
+    # 重要保障 (HeavyDuty)
+    path('heavy-duties/', views.HeavyDutyListView.as_view(), name='heavyduty_list'),
+    path('heavy-duties/add/', views.HeavyDutyEditView.as_view(), name='heavyduty_add'),
+    path('heavy-duties/import/', views.HeavyDutyBulkImportView.as_view(), name='heavyduty_bulk_import'),
+    path('heavy-duties/edit/', views.HeavyDutyBulkEditView.as_view(), name='heavyduty_bulk_edit'),
+    path('heavy-duties/bulk-delete/', views.HeavyDutyBulkDeleteView.as_view(), name='heavyduty_bulk_delete'),
+    path('heavy-duties/<int:pk>/', include(get_model_urls('netbox_otnfaults', 'heavyduty'))),
+    path('heavy-duties/<int:pk>/edit/', views.HeavyDutyEditView.as_view(), name='heavyduty_edit'),
+    path('heavy-duties/<int:pk>/delete/', views.HeavyDutyDeleteView.as_view(), name='heavyduty_delete'),
+    path('heavy-duties/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='heavyduty_changelog', kwargs={'model': models.HeavyDuty}),
 
     # OTN线路设计器
     path('route-editor/', views.RouteEditorView.as_view(), name='route_editor'),
@@ -123,6 +134,4 @@ urlpatterns = [
     path('statistics/service-data/', statistics_views.ServiceStatisticsDataAPI.as_view(), name='statistics_service_data'),
     path('statistics/cable-break-map/', views.StatisticsCableBreakMapView.as_view(), name='statistics_cable_break_map'),
     path('statistics/cable-break-map-data/', views.StatisticsCableBreakMapDataAPI.as_view(), name='statistics_cable_break_map_data'),
-
 ]
-

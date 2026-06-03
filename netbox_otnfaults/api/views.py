@@ -14,9 +14,9 @@ from django.db.models import Count, Q
 from datetime import timedelta
 import json
 import logging
-from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, OtnMapPreference, CutoverTask, CutoverImpact
-from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer, BareFiberServiceSerializer, CircuitServiceSerializer, OtnMapPreferenceSerializer, CutoverTaskSerializer, CutoverImpactSerializer
-from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet, OtnMapPreferenceFilterSet, CutoverTaskFilterSet, CutoverImpactFilterSet
+from ..models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, OtnMapPreference, CutoverTask, CutoverImpact, HeavyDuty
+from .serializers import OtnFaultSerializer, OtnFaultImpactSerializer, OtnPathSerializer, OtnPathGroupSerializer, OtnPathGroupSiteSerializer, BareFiberServiceSerializer, CircuitServiceSerializer, OtnMapPreferenceSerializer, CutoverTaskSerializer, CutoverImpactSerializer, HeavyDutySerializer
+from ..filtersets import OtnFaultFilterSet, OtnFaultImpactFilterSet, OtnPathFilterSet, OtnPathGroupFilterSet, BareFiberServiceFilterSet, CircuitServiceFilterSet, OtnMapPreferenceFilterSet, CutoverTaskFilterSet, CutoverImpactFilterSet, HeavyDutyFilterSet
 from ..utils import get_hex_color
 from dcim.models import Site
 from dcim.api.serializers import SiteSerializer
@@ -87,6 +87,13 @@ class CutoverImpactViewSet(NetBoxModelViewSet):
     queryset = CutoverImpact.objects.all()
     serializer_class = CutoverImpactSerializer
     filterset_class = CutoverImpactFilterSet
+
+
+class HeavyDutyViewSet(NetBoxModelViewSet):
+    """重要保障 API ViewSet"""
+    queryset = HeavyDuty.objects.all()
+    serializer_class = HeavyDutySerializer
+    filterset_class = HeavyDutyFilterSet
 
 
 class OtnMapPreferenceViewSet(NetBoxModelViewSet):
