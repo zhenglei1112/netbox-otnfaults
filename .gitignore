@@ -5,6 +5,13 @@ __pycache__/
 *.pyo
 .worktrees/
 .superpowers/
+.tmp_*
+.tmp_test_artifacts/
+.vscode/
+netbox_otnfaults/scratch/
+test_failures.txt
+test_output.log
+tests_statistics_result*.log
 .tmp_test_artifacts/pycache_*/
 
 # Other

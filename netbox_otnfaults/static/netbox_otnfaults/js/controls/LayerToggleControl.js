@@ -65,7 +65,7 @@ class LayerToggleControl {
         ];
 
         // 割接过滤默认状态
-        this.showCutover = false; // 默认不勾选显示割接计划
+        this.showCutover = true; // 默认勾选显示割接计划
         this.cutoverTimeRange = 'all'; // 默认全部时间范围
         this.selectedCutoverStatuses = ['pending_implementation']; // 默认仅勾选“待实施”
     }

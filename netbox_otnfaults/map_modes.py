@@ -29,7 +29,7 @@ MAP_MODES = {
             'services/MapStylePreferenceService.js',
             'services/FaultDataService.js',
             'controls/MapStylePreferenceControl.js',
-            'controls/LayerToggleControl.js?v=cutover-layers-1',
+            'controls/LayerToggleControl.js?v=cutover-default-1',
             'controls/FaultStatisticsControl.js?v=top5-path-reverse-2',
             'controls/FaultLegendControl.js',
             'controls/SearchControl.js'

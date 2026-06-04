@@ -21,7 +21,7 @@ from netbox_otnfaults.models import (
 
 
 def _fault_occurrence_time(cutover: CutoverTask) -> Any:
-    return cutover.started_at or cutover.planned_cutover_time or timezone.now()
+    return cutover.started_at or cutover.planned_cutover_time or timezone.localtime()
 
 
 def _timeout_value(cutover: CutoverTask) -> bool:
