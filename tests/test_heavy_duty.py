@@ -107,17 +107,19 @@ class HeavyDutySourceCodeTestCase(unittest.TestCase):
         self.assertIn("'heavy_duties'", db_views_source)
 
         db_html_source = _read(DASHBOARD_HTML_PATH)
-        self.assertIn('id="heavy-duty-banner"', db_html_source)
+        self.assertIn('id="heavy-duty-bar"', db_html_source)
+        self.assertIn('id="heavy-duty-bar-content"', db_html_source)
 
         db_css_source = _read(DASHBOARD_CSS_PATH)
-        self.assertIn(".heavy-duty-banner", db_css_source)
-        self.assertIn("banner-scroll", db_css_source)
+        self.assertIn(".heavy-duty-bar", db_css_source)
+        self.assertIn(".heavy-duty-carousel", db_css_source)
 
         db_js_panels_source = _read(DASHBOARD_JS_PANELS_PATH)
-        self.assertIn("updateHeavyDuty(heavyDuties)", db_js_panels_source)
+        self.assertIn("updateHeavyDutyBar(heavyDuties)", db_js_panels_source)
+        self.assertIn("heavy-duty-bar-content", db_js_panels_source)
 
         db_js_app_source = _read(DASHBOARD_JS_APP_PATH)
-        self.assertIn("Panels.updateHeavyDuty(data.heavy_duties || [])", db_js_app_source)
+        self.assertIn("Panels.updateHeavyDutyBar(data.heavy_duties || [])", db_js_app_source)
 
 
 if __name__ == "__main__":

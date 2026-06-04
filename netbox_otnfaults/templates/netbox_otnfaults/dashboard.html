@@ -22,6 +22,17 @@
     <script src="{% static 'netbox_otnfaults/lib/mapbox-gl-framerate.js' %}"></script>
     <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
 
+    <!-- 物理分辨率检测（必须在 CSS 之前执行，避免样式闪烁） -->
+    <script>
+        (function() {
+            var dpr = window.devicePixelRatio || 1;
+            var physicalWidth = Math.round(window.screen.width * dpr);
+            if (physicalWidth >= 3000) {
+                document.documentElement.classList.add('screen-4k');
+            }
+        })();
+    </script>
+
     <!-- Dashboard CSS -->
     <link href="{% static 'netbox_otnfaults/css/dashboard.css' %}" rel="stylesheet">
     <!-- Map Controls CSS -->
@@ -118,7 +129,9 @@
                     <span class="card-title">24H 故障趋势</span>
                 </div>
                 <div class="card-body">
-                    <canvas id="trend-canvas" width="320" height="120"></canvas>
+                    <div class="trend-canvas-frame">
+                        <canvas id="trend-canvas" width="320" height="120"></canvas>
+                    </div>
                 </div>
             </div>
 

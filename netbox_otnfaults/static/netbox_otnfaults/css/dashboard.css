@@ -325,6 +325,21 @@ body {
     flex-shrink: 0;
 }
 
+#trend-card .card-body {
+    padding: 10px 12px 12px;
+}
+
+.trend-canvas-frame {
+    width: 100%;
+    aspect-ratio: 8 / 3;
+}
+
+#trend-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
 .situation-metrics {
     display: flex;
     flex-direction: column;
@@ -1974,17 +1989,187 @@ body.layout-no-cutover .heavy-duty-bar {
 }
 
 
-/* ═══ 85寸 4K 屏幕 (宽 >= 2500px) 超大自适应适配 ═══ */
+/* ═══ 85寸 4K 屏幕 超大自适应适配 ═══ */
+/* 优先通过 JS 检测物理分辨率挂载 .screen-4k 类（兼容 Windows 高 DPI 缩放），
+   同时保留 media query 作为无缩放场景的 fallback */
+html.screen-4k,
+@media (min-width: 2500px) { html {} }
+
+/* === 4K 适配变量 === */
+html.screen-4k {
+    /* 面板与间距放大 */
+    --panel-w: 560px;
+    --header-h: 110px;
+    --footer-h: 70px;
+    --card-radius: 12px;
+    --card-gap: 20px;
+
+    /* 自适应字体大小放大 (约 1.8 倍) */
+    --fs-9: 16px;
+    --fs-10: 18px;
+    --fs-11: 20px;
+    --fs-12: 22px;
+    --fs-13: 24px;
+    --fs-14: 26px;
+    --fs-18: 32px;
+    --fs-20: 36px;
+    --fs-22: 40px;
+    --fs-24: 44px;
+    --fs-26: 48px;
+    --fs-28: 52px;
+}
+
+html.screen-4k .heavy-duty-banner {
+    height: 76px;
+    border-radius: 8px;
+    padding: 0 32px;
+    top: 24px;
+    left: 40px;
+    right: 40px;
+}
+html.screen-4k .banner-badge {
+    font-size: 20px;
+    padding: 6px 20px;
+    border-radius: 6px;
+    margin-right: 32px;
+}
+html.screen-4k .banner-text-item {
+    font-size: 22px;
+}
+
+html.screen-4k ::-webkit-scrollbar {
+    width: 6px;
+}
+html.screen-4k ::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+}
+
+html.screen-4k .gauge-svg {
+    width: 220px;
+    height: 220px;
+}
+html.screen-4k .health-gauge {
+    margin-bottom: 20px;
+}
+
+html.screen-4k .situation-metrics {
+    gap: 20px;
+}
+html.screen-4k .situation-metrics .stat-item {
+    padding: 24px 32px;
+    border-radius: 12px;
+    border-width: 2px 2px 2px 8px;
+}
+html.screen-4k .stat-card-left {
+    gap: 24px;
+}
+html.screen-4k .stat-card-right {
+    gap: 8px;
+}
+html.screen-4k .stat-icon-wrapper {
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+    border-width: 2px;
+    box-shadow: 0 0 16px rgba(0, 0, 0, 0.4);
+}
+html.screen-4k .active-faults .stat-icon-wrapper {
+    padding-bottom: 4px;
+}
+html.screen-4k .situation-metrics .stat-value {
+    font-size: 48px;
+}
+html.screen-4k .situation-metrics .stat-unit {
+    font-size: 18px;
+    margin-left: 4px;
+}
+
+html.screen-4k .heavy-duty-bar {
+    padding: 12px 32px;
+    min-height: 64px;
+    border-bottom-width: 2px;
+}
+html.screen-4k .heavy-duty-bar-label {
+    font-size: 20px;
+    padding-right: 24px;
+    margin-right: 24px;
+}
+html.screen-4k .heavy-duty-bar-icon {
+    font-size: 24px;
+}
+html.screen-4k .heavy-duty-quiet-text {
+    font-size: 20px;
+}
+html.screen-4k .heavy-duty-hcard {
+    padding: 6px 20px;
+    border-radius: 8px;
+    font-size: 20px;
+    gap: 16px;
+}
+html.screen-4k .heavy-duty-hcard-name {
+    font-weight: 600;
+}
+html.screen-4k .heavy-duty-hcard-time {
+    font-size: 18px;
+}
+html.screen-4k .heavy-duty-list-item {
+    padding: 4px 16px;
+    font-size: 20px;
+    gap: 12px;
+}
+html.screen-4k .heavy-duty-list-dot {
+    width: 10px;
+    height: 10px;
+}
+html.screen-4k .heavy-duty-carousel-item {
+    font-size: 20px;
+}
+
+html.screen-4k #directing-indicator {
+    top: 90px;
+}
+html.screen-4k body.layout-no-heavy #directing-indicator,
+html.screen-4k body.layout-overview #directing-indicator {
+    top: 24px;
+}
+
+html.screen-4k .cutover-map-marker {
+    width: 60px;
+    height: 60px;
+}
+html.screen-4k .cutover-marker-glow {
+    width: 60px;
+    height: 60px;
+    border-width: 3px;
+}
+html.screen-4k .cutover-marker-core {
+    font-size: 26px;
+}
+
+html.screen-4k .event-item {
+    border-left-width: 6px;
+}
+html.screen-4k .event-item:hover {
+    margin-left: 4px;
+}
+html.screen-4k .event-item.active {
+    border-left-width: 10px !important;
+    margin-left: 12px;
+    box-shadow: 0 0 24px rgba(0, 210, 255, 0.35), inset 0 0 16px rgba(0, 0, 0, 0.25) !important;
+}
+html.screen-4k #event-focus-card {
+    height: 325px !important;
+    flex: 0 0 325px !important;
+}
+
+/* === 4K 适配变量 fallback（无缩放、100% DPI 的 4K 场景） === */
 @media (min-width: 2500px) {
-    :root {
-        /* 面板与间距放大 */
+    html:not(.screen-4k) {
         --panel-w: 560px;
         --header-h: 110px;
         --footer-h: 70px;
         --card-radius: 12px;
         --card-gap: 20px;
-
-        /* 自适应字体大小放大 (约 1.8 倍) */
         --fs-9: 16px;
         --fs-10: 18px;
         --fs-11: 20px;
@@ -1998,162 +2183,17 @@ body.layout-no-cutover .heavy-duty-bar {
         --fs-26: 48px;
         --fs-28: 52px;
     }
-
-    /* 地图容器上方重保横幅高度与字号 */
-    .heavy-duty-banner {
-        height: 76px;
-        border-radius: 8px;
-        padding: 0 32px;
-        top: 24px;
-        left: 40px;
-        right: 40px;
-    }
-    .banner-badge {
-        font-size: 20px;
-        padding: 6px 20px;
-        border-radius: 6px;
-        margin-right: 32px;
-    }
-    .banner-text-item {
-        font-size: 22px;
-    }
-
-    /* 24H 趋势图 Canvas 容器布局微调 */
-    #trend-canvas {
-        height: 220px;
-    }
-
-    /* 滚动条宽度放大以适应大屏幕 */
-    ::-webkit-scrollbar {
-        width: 6px;
-    }
-    ::-webkit-scrollbar-thumb {
-        border-radius: 6px;
-    }
-
-    /* 仪表盘在大屏下等比例放大，其内部文字采用SVG viewBox坐标系绝对像素，会自动跟随SVG完美缩放且永不遮挡 */
-    .gauge-svg {
-        width: 220px;
-        height: 220px;
-    }
-    .health-gauge {
-        margin-bottom: 20px;
-    }
-
-    /* 运行指标卡片在大屏下的尺寸、边距及字号自适应放大 */
-    .situation-metrics {
-        gap: 20px;
-    }
-    .situation-metrics .stat-item {
-        padding: 24px 32px;
-        border-radius: 12px;
-        border-width: 2px 2px 2px 8px;
-    }
-    .stat-card-left {
-        gap: 24px;
-    }
-    .stat-card-right {
-        gap: 8px;
-    }
-    .stat-icon-wrapper {
-        width: 60px;
-        height: 60px;
-        font-size: 28px;
-        border-width: 2px;
-        box-shadow: 0 0 16px rgba(0, 0, 0, 0.4);
-    }
-    .active-faults .stat-icon-wrapper {
-        padding-bottom: 4px;
-    }
-    .situation-metrics .stat-value {
-        font-size: 48px;
-    }
-    .situation-metrics .stat-unit {
-        font-size: 18px;
-        margin-left: 4px;
-    }
-
-    /* 重保通告栏大屏适配 */
-    .heavy-duty-bar {
-        padding: 12px 32px;
-        min-height: 64px;
-        border-bottom-width: 2px;
-    }
-    .heavy-duty-bar-label {
-        font-size: 20px;
-        padding-right: 24px;
-        margin-right: 24px;
-    }
-    .heavy-duty-bar-icon {
-        font-size: 24px;
-    }
-    .heavy-duty-quiet-text {
-        font-size: 20px;
-    }
-    .heavy-duty-hcard {
-        padding: 6px 20px;
-        border-radius: 8px;
-        font-size: 20px;
-        gap: 16px;
-    }
-    .heavy-duty-hcard-name {
-        font-weight: 600;
-    }
-    .heavy-duty-hcard-time {
-        font-size: 18px;
-    }
-    .heavy-duty-list-item {
-        padding: 4px 16px;
-        font-size: 20px;
-        gap: 12px;
-    }
-    .heavy-duty-list-dot {
-        width: 10px;
-        height: 10px;
-    }
-    .heavy-duty-carousel-item {
-        font-size: 20px;
-    }
-
-    /* 播控状态指示器在大屏下适配与避让 */
-    #directing-indicator {
-        top: 90px;
-    }
-    body.layout-no-heavy #directing-indicator,
-    body.layout-overview #directing-indicator {
-        top: 24px;
-    }
-
-    /* 割接地图 HTML 标记在大屏下的自适应 */
-    .cutover-map-marker {
-        width: 60px;
-        height: 60px;
-    }
-    .cutover-marker-glow {
-        width: 60px;
-        height: 60px;
-        border-width: 3px;
-    }
-    .cutover-marker-core {
-        font-size: 26px;
-    }
-
-    /* 大屏下的综合事件队列高亮微调 */
-    .event-item {
-        border-left-width: 6px;
-    }
-    .event-item:hover {
-        margin-left: 4px;
-    }
-    .event-item.active {
-        border-left-width: 10px !important;
-        margin-left: 12px;
-        box-shadow: 0 0 24px rgba(0, 210, 255, 0.35), inset 0 0 16px rgba(0, 0, 0, 0.25) !important;
-    }
-    #event-focus-card {
-        height: 325px !important;
-        flex: 0 0 325px !important;
-    }
+    html:not(.screen-4k) .gauge-svg { width: 220px; height: 220px; }
+    html:not(.screen-4k) .health-gauge { margin-bottom: 20px; }
+    html:not(.screen-4k) .situation-metrics { gap: 20px; }
+    html:not(.screen-4k) .situation-metrics .stat-item { padding: 24px 32px; border-radius: 12px; border-width: 2px 2px 2px 8px; }
+    html:not(.screen-4k) .stat-icon-wrapper { width: 60px; height: 60px; font-size: 28px; }
+    html:not(.screen-4k) .situation-metrics .stat-value { font-size: 48px; }
+    html:not(.screen-4k) .heavy-duty-bar { padding: 12px 32px; min-height: 64px; }
+    html:not(.screen-4k) #directing-indicator { top: 90px; }
+    html:not(.screen-4k) .cutover-map-marker { width: 60px; height: 60px; }
+    html:not(.screen-4k) .event-item { border-left-width: 6px; }
+    html:not(.screen-4k) #event-focus-card { height: 325px !important; flex: 0 0 325px !important; }
 }
 
 /* ── 割接地图 HTML 标记常规屏样式 ── */

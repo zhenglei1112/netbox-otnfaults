@@ -34,6 +34,8 @@ class DashboardSituationBoardTestCase(unittest.TestCase):
         self.assertIn('id="situation-metrics-card"', source)
         self.assertIn('id="stat-upcoming-cutovers"', source)
         self.assertIn('id="stat-active-heavy-duties"', source)
+        self.assertIn('id="heavy-duty-bar"', source)
+        self.assertIn('id="heavy-duty-bar-content"', source)
         self.assertIn('id="trend-card"', source)
         self.assertIn('id="trend-canvas"', source)
         self.assertIn('id="event-queue-card"', source)
@@ -67,7 +69,7 @@ class DashboardSituationBoardTestCase(unittest.TestCase):
         self.assertIn("Panels.updateTrendChart(data.trend_24h || [])", source)
         self.assertIn("Panels.updateEventQueue(data)", source)
         self.assertIn("Panels.updateTicker(Panels.buildDashboardEvents(data))", source)
-        self.assertIn("Panels.updateHeavyDuty(data.heavy_duties || [])", source)
+        self.assertIn("Panels.updateHeavyDutyBar(data.heavy_duties || [])", source)
         self.assertNotIn("MapEngine.renderHeavy", source)
         self.assertNotIn("MapEngine.renderHeatmap", source)
 
@@ -79,6 +81,21 @@ class DashboardSituationBoardTestCase(unittest.TestCase):
         self.assertIn(".event-item--cutover", source)
         self.assertIn(".event-item--heavy_duty", source)
         self.assertIn(".event-item--fault", source)
+
+    def test_trend_chart_uses_responsive_canvas_ratio(self) -> None:
+        template = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
+        css = DASHBOARD_CSS_PATH.read_text(encoding="utf-8")
+        panels_js = DASHBOARD_JS_PANELS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('<div class="trend-canvas-frame">', template)
+        self.assertIn("#trend-card .card-body", css)
+        self.assertIn("#trend-canvas", css)
+        self.assertIn("aspect-ratio: 8 / 3", css)
+        self.assertIn("height: auto", css)
+        self.assertNotIn("#trend-canvas {\n        height: 220px;", css)
+        self.assertIn("var rect = canvas.parentElement.getBoundingClientRect();", panels_js)
+        self.assertIn("canvas.style.width = w + 'px';", panels_js)
+        self.assertIn("canvas.style.height = h + 'px';", panels_js)
 
 
 if __name__ == "__main__":

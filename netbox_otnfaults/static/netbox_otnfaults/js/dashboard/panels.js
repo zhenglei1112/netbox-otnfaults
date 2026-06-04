@@ -409,14 +409,15 @@ window.Panels = (function () {
         var ctx = canvas.getContext('2d');
         
         // 支持高分屏（4K/Retina）和自适应宽度，防止缩放模糊
-        var rect = canvas.getBoundingClientRect();
+        var rect = canvas.parentElement.getBoundingClientRect();
+        var w = Math.max(1, rect.width);
+        var h = Math.max(1, rect.height);
         var dpr = window.devicePixelRatio || 1;
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
         ctx.scale(dpr, dpr);
-
-        var w = rect.width;
-        var h = rect.height;
         // 计算缩放比例因子（以 1080p 下侧边栏默认宽度 320px 为基准）
         var chartScale = Math.max(1, w / 320);
 

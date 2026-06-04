@@ -33,13 +33,14 @@ class DashboardHealthSummaryTestCase(unittest.TestCase):
 
     def test_panels_render_running_board_counts(self) -> None:
         source = PANELS_JS_PATH.read_text(encoding="utf-8")
+        health_gauge_source = source.split("function _updateHealthGauge(summary)", 1)[1].split("function _updateCategoryChart", 1)[0]
 
-        self.assertIn("stat-upcoming-cutovers", source)
-        self.assertIn("summary.upcoming_cutovers", source)
-        self.assertIn("stat-active-heavy-duties", source)
-        self.assertIn("summary.active_heavy_duties", source)
-        self.assertNotIn("summary.temporary_recovery_faults", source)
-        self.assertNotIn("summary.suspended_faults", source)
+        self.assertIn("stat-upcoming-cutovers", health_gauge_source)
+        self.assertIn("summary.upcoming_cutovers", health_gauge_source)
+        self.assertIn("stat-active-heavy-duties", health_gauge_source)
+        self.assertIn("summary.active_heavy_duties", health_gauge_source)
+        self.assertNotIn("summary.temporary_recovery_faults", health_gauge_source)
+        self.assertNotIn("summary.suspended_faults", health_gauge_source)
 
 
 if __name__ == "__main__":

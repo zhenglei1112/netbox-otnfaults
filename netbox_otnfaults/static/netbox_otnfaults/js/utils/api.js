@@ -6,10 +6,9 @@
 const OTNFaultMapAPI = {
     /**
      * 获取 OTN 路径数据
-     * @param {string} apiKey - API 密钥
      * @returns {Promise<Array>} - 路径 GeoJSON 特征数组
      */
-    fetchPaths: function(apiKey) {
+    fetchPaths: function() {
         const headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json'

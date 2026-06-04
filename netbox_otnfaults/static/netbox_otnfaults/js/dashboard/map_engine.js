@@ -15,8 +15,9 @@ window.MapEngine = (function () {
     let focusedSiteIds = [];
 
     const CONFIG = window.DASHBOARD_CONFIG;
-    // 大屏自适应地图标注缩放因子
-    const mapTextScale = window.innerWidth >= 3400 ? 1.8 : (window.innerWidth >= 2000 ? 1.4 : 1.0);
+    // 大屏自适应地图标注缩放因子（基于物理分辨率，兼容 Windows 高 DPI 缩放）
+    const _physicalWidth = Math.round(window.screen.width * (window.devicePixelRatio || 1));
+    const mapTextScale = _physicalWidth >= 3400 ? 1.8 : (_physicalWidth >= 2000 ? 1.4 : 1.0);
     const SITE_LABEL_MIN_ZOOM = 6;
 
     const DASHBOARD_LAYER_STACK = [

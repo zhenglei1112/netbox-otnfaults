@@ -107,7 +107,7 @@ class FaultStatisticsControlPathMatchingTestCase(unittest.TestCase):
             }};
             vm.runInNewContext(source, sandbox);
 
-            sandbox.window.OTNFaultMapAPI.fetchPaths('token').then((paths) => {{
+            sandbox.window.OTNFaultMapAPI.fetchPaths().then((paths) => {{
               if (calls.length !== 2) {{
                 throw new Error(`expected two paginated fetches, got ${{calls.length}}`);
               }}
@@ -131,7 +131,7 @@ class FaultStatisticsControlPathMatchingTestCase(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_path_metadata_fetch_prefers_api_token_when_csrf_exists(self) -> None:
+    def test_path_metadata_fetch_uses_session_csrf_without_authorization_token(self) -> None:
         script = textwrap.dedent(
             f"""
             const fs = require('fs');
@@ -153,9 +153,9 @@ class FaultStatisticsControlPathMatchingTestCase(unittest.TestCase):
             }};
             vm.runInNewContext(source, sandbox);
 
-            sandbox.window.OTNFaultMapAPI.fetchPaths('netbox-api-token').then(() => {{
-              if (requestHeaders.Authorization !== 'Token netbox-api-token') {{
-                throw new Error(`expected Authorization token header, got ${{requestHeaders.Authorization}}`);
+            sandbox.window.OTNFaultMapAPI.fetchPaths('map-provider-public-key').then(() => {{
+              if (requestHeaders.Authorization !== undefined) {{
+                throw new Error(`expected no Authorization token header, got ${{requestHeaders.Authorization}}`);
               }}
               if (requestHeaders['X-CSRFToken'] !== 'csrf-from-cookie') {{
                 throw new Error(`expected CSRF header from cookie, got ${{requestHeaders['X-CSRFToken']}}`);

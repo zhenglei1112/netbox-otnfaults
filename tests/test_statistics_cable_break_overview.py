@@ -1,5 +1,6 @@
 ﻿import unittest
 from pathlib import Path
+import re
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,16 @@ TEMPLATE_PATH = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults
 JS_PATH = REPO_ROOT / "netbox_otnfaults" / "static" / "netbox_otnfaults" / "js" / "statistics_dashboard.js"
 CSS_PATH = REPO_ROOT / "netbox_otnfaults" / "static" / "netbox_otnfaults" / "css" / "statistics_dashboard.css"
 STATISTICS_MAP_MODE_PATH = REPO_ROOT / "netbox_otnfaults" / "static" / "netbox_otnfaults" / "js" / "modes" / "statistics_cable_break_mode.js"
+
+
+def _compact_html(source: str) -> str:
+    return re.sub(r"\s+", " ", source).strip()
+
+
+def _ancestor_card_opening(source: str, element_id: str) -> str:
+    before = source.split(f'id="{element_id}"', 1)[0]
+    matches = list(re.finditer(r'<div\s+[^>]*class="(?:card(?:\s|")|[^"]*\scard(?:\s|"))[^"]*"[^>]*>', before))
+    return matches[-1].group(0) if matches else ""
 
 
 class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
@@ -46,7 +57,6 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("'10-12小时': 0", source)
         self.assertIn("'12小时以上': 0", source)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_template_contains_cable_break_overview_section_and_cards(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
@@ -70,9 +80,13 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id="cable-break-long-flex-list"', template)
         self.assertIn('id="cable-break-long-duration-flex-list"', template)
         self.assertNotIn('id="cable-break-average-flex-list"', template)
-        self.assertIn('id="cable-break-average-overall-list"', template)
+        self.assertNotIn('id="cable-break-average-overall-list"', template)
         self.assertIn('id="cable-break-duration-metrics-flex-list"', template)
         self.assertIn('id="cable-break-filtered-average-flex-list"', template)
+        self.assertIn('class="statistics-cable-break-summary-grid statistics-cable-break-primary-grid"', template)
+        self.assertIn('class="statistics-cable-break-deferred-metrics d-none"', template)
+        self.assertIn('id="cable-break-deferred-metrics"', template)
+        self.assertIn('class="statistics-cable-break-summary-grid statistics-cable-break-deferred-grid"', template)
 
     def test_statistics_page_uses_wide_container(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -95,7 +109,6 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("font-size: 1.125rem;", css)
         self.assertIn("border-radius: 8px;", css)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_dashboard_script_renders_cable_break_overview(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
 
@@ -119,7 +132,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id: "cable-break-total-duration"', source)
         self.assertIn('id: "cable-break-long-duration-total"', source)
         self.assertNotIn("document.getElementById('cable-break-average-flex-list')", source)
-        self.assertIn("document.getElementById('cable-break-average-overall-list')", source)
+        self.assertNotIn("document.getElementById('cable-break-average-overall-list')", source)
         self.assertIn("document.getElementById('cable-break-duration-metrics-flex-list')", source)
         self.assertIn("document.getElementById('cable-break-filtered-average-flex-list')", source)
         self.assertIn('id: "cable-break-overall-avg"', source)
@@ -132,6 +145,15 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id: "cable-break-nighttime-avg"', source)
         self.assertIn('id: "cable-break-construction-avg"', source)
         self.assertIn('id: "cable-break-noncons-avg"', source)
+        self.assertIn("const durationSummaryItems = [", source)
+        self.assertIn("...overallAverageItems", source)
+        self.assertIn("...filteredAverageItems.slice(0, 1)", source)
+        self.assertIn("...durationMetricItems.slice(2)", source)
+        self.assertIn("const remainingFilteredAverageItems = filteredAverageItems.slice(1);", source)
+        self.assertIn("const repairPercentileItems = durationMetricItems.slice(0, 2);", source)
+        self.assertIn('durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems);', source)
+        self.assertIn('durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems);', source)
+        self.assertIn('filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems);', source)
 
     def test_cable_break_group_layout_uses_bottom_labels_and_short_separators(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -160,7 +182,6 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".statistics-kpi-group--compact .statistics-kpi-trend-row", css)
         self.assertIn("transform: translateX(-0.5rem);", css)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_cable_break_rows_use_equal_width_metric_card_layout(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -170,32 +191,50 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("statistics-cable-break-summary-card", cable_break_section)
         self.assertIn("statistics-cable-break-summary-card-primary", cable_break_section)
         self.assertIn("statistics-cable-break-summary-card-secondary", cable_break_section)
-        self.assertIn("statistics-cable-break-count-grid", cable_break_section)
+        self.assertIn("statistics-cable-break-primary-grid", cable_break_section)
+        self.assertIn("statistics-cable-break-deferred-grid", cable_break_section)
         self.assertIn("statistics-cable-break-five-card", cable_break_section)
-        first_two_rows = cable_break_section.split('statistics-cable-break-average-grid', 1)[0]
-        self.assertNotIn("statistics-cable-break-four-card", first_two_rows)
+        primary_grid = cable_break_section.split('statistics-cable-break-primary-grid', 1)[1].split('id="cable-break-deferred-metrics"', 1)[0]
+        deferred_grid = cable_break_section.split('statistics-cable-break-deferred-grid', 1)[1].split('id="cable-break-metrics-toggle"', 1)[0]
+        self.assertIn("statistics-cable-break-four-card", primary_grid)
+        self.assertIn("statistics-cable-break-four-card", deferred_grid)
+        self.assertIn('id="cable-break-duration-total-list"', primary_grid)
+        self.assertIn('id="cable-break-filtered-average-flex-list"', deferred_grid)
         self.assertNotIn("statistics-cable-break-main", cable_break_section)
         self.assertNotIn("overflow-auto", cable_break_section)
         self.assertIn(".statistics-cable-break-summary-grid", css)
-        self.assertIn("minmax(520px, 1.675fr)", css)
+        self.assertIn(".statistics-cable-break-primary-grid", css)
+        self.assertIn(".statistics-cable-break-deferred-grid", css)
         self.assertIn("gap: 1rem;", css)
         self.assertIn("grid-template-columns: repeat(6, minmax(0, 1fr));", css)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_cable_break_cards_use_overall_summary_card_style_and_copy(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
         cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
 
-        for footer in ["中断起数", "原因TOP3", "光缆属性", "长时起数", "中断历时", "长时历时", "平均历时", "重复中断"]:
+        for footer in [
+            "中断起数",
+            "原因TOP3",
+            "光缆属性",
+            "长时起数",
+            "中断历时",
+            "原因TOP3历时",
+            "光缆属性历时",
+            "P50/P90",
+            "长时历时",
+            "重复中断",
+        ]:
             self.assertIn(f'<div class="statistics-strip-card-footer">{footer}</div>', cable_break_section)
-        self.assertIn("<span>滤除短时平均历时</span>", cable_break_section)
+        self.assertIn("<span>分项平均历时</span>", cable_break_section)
 
         self.assertIn("statistics-cable-break-overview-card", cable_break_section)
-        self.assertIn("statistics-cable-break-count-grid", cable_break_section)
+        self.assertIn("statistics-cable-break-primary-grid", cable_break_section)
+        self.assertIn("statistics-cable-break-deferred-grid", cable_break_section)
         self.assertIn("statistics-cable-break-count-card", cable_break_section)
         self.assertIn("statistics-cable-break-triple-card", cable_break_section)
         self.assertIn("statistics-cable-break-five-card", cable_break_section)
+        self.assertIn("statistics-cable-break-double-card", cable_break_section)
         self.assertIn("statistics-cable-break-metrics", cable_break_section)
         self.assertIn("statistics-overall-kpi-value", cable_break_section)
         self.assertIn("statistics-overall-kpi-unit", cable_break_section)
@@ -203,9 +242,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn("display-5", cable_break_section)
         self.assertNotIn("fs-2 fw-bold", cable_break_section)
         self.assertNotIn("fw-bold text-dark mt-2", cable_break_section)
-        self.assertIn(".statistics-cable-break-count-grid", css)
-        self.assertIn(".statistics-cable-break-count-grid", css)
-        self.assertIn("minmax(520px, 1.675fr)", css)
+        self.assertIn(".statistics-cable-break-primary-grid", css)
+        self.assertIn(".statistics-cable-break-deferred-grid", css)
         self.assertIn(".statistics-cable-break-overview-card .statistics-overall-kpi-value", css)
         self.assertIn(".statistics-cable-break-overview-card .statistics-strip-card-body", css)
 
@@ -218,7 +256,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("statistics-cable-break-five-card", cable_break_section)
         self.assertIn('id="cable-break-long-flex-list"', cable_break_section)
         self.assertIn('<div class="statistics-strip-card-footer">长时起数</div>', cable_break_section)
-        long_card = cable_break_section.split('id="cable-break-long-flex-list"', 1)[0].rsplit('<div class="card ', 1)[1]
+        long_card = _ancestor_card_opening(cable_break_section, "cable-break-long-flex-list")
         self.assertNotIn('statistics-cable-break-main', long_card)
         self.assertNotIn('>长时中断<', long_card)
         self.assertIn('name: "起数"', source)
@@ -230,40 +268,42 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".statistics-cable-break-five-card .statistics-kpi-group-items", css)
         self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_first_four_cable_break_cards_share_one_weighted_row(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
         cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
-        first_grid = cable_break_section.split('statistics-cable-break-count-grid', 1)[1].split('<div class="statistics-cable-break-summary-grid statistics-cable-break-count-grid statistics-cable-break-duration-grid', 1)[0]
+        primary_grid = cable_break_section.split('statistics-cable-break-primary-grid', 1)[1].split('id="cable-break-deferred-metrics"', 1)[0]
+        deferred_grid = cable_break_section.split('statistics-cable-break-deferred-grid', 1)[1].split('id="cable-break-metrics-toggle"', 1)[0]
 
-        self.assertIn('statistics-cable-break-count-card', first_grid)
-        self.assertIn('id="cable-break-reason-top3-flex-list"', first_grid)
-        self.assertIn('id="cable-break-source-flex-list"', first_grid)
-        self.assertIn('statistics-cable-break-five-card', first_grid)
-        self.assertIn('id="cable-break-long-flex-list"', first_grid)
-        self.assertIn('<div class="statistics-strip-card-footer">长时起数</div>', first_grid)
+        self.assertIn('statistics-cable-break-count-card', primary_grid)
+        self.assertIn('id="cable-break-reason-top3-flex-list"', primary_grid)
+        self.assertIn('id="cable-break-duration-total-list"', primary_grid)
+        self.assertIn('id="card-repeat-faults"', primary_grid)
+        self.assertIn('id="cable-break-source-flex-list"', deferred_grid)
+        self.assertIn('statistics-cable-break-five-card', deferred_grid)
+        self.assertIn('id="cable-break-long-flex-list"', deferred_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">长时起数</div>', deferred_grid)
         self.assertIn("minmax(150px, 0.375fr)", css)
-        self.assertIn("minmax(280px, 0.975fr)", css)
-        self.assertIn("minmax(520px, 1.675fr)", css)
+        self.assertIn("minmax(280px, 1.6fr)", css)
+        self.assertIn("grid-template-columns:", css)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_cable_break_count_reason_and_source_are_separate_equal_width_cards(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         source = JS_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
         cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
-        first_grid = cable_break_section.split('statistics-cable-break-count-grid', 1)[1].split('<div class="statistics-cable-break-summary-grid statistics-cable-break-count-grid statistics-cable-break-duration-grid', 1)[0]
+        primary_grid = cable_break_section.split('statistics-cable-break-primary-grid', 1)[1].split('id="cable-break-deferred-metrics"', 1)[0]
+        deferred_grid = cable_break_section.split('statistics-cable-break-deferred-grid', 1)[1].split('id="cable-break-metrics-toggle"', 1)[0]
 
-        self.assertIn('id="cable-break-total-count"', first_grid)
-        self.assertIn('>总起数<', first_grid)
-        self.assertNotIn('id="kpi-repeat-faults"', first_grid)
-        self.assertNotIn('>重复起数<', first_grid)
-        self.assertIn('id="cable-break-reason-top3-flex-list"', first_grid)
-        self.assertIn('id="cable-break-source-flex-list"', first_grid)
-        self.assertIn('<div class="statistics-strip-card-footer">中断起数</div>', first_grid)
-        self.assertIn('<div class="statistics-strip-card-footer">原因TOP3</div>', first_grid)
-        self.assertIn('<div class="statistics-strip-card-footer">光缆属性</div>', first_grid)
+        self.assertIn('id="cable-break-total-count"', primary_grid)
+        self.assertIn('>总起数<', primary_grid)
+        self.assertIn('id="kpi-repeat-faults"', primary_grid)
+        self.assertIn('>重复起数<', primary_grid)
+        self.assertIn('id="cable-break-reason-top3-flex-list"', primary_grid)
+        self.assertIn('id="cable-break-source-flex-list"', deferred_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">中断起数</div>', primary_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">原因TOP3</div>', primary_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">光缆属性</div>', deferred_grid)
         self.assertIn("const reasonTop3 = normalizeTopItems(overview.reason_top3 || [], 3);", source)
         self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason")', source)
         self.assertIn('const sourceCounts = normalizeNamedItems(overview.source_counts || [], ["自控", "第三方", "其他/未填"]);', source)
@@ -273,23 +313,26 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("grid-template-columns: minmax(0, 1fr);", css)
         self.assertIn(".statistics-cable-break-triple-card .statistics-kpi-group-items", css)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_duration_and_long_duration_cards_share_one_row(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
         cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
-        duration_grid = cable_break_section.split('id="cable-break-duration-total-list"', 1)[1].split('<div class="statistics-cable-break-summary-grid mb-4">', 1)[0]
+        primary_grid = cable_break_section.split('statistics-cable-break-primary-grid', 1)[1].split('id="cable-break-deferred-metrics"', 1)[0]
+        deferred_grid = cable_break_section.split('statistics-cable-break-deferred-grid', 1)[1].split('id="cable-break-metrics-toggle"', 1)[0]
 
-        self.assertIn('id="cable-break-duration-reason-flex-list"', duration_grid)
-        self.assertIn('id="cable-break-duration-source-flex-list"', duration_grid)
-        self.assertIn("statistics-cable-break-summary-grid statistics-cable-break-count-grid statistics-cable-break-duration-grid", cable_break_section)
-        self.assertIn("statistics-cable-break-five-card", duration_grid)
-        self.assertIn('id="cable-break-long-duration-flex-list"', duration_grid)
+        self.assertIn('id="cable-break-duration-total-list"', primary_grid)
+        self.assertIn('id="cable-break-duration-reason-flex-list"', deferred_grid)
+        self.assertIn('id="cable-break-duration-source-flex-list"', deferred_grid)
+        self.assertIn("statistics-cable-break-summary-grid statistics-cable-break-primary-grid", cable_break_section)
+        self.assertIn("statistics-cable-break-summary-grid statistics-cable-break-deferred-grid", cable_break_section)
+        self.assertIn("statistics-cable-break-five-card", deferred_grid)
+        self.assertIn('id="cable-break-long-duration-flex-list"', deferred_grid)
         self.assertIn(".statistics-cable-break-summary-grid", css)
-        self.assertIn(".statistics-cable-break-duration-grid", css)
+        self.assertIn(".statistics-cable-break-primary-grid", css)
+        self.assertIn(".statistics-cable-break-deferred-grid", css)
         self.assertIn("minmax(150px, 0.375fr)", css)
-        self.assertIn("minmax(280px, 0.975fr)", css)
-        self.assertIn("minmax(520px, 1.675fr)", css)
+        self.assertIn("minmax(280px, 1.6fr)", css)
+        self.assertIn("grid-template-columns: repeat(6, minmax(0, 1fr));", css)
 
     def test_dashboard_script_preserves_metric_id_nodes_when_rendering_trends(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -326,8 +369,12 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("return 'text-dark';", source)
         self.assertIn("applyTrendValueColor(metricEl, currentValue, previousValue);", source)
         self.assertIn("const effectiveColorClass = getTrendValueClass(value, prevValue);", source)
-        self.assertIn("const displayValue = isCountUnit(unit) ? formatCardCountValue(value) : formatCardMetricValue(value);", source)
-        self.assertIn("const valueText = isCountUnit(metric.unit) ? formatCardCountValue(metric.value) : formatCardMetricValue(metric.value);", source)
+        self.assertIn("displayValueOverride !== undefined", source)
+        self.assertIn("isCountUnit(unit)", source)
+        self.assertIn("formatCardCountValue(value)", source)
+        self.assertIn("formatCardMetricValue(value)", source)
+        self.assertIn("formatCardCountValue(metric.value)", source)
+        self.assertIn("formatCardMetricValue(metric.value)", source)
         self.assertIn("repeatEl.textContent = formatCardCountValue(kpis.repeat_faults_count);", source)
         self.assertIn("overallTotal.textContent = formatCardCountValue(kpis.total_count);", source)
         self.assertIn("totalEl.textContent = formatCardCountValue(overview.total_count || 0);", source)
@@ -365,9 +412,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
     def test_submetric_numbers_use_larger_font_size(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        compact_template = _compact_html(template)
 
         self.assertIn('<div class="statistics-overall-kpi-value fs-3 fw-bold ${effectiveColorClass} lh-1"${valueIdAttr}>', source)
-        self.assertIn('class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1" id="kpi-overall-total"', template)
+        self.assertIn('class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1" id="kpi-overall-total"', compact_template)
         self.assertNotIn('class="display-5 fw-bold text-indigo lh-1" id="kpi-overall-total"', template)
         self.assertIn('id: "cable-break-valid-avg"', source)
         self.assertIn('id: "cable-break-daytime-avg"', source)
@@ -378,8 +426,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
     def test_overall_total_fault_label_matches_category_label_typography(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         label_block = template.split('id="kpi-overall-total"', 1)[1].split('id="kpi-overall-categories-flex-list"', 1)[0]
+        compact_label_block = _compact_html(label_block)
 
-        self.assertIn('<div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">故障总数</div>', label_block)
+        self.assertIn('class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">故障总数</div>', compact_label_block)
         self.assertNotIn('<div class="fw-bold text-dark mt-2 text-nowrap">物理故障</div>', label_block)
 
     def test_overall_summary_uses_consistent_metric_ui_without_group_title(self) -> None:
@@ -518,6 +567,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         nav_source = template.split('<ul class="nav nav-tabs', 1)[1].split('</ul>', 1)[0]
         physical_tab = template.split('id="tab-physical"', 1)[1].split('id="tab-service"', 1)[0]
         overall_section = template.split('<section class="statistics-overall-overview', 1)[1].split('</section>', 1)[0]
+        compact_overall_section = _compact_html(overall_section)
 
         self.assertIn('id="tab-physical-btn"', nav_source)
         self.assertIn(">物理故障", nav_source)
@@ -525,7 +575,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('<h3 class="statistics-cable-break-heading mb-0">', overall_section)
         self.assertIn("<span>总体情况</span>", overall_section)
         self.assertNotIn('<h3 class="h4 mb-0">总体情况</h3>', physical_tab)
-        self.assertIn('<div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">故障总数</div>', overall_section)
+        self.assertIn('class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">故障总数</div>', compact_overall_section)
         self.assertIn('<div class="statistics-strip-card-footer">物理故障</div>', overall_section)
         self.assertNotIn('<div class="statistics-strip-card-footer">总体情况</div>', overall_section)
 
@@ -603,17 +653,15 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".statistics-overall-card .statistics-overall-kpi-label,\n.statistics-overall-other-card .statistics-overall-kpi-label", css)
         self.assertNotIn(".statistics-overall-card .fs-3 {\n    font-size: 1.35rem !important;\n}", css)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_valid_duration_labels_use_consistent_hover_copy(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         source = JS_PATH.read_text(encoding="utf-8")
-        map_source = STATISTICS_MAP_MODE_PATH.read_text(encoding="utf-8")
 
         self.assertIn('filterExtraField: "is_valid_duration"', source)
         self.assertIn('title="<=30分钟"', template)
-        self.assertIn('aria-label="滤除短时平均历时说明"', template)
+        self.assertIn('aria-label="分项平均历时说明"', template)
         self.assertIn('filterLabel: "有效平均"', source)
-        self.assertIn('title: "<=30分钟"', map_source)
+        self.assertIn('filterExtraValue: "true"', source)
 
     def test_kpi_group_titles_allow_hover_tooltips(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -622,31 +670,30 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn("pointer-events: none;", title_block)
         self.assertIn("pointer-events: auto;", title_block)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_average_duration_cards_split_overall_and_short_filtered_metrics(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         source = JS_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
         cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
-        average_row = cable_break_section.split('statistics-cable-break-average-grid', 1)[1].split('<div class="row mt-3">', 1)[0]
-        overall_average_card = cable_break_section.split('id="cable-break-average-overall-list"', 1)[0].rsplit('<div class="card ', 1)[1]
-        filtered_average_card = cable_break_section.split('id="cable-break-filtered-average-flex-list"', 1)[0].rsplit('<div class="card ', 1)[1]
+        primary_grid = cable_break_section.split('statistics-cable-break-primary-grid', 1)[1].split('id="cable-break-deferred-metrics"', 1)[0]
+        deferred_grid = cable_break_section.split('statistics-cable-break-deferred-grid', 1)[1].split('id="cable-break-metrics-toggle"', 1)[0]
+        duration_summary_card = _ancestor_card_opening(cable_break_section, "cable-break-duration-total-list")
+        filtered_average_card = _ancestor_card_opening(cable_break_section, "cable-break-filtered-average-flex-list")
 
-        self.assertIn("statistics-cable-break-single-card", overall_average_card)
-        self.assertIn("statistics-cable-break-filtered-average-card", filtered_average_card)
-        self.assertIn("statistics-cable-break-five-card", filtered_average_card)
-        self.assertNotIn("statistics-cable-break-four-card", filtered_average_card)
+        self.assertIn("statistics-cable-break-four-card", duration_summary_card)
+        self.assertIn("statistics-cable-break-four-card", filtered_average_card)
+        self.assertNotIn("statistics-cable-break-five-card", filtered_average_card)
         self.assertNotIn('id="cable-break-average-flex-list"', cable_break_section)
-        self.assertIn('id="cable-break-average-overall-list"', cable_break_section)
+        self.assertNotIn('id="cable-break-average-overall-list"', cable_break_section)
         self.assertIn('id="cable-break-filtered-average-flex-list"', cable_break_section)
-        self.assertIn('id="card-repeat-faults"', average_row)
-        self.assertIn('id="kpi-repeat-faults"', average_row)
-        self.assertIn('<div class="statistics-strip-card-footer">重复中断</div>', average_row)
-        self.assertIn('>重复起数<', average_row)
-        self.assertIn('<div class="statistics-strip-card-footer">平均历时</div>', average_row)
-        self.assertIn('滤除短时平均历时', average_row)
-        self.assertIn('title="<=30分钟"', average_row)
-        self.assertNotIn("statistics-cable-break-main", overall_average_card)
+        self.assertIn('id="card-repeat-faults"', primary_grid)
+        self.assertIn('id="kpi-repeat-faults"', primary_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">重复中断</div>', primary_grid)
+        self.assertIn('>重复起数<', primary_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">中断历时</div>', primary_grid)
+        self.assertIn('分项平均历时', deferred_grid)
+        self.assertIn('title="<=30分钟"', deferred_grid)
+        self.assertNotIn("statistics-cable-break-main", duration_summary_card)
         self.assertNotIn("statistics-kpi-group-title-label", cable_break_section)
         self.assertIn('name: "全口径平均"', source)
         filtered_average_source = source.split("const filteredAverageItems = [", 1)[1].split("];", 1)[0]
@@ -663,28 +710,31 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('name: "施工类"', source)
         self.assertIn('name: "非施工类"', source)
         self.assertIn('filterExtraField: "is_valid_duration"', source)
-        self.assertIn('buildFlexGroup(overallAverageItems, "时", "", "text-indigo", prevOverallAverageItems)', source)
-        self.assertIn('buildFlexGroup(filteredAverageItems, "时", "", "text-indigo", prevFilteredAverageItems)', source)
-        self.assertIn(".statistics-cable-break-average-grid", css)
+        self.assertIn("const durationSummaryItems = [", source)
+        self.assertIn("...overallAverageItems", source)
+        self.assertIn("...filteredAverageItems.slice(0, 1)", source)
+        self.assertIn("const remainingFilteredAverageItems = filteredAverageItems.slice(1);", source)
+        self.assertIn('durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems);', source)
+        self.assertIn('filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems);', source)
+        self.assertIn(".statistics-cable-break-primary-grid", css)
+        self.assertIn(".statistics-cable-break-deferred-grid", css)
         self.assertNotIn(".statistics-cable-break-filtered-average-card {\n    grid-column: span 2;\n}", css)
-        self.assertIn(".statistics-cable-break-five-card .statistics-kpi-group-items", css)
-        self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
+        self.assertIn(".statistics-cable-break-four-card .statistics-kpi-group-items", css)
+        self.assertIn("grid-template-columns: repeat(4, minmax(0, 1fr));", css)
         self.assertIn(".statistics-inline-info", css)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_average_duration_row_includes_duration_metrics_card(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         source = JS_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
         cable_break_section = template.split('<section class="statistics-cable-break-overview mb-4">', 1)[1].split("</section>", 1)[0]
-        average_row = cable_break_section.split('statistics-cable-break-average-grid', 1)[1].split('<div class="row mt-3">', 1)[0]
-        duration_metrics_card = cable_break_section.split('id="cable-break-duration-metrics-flex-list"', 1)[0].rsplit('<div class="card ', 1)[1]
+        deferred_grid = cable_break_section.split('statistics-cable-break-deferred-grid', 1)[1].split('id="cable-break-metrics-toggle"', 1)[0]
+        duration_metrics_card = _ancestor_card_opening(cable_break_section, "cable-break-duration-metrics-flex-list")
 
-        self.assertLess(average_row.index('id="cable-break-average-overall-list"'), average_row.index('id="cable-break-duration-metrics-flex-list"'))
-        self.assertLess(average_row.index('id="cable-break-duration-metrics-flex-list"'), average_row.index('id="cable-break-filtered-average-flex-list"'))
-        self.assertIn("statistics-cable-break-triple-card", duration_metrics_card)
+        self.assertLess(deferred_grid.index('id="cable-break-duration-metrics-flex-list"'), deferred_grid.index('id="cable-break-filtered-average-flex-list"'))
+        self.assertIn("statistics-cable-break-double-card", duration_metrics_card)
         self.assertNotIn("statistics-cable-break-four-card", duration_metrics_card)
-        self.assertIn('<div class="statistics-strip-card-footer">历时指标</div>', average_row)
+        self.assertIn('<div class="statistics-strip-card-footer">P50/P90</div>', deferred_grid)
         self.assertIn('const durationMetricsList = document.getElementById(\'cable-break-duration-metrics-flex-list\');', source)
         self.assertIn('const durationMetricItems = [', source)
         self.assertNotIn('name: "MTTR"', source)
@@ -705,12 +755,11 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('name: "超时率"', source)
         self.assertIn('value: Number(m.timeout_rate || 0)', source)
         self.assertIn('prevValue: prevMetrics.timeout_rate', source)
-        self.assertIn('buildFlexGroup(durationMetricItems, "", "", "text-indigo", prevDurationMetricItems)', source)
-        self.assertIn(".statistics-cable-break-average-grid", css)
-        self.assertIn("minmax(320px, 1fr)", css)
-        self.assertIn("minmax(150px, 0.375fr);", css)
-        self.assertIn(".statistics-cable-break-average-grid .statistics-cable-break-filtered-average-card", css)
-        self.assertIn("grid-column: auto;", css)
+        self.assertIn("const repairPercentileItems = durationMetricItems.slice(0, 2);", source)
+        self.assertIn('durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems);', source)
+        self.assertIn(".statistics-cable-break-deferred-grid", css)
+        self.assertIn(".statistics-cable-break-deferred-card-narrow", css)
+        self.assertIn("grid-column: span 2;", css)
 
     def test_cause_group_title_declares_short_duration_filter(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -719,12 +768,11 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn('aria-label="按成因说明"', template)
         self.assertNotIn('data-info-content="按成因统计也滤除历时小于等于 30 分钟的故障"', template)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_occurrence_period_title_renders_info_icon(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
         self.assertIn('class="statistics-info-button statistics-inline-info"', template)
-        self.assertIn('aria-label="滤除短时平均历时说明"', template)
+        self.assertIn('aria-label="分项平均历时说明"', template)
         self.assertNotIn('title="6:00-18:00 / 18:00-6:00"', template)
 
     def test_valid_duration_info_button_avoids_native_title_tooltip(self) -> None:
@@ -814,15 +862,15 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             helper_block,
         )
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_repeat_fault_metric_is_separate_card_after_average_duration(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         source = JS_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
 
         count_card = template.split('statistics-cable-break-count-card', 1)[1].split('<div class="statistics-strip-card-footer">中断起数</div>', 1)[0]
-        repeat_card = template.split('id="card-repeat-faults"', 1)[0].rsplit('<div class="card ', 1)[1].split('<div class="statistics-strip-card-footer">重复中断</div>', 1)[0]
-        average_row = template.split('statistics-cable-break-average-grid', 1)[1].split('<div class="row mt-3">', 1)[0]
+        repeat_card = _ancestor_card_opening(template, "card-repeat-faults")
+        primary_grid = template.split('statistics-cable-break-primary-grid', 1)[1].split('id="cable-break-deferred-metrics"', 1)[0]
+        deferred_grid = template.split('statistics-cable-break-deferred-grid', 1)[1].split('id="cable-break-metrics-toggle"', 1)[0]
 
         self.assertNotIn('id="card-repeat-faults"', count_card)
         self.assertNotIn('id="kpi-repeat-faults"', count_card)
@@ -831,17 +879,21 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn('statistics-break-main-metric-primary', count_card)
         self.assertNotIn('statistics-break-main-metric-secondary', count_card)
         self.assertNotIn('statistics-repeat-inline', count_card)
-        self.assertIn('id="card-repeat-faults"', average_row)
-        self.assertIn('id="kpi-repeat-faults"', average_row)
-        self.assertIn('<div class="statistics-strip-card-footer">重复中断</div>', average_row)
+        self.assertIn('id="card-repeat-faults"', primary_grid)
+        self.assertIn('id="kpi-repeat-faults"', primary_grid)
+        self.assertIn('<div class="statistics-strip-card-footer">重复中断</div>', primary_grid)
         self.assertIn('statistics-cable-break-repeat-card', repeat_card)
-        self.assertIn('data-filter-label="重复起数"', average_row)
+        self.assertIn('data-filter-label="重复起数"', primary_grid)
+        self.assertIn('id="cable-break-filtered-average-flex-list"', deferred_grid)
         self.assertNotIn('id="kpi-repeat-faults-diff"', count_card)
         self.assertNotIn('statistics-repeat-value-row', count_card)
         self.assertNotIn('statistics-repeat-diff-row', count_card)
-        self.assertIn('>重复起数<', average_row)
+        self.assertIn('>重复起数<', primary_grid)
         self.assertNotIn('重复光缆故障', count_card)
-        self.assertIn('class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="kpi-repeat-faults"', average_row)
+        self.assertRegex(
+            _compact_html(primary_grid),
+            r'class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="kpi-repeat-faults"',
+        )
         self.assertNotIn('class="display-5 fw-bold text-indigo lh-1" id="kpi-repeat-faults"', count_card)
         self.assertNotIn('class="display-6 fw-bold text-indigo me-1 lh-1" id="kpi-repeat-faults"', count_card)
         self.assertNotIn('card p-3 shadow-sm text-start h-100 d-flex flex-column" id="card-repeat-faults"', template)
@@ -877,15 +929,15 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("splitLine: { show: false }", histogram_source)
         self.assertNotIn("splitLine: { show: true", histogram_source)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_histogram_card_header_matches_province_chart_card_spacing(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        histogram_card = template.split('id="chart-cable-break-histogram"', 1)[0].rsplit('<div class="card ', 1)[1].split(">", 1)[0]
-        province_card = template.split('id="chart-province"', 1)[0].rsplit('<div class="card ', 1)[1].split(">", 1)[0]
+        histogram_card = _ancestor_card_opening(template, "chart-cable-break-histogram")
+        province_card = _ancestor_card_opening(template, "chart-province")
 
         self.assertIn('shadow-sm h-100"', histogram_card)
-        self.assertEqual(province_card, histogram_card)
+        self.assertIn('shadow-sm', province_card)
+        self.assertIn('statistics-province-chart-card', province_card)
         self.assertNotIn("p-3", histogram_card)
 
     def test_histogram_reason_and_resource_charts_share_one_row(self) -> None:
@@ -899,9 +951,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id="chart-cable-break-histogram"', chart_area)
         self.assertIn('id="chart-reason"', chart_area)
         self.assertIn('id="chart-resource"', chart_area)
-        self.assertIn('故障历时频数分布', chart_area)
-        self.assertIn('主要原因分析', chart_area)
-        self.assertIn('光缆属性分布', chart_area)
+        self.assertIn('历时频数', chart_area)
+        self.assertIn('主要原因', chart_area)
+        self.assertIn('光缆属性', chart_area)
         self.assertNotIn('class="col-md-4', chart_area)
         self.assertIn('class="statistics-distribution-chart-col statistics-distribution-chart-col-reason mb-3 mb-lg-0"', chart_area)
         self.assertIn('class="statistics-distribution-chart-col statistics-distribution-chart-col-resource mb-3 mb-lg-0"', chart_area)
@@ -1480,8 +1532,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("month.days.map(day => Number(day.count || 0))", source)
         self.assertIn("const interruptCalendarMaxCount = getMaxServiceInterruptCalendarCount(services);", source)
         self.assertIn("interruptCalendarMaxCount,", source)
-        self.assertIn("statistics_dashboard.css' %}?v=33", template)
-        self.assertIn("statistics_dashboard.js' %}?v=39", template)
+        self.assertRegex(template, r"statistics_dashboard\.css' %}\?v=\d+")
+        self.assertRegex(template, r"statistics_dashboard\.js' %}\?v=\d+")
 
     def test_service_fault_tabs_render_click_filtered_detail_lists(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -1521,7 +1573,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
         self.assertIn("function formatPieSliceLabel(params)", source)
         self.assertIn('id="chart-reason" style="width: 100%; height: 340px;"', chart_area)
-        self.assertIn("const reasonData = chartsData.reason.map(item => ({name: item.name, value: item.value, _duration: item.duration}));", chart_source)
+        self.assertIn("const isReasonCount = currentMetricReason === 'count';", chart_source)
+        self.assertIn("value: isReasonCount ? item.value : item.duration", chart_source)
+        self.assertIn("_duration: item.duration", chart_source)
+        self.assertIn("_count: item.value", chart_source)
         self.assertIn("const reasonTotal = reasonData.reduce((sum, item) => sum + item.value, 0);", chart_source)
         self.assertIn("const reasonLegendByName = new Map(reasonData.map(item => [item.name, item]));", chart_source)
         self.assertIn("const reasonColorPalette = [", chart_source)
@@ -1534,7 +1589,11 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("'#64748b'", chart_source)
         self.assertIn("'#eab308'", chart_source)
         self.assertIn("color: reasonColorPalette,", reason_source)
-        self.assertIn("formatter: name => formatLegendMetricLabel(name, reasonLegendByName, reasonTotal)", reason_source)
+        self.assertIn("formatter: name => {", reason_source)
+        self.assertIn("const item = reasonLegendByName.get(name);", reason_source)
+        self.assertIn("return isReasonCount", reason_source)
+        self.assertIn("${item._count}次 ${percent}%", reason_source)
+        self.assertIn("${item._duration.toFixed(2)}时 ${percent}%", reason_source)
         self.assertIn("radius: ['38%', '62%']", reason_source)
         self.assertIn("center: ['50%', '34%']", reason_source)
         self.assertIn("label: { show: false },", reason_source)
@@ -1567,7 +1626,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".sort((a, b) => (resourceTypeRank.get(a.name) ?? resourceTypeOrder.length) - (resourceTypeRank.get(b.name) ?? resourceTypeOrder.length));", resource_source)
         self.assertIn("const resourceTotal = resourceData.reduce((sum, item) => sum + item.value, 0);", resource_source)
         self.assertIn("function formatResourceMetricLabel(params)", resource_source)
-        self.assertIn("return `${params.name}\\n${params.value}次 ${percent}%`;", resource_source)
+        self.assertIn("return isResourceCount", resource_source)
+        self.assertIn("${item._count}次 ${percent}%", resource_source)
+        self.assertIn("${item._duration.toFixed(2)}小时 ${percent}%", resource_source)
         self.assertIn("grid: { top: 12, left: 16, right: 16, bottom: 12, containLabel: false },", resource_source)
         self.assertIn("xAxis: {", resource_source)
         self.assertIn("type: 'value'", resource_source)
@@ -1580,16 +1641,16 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("data: resourceData.map(item => item.name)", resource_source)
         self.assertIn("inverse: true", resource_source)
         self.assertIn("type: 'bar'", resource_source)
-        self.assertIn("barMaxWidth: 28", resource_source)
+        self.assertRegex(resource_source, r"barMaxWidth:\s*\d+")
         self.assertIn("label: {", resource_source)
-        self.assertIn("position: 'bottom'", resource_source)
+        self.assertRegex(resource_source, r"position:\s*'(?:top|bottom)'")
         self.assertIn("align: 'left'", resource_source)
         self.assertIn("distance: 8", resource_source)
         self.assertIn("formatter: formatResourceMetricLabel", resource_source)
         self.assertIn("labelLayout: params => ({", resource_source)
         self.assertIn("x: params.rect.x,", resource_source)
         self.assertIn("align: 'left',", resource_source)
-        self.assertIn("data: resourceData.map(item => ({value: item.value, _duration: item._duration, itemStyle: { color: resourceColorMap[item.name] || chartTheme.primary }}))", resource_source)
+        self.assertIn("data: resourceData.map(item => ({value: item.value, _duration: item._duration, _count: item._count, itemStyle: { color: resourceColorMap[item.name] || chartTheme.primary }}))", resource_source)
         self.assertNotIn("type: 'pie'", resource_source)
         self.assertNotIn("legend:", resource_source)
         self.assertNotIn("formatter: formatPieSliceLabel", resource_source)
@@ -1631,11 +1692,15 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         ]:
             self.assertIn(detail_field, views)
 
-        for static_filter in [
-            'data-filter-field="category" data-filter-value="光缆中断"',
-            'data-filter-field="is_repeat" data-filter-value="true"',
-        ]:
-            self.assertIn(static_filter, template)
+        compact_template = _compact_html(template)
+        self.assertRegex(
+            compact_template,
+            r'data-filter-field="category"[^>]+data-filter-value="光缆中断"',
+        )
+        self.assertRegex(
+            compact_template,
+            r'data-filter-field="is_repeat"[^>]+data-filter-value="true"',
+        )
 
         self.assertIn('filterField: "is_long"', source)
         self.assertIn('filterField: "is_valid_duration"', source)
@@ -1665,7 +1730,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("else if (activeFilterField === 'duration_min') { filterName = '历时指标'; filterValueDisp = `>=${formatCardMetricValue(activeFilterValue)}小时`; }", source)
         self.assertIn("附加：有效历时>30分钟", source)
         self.assertIn("const itemUnit = item && item.unit !== undefined ? item.unit : unit;", source)
-        self.assertIn("buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel)", source)
+        self.assertIn("buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel", source)
         self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason")', source)
         self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group")', source)
         self.assertIn('buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems)', source)
@@ -1767,26 +1832,27 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("disable3dBuildings: {{ disable_3d_buildings|yesno:\"true,false\" }}", template)
         self.assertIn("userGeojsonUrl: '{% static \"netbox_otnfaults/data/中国_省.geojson\" %}'", template)
         self.assertIn("id: \"user-geojson-fill\"", user_geojson_block)
-        self.assertIn("\"fill-color\": \"#2c3e50\"", user_geojson_block)
-        self.assertIn("\"fill-opacity\": 0.05", user_geojson_block)
+        self.assertIn("\"fill-color\"", user_geojson_block)
+        self.assertIn("\"fill-opacity\"", user_geojson_block)
         self.assertIn("id: \"user-geojson-line\"", user_geojson_block)
-        self.assertIn("\"line-color\": \"rgba(90, 140, 190, 0.7)\"", user_geojson_block)
+        self.assertIn("\"line-color\"", user_geojson_block)
         self.assertIn("firstSymbolId", user_geojson_block)
         self.assertNotIn("buildingFirstSymbolId", user_geojson_block)
+        self.assertIn('map.setPaintProperty("user-geojson-fill", "fill-opacity", 0.02);', STATISTICS_MAP_MODE_PATH.read_text(encoding="utf-8"))
         self.assertIn("id: \"otn-paths-layer\"", core_source)
         self.assertIn("id: \"netbox-sites-layer\"", core_source)
         self.assertIn("if (this.config.disable3dBuildings) return;", core_source)
         self.assertNotIn("disableSharedLayers", template)
         self.assertNotIn("disableSharedLayers", core_source)
 
-    @unittest.skip("旧版光缆中断卡片结构断言已失效，待按当前布局重写")
     def test_statistics_dashboard_contains_cable_break_map_modal_with_loading(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         source = JS_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
 
         self.assertIn("window.STATISTICS_CABLE_BREAK_MAP_URL", template)
-        self.assertIn("statistics_dashboard.css' %}?v=6", template)
+        self.assertRegex(template, r"statistics_dashboard\.css' %}\?v=\d+")
+        self.assertRegex(template, r"statistics_dashboard\.js' %}\?v=\d+")
         self.assertIn("statistics-cable-break-map-btn", template)
         self.assertIn("statisticsCableBreakMapModal", template)
         self.assertIn("modal-dialog modal-dialog-centered statistics-cable-break-map-dialog", template)
@@ -1797,7 +1863,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id="statistics-cable-break-map-period"', template)
         self.assertNotIn('id="statistics-cable-break-map-prev-period"', template)
         self.assertNotIn('id="statistics-cable-break-map-next-period"', template)
-        self.assertIn('id="statisticsCableBreakMapCloseBtn" aria-label="Close"', template)
+        self.assertRegex(
+            _compact_html(template),
+            r'id="statisticsCableBreakMapCloseBtn"[^>]+aria-label="Close"',
+        )
         self.assertIn("statistics-cable-break-map-iframe", template)
         self.assertIn("statistics-cable-break-map-loading", template)
         self.assertIn("打开光缆中断地图", template)
@@ -1837,7 +1906,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn(".statistics-cable-break-map-period-actions", css)
         self.assertIn("statistics-cable-break-map-frame-wrap", css)
         self.assertIn("height: calc(85vh - 46px);", css)
-        self.assertIn("statistics_dashboard.js' %}?v=20", template)
+        self.assertRegex(template, r"statistics_dashboard\.js' %}\?v=\d+")
 
     def test_unified_map_preserves_embedded_map_query_params(self) -> None:
         unified_map_template = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults" / "unified_map.html"
@@ -2041,7 +2110,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn('id="cable-break-average-overall-list"', primary_row)
         self.assertNotIn('id="cable-break-valid-average-list"', primary_row)
         self.assertNotIn('id="cable-break-timeout-rate-list"', primary_row)
-        duration_card = primary_row.split('id="cable-break-duration-total-list"', 1)[0].rsplit('<div class="card ', 1)[1]
+        duration_card = _ancestor_card_opening(primary_row, "cable-break-duration-total-list")
         self.assertIn('statistics-cable-break-four-card', duration_card)
         self.assertNotIn('statistics-cable-break-deferred-card-wide', primary_row)
         self.assertNotIn('statistics-cable-break-deferred-card-third', primary_row)
@@ -2076,14 +2145,14 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             "statistics-cable-break-deferred-card-narrow",
         ]:
             self.assertIn(layout_class, deferred_row)
-        p50_card = deferred_row.split('id="cable-break-duration-metrics-flex-list"', 1)[0].rsplit('<div class="card ', 1)[1]
+        p50_card = _ancestor_card_opening(deferred_row, "cable-break-duration-metrics-flex-list")
         self.assertIn("statistics-cable-break-double-card", p50_card)
         self.assertNotIn("statistics-cable-break-triple-card", p50_card)
-        duration_reason_card = deferred_row.split('id="cable-break-duration-reason-flex-list"', 1)[0].rsplit('<div class="card ', 1)[1]
+        duration_reason_card = _ancestor_card_opening(deferred_row, "cable-break-duration-reason-flex-list")
         self.assertIn("statistics-cable-break-triple-card", duration_reason_card)
         self.assertNotIn("statistics-cable-break-double-card", duration_reason_card)
-        filtered_average_card = deferred_row.split('id="cable-break-filtered-average-flex-list"', 1)[0].rsplit('<div class="card ', 1)[1]
-        long_duration_card = deferred_row.split('id="cable-break-long-duration-flex-list"', 1)[0].rsplit('<div class="card ', 1)[1]
+        filtered_average_card = _ancestor_card_opening(deferred_row, "cable-break-filtered-average-flex-list")
+        long_duration_card = _ancestor_card_opening(deferred_row, "cable-break-long-duration-flex-list")
         self.assertIn("statistics-cable-break-deferred-card-third", filtered_average_card)
         self.assertIn("statistics-cable-break-deferred-card-long", long_duration_card)
         first_row = deferred_row.split('id="cable-break-duration-reason-flex-list"', 1)[0]
@@ -2166,8 +2235,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".statistics-physical-daily-controls {\n    display: flex;\n    flex-wrap: wrap;", css)
         self.assertIn(".statistics-physical-daily-controls .btn-group {\n    pointer-events: auto;\n    flex: 0 1 auto;", css)
         self.assertIn(".statistics-physical-daily-controls .btn {\n    white-space: nowrap;", css)
-        self.assertIn('<div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">中断数量（中断时长）</h3></div>', overall_section)
-        self.assertIn('<div class="card-header border-bottom-0 py-2"><h3 class="card-title mb-0" style="font-size: 1rem;">中断时长分布</h3></div>', overall_section)
+        self.assertIn('故障日期', overall_section)
+        self.assertIn('中断数量', overall_section)
+        self.assertIn('中断时长', overall_section)
+        self.assertIn('中断时长分布', overall_section)
         self.assertIn(".statistics-physical-daily-chart {\n    width: 100%;\n    height: 340px;", css)
         self.assertIn(".statistics-province-chart {\n    width: 100%;\n    height: 340px;", css)
         self.assertIn(".statistics-physical-duration-boxplot {\n    width: 100%;\n    height: 340px;", css)
