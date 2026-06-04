@@ -125,18 +125,26 @@ window.Effects = (function () {
                 icon.textContent = '⟳';
                 icon.style.animation = 'spin 3s linear infinite';
                 icon.style.color = 'var(--color-normal)';
+                // 如果当前正在播放割接/重保，它也是 GLOBAL_CRUISE 状态，可以在指示器展示名字
+                if (stateInfo.event) {
+                    text.textContent = stateInfo.name + ' · ' + stateInfo.event.title;
+                }
                 break;
             case 'FAULT_INTERRUPT':
             case 'CAMERA_FLIGHT':
-                icon.textContent = '⚡';
+                icon.textContent = stateInfo.event && stateInfo.event.type === 'cutover' ? '🔧' : '⚡';
                 icon.style.animation = 'pulse-critical 0.8s ease-in-out infinite';
-                icon.style.color = 'var(--color-critical)';
+                icon.style.color = stateInfo.event && stateInfo.event.type === 'cutover' ? 'var(--color-major)' : 'var(--color-critical)';
                 break;
             case 'FAULT_ANALYSIS':
                 icon.textContent = '◎';
                 icon.style.animation = 'pulse-dot 2s ease-in-out infinite';
                 icon.style.color = 'var(--color-major)';
-                text.textContent = stateInfo.name + (stateInfo.fault ? ' · ' + stateInfo.fault.fault_number : '');
+                if (stateInfo.event) {
+                    text.textContent = stateInfo.name + ' · ' + stateInfo.event.title;
+                } else if (stateInfo.fault) {
+                    text.textContent = stateInfo.name + ' · ' + stateInfo.fault.fault_number;
+                }
                 break;
         }
     }

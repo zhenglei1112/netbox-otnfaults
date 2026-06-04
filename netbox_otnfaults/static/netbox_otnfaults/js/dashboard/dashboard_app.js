@@ -72,6 +72,9 @@
      * 处理数据并分发给各模块
      */
     function _processData(data) {
+        // 更新布局状态（必须在面板渲染前执行）
+        LayoutManager.update(data);
+
         // 更新运行看板核心数字
         Panels.updateSituationMetrics(data.summary || {});
         Panels.updateTrendChart(data.trend_24h || []);
@@ -79,16 +82,24 @@
         // 更新底部综合事件 Ticker
         Panels.updateTicker(Panels.buildDashboardEvents(data));
 
-        // 更新顶部重保横幅跑马灯
-        Panels.updateHeavyDuty(data.heavy_duties || []);
+        // 更新底部重保信息条（弹性模块）
+        Panels.updateHeavyDutyBar(data.heavy_duties || []);
+
+        // 更新割接计划模块（弹性模块）
+        Panels.updateCutoverPlan(data.cutovers || []);
+
+        // 更新辅助信息卡片（无割接/运行总览模式下补位）
+        Panels.updateAuxiliaryInfo(data);
 
         // 更新地图图层
         MapEngine.renderSites(data.sites || []);
         MapEngine.renderFaultPaths(data.fault_paths || []);
+        MapEngine.renderCutoverMarkers(data.cutovers || [], data.sites || []);
         MapEngine.renderFaultMarkers(data.active_faults || []);
 
-        // 更新播控引擎的故障队列
-        DirectingEngine.updateFaultQueue(data.active_faults || []);
+        // 更新播控引擎的综合事件队列
+        var events = Panels.buildDashboardEvents(data);
+        DirectingEngine.updateEventQueue(events);
 
         // 更新右侧综合事件队列
         Panels.updateEventQueue(data);
@@ -109,37 +120,53 @@
                 Effects.updateDirectingIndicator(stateInfo);
             },
 
-            onFaultFocus: function (fault) {
-                console.log('[Directing] 故障聚焦:', fault.fault_number);
+            onEventFocus: function (event) {
+                console.log('[Directing] 事件聚焦:', event.title, '类型:', event.type);
 
-                MapEngine.focusFaultSites(fault);
+                // 1. 同步高亮综合事件队列中的对应 DOM 节点
+                Panels.highlightEventItem(event.key);
 
-                // 显示右翼面板详情
-                Panels.showFaultFocus(fault);
+                // 2. 更新右下角焦点详情卡片
+                Panels.showEventFocus(event);
 
-                // 触发视觉特效
-                Effects.triggerShockwave(fault.lng, fault.lat, fault.severity);
-                if (fault.severity === 'critical') {
-                    Effects.flashCriticalAlert();
-                }
+                // 3. 地图飞行与特效处理
+                if (event.type === 'fault') {
+                    var fault = event.raw;
+                    MapEngine.focusFaultSites(fault);
 
-                // 更新队列高亮
-                if (lastData) {
-                    Panels.updateFaultQueue(lastData.active_faults || [], fault.id);
+                    // 触发视觉特效
+                    Effects.triggerShockwave(fault.lng, fault.lat, fault.severity);
+                    if (fault.severity === 'critical') {
+                        Effects.flashCriticalAlert();
+                    }
+
+                    // 额外同步右下角纯故障队列（如有）的高亮
+                    if (lastData) {
+                        Panels.updateFaultQueue(lastData.active_faults || [], fault.id);
+                    }
+                } else if (event.type === 'cutover') {
+                    var cutover = event.raw;
+                    // 割接同样高亮其 A/Z 端站点，但不触发故障类红色告警特效
+                    MapEngine.focusFaultSites(cutover);
+                    if (lastData) {
+                        Panels.updateFaultQueue(lastData.active_faults || [], null);
+                    }
+                } else {
+                    // 重保等其它非飞行聚焦事件：确保地图清除先前的站点聚焦，飞回全国视角
+                    MapEngine.clearFaultSiteFocus();
+                    if (lastData) {
+                        Panels.updateFaultQueue(lastData.active_faults || [], null);
+                    }
                 }
             },
 
-            onFaultLeave: function (fault) {
-                console.log('[Directing] 离开故障:', fault.fault_number);
-                Panels.clearFaultFocus();
-
-                // 延迟清除地图聚焦到下一渲染帧，避免与 flyTo 摄像机动画竞态
-                requestAnimationFrame(function () {
-                    MapEngine.clearFaultSiteFocus();
-                });
-
-                if (lastData) {
-                    Panels.updateFaultQueue(lastData.active_faults || [], null);
+            onEventLeave: function (event) {
+                console.log('[Directing] 离开事件:', event.title);
+                if (event.type === 'fault' || event.type === 'cutover') {
+                    // 延迟清除地图聚焦到下一渲染帧，避免与 flyTo 摄像机动画竞态
+                    requestAnimationFrame(function () {
+                        MapEngine.clearFaultSiteFocus();
+                    });
                 }
             }
         });
@@ -188,5 +215,23 @@
             text.textContent = connected ? '数据在线' : '数据断联';
         }
     }
+
+    // 暴露全局接口以支持调试和外部协调
+    window.DashboardApp = {
+        processData: _processData,
+        fetchData: _fetchData,
+        stopPolling: function () {
+            if (dataTimer) {
+                clearInterval(dataTimer);
+                dataTimer = null;
+                console.log('[Dashboard] 轮询已暂停 (调试模式)');
+            }
+        },
+        startPolling: function () {
+            if (dataTimer) clearInterval(dataTimer);
+            dataTimer = setInterval(_fetchData, CONFIG.refreshInterval);
+            console.log('[Dashboard] 轮询已恢复');
+        }
+    };
 
 })();

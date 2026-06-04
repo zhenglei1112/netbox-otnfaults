@@ -1,53 +1,44 @@
 /**
  * OTN 大屏 - 智能播控引擎 (Directing Engine)
  * 
- * 基于状态机的自动化播控系统，管理摄像机视角自动流转。
- * 
- * 状态流:
- *   GLOBAL_CRUISE → FAULT_INTERRUPT → CAMERA_FLIGHT → FAULT_ANALYSIS → (返回巡航)
- *   无故障时保持 GLOBAL_CRUISE 循环
+ * 基于综合事件（故障、割接、重保）进行自上而下的顺次自动轮播与聚焦联动。
  */
 window.DirectingEngine = (function () {
     'use strict';
 
     /* ── 状态常量 ── */
     const STATE = {
-        GLOBAL_CRUISE: 'GLOBAL_CRUISE',
-        FAULT_INTERRUPT: 'FAULT_INTERRUPT',
-        CAMERA_FLIGHT: 'CAMERA_FLIGHT',
-        FAULT_ANALYSIS: 'FAULT_ANALYSIS',
+        GLOBAL_CRUISE: 'GLOBAL_CRUISE',      // 全局巡航 (用于无事件时，或割接/重保聚焦展示时)
+        CAMERA_FLIGHT: 'CAMERA_FLIGHT',      // 视角飞行 (针对故障事件飞往站点)
+        FAULT_ANALYSIS: 'FAULT_ANALYSIS',    // 事件聚焦/分析
     };
 
     /* ── 状态中文名 ── */
     const STATE_NAMES = {
         GLOBAL_CRUISE: '全局巡航',
-        FAULT_INTERRUPT: '故障捕获',
         CAMERA_FLIGHT: '视角飞行',
-        FAULT_ANALYSIS: '故障聚焦',
+        FAULT_ANALYSIS: '事件聚焦',
     };
-
-
 
     /* ── 内部状态 ── */
     let currentState = STATE.GLOBAL_CRUISE;
-    let cruiseBearing = 0;
-    let faultQueue = [];         // 按优先级排序的故障队列
-    let currentFault = null;     // 当前展示中的故障
-    let lastShownFaultIds = [];  // 已展示过的故障ID
+    let eventQueue = [];         // 综合事件队列，按优先级排序
+    let currentEvent = null;     // 当前展示中的事件
+    let currentIndex = -1;       // 当前轮播的事件索引
     let timer = null;
     let running = false;
     let paused = false;
 
     /* ── 回调 ── */
     let onStateChange = function () { };
-    let onFaultFocus = function () { };
-    let onFaultLeave = function () { };
+    let onEventFocus = function () { };
+    let onEventLeave = function () { };
 
     /* ── 时间参数 (ms) ── */
-    const CRUISE_ROTATE_DURATION = 40000;   // 巡航旋转周期
     const FAULT_DWELL_BASE = 20000;         // 故障基础停留时间
     const FAULT_DWELL_CRITICAL = 40000;     // 致命故障停留时间
-    const CRUISE_DWELL_TIME = 20000;        // 巡航停留时间（用于检查故障队列）
+    const EVENT_DWELL_DEFAULT = 20000;      // 割接、重保等默认停留时间
+    const CRUISE_DWELL_TIME = 20000;        // 纯巡航停留时间（无事件时）
     const FAULT_FOCUS_SITE_LABEL_ZOOM_MARGIN = 2.5;
     const CONFIG = window.DASHBOARD_CONFIG;
 
@@ -56,8 +47,8 @@ window.DirectingEngine = (function () {
      */
     function start(callbacks) {
         onStateChange = callbacks.onStateChange || function () { };
-        onFaultFocus = callbacks.onFaultFocus || function () { };
-        onFaultLeave = callbacks.onFaultLeave || function () { };
+        onEventFocus = callbacks.onEventFocus || callbacks.onFaultFocus || function () { };
+        onEventLeave = callbacks.onEventLeave || callbacks.onFaultLeave || function () { };
 
         running = true;
         paused = false;
@@ -83,45 +74,107 @@ window.DirectingEngine = (function () {
     }
 
     /**
-     * 更新故障队列（由数据刷新触发）
+     * 更新综合事件队列
      */
-    function updateFaultQueue(faults) {
-        // 已按优先级排序
-        faultQueue = faults.slice();
+    function updateEventQueue(events) {
+        eventQueue = (events || []).slice(0, 12); // 只取前12个
 
-        // 检测新的高优故障，触发中断
-        if (faultQueue.length > 0 && _shouldInterrupt()) {
-            _triggerFaultInterrupt();
+        if (eventQueue.length === 0) {
+            currentEvent = null;
+            currentIndex = -1;
+            if (currentState !== STATE.GLOBAL_CRUISE) {
+                _setState(STATE.GLOBAL_CRUISE);
+                _runStateMachine();
+            }
+            return;
+        }
+
+        if (currentEvent) {
+            // 在新队列中查找当前事件
+            var foundIndex = -1;
+            for (var i = 0; i < eventQueue.length; i++) {
+                if (eventQueue[i].key === currentEvent.key) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+
+            if (foundIndex !== -1) {
+                // 找到了，更新索引并保持数据最新，但不打断当前的轮播定时器
+                currentIndex = foundIndex;
+                currentEvent = eventQueue[currentIndex];
+            } else {
+                // 当前聚焦的事件已不存在（如故障清除或重保结束），重置为首个事件并重新运行
+                currentIndex = 0;
+                currentEvent = eventQueue[0];
+                _setState(STATE.GLOBAL_CRUISE);
+                _runStateMachine();
+            }
+        } else {
+            // 首次获得数据，开始播放首个事件
+            currentIndex = 0;
+            currentEvent = eventQueue[0];
+            _setState(STATE.GLOBAL_CRUISE);
+            _runStateMachine();
         }
     }
 
     /**
-     * 手动跳转到指定故障
+     * 手动跳转到指定事件（接管）
      */
-    function focusOnFault(fault) {
+    function focusOnEvent(event) {
+        if (!event) return;
         if (timer) clearTimeout(timer);
-        currentFault = fault;
-        _setState(STATE.CAMERA_FLIGHT);
-        _executeCameraFlight();
+
+        // 查找在当前队列中的 index
+        var foundIndex = -1;
+        for (var i = 0; i < eventQueue.length; i++) {
+            if (eventQueue[i].key === event.key) {
+                foundIndex = i;
+                break;
+            }
+        }
+
+        if (foundIndex !== -1) {
+            currentIndex = foundIndex;
+            currentEvent = eventQueue[currentIndex];
+        } else {
+            // 兜底（如果不在前12个中）
+            currentEvent = event;
+        }
+
+        // 根据类型决定是否飞行
+        if (currentEvent.type === 'fault' || currentEvent.type === 'cutover') {
+            _setState(STATE.CAMERA_FLIGHT);
+        } else {
+            _setState(STATE.GLOBAL_CRUISE, currentEvent.badge + '播控');
+        }
+        _runStateMachine();
     }
 
     /**
-     * 获取当前状态
+     * 获取当前状态（提供给状态栏指示器等）
      */
     function getState() {
-        return { state: currentState, stateName: STATE_NAMES[currentState], fault: currentFault };
+        return {
+            state: currentState,
+            stateName: STATE_NAMES[currentState],
+            event: currentEvent,
+            fault: (currentEvent && currentEvent.type === 'fault') ? currentEvent.raw : null
+        };
     }
 
     /* ═══ 状态机核心 ═══ */
 
-    function _setState(newState) {
+    function _setState(newState, customName) {
         const oldState = currentState;
         currentState = newState;
         onStateChange({
             from: oldState,
             to: newState,
-            name: STATE_NAMES[newState],
-            fault: currentFault,
+            name: customName || STATE_NAMES[newState],
+            event: currentEvent,
+            fault: (currentEvent && currentEvent.type === 'fault') ? currentEvent.raw : null
         });
     }
 
@@ -129,129 +182,64 @@ window.DirectingEngine = (function () {
         if (!running || paused) return;
         if (timer) clearTimeout(timer);
 
-        switch (currentState) {
-            case STATE.GLOBAL_CRUISE:
-                _executeGlobalCruise();
-                break;
-            case STATE.FAULT_INTERRUPT:
-                _executeFaultInterrupt();
-                break;
-            case STATE.CAMERA_FLIGHT:
+        if (eventQueue.length === 0) {
+            // 暂无任何活跃事件，执行纯巡航
+            _executePureCruise();
+            return;
+        }
+
+        // 纠正越界索引
+        if (currentIndex < 0 || currentIndex >= eventQueue.length) {
+            currentIndex = 0;
+        }
+        currentEvent = eventQueue[currentIndex];
+
+        if (currentEvent.type === 'fault' || currentEvent.type === 'cutover') {
+            // 故障与割接事件：需要进行视点飞行与精准分析
+            if (currentState === STATE.GLOBAL_CRUISE) {
+                _setState(STATE.CAMERA_FLIGHT);
                 _executeCameraFlight();
-                break;
-            case STATE.FAULT_ANALYSIS:
-                _executeFaultAnalysis();
-                break;
+            } else if (currentState === STATE.CAMERA_FLIGHT) {
+                _executeCameraFlight();
+            } else {
+                _executeEventFocus();
+            }
+        } else {
+            // 重保事件：不需要摄像头飞行动效，直接在大地图视角下聚焦轮播
+            _setState(STATE.GLOBAL_CRUISE, currentEvent.badge + '播控');
+            _executeNonFaultEventFocus();
         }
     }
 
-    /* ── 全局巡航 ── */
-    let cruiseStep = 0;           // 巡航步数计数，用于计算摆动序列
-
-    function _executeGlobalCruise() {
-        // 飞回全国视图 (MapEngine.resetView 现在保持当前角度)
+    /* ── 纯巡航（无运行事件时） ── */
+    function _executePureCruise() {
         MapEngine.resetView().then(function () {
-            // 始终以初始化位置 (Bearing = 0) 作为摆动的中心基准
-            // 摆动序列: 0 -> 10 -> -10 -> 10 ...
-            var swingRange = 10;
-            var targetBearing = 0;
-
-            if (cruiseStep > 0) {
-                // 如果不是第一次进入巡航，则在 10 和 -10 之间交替
-                targetBearing = (cruiseStep % 2 === 1) ? swingRange : -swingRange;
-            } else {
-                // 第一次进入巡航，先向正向偏转
-                targetBearing = swingRange;
-            }
-
-            cruiseStep++;
-
             // 执行极慢速旋转
-            MapEngine.rotateTo(targetBearing, 25000);
-
-            // 等待后检查故障队列，有故障则切换到故障流程，否则继续巡航
+            MapEngine.rotateTo(10, 25000);
             timer = setTimeout(function () {
-                if (faultQueue.length > 0) {
-                    _setState(STATE.FAULT_INTERRUPT);
-                } else {
-                    // 无故障，继续全国巡航
-                    _setState(STATE.GLOBAL_CRUISE);
-                }
                 _runStateMachine();
             }, CRUISE_DWELL_TIME);
         });
     }
 
-    /* ── 故障中断检测 ── */
-    function _shouldInterrupt() {
-        if (currentState === STATE.FAULT_ANALYSIS || currentState === STATE.CAMERA_FLIGHT) {
-            // 只允许更高优先级故障抢占
-            if (currentFault && faultQueue.length > 0) {
-                return faultQueue[0].priority_score > currentFault.priority_score * 1.5;
-            }
-            return false;
-        }
-        // 检查是否有未展示过的故障
-        var topFault = faultQueue[0];
-        if (topFault && lastShownFaultIds.indexOf(topFault.id) === -1) {
-            return true;
-        }
-        return false;
-    }
-
-    function _triggerFaultInterrupt() {
-        if (timer) clearTimeout(timer);
-        _setState(STATE.FAULT_INTERRUPT);
-        _runStateMachine();
-    }
-
-    /* ── 故障中断处理 ── */
-    function _executeFaultInterrupt() {
-        // 从队列中取出最高优先级且未展示过的故障
-        currentFault = null;
-        for (var i = 0; i < faultQueue.length; i++) {
-            if (lastShownFaultIds.indexOf(faultQueue[i].id) === -1) {
-                currentFault = faultQueue[i];
-                break;
-            }
-        }
-
-        if (!currentFault && faultQueue.length > 0) {
-            // 所有故障已展示过，重置记录并取第一个
-            lastShownFaultIds = [];
-            currentFault = faultQueue[0];
-        }
-
-        if (!currentFault) {
-            // 无故障可展示，回到巡航
-            _setState(STATE.GLOBAL_CRUISE);
-            _runStateMachine();
-            return;
-        }
-
-        lastShownFaultIds.push(currentFault.id);
-        _setState(STATE.CAMERA_FLIGHT);
-        _runStateMachine();
-    }
-
-    /* ── 摄像机飞行 ── */
+    /* ── 摄像机飞行（飞往故障点） ── */
     function _executeCameraFlight() {
-        if (!currentFault) {
-            _setState(STATE.GLOBAL_CRUISE);
+        var fault = currentEvent.raw;
+        var map = MapEngine.getMap();
+        if (!fault || fault.lng == null || fault.lat == null) {
+            // 割接或故障缺失坐标时，无法飞行，直接进入事件聚焦状态
+            _setState(STATE.FAULT_ANALYSIS);
             _runStateMachine();
             return;
         }
-
-        // 计算飞行时间（基于距离）
-        var map = MapEngine.getMap();
         var currentCenter = map ? map.getCenter() : { lng: CONFIG.mapCenter[0], lat: CONFIG.mapCenter[1] };
-        var dx = currentFault.lng - currentCenter.lng;
-        var dy = currentFault.lat - currentCenter.lat;
+        var dx = fault.lng - currentCenter.lng;
+        var dy = fault.lat - currentCenter.lat;
         var distance = Math.sqrt(dx * dx + dy * dy);
         var duration = Math.min(6000, Math.max(3000, distance * 300));
         var faultFocusZoom = MapEngine.getSiteLabelMinZoom() + FAULT_FOCUS_SITE_LABEL_ZOOM_MARGIN;
 
-        MapEngine.flyTo(currentFault.lng, currentFault.lat, faultFocusZoom, {
+        MapEngine.flyTo(fault.lng, fault.lat, faultFocusZoom, {
             duration: duration,
             pitch: 55,
         }).then(function () {
@@ -260,39 +248,46 @@ window.DirectingEngine = (function () {
         });
     }
 
-    /* ── 故障深度分析 ── */
-    function _executeFaultAnalysis() {
-        if (!currentFault) {
-            _setState(STATE.GLOBAL_CRUISE);
-            _runStateMachine();
-            return;
-        }
-
-        // 通知外部展示故障详情
-        onFaultFocus(currentFault);
+    /* ── 故障事件深度分析 ── */
+    function _executeEventFocus() {
+        // 通知外部展示事件与高亮
+        onEventFocus(currentEvent);
 
         // 计算停留时间
         var dwellTime = FAULT_DWELL_BASE;
-        if (currentFault.severity === 'critical') {
+        var fault = currentEvent.raw;
+        if (fault.severity === 'critical') {
             dwellTime = FAULT_DWELL_CRITICAL;
-        } else if (currentFault.severity === 'major') {
+        } else if (fault.severity === 'major') {
             dwellTime = 30000;
         }
 
         timer = setTimeout(function () {
-            onFaultLeave(currentFault);
-            currentFault = null;
+            onEventLeave(currentEvent);
+            // 自上而下切换到下一个事件
+            currentIndex = (currentIndex + 1) % eventQueue.length;
+            _setState(STATE.GLOBAL_CRUISE); // 下一个事件切换前恢复默认 Cruise
+            _runStateMachine();
+        }, dwellTime);
+    }
 
-            // 检查是否还有更多故障要展示
-            var hasMore = faultQueue.some(function (f) {
-                return lastShownFaultIds.indexOf(f.id) === -1;
-            });
+    /* ── 割接、重保事件非飞行聚焦 ── */
+    function _executeNonFaultEventFocus() {
+        // 保证地图返回全国视图并执行背景巡航旋转，消除上一个故障聚焦的局部摄像机状态
+        MapEngine.resetView().then(function () {
+            MapEngine.rotateTo(10, 20000);
+        });
 
-            if (hasMore) {
-                _setState(STATE.FAULT_INTERRUPT);
-            } else {
-                _setState(STATE.GLOBAL_CRUISE);
-            }
+        // 通知外部展示事件与高亮
+        onEventFocus(currentEvent);
+
+        // 重保/割接停留 20 秒
+        var dwellTime = EVENT_DWELL_DEFAULT;
+
+        timer = setTimeout(function () {
+            onEventLeave(currentEvent);
+            // 自上而下切换到下一个事件
+            currentIndex = (currentIndex + 1) % eventQueue.length;
             _runStateMachine();
         }, dwellTime);
     }
@@ -302,8 +297,8 @@ window.DirectingEngine = (function () {
         start,
         stop,
         togglePause,
-        updateFaultQueue,
-        focusOnFault,
+        updateEventQueue,
+        focusOnEvent,
         getState
     };
 })();

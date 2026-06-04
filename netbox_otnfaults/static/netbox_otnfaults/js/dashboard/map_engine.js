@@ -15,6 +15,8 @@ window.MapEngine = (function () {
     let focusedSiteIds = [];
 
     const CONFIG = window.DASHBOARD_CONFIG;
+    // 大屏自适应地图标注缩放因子
+    const mapTextScale = window.innerWidth >= 3400 ? 1.8 : (window.innerWidth >= 2000 ? 1.4 : 1.0);
     const SITE_LABEL_MIN_ZOOM = 6;
 
     const DASHBOARD_LAYER_STACK = [
@@ -53,7 +55,7 @@ window.MapEngine = (function () {
             style: style,
             center: CONFIG.mapCenter,
             zoom: CONFIG.mapZoom,
-            pitch: CONFIG.mapPitch || 48,  // 增加初始俯仰角以显示 3D
+            pitch: CONFIG.mapPitch || 32,  // 调低默认俯仰角以减弱拉伸畸变
             bearing: 0,
             maxPitch: 85, // 允许更大的倾斜以便查看 3D
             attributionControl: false,
@@ -83,6 +85,7 @@ window.MapEngine = (function () {
                 if (_pendingData.sites) renderSites(_pendingData.sites);
                 if (_pendingData.faultPaths) renderFaultPaths(_pendingData.faultPaths);
                 if (_pendingData.heatmap) renderHeatmap(_pendingData.heatmap);
+                if (_pendingData.cutovers) renderCutoverMarkers(_pendingData.cutovers, _pendingData.sites);
                 if (_pendingData.faults) renderFaultMarkers(_pendingData.faults);
                 _pendingData = null;
             }
@@ -356,9 +359,9 @@ window.MapEngine = (function () {
                         'text-field': ['get', 'name'],
                         'text-font': ['Noto Sans SC Regular'],
                         'text-size': ['interpolate', ['linear'], ['zoom'],
-                            6, 10,
-                            8, 14,
-                            10, 16
+                            6, 10 * mapTextScale,
+                            8, 14 * mapTextScale,
+                            10, 16 * mapTextScale
                         ],
                         'text-justify': 'center',
                     'text-anchor': 'center',
@@ -436,7 +439,7 @@ window.MapEngine = (function () {
                 minzoom: SITE_LABEL_MIN_ZOOM,
                 layout: {
                     'text-field': ['get', 'name'],
-                    'text-size': 10,
+                    'text-size': 10 * mapTextScale,
                     'text-offset': [0, 1.2],
                     'text-anchor': 'top',
                     'text-font': ['Noto Sans SC Regular']
@@ -482,7 +485,7 @@ window.MapEngine = (function () {
                 filter: ['in', ['get', 'id'], ['literal', []]],
                 layout: {
                     'text-field': ['get', 'name'],
-                    'text-size': 12,
+                    'text-size': 12 * mapTextScale,
                     'text-offset': [0, 1.45],
                     'text-anchor': 'top',
                     'text-font': ['Noto Sans SC Regular'],
@@ -523,13 +526,16 @@ window.MapEngine = (function () {
     }
 
     function _applyFocusedSiteFilter() {
-        if (!map || !map.getLayer('sites-focus-label')) return;
+        if (!map) return;
 
         const emptySiteFilter = ['in', ['get', 'id'], ['literal', []]];
         const focusedSiteFilter = ['in', ['get', 'id'], ['literal', focusedSiteIds]];
-        const filter = (!focusedSiteIds || focusedSiteIds.length === 0) ? emptySiteFilter : focusedSiteFilter;
 
-        map.setFilter('sites-focus-label', filter);
+        // 视角聚焦（fly to）时，不再显示站点文字名称标签，防止与底图上的城市/道路名称发生重叠
+        if (map.getLayer('sites-focus-label')) {
+            map.setFilter('sites-focus-label', emptySiteFilter);
+        }
+
         if (!focusedSiteIds || focusedSiteIds.length === 0) {
             if (map.getLayer('sites-focus-glow')) map.setFilter('sites-focus-glow', emptySiteFilter);
             if (map.getLayer('sites-focus-core')) map.setFilter('sites-focus-core', emptySiteFilter);
@@ -755,9 +761,9 @@ window.MapEngine = (function () {
                 layout: {
                     'text-field': ['get', 'label_text'],
                     'text-size': ['interpolate', ['linear'], ['zoom'],
-                        5.5, 9,
-                        8, 11,
-                        10, 13
+                        5.5, 9 * mapTextScale,
+                        8, 11 * mapTextScale,
+                        10, 13 * mapTextScale
                     ],
                     'text-font': ['Noto Sans SC Regular'],
                     'text-allow-overlap': false,
@@ -782,7 +788,7 @@ window.MapEngine = (function () {
                 minzoom: 7.5,
                 layout: {
                     'text-field': ['get', 'detail_text'],
-                    'text-size': 9,
+                    'text-size': 9 * mapTextScale,
                     'text-font': ['Noto Sans SC Regular'],
                     'text-offset': [0, 1.3],
                     'text-anchor': 'top',
@@ -934,6 +940,56 @@ window.MapEngine = (function () {
         if (layerAdded) {
             _restackDashboardLayers();
         }
+    }
+
+    /**
+     * 渲染割接标记（HTML Marker 方式实现）
+     * 
+     * 在割接坐标或 A端 站点坐标上添加黄色的发光扳手 HTML Marker。
+     * 使用 HTML 方式彻底避免离线 GIS 字体库不包含扳手字形导致的空白不可见问题。
+     */
+    function renderCutoverMarkers(cutovers, sites) {
+        if (!map || !_mapReady) {
+            _pendingData = _pendingData || {};
+            _pendingData.cutovers = cutovers;
+            _pendingData.sites = sites;
+            return;
+        }
+
+        // 清除上一次的 HTML Marker
+        if (window._cutoverMarkers) {
+            window._cutoverMarkers.forEach(function (m) { m.remove(); });
+        }
+        window._cutoverMarkers = [];
+
+        cutovers.forEach(function (c) {
+            var lat = c.lat;
+            var lng = c.lng;
+
+            // 优先使用割接自身经纬度，若无则在前台匹配 A端 站点坐标
+            if (lat == null || lng == null) {
+                if (c.site_a && sites) {
+                    var matched = sites.find(function (s) { return s.name === c.site_a; });
+                    if (matched) {
+                        lat = matched.lat;
+                        lng = matched.lng;
+                    }
+                }
+            }
+
+            if (lat != null && lng != null) {
+                var el = document.createElement('div');
+                el.className = 'cutover-map-marker';
+                el.innerHTML = '<div class="cutover-marker-glow"></div>' +
+                               '<div class="cutover-marker-core">🔧</div>';
+
+                var marker = new maplibregl.Marker({ element: el })
+                    .setLngLat([lng, lat])
+                    .addTo(map);
+
+                window._cutoverMarkers.push(marker);
+            }
+        });
     }
 
     /**
@@ -1110,7 +1166,7 @@ window.MapEngine = (function () {
     function resetView() {
         // 保持当前角度(bearing)返回中心点，避免强制回正则产生的跳变
         return flyTo(CONFIG.mapCenter[0], CONFIG.mapCenter[1], CONFIG.mapZoom, {
-            pitch: 45,
+            pitch: CONFIG.mapPitch || 32,
             duration: 3500
         });
     }
@@ -1138,6 +1194,7 @@ window.MapEngine = (function () {
         renderSites,
         renderFaultPaths,
         renderFaultMarkers,
+        renderCutoverMarkers,
         renderHeatmap,
         focusFaultSites,
         clearFaultSiteFocus,
