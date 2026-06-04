@@ -45,12 +45,21 @@ class DashboardFaultFocusSiteLabelsTestCase(unittest.TestCase):
         self.assertIn("focusFaultSites,", source)
         self.assertIn("clearFaultSiteFocus,", source)
 
-    def test_fault_focus_temporarily_disables_regular_site_label_collision(self) -> None:
+    def test_regular_site_labels_bypass_collision_detection(self) -> None:
+        source = MAP_ENGINE_PATH.read_text(encoding="utf-8")
+        sites_label_layer = source.split("id: 'sites-label'", 1)[1].split("// 聚焦站点光晕", 1)[0]
+
+        self.assertIn("'text-allow-overlap': true", sites_label_layer)
+        self.assertIn("'text-ignore-placement': true", sites_label_layer)
+
+    def test_fault_focus_keeps_regular_site_label_collision_disabled(self) -> None:
         source = MAP_ENGINE_PATH.read_text(encoding="utf-8")
 
         self.assertIn("function _setRegularSiteLabelCollision(enabled)", source)
-        self.assertIn("map.setLayoutProperty('sites-label', 'text-allow-overlap', !enabled);", source)
-        self.assertIn("map.setLayoutProperty('sites-label', 'text-ignore-placement', !enabled);", source)
+        self.assertIn("map.setLayoutProperty('sites-label', 'text-allow-overlap', true);", source)
+        self.assertIn("map.setLayoutProperty('sites-label', 'text-ignore-placement', true);", source)
+        self.assertNotIn("map.setLayoutProperty('sites-label', 'text-allow-overlap', !enabled);", source)
+        self.assertNotIn("map.setLayoutProperty('sites-label', 'text-ignore-placement', !enabled);", source)
         self.assertIn("_setRegularSiteLabelCollision(false);", source)
         self.assertIn("_setRegularSiteLabelCollision(true);", source)
 
@@ -61,6 +70,13 @@ class DashboardFaultFocusSiteLabelsTestCase(unittest.TestCase):
         self.assertIn("map.setFilter('sites-label', null);", source)
         self.assertIn("['!', ['in', ['get', 'id'], ['literal', focusedSiteIds]]]", source)
         self.assertGreaterEqual(source.count("_applyRegularSiteLabelFilter();"), 3)
+
+    def test_fault_focus_shows_focused_site_labels(self) -> None:
+        source = MAP_ENGINE_PATH.read_text(encoding="utf-8")
+        focused_filter_block = source.split("function _applyFocusedSiteFilter()", 1)[1].split("function _applyRegularSiteFilter()", 1)[0]
+
+        self.assertIn("map.setFilter('sites-focus-label', emptySiteFilter);", focused_filter_block)
+        self.assertIn("map.setFilter('sites-focus-label', focusedSiteFilter);", focused_filter_block)
 
     def test_fault_focus_filters_use_expression_syntax_consistently(self) -> None:
         source = MAP_ENGINE_PATH.read_text(encoding="utf-8")

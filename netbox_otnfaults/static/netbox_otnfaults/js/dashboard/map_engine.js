@@ -443,7 +443,9 @@ window.MapEngine = (function () {
                     'text-size': 10 * mapTextScale,
                     'text-offset': [0, 1.2],
                     'text-anchor': 'top',
-                    'text-font': ['Noto Sans SC Regular']
+                    'text-font': ['Noto Sans SC Regular'],
+                    'text-allow-overlap': true,
+                    'text-ignore-placement': true
                 },
                 paint: {
                     'text-color': 'rgba(167, 243, 208, 0.82)',
@@ -532,17 +534,14 @@ window.MapEngine = (function () {
         const emptySiteFilter = ['in', ['get', 'id'], ['literal', []]];
         const focusedSiteFilter = ['in', ['get', 'id'], ['literal', focusedSiteIds]];
 
-        // 视角聚焦（fly to）时，不再显示站点文字名称标签，防止与底图上的城市/道路名称发生重叠
-        if (map.getLayer('sites-focus-label')) {
-            map.setFilter('sites-focus-label', emptySiteFilter);
-        }
-
         if (!focusedSiteIds || focusedSiteIds.length === 0) {
+            if (map.getLayer('sites-focus-label')) map.setFilter('sites-focus-label', emptySiteFilter);
             if (map.getLayer('sites-focus-glow')) map.setFilter('sites-focus-glow', emptySiteFilter);
             if (map.getLayer('sites-focus-core')) map.setFilter('sites-focus-core', emptySiteFilter);
             return;
         }
 
+        if (map.getLayer('sites-focus-label')) map.setFilter('sites-focus-label', focusedSiteFilter);
         if (map.getLayer('sites-focus-glow')) map.setFilter('sites-focus-glow', focusedSiteFilter);
         if (map.getLayer('sites-focus-core')) map.setFilter('sites-focus-core', focusedSiteFilter);
     }
@@ -578,8 +577,8 @@ window.MapEngine = (function () {
     function _setRegularSiteLabelCollision(enabled) {
         if (!map || !map.getLayer('sites-label')) return;
 
-        map.setLayoutProperty('sites-label', 'text-allow-overlap', !enabled);
-        map.setLayoutProperty('sites-label', 'text-ignore-placement', !enabled);
+        map.setLayoutProperty('sites-label', 'text-allow-overlap', true);
+        map.setLayoutProperty('sites-label', 'text-ignore-placement', true);
     }
 
     function focusFaultSites(fault) {
