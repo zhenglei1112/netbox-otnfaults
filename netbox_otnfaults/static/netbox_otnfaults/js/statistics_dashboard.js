@@ -1811,7 +1811,7 @@ document.addEventListener("DOMContentLoaded", function() {
     function renderBranchPerformanceRuntimeCalendar(card) {
         return `
                 <div class="branch-performance-runtime-calendar">
-                    <div class="branch-performance-runtime-calendar-chart" aria-label="本年分公司故障月度统计"></div>
+                    <div class="branch-performance-runtime-calendar-chart" aria-label="本年子公司故障月度统计"></div>
                 </div>`;
     }
 
@@ -1820,7 +1820,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const expandedMonths = Array.isArray(card.interrupt_calendar_full) ? card.interrupt_calendar_full : months;
         const maxCount = Number(interruptCalendarMaxCount || 0);
         return `
-                <div class="branch-performance-interrupt-calendar service-interrupt-calendar" aria-label="近六个月分公司中断日历">
+                <div class="branch-performance-interrupt-calendar service-interrupt-calendar" aria-label="近六个月子公司中断日历">
                     <div class="service-interrupt-calendar-months service-interrupt-calendar-months--default">${renderServiceInterruptCalendarMonthGrid(months, maxCount)}</div>
                     <div class="service-interrupt-calendar-months service-interrupt-calendar-months--expanded d-none">${renderServiceInterruptCalendarMonthGrid(expandedMonths, maxCount)}</div>
                     <button type="button" class="branch-performance-interrupt-calendar-toggle service-interrupt-calendar-toggle" aria-label="展开本年中断日历" title="展开本年中断日历">
@@ -2065,7 +2065,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const source = Array.isArray(cards) ? cards : [];
         disposeBranchPerformanceCalendarCharts();
         if (source.length === 0) {
-            container.innerHTML = '<div class="text-center text-muted py-4">暂无分公司绩效考核数据</div>';
+            container.innerHTML = '<div class="text-center text-muted py-4">暂无子公司绩效考核数据</div>';
             return;
         }
         const interruptCalendarMaxCount = getMaxServiceInterruptCalendarCount(source);
@@ -2599,7 +2599,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (summaryDiv) summaryDiv.classList.add('d-none');
         }
 
-        tbody.innerHTML = renderDetailRows(filteredDetails, '当前分公司范围及过滤条件下，无可展示的故障数据');
+        tbody.innerHTML = renderDetailRows(filteredDetails, '当前子公司范围及过滤条件下，无可展示的故障数据');
     }
 
     function formatPieSliceLabel(params) {

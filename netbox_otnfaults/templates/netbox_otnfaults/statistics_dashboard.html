@@ -87,14 +87,14 @@
                 <button class="nav-link" id="tab-branch-company-btn" data-bs-toggle="tab"
                     data-bs-target="#tab-branch-company" type="button" role="tab" aria-controls="tab-branch-company"
                     aria-selected="false">
-                    <i class="mdi mdi-office-building-marker me-1"></i>分公司（省份）故障
+                    <i class="mdi mdi-office-building-marker me-1"></i>子公司（省份）故障
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-branch-performance-btn" data-bs-toggle="tab"
                     data-bs-target="#tab-branch-performance" type="button" role="tab" aria-controls="tab-branch-performance"
                     aria-selected="false">
-                    <i class="mdi mdi-chart-timeline-variant me-1"></i>分公司绩效评分
+                    <i class="mdi mdi-chart-timeline-variant me-1"></i>子公司绩效评分
                 </button>
             </li>
         </ul>
@@ -561,7 +561,7 @@
             </div>
         </div>
 
-        <!-- ===== 分公司故障统计 Tab ===== -->
+        <!-- ===== 子公司故障统计 Tab ===== -->
         <div class="tab-pane fade" id="tab-branch-company" role="tabpanel" aria-labelledby="tab-branch-company-btn">
             <section class="statistics-overall-overview mb-4">
                 <div class="statistics-cable-break-heading-row mb-3">
@@ -591,7 +591,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="statistics-strip-card-footer">六省分公司</div>
+                        <div class="statistics-strip-card-footer">六省子公司</div>
                     </div>
                     <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-other-card">
                         <div class="statistics-strip-card-body">
@@ -675,7 +675,7 @@
                     <div class="card shadow-sm">
                         <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
                             <h3 class="card-title mb-0" style="font-size: 1rem;">故障数</h3>
-                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司故障数指标切换">
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="子公司故障数指标切换">
                                 <input type="radio" class="btn-check" name="branchCompanyCountMetric"
                                     id="branch-company-count-raw" value="count" autocomplete="off" checked>
                                 <label class="btn btn-outline-primary" for="branch-company-count-raw">起数</label>
@@ -691,7 +691,7 @@
                     <div class="card shadow-sm">
                         <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
                             <h3 class="card-title mb-0" style="font-size: 1rem;">故障历时</h3>
-                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司故障历时指标切换">
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="子公司故障历时指标切换">
                                 <input type="radio" class="btn-check" name="branchCompanyDurationMetric"
                                     id="branch-company-duration-raw" value="duration" autocomplete="off" checked>
                                 <label class="btn btn-outline-primary" for="branch-company-duration-raw">时长</label>
@@ -712,7 +712,7 @@
                     <div class="card shadow-sm">
                         <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
                             <h3 class="card-title mb-0" style="font-size: 1rem;">中断时长箱线图</h3>
-                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司箱线图指标切换">
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="子公司箱线图指标切换">
                                 <input type="radio" class="btn-check" name="branchCompanyBoxplotMetric"
                                     id="branch-company-boxplot-raw" value="duration" autocomplete="off" checked>
                                 <label class="btn btn-outline-primary" for="branch-company-boxplot-raw">时长</label>
@@ -728,7 +728,7 @@
                     <div class="card shadow-sm">
                         <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
                             <h3 class="card-title mb-0" style="font-size: 1rem;">有效平均历时</h3>
-                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司有效平均历时指标切换">
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="子公司有效平均历时指标切换">
                                 <input type="radio" class="btn-check" name="branchCompanyValidMetric"
                                     id="branch-company-valid-raw" value="valid_duration" autocomplete="off" checked>
                                 <label class="btn btn-outline-primary" for="branch-company-valid-raw">平均历时</label>
@@ -749,7 +749,7 @@
                     <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
                         <h3 class="card-title mb-0" style="font-size: 1rem;">年初至今周趋势</h3>
                         <div class="d-flex gap-2 flex-wrap justify-content-end">
-                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司周趋势指标切换">
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="子公司周趋势指标切换">
                                 <input type="radio" class="btn-check" name="branchCompanyWeeklyMetric"
                                     id="branch-company-weekly-count" value="count" autocomplete="off" checked>
                                 <label class="btn btn-outline-primary" for="branch-company-weekly-count">故障数量</label>
@@ -760,7 +760,7 @@
                                     id="branch-company-weekly-valid" value="valid_duration" autocomplete="off">
                                 <label class="btn btn-outline-primary" for="branch-company-weekly-valid">有效时长</label>
                             </div>
-                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="分公司周趋势百公里切换">
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="子公司周趋势百公里切换">
                                 <input type="radio" class="btn-check" name="branchCompanyWeeklyScale"
                                     id="branch-company-weekly-scale-raw" value="raw" autocomplete="off" checked>
                                 <label class="btn btn-outline-primary" for="branch-company-weekly-scale-raw">原始值</label>
@@ -815,7 +815,7 @@
             </div>
         </div>
 
-        <!-- ===== 分公司绩效评分 Tab ===== -->
+        <!-- ===== 子公司绩效评分 Tab ===== -->
         <div class="tab-pane fade" id="tab-branch-performance" role="tabpanel" aria-labelledby="tab-branch-performance-btn">
             <section class="statistics-branch-performance-section mb-4">
                 <div class="statistics-cable-break-heading-row mb-3">

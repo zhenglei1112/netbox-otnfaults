@@ -132,8 +132,8 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertLess(branch_index, performance_index)
         self.assertIn('data-bs-target="#tab-branch-company"', template)
         self.assertIn('data-bs-target="#tab-branch-performance"', template)
-        self.assertIn('分公司（省份）故障', template)
-        self.assertIn('分公司绩效评分', template)
+        self.assertIn('子公司（省份）故障', template)
+        self.assertIn('子公司绩效评分', template)
         self.assertIn('id="branch-company-overall-total"', template)
         self.assertIn('id="branch-company-cable-break-total-count"', template)
         self.assertIn('id="branch-company-kpi-repeat-faults"', template)
@@ -247,6 +247,21 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("activeTab.id === 'tab-branch-company-btn'", source)
         self.assertIn("activeTab.id === 'tab-branch-performance-btn'", source)
         self.assertIn("event.target.id === 'tab-branch-performance-btn'", source)
+
+    def test_backend_filters_out_specific_maintenance_companies_in_branch_statistics(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("EXCLUDED_HANDLING_UNITS: set[str] = {", source)
+        self.assertIn("'山东瑞阳云技术有限公司'", source)
+        self.assertIn("'嘉兴广信信息科技有限公司'", source)
+        self.assertIn("'杭州骏云科技有限公司'", source)
+        self.assertIn("'上海信智通网络技术有限公司'", source)
+
+        self.assertIn("def _should_exclude_for_branch(fault) -> bool:", source)
+        self.assertIn("fault.handling_unit.name in EXCLUDED_HANDLING_UNITS", source)
+
+        branch_stats_source = source.split("def _build_branch_company_statistics(", 1)[1].split("\n\n\ndef _parse_time_range", 1)[0]
+        self.assertIn("not _should_exclude_for_branch(fault)", branch_stats_source)
 
     def test_css_defines_branch_company_chart_layout(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")

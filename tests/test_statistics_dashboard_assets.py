@@ -73,8 +73,8 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         css = CSS_PATH.read_text(encoding="utf-8")
 
         self.assertIn(".statistics-period-control-group .ts-control", css)
-        self.assertIn("height: 2.75rem;", css)
-        self.assertIn("min-height: 2.75rem;", css)
+        self.assertIn("height: 2.25rem;", css)
+        self.assertIn("min-height: 2.25rem;", css)
         self.assertIn("flex-wrap: nowrap;", css)
         self.assertIn(".statistics-period-control-group .ts-control > input", css)
         self.assertIn("min-width: 1px !important;", css)

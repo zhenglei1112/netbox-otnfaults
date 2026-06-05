@@ -198,8 +198,8 @@ body.modal-open {
 .statistics-period-control-group .ts-control {
     align-items: center;
     flex-wrap: nowrap;
-    height: 2.75rem;
-    min-height: 2.75rem;
+    height: 2.25rem;
+    min-height: 2.25rem;
     overflow: hidden;
     min-width: 0;
 }

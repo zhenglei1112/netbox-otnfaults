@@ -99,6 +99,23 @@ BRANCH_PERFORMANCE_DEDUCTION_LABELS: dict[str, str] = {
     'trend': '趋势',
 }
 
+EXCLUDED_HANDLING_UNITS: set[str] = {
+    '山东瑞阳云技术有限公司',
+    '嘉兴广信信息科技有限公司',
+    '杭州骏云科技有限公司',
+    '上海信智通网络技术有限公司',
+}
+
+
+def _should_exclude_for_branch(fault) -> bool:
+    """如果在统计子公司数据时需要排除该故障"""
+    if fault.handling_unit_id:
+        try:
+            return fault.handling_unit.name in EXCLUDED_HANDLING_UNITS
+        except Exception:
+            return False
+    return False
+
 
 def truncate_sla(value: float) -> float:
     return math.trunc(value * 100.0) / 100.0
@@ -395,7 +412,7 @@ def _suspended_fault_q() -> Q:
 def get_cable_break_base_queryset(start_date, end_date) -> QuerySet:
     """Return the shared cable-break queryset used by statistics and map views."""
     return (
-        OtnFault.objects.select_related('province', 'interruption_location_a')
+        OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit')
         .prefetch_related('interruption_location')
         .filter(
             fault_occurrence_time__gte=start_date,
@@ -1004,15 +1021,18 @@ def _build_branch_company_statistics(
     branch_all_faults = [
         fault for fault in all_faults
         if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
+        and not _should_exclude_for_branch(fault)
     ]
     branch_cable_break_faults = [
         fault for fault in cable_break_faults
         if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
+        and not _should_exclude_for_branch(fault)
     ]
     branch_suspended_faults_count = sum(
         1
-        for fault in OtnFault.objects.select_related('province').filter(_suspended_fault_q())
+        for fault in OtnFault.objects.select_related('province', 'handling_unit').filter(_suspended_fault_q())
         if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
+        and not _should_exclude_for_branch(fault)
     )
 
     overview_faults = [
@@ -1094,6 +1114,7 @@ def _build_branch_company_statistics(
     year_faults = [
         fault for fault in get_cable_break_base_queryset(year_start, year_end)
         if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
+        and not _should_exclude_for_branch(fault)
     ]
     for fault in year_faults:
         province = _branch_province_for_fault(fault)
@@ -1342,7 +1363,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
 
         # 先预抓取一段无过滤条件的全量当前期基础查询集，仅用于提取“总体情况面板” Banner 数据
-        qs_all = OtnFault.objects.select_related('province', 'interruption_location_a').prefetch_related('interruption_location')
+        qs_all = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
         all_current_qs = qs_all.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
         all_faults = list(all_current_qs)
         all_suspended_faults_total_count = qs_all.filter(_suspended_fault_q()).count()
