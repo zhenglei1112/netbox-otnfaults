@@ -7,6 +7,7 @@ TEMPLATE_PATH = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults
 LOCAL_ECHARTS_PATH = REPO_ROOT / "netbox_otnfaults" / "static" / "netbox_otnfaults" / "lib" / "echarts.min.js"
 CSS_PATH = REPO_ROOT / "netbox_otnfaults" / "static" / "netbox_otnfaults" / "css" / "statistics_dashboard.css"
 JS_PATH = REPO_ROOT / "netbox_otnfaults" / "static" / "netbox_otnfaults" / "js" / "statistics_dashboard.js"
+VIEWS_PATH = REPO_ROOT / "netbox_otnfaults" / "statistics_views.py"
 
 
 class StatisticsDashboardAssetsTestCase(unittest.TestCase):
@@ -73,12 +74,78 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         css = CSS_PATH.read_text(encoding="utf-8")
 
         self.assertIn(".statistics-period-control-group .ts-control", css)
+        period_ts_control_block = css.split(".statistics-period-control-group .ts-control {", 1)[1].split("}", 1)[0]
         self.assertIn("height: 2.25rem;", css)
         self.assertIn("min-height: 2.25rem;", css)
         self.assertIn("flex-wrap: nowrap;", css)
+        self.assertIn("box-shadow: none !important;", period_ts_control_block)
+        self.assertIn("border: 1px solid var(--statistics-border);", period_ts_control_block)
+        self.assertIn(".statistics-period-control-group .ts-wrapper.focus .ts-control", css)
         self.assertIn(".statistics-period-control-group .ts-control > input", css)
         self.assertIn("min-width: 1px !important;", css)
         self.assertIn("width: 1px !important;", css)
+
+    def test_statistics_dashboard_exposes_physical_province_filter(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('id="physical-province-filter"', template)
+        self.assertIn('name="physical_provinces"', template)
+        self.assertIn('{% for province in province_filter_options %}', template)
+        self.assertIn('value="{{ province }}"', template)
+        self.assertIn('id="physical-province-filter-group"', template)
+        self.assertIn("省份", template)
+        self.assertIn(".physical-province-filter-group", css)
+
+    def test_statistics_dashboard_physical_province_filter_has_stable_toolbar_layout(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(".physical-province-filter-group .ts-control {", css)
+        filter_controls_block = css.split(".filter-controls {", 1)[1].split("}", 1)[0]
+        province_group_block = css.split(".physical-province-filter-group {", 1)[1].split("}", 1)[0]
+        province_ts_control_block = css.split(".physical-province-filter-group .ts-control {", 1)[1].split("}", 1)[0]
+
+        self.assertIn("flex-wrap: wrap;", filter_controls_block)
+        self.assertIn("align-items: center;", filter_controls_block)
+        self.assertIn("display: grid;", province_group_block)
+        self.assertIn("grid-template-columns: auto minmax(12rem, 18rem);", province_group_block)
+        self.assertIn("height: 2.25rem;", province_ts_control_block)
+        self.assertIn("flex-wrap: nowrap;", province_ts_control_block)
+        self.assertIn("overflow: hidden;", province_ts_control_block)
+        self.assertIn("box-shadow: none !important;", province_ts_control_block)
+        self.assertIn("border: 1px solid var(--statistics-border);", province_ts_control_block)
+        self.assertIn(".physical-province-filter.ts-hidden-accessible", css)
+        self.assertIn("height: 1px !important;", css)
+        self.assertIn(".physical-province-filter-group .ts-wrapper.multi .ts-control > div", css)
+        self.assertIn("max-width: 6.5rem;", css)
+
+    def test_statistics_dashboard_js_applies_physical_province_filter_only_on_physical_tab(self) -> None:
+        script = JS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("const physicalProvinceFilterGroup = document.getElementById('physical-province-filter-group');", script)
+        self.assertIn("const physicalProvinceFilter = document.getElementById('physical-province-filter');", script)
+        self.assertIn("function getSelectedPhysicalProvinces()", script)
+        self.assertIn("function buildPhysicalProvinceParams()", script)
+        self.assertIn("params.append('provinces', province);", script)
+        self.assertIn("function syncPhysicalProvinceFilterVisibility()", script)
+        self.assertIn("activeTabId !== 'tab-physical-btn'", script)
+        self.assertIn("url += buildPhysicalProvinceParams();", script)
+        self.assertIn("physicalProvinceFilter.addEventListener('change', () => {", script)
+        self.assertIn("if (activeTab && activeTab.id === 'tab-physical-btn') loadData();", script)
+
+    def test_statistics_data_api_filters_physical_payload_but_keeps_province_chart_global(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("def _parse_selected_provinces(request: HttpRequest) -> list[str]:", source)
+        self.assertIn("selected_provinces = _parse_selected_provinces(request)", source)
+        self.assertIn("filtered_current_qs = _apply_physical_province_filter(all_current_qs, selected_provinces)", source)
+        self.assertIn("faults = list(filtered_current_qs)", source)
+        self.assertIn("global_cable_break_faults = list(get_cable_break_base_queryset(start_date, end_date))", source)
+        self.assertIn("province_stats = _build_physical_province_chart_stats(global_cable_break_faults, now)", source)
+        physical_daily_source = source.split("physical_daily_faults = list(", 1)[1].split("physical_daily_stats =", 1)[0]
+        self.assertIn("_apply_physical_province_filter(", physical_daily_source)
+        self.assertIn("physical_duration_boxplot_faults = list(_apply_physical_province_filter(", source)
+        self.assertIn("'selected_provinces': selected_provinces", source)
 
     def test_statistics_dashboard_js_uses_theme_aware_chart_options(self) -> None:
         script = JS_PATH.read_text(encoding="utf-8")

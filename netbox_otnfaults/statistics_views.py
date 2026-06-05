@@ -1103,10 +1103,19 @@ def _build_branch_company_statistics(
     if year_end <= year_start:
         year_end = timezone.datetime(selected_year + 1, 1, 1, tzinfo=tz)
     week_ranges = _build_branch_week_ranges(year_start, year_end)
+    month_end_index = 12 if year_end.year > selected_year else year_end.month
+    month_ranges = _build_year_to_month_calendar_months(selected_year, month_end_index, tz)
     weekly_by_province = {
         province: {
             week['key']: {'count': 0, 'duration': 0.0, 'valid_duration': 0.0}
             for week in week_ranges
+        }
+        for province in BRANCH_PROVINCE_NAMES
+    }
+    monthly_by_province = {
+        province: {
+            month['key']: {'count': 0, 'duration': 0.0, 'valid_duration': 0.0}
+            for month in month_ranges
         }
         for province in BRANCH_PROVINCE_NAMES
     }
@@ -1122,17 +1131,28 @@ def _build_branch_company_statistics(
             continue
         local_day = timezone.localtime(fault.fault_occurrence_time).date().isoformat()
         week_key = next((week['key'] for week in week_ranges if week['start'] <= local_day <= week['end']), None)
+        month_key = local_day[:7]
         if not week_key:
             continue
         duration_hours = _duration_hours_for_fault(fault, now)
         weekly_by_province[province][week_key]['count'] += 1
         weekly_by_province[province][week_key]['duration'] += duration_hours
+        if month_key in monthly_by_province[province]:
+            monthly_by_province[province][month_key]['count'] += 1
+            monthly_by_province[province][month_key]['duration'] += duration_hours
         if duration_hours > 0.5:
             weekly_by_province[province][week_key]['valid_duration'] += duration_hours
+            if month_key in monthly_by_province[province]:
+                monthly_by_province[province][month_key]['valid_duration'] += duration_hours
 
     weekly_trends = {
         'labels': [week['label'] for week in week_ranges],
         'weeks': week_ranges,
+        'series': [],
+    }
+    monthly_trends = {
+        'labels': [month['label'] for month in month_ranges],
+        'months': [{'key': month['key'], 'label': month['label']} for month in month_ranges],
         'series': [],
     }
     selected_calendar_year = calendar_year or selected_year
@@ -1149,6 +1169,15 @@ def _build_branch_company_statistics(
             'week_count_per_100km': [_per_100km(weekly_by_province[province][week['key']]['count'], length_km) for week in week_ranges],
             'week_duration_per_100km': [_per_100km(weekly_by_province[province][week['key']]['duration'], length_km) for week in week_ranges],
             'week_valid_duration_per_100km': [_per_100km(weekly_by_province[province][week['key']]['valid_duration'], length_km) for week in week_ranges],
+        })
+        monthly_trends['series'].append({
+            'name': province,
+            'counts': [monthly_by_province[province][month['key']]['count'] for month in month_ranges],
+            'durations': [round(monthly_by_province[province][month['key']]['duration'], 2) for month in month_ranges],
+            'valid_durations': [round(monthly_by_province[province][month['key']]['valid_duration'], 2) for month in month_ranges],
+            'month_count_per_100km': [_per_100km(monthly_by_province[province][month['key']]['count'], length_km) for month in month_ranges],
+            'month_duration_per_100km': [_per_100km(monthly_by_province[province][month['key']]['duration'], length_km) for month in month_ranges],
+            'month_valid_duration_per_100km': [_per_100km(monthly_by_province[province][month['key']]['valid_duration'], length_km) for month in month_ranges],
         })
 
     branch_cable_break_overview = _compute_cable_break_overview(branch_cable_break_faults, now)
@@ -1181,6 +1210,7 @@ def _build_branch_company_statistics(
         'duration_boxplot': duration_boxplot,
         'valid_duration_bars': valid_duration_bars,
         'weekly_trends': weekly_trends,
+        'monthly_trends': monthly_trends,
         'performance_cards': performance_cards,
     }
 
@@ -1308,6 +1338,41 @@ def _build_year_to_month_calendar_months(year: int, month: int, tz) -> list[dict
     return months
 
 
+def _parse_selected_provinces(request: HttpRequest) -> list[str]:
+    provinces = [
+        province.strip()
+        for province in request.GET.getlist('provinces')
+        if province and province.strip()
+    ]
+    return list(dict.fromkeys(provinces))
+
+
+def _apply_physical_province_filter(queryset: QuerySet, selected_provinces: list[str]) -> QuerySet:
+    if not selected_provinces:
+        return queryset
+    return queryset.filter(province__name__in=selected_provinces)
+
+
+def _build_physical_province_chart_stats(faults: list, now) -> dict[str, dict[str, float | int]]:
+    province_stats: dict[str, dict[str, float | int]] = {}
+    all_provinces = Region.objects.values_list('name', flat=True)
+    for p_name in all_provinces:
+        if p_name:
+            province_stats[p_name] = {'count': 0, 'duration': 0.0}
+
+    for fault in faults:
+        if not fault.fault_occurrence_time:
+            continue
+        end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
+        duration_hours = (end_t - fault.fault_occurrence_time).total_seconds() / 3600.0
+        prov_name = fault.province.name if fault.province else '未知'
+        if prov_name not in province_stats:
+            province_stats[prov_name] = {'count': 0, 'duration': 0.0}
+        province_stats[prov_name]['count'] += 1
+        province_stats[prov_name]['duration'] += duration_hours
+    return province_stats
+
+
 def _statistics_page_context(request: HttpRequest) -> dict[str, object]:
     default_filter_type = 'week'
     default_date: date = timezone.localdate()
@@ -1324,6 +1389,7 @@ def _statistics_page_context(request: HttpRequest) -> dict[str, object]:
         'statistics_data_api_url': reverse('plugins:netbox_otnfaults:statistics_data'),
         'statistics_service_data_api_url': reverse('plugins:netbox_otnfaults:statistics_service_data'),
         'statistics_cable_break_map_url': reverse('plugins:netbox_otnfaults:statistics_cable_break_map'),
+        'province_filter_options': list(Region.objects.exclude(name='').values_list('name', flat=True).order_by('name')),
     }
 
     return context
@@ -1361,13 +1427,20 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         now = timezone.localtime()
         calendar_year = int(request.GET.get('calendar_year', start_date.year))
         calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
+        selected_provinces = _parse_selected_provinces(request)
 
         # 先预抓取一段无过滤条件的全量当前期基础查询集，仅用于提取“总体情况面板” Banner 数据
         qs_all = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
         all_current_qs = qs_all.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
-        all_faults = list(all_current_qs)
-        all_suspended_faults_total_count = qs_all.filter(_suspended_fault_q()).count()
-        all_open_suspended_faults_count = qs_all.filter(_suspended_fault_q()).exclude(fault_status=FaultStatusChoices.CLOSED).count()
+        filtered_current_qs = _apply_physical_province_filter(all_current_qs, selected_provinces)
+        all_faults = list(filtered_current_qs)
+        unfiltered_current_faults = list(all_current_qs)
+        all_suspended_faults_total_count = _apply_physical_province_filter(qs_all.filter(_suspended_fault_q()), selected_provinces).count()
+        all_open_suspended_faults_count = _apply_physical_province_filter(
+            qs_all.filter(_suspended_fault_q()).exclude(fault_status=FaultStatusChoices.CLOSED),
+            selected_provinces,
+        ).count()
+        unfiltered_open_suspended_faults_count = qs_all.filter(_suspended_fault_q()).exclude(fault_status=FaultStatusChoices.CLOSED).count()
 
         overall_faults = [
             f for f in all_faults
@@ -1382,26 +1455,33 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         )
         physical_daily_start, physical_daily_end = _resolve_physical_daily_range(now)
         physical_daily_faults = list(
-            qs_all.filter(
-                fault_occurrence_time__gte=physical_daily_start,
-                fault_occurrence_time__lt=physical_daily_end,
-                fault_category=FaultCategoryChoices.FIBER_BREAK,
-            ).filter(
-                is_suspended=False
-            ).exclude(
-                fault_status=FaultStatusChoices.SUSPENDED
+            _apply_physical_province_filter(
+                qs_all.filter(
+                    fault_occurrence_time__gte=physical_daily_start,
+                    fault_occurrence_time__lt=physical_daily_end,
+                    fault_category=FaultCategoryChoices.FIBER_BREAK,
+                ).filter(
+                    is_suspended=False
+                ).exclude(
+                    fault_status=FaultStatusChoices.SUSPENDED
+                ),
+                selected_provinces,
             )
         )
         physical_daily_stats = _build_physical_daily_fault_series(physical_daily_start, physical_daily_end, physical_daily_faults, now)
 
         # 提取当前期光缆中断故障
-        physical_duration_boxplot_faults = list(get_cable_break_base_queryset(start_date, end_date))
+        global_cable_break_faults = list(get_cable_break_base_queryset(start_date, end_date))
+        physical_duration_boxplot_faults = list(_apply_physical_province_filter(
+            get_cable_break_base_queryset(start_date, end_date),
+            selected_provinces,
+        ))
         physical_duration_boxplot_stats = _build_physical_daily_fault_series(start_date, end_date, physical_duration_boxplot_faults, now)
         faults = physical_duration_boxplot_faults
         branch_company_stats = _build_branch_company_statistics(
-            all_faults,
-            faults,
-            all_open_suspended_faults_count,
+            unfiltered_current_faults,
+            global_cable_break_faults,
+            unfiltered_open_suspended_faults_count,
             start_date,
             end_date,
             now,
@@ -1419,7 +1499,11 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         prev_faults = []
         
         if prev_start_date and prev_end_date:
-            prev_faults = list(get_cable_break_base_queryset(prev_start_date, prev_end_date))
+            prev_global_cable_break_faults = list(get_cable_break_base_queryset(prev_start_date, prev_end_date))
+            prev_faults = list(_apply_physical_province_filter(
+                get_cable_break_base_queryset(prev_start_date, prev_end_date),
+                selected_provinces,
+            ))
             prev_total_count = len(prev_faults)
             
             if prev_faults:
@@ -1498,14 +1582,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
 
         # 统计图表维度
         resource_stats = {}
-        province_stats = {}
+        province_stats = _build_physical_province_chart_stats(global_cable_break_faults, now)
         reason_stats = {}
-
-        # 预先初始化所有的地区(作为省份展示)，保证没有故障的省份也显示为 0
-        all_provinces = Region.objects.values_list('name', flat=True)
-        for p_name in all_provinces:
-            if p_name:
-                province_stats[p_name] = {'count': 0, 'duration': 0.0}
 
         for fault in faults:
             # 持续时间计算
@@ -1548,10 +1626,6 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
 
             # 2. 省份
             prov_name = fault.province.name if fault.province else '未知'
-            if prov_name not in province_stats:
-                province_stats[prov_name] = {'count': 0, 'duration': 0.0}
-            province_stats[prov_name]['count'] += 1
-            province_stats[prov_name]['duration'] += duration_hours
 
             # 3. 原因 (一级)
             reason = fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知'
@@ -1635,8 +1709,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             prev_cable_break_overview = _compute_cable_break_overview(prev_faults, now)
             prev_branch_company_stats = _build_branch_company_statistics(
                 prev_all_faults,
-                prev_faults,
-                all_open_suspended_faults_count,
+                prev_global_cable_break_faults,
+                unfiltered_open_suspended_faults_count,
                 prev_start_date,
                 prev_end_date,
                 now,
@@ -1684,6 +1758,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             'prev_branch_company': prev_branch_company_stats,
             'other_overview': other_overview,
             'prev_other_overview': prev_other_overview,
+            'selected_provinces': selected_provinces,
             'details': details
         })
 

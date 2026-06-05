@@ -22,10 +22,12 @@ document.addEventListener("DOMContentLoaded", function() {
     let chartBranchCompanyValidDuration = chartBranchCompanyValidDurationElement ? echarts.init(chartBranchCompanyValidDurationElement) : null;
     const chartBranchCompanyWeeklyElement = document.getElementById('chart-branch-company-weekly');
     let chartBranchCompanyWeekly = chartBranchCompanyWeeklyElement ? echarts.init(chartBranchCompanyWeeklyElement) : null;
+    const chartBranchCompanyMonthlyElement = document.getElementById('chart-branch-company-monthly');
+    let chartBranchCompanyMonthly = chartBranchCompanyMonthlyElement ? echarts.init(chartBranchCompanyMonthlyElement) : null;
     const physicalDailyMetricInputs = Array.from(document.querySelectorAll('input[name="physicalDailyMetric"]'));
     const physicalDailyGranularityInputs = Array.from(document.querySelectorAll('input[name="physicalDailyGranularity"]'));
     const branchCompanyMetricInputs = Array.from(document.querySelectorAll(
-        'input[name="branchCompanyCountMetric"], input[name="branchCompanyDurationMetric"], input[name="branchCompanyBoxplotMetric"], input[name="branchCompanyValidMetric"], input[name="branchCompanyWeeklyMetric"], input[name="branchCompanyWeeklyScale"]'
+        'input[name="branchCompanyCountMetric"], input[name="branchCompanyDurationMetric"], input[name="branchCompanyWeeklyMetric"], input[name="branchCompanyWeeklyScale"]'
     ));
     const physicalBoxplotFilterShort = document.getElementById('physical-boxplot-filter-short');
     const physicalBoxplotFilterRectification = document.getElementById('physical-boxplot-filter-rectification');
@@ -84,6 +86,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (chartBranchCompanyBoxplot) chartBranchCompanyBoxplot.resize();
         if (chartBranchCompanyValidDuration) chartBranchCompanyValidDuration.resize();
         if (chartBranchCompanyWeekly) chartBranchCompanyWeekly.resize();
+        if (chartBranchCompanyMonthly) chartBranchCompanyMonthly.resize();
         resizeBranchPerformanceCalendarCharts();
         resizeServiceCalendarCharts();
     }
@@ -184,7 +187,10 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     physicalDailyMetricInputs.forEach(input => input.addEventListener('change', () => renderOverallDailyFaultChart(currentChartsData && currentChartsData.physical_daily)));
     physicalDailyGranularityInputs.forEach(input => input.addEventListener('change', () => renderOverallDailyFaultChart(currentChartsData && currentChartsData.physical_daily)));
-    branchCompanyMetricInputs.forEach(input => input.addEventListener('change', () => renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData)));
+    branchCompanyMetricInputs.forEach(input => input.addEventListener('change', () => {
+        syncBranchCompanyWeeklyScaleAvailability();
+        renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData);
+    }));
 
     if (cableBreakMetricsToggle && cableBreakDeferredMetrics) {
         cableBreakMetricsToggle.addEventListener('click', () => {
@@ -208,6 +214,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const cableBreakMapLoading = document.getElementById('statistics-cable-break-map-loading');
     const cableBreakMapPeriod = document.getElementById('statistics-cable-break-map-period');
     const scopeToggle = document.getElementById('bare-fiber-service-card-scope-toggle');
+    const physicalProvinceFilterGroup = document.getElementById('physical-province-filter-group');
+    const physicalProvinceFilter = document.getElementById('physical-province-filter');
     const bareFiberServiceCardScopeInputs = Array.from(document.querySelectorAll('input[name="bareFiberServiceCardScope"]'));
     let cableBreakMapManualBackdrop = null;
 
@@ -323,7 +331,7 @@ document.addEventListener("DOMContentLoaded", function() {
             cableBreakMapPeriod.innerHTML = formatStatisticsPeriodLabel(selFilterType.value, inputDate.value, buildLocalPeriodForDate(selFilterType.value, inputDate.value));
             updatePeriodLabelState(cableBreakMapPeriod, buildLocalPeriodForDate(selFilterType.value, inputDate.value));
         }
-        cableBreakMapIframe.src = `${window.STATISTICS_CABLE_BREAK_MAP_URL}?modal=true&${buildTimeParams()}`;
+        cableBreakMapIframe.src = `${window.STATISTICS_CABLE_BREAK_MAP_URL}?modal=true&${buildTimeParams()}${buildPhysicalProvinceParams()}`;
     }
 
     function closeCableBreakMapModal() {
@@ -654,10 +662,36 @@ document.addEventListener("DOMContentLoaded", function() {
         return `filter_type=year&year=${year}`;
     }
 
+    function getSelectedPhysicalProvinces() {
+        if (!physicalProvinceFilter) return [];
+        return Array.from(physicalProvinceFilter.selectedOptions || [])
+            .map(option => option.value)
+            .filter(Boolean);
+    }
+
+    function buildPhysicalProvinceParams() {
+        const activeTab = document.querySelector('#statisticsTab .nav-link.active');
+        if (activeTab && activeTab.id !== 'tab-physical-btn') return '';
+        const params = new URLSearchParams();
+        getSelectedPhysicalProvinces().forEach(province => {
+            params.append('provinces', province);
+        });
+        const encoded = params.toString();
+        return encoded ? `&${encoded}` : '';
+    }
+
+    function syncPhysicalProvinceFilterVisibility() {
+        if (!physicalProvinceFilterGroup) return;
+        const activeTab = document.querySelector('#statisticsTab .nav-link.active');
+        const activeTabId = activeTab ? activeTab.id : '';
+        physicalProvinceFilterGroup.classList.toggle('d-none', activeTabId !== 'tab-physical-btn');
+    }
+
     // ---------------- 获取物理故障数据 ----------------
     async function loadData() {
         const selectedDateParts = inputDate.value.split('-').map(Number);
         let url = `${window.STATISTICS_DATA_API}?${buildTimeParams()}&calendar_year=${selectedDateParts[0]}&calendar_month=${selectedDateParts[1]}`;
+        url += buildPhysicalProvinceParams();
 
         try {
             document.getElementById('details-tbody').innerHTML = '<tr><td colspan="10" class="text-center py-4">加载中...</td></tr>';
@@ -1780,6 +1814,7 @@ document.addEventListener("DOMContentLoaded", function() {
         renderBranchCompanyBoxplot(branchData);
         renderBranchCompanyValidDurationChart(branchData);
         renderBranchCompanyWeeklyChart(branchData);
+        renderBranchCompanyMonthlyChart(branchData);
     }
 
     function formatBranchPerformanceValue(value, digits = 1) {
@@ -2223,6 +2258,18 @@ document.addEventListener("DOMContentLoaded", function() {
         };
     }
 
+    function getBranchCompanyProvinceColor(name, chartTheme) {
+        const colors = {
+            '浙江': '#4E79A7',
+            '山东': '#F28E2B',
+            '内蒙': '#59A14F',
+            '陕西': '#B07AA1',
+            '四川': '#EDC948',
+            '江西': '#9C755F',
+        };
+        return colors[name] || chartTheme.primary;
+    }
+
     function renderBranchBarChart(chart, data, metric, title, unit, tooltipFormatter = null) {
         if (!chart) return;
         const chartTheme = getChartTheme();
@@ -2260,7 +2307,6 @@ document.addEventListener("DOMContentLoaded", function() {
                     fontWeight: 600,
                     formatter: params => Number(params.value || 0) > 0 ? formatCardMetricValue(params.value) : ''
                 },
-                itemStyle: { color: chartTheme.primary, borderRadius: [4, 4, 0, 0] },
                 data: sortedData.map(item => ({
                     value: Number(item[metric] || 0),
                     _count: item.value || 0,
@@ -2268,6 +2314,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     _validDurationTotal: item.valid_duration_total || 0,
                     _validCount: item.valid_count || 0,
                     _pathLength: item.path_length || 0,
+                    itemStyle: { color: getBranchCompanyProvinceColor(item.name, chartTheme), borderRadius: [4, 4, 0, 0] },
                 }))
             }]
         });
@@ -2295,10 +2342,10 @@ document.addEventListener("DOMContentLoaded", function() {
     function renderBranchCompanyBoxplot(branchData) {
         if (!chartBranchCompanyBoxplot) return;
         const chartTheme = getChartTheme();
-        const metric = getCheckedValue('branchCompanyBoxplotMetric', 'duration');
+        const metric = 'duration';
         const boxplotData = (branchData.duration_boxplot || []).map(item => ({
             name: item.name,
-            value: metric === 'per_100km' ? (item.per_100km || []) : (item.value || []),
+            value: item.value || [],
         }));
         chartBranchCompanyBoxplot.setOption({
             textStyle: { color: chartTheme.text },
@@ -2318,7 +2365,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 data: boxplotData.map(item => item.name),
                 ...buildAxisTheme(chartTheme, { interval: 0 })
             },
-            yAxis: buildBranchCompanyYAxis(metric === 'per_100km' ? '小时/百公里' : '小时', chartTheme),
+            yAxis: buildBranchCompanyYAxis('小时', chartTheme),
             series: [{
                 name: '中断时长分布',
                 type: 'boxplot',
@@ -2330,20 +2377,60 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function renderBranchCompanyValidDurationChart(branchData) {
-        const metric = getCheckedValue('branchCompanyValidMetric', 'valid_duration');
+        const metric = 'valid_duration';
         renderBranchBarChart(
             chartBranchCompanyValidDuration,
             branchData.valid_duration_bars || [],
             metric,
-            metric === 'valid_duration' ? '有效平均历时' : '百公里有效平均历时',
-            metric === 'valid_duration' ? '小时' : '小时/百公里',
-            (p, raw) => `${p.marker || ''}${p.name}<br/>有效平均历时: ${formatCardMetricValue(p.value || 0)} ${metric === 'valid_duration' ? '小时' : '小时/百公里'}<br/>有效故障数: ${raw._validCount || 0} 起<br/>有效总历时: ${formatCardMetricValue(raw._validDurationTotal || 0)} 小时<br/>光缆长度: ${formatCardMetricValue(raw._pathLength || 0)} 公里`
+            '有效平均历时',
+            '小时',
+            (p, raw) => `${p.marker || ''}${p.name}<br/>有效平均历时: ${formatCardMetricValue(p.value || 0)} 小时<br/>有效故障数: ${raw._validCount || 0} 起<br/>有效总历时: ${formatCardMetricValue(raw._validDurationTotal || 0)} 小时<br/>光缆长度: ${formatCardMetricValue(raw._pathLength || 0)} 公里`
         );
+    }
+
+    function syncBranchCompanyWeeklyScaleAvailability() {
+        const weeklyScaleRaw = document.getElementById('branch-company-weekly-scale-raw');
+        const weeklyScaleNormalized = document.getElementById('branch-company-weekly-scale-normalized');
+        const weeklyScaleNormalizedLabel = document.querySelector('label[for="branch-company-weekly-scale-normalized"]');
+        if (!weeklyScaleRaw || !weeklyScaleNormalized) return;
+
+        const isValidDuration = getCheckedValue('branchCompanyWeeklyMetric', 'count') === 'valid_duration';
+        if (isValidDuration && weeklyScaleNormalized.checked) {
+            weeklyScaleRaw.checked = true;
+        }
+        weeklyScaleNormalized.disabled = isValidDuration;
+        weeklyScaleNormalized.setAttribute('aria-disabled', isValidDuration ? 'true' : 'false');
+        if (weeklyScaleNormalizedLabel) {
+            weeklyScaleNormalizedLabel.classList.toggle('disabled', isValidDuration);
+            weeklyScaleNormalizedLabel.setAttribute(
+                'title',
+                isValidDuration ? '有效时长不支持百公里统计' : ''
+            );
+        }
+    }
+
+    function formatBranchCompanyWeekMonthTick(value, index, labels) {
+        const monthNames = [
+            '一月', '二月', '三月', '四月', '五月', '六月',
+            '七月', '八月', '九月', '十月', '十一月', '十二月'
+        ];
+        const match = String(value || '').match(/^(\d{1,2})\//);
+        if (!match) return index === 0 ? value : '';
+
+        const currentMonth = Number(match[1]);
+        const previousValue = index > 0 ? labels[index - 1] : '';
+        const previousMatch = String(previousValue || '').match(/^(\d{1,2})\//);
+        const previousMonth = previousMatch ? Number(previousMatch[1]) : null;
+        if (index === 0 || currentMonth !== previousMonth) {
+            return monthNames[currentMonth - 1] || value;
+        }
+        return '';
     }
 
     function renderBranchCompanyWeeklyChart(branchData) {
         if (!chartBranchCompanyWeekly) return;
         const chartTheme = getChartTheme();
+        syncBranchCompanyWeeklyScaleAvailability();
         const metric = getCheckedValue('branchCompanyWeeklyMetric', 'count');
         const scale = getCheckedValue('branchCompanyWeeklyScale', 'raw');
         const weeklyData = branchData.weekly_trends || {};
@@ -2356,7 +2443,6 @@ document.addEventListener("DOMContentLoaded", function() {
             : (metric === 'count' ? '起' : '小时');
         chartBranchCompanyWeekly.setOption({
             textStyle: { color: chartTheme.text },
-            color: chartTheme.chartPalette,
             tooltip: {
                 ...buildTooltipTheme(chartTheme),
                 trigger: 'axis'
@@ -2370,21 +2456,76 @@ document.addEventListener("DOMContentLoaded", function() {
             xAxis: {
                 type: 'category',
                 data: labels,
+                boundaryGap: false,
                 ...buildAxisTheme(chartTheme, {
-                    interval: Math.max(0, Math.floor(labels.length / 12)),
-                    rotate: labels.length > 18 ? 30 : 0,
+                    interval: 0,
+                    rotate: 0,
+                    formatter: (value, index) => formatBranchCompanyWeekMonthTick(value, index, labels)
                 })
             },
             yAxis: buildBranchCompanyYAxis(unit, chartTheme),
-            series: (weeklyData.series || []).map(item => ({
-                name: item.name,
-                type: 'line',
-                smooth: true,
-                symbol: 'circle',
-                symbolSize: 4,
-                lineStyle: { width: 2 },
-                data: item[metricKey] || []
-            }))
+            series: (weeklyData.series || []).map(item => {
+                const lineColor = getBranchCompanyProvinceColor(item.name, chartTheme);
+                return {
+                    name: item.name,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    itemStyle: { color: lineColor },
+                    lineStyle: { width: 2, color: lineColor },
+                    data: item[metricKey] || []
+                };
+            })
+        });
+    }
+
+    function renderBranchCompanyMonthlyChart(branchData) {
+        if (!chartBranchCompanyMonthly) return;
+        const chartTheme = getChartTheme();
+        syncBranchCompanyWeeklyScaleAvailability();
+        const metric = getCheckedValue('branchCompanyWeeklyMetric', 'count');
+        const scale = getCheckedValue('branchCompanyWeeklyScale', 'raw');
+        const monthlyData = branchData.monthly_trends || {};
+        const labels = monthlyData.labels || [];
+        const metricKey = scale === 'per_100km'
+            ? (metric === 'count' ? 'month_count_per_100km' : metric === 'duration' ? 'month_duration_per_100km' : 'month_valid_duration_per_100km')
+            : (metric === 'count' ? 'counts' : metric === 'duration' ? 'durations' : 'valid_durations');
+        const unit = scale === 'per_100km'
+            ? (metric === 'count' ? '起/百公里' : '小时/百公里')
+            : (metric === 'count' ? '起' : '小时');
+        chartBranchCompanyMonthly.setOption({
+            textStyle: { color: chartTheme.text },
+            tooltip: {
+                ...buildTooltipTheme(chartTheme),
+                trigger: 'axis',
+                axisPointer: { type: 'shadow', shadowStyle: { color: chartTheme.dark ? 'rgba(110, 168, 254, 0.14)' : 'rgba(32, 107, 196, 0.1)' } }
+            },
+            legend: {
+                top: 8,
+                left: 'center',
+                ...buildLegendTheme(chartTheme)
+            },
+            grid: buildBranchCompanyGrid(true),
+            xAxis: {
+                type: 'category',
+                data: labels,
+                ...buildAxisTheme(chartTheme, {
+                    interval: 0,
+                    rotate: 0
+                })
+            },
+            yAxis: buildBranchCompanyYAxis(unit, chartTheme),
+            series: (monthlyData.series || []).map(item => {
+                const barColor = getBranchCompanyProvinceColor(item.name, chartTheme);
+                return {
+                    name: item.name,
+                    type: 'bar',
+                    barMaxWidth: 18,
+                    itemStyle: { color: barColor, borderRadius: [3, 3, 0, 0] },
+                    data: item[metricKey] || []
+                };
+            })
         });
     }
 
@@ -3329,9 +3470,17 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
+    if (physicalProvinceFilter) {
+        physicalProvinceFilter.addEventListener('change', () => {
+            const activeTab = document.querySelector('#statisticsTab .nav-link.active');
+            if (activeTab && activeTab.id === 'tab-physical-btn') loadData();
+        });
+    }
+
     // ---------------- Tab 切换联动 ----------------
     function loadActiveTab() {
         syncBareFiberServiceCardScopeToggle();
+        syncPhysicalProvinceFilterVisibility();
         const activeTab = document.querySelector('#statisticsTab .nav-link.active');
         if (activeTab && (activeTab.id === 'tab-service-btn' || activeTab.id === 'tab-circuit-service-btn')) {
             loadServiceData();
@@ -3347,6 +3496,7 @@ document.addEventListener("DOMContentLoaded", function() {
     if (tabEl) {
         tabEl.addEventListener('shown.bs.tab', function(event) {
             syncBareFiberServiceCardScopeToggle();
+            syncPhysicalProvinceFilterVisibility();
             if (event.target.id === 'tab-service-btn' || event.target.id === 'tab-circuit-service-btn') {
                 loadServiceData();
             } else if (event.target.id === 'tab-branch-company-btn' || event.target.id === 'tab-branch-performance-btn') {
@@ -3365,6 +3515,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ---------------- 初始化启动 ----------------
     syncBareFiberServiceCardScopeToggle();
+    syncPhysicalProvinceFilterVisibility();
     updateDateSelectors();
     loadData();
 });

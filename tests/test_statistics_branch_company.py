@@ -46,6 +46,7 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
             "'duration_boxplot'",
             "'valid_duration_bars'",
             "'weekly_trends'",
+            "'monthly_trends'",
             "'path_lengths'",
             "'per_100km'",
         ):
@@ -62,6 +63,10 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("'week_count_per_100km'", branch_source)
         self.assertIn("'week_duration_per_100km'", branch_source)
         self.assertIn("'week_valid_duration_per_100km'", branch_source)
+        self.assertIn("monthly_by_province = {", branch_source)
+        self.assertIn("'month_count_per_100km'", branch_source)
+        self.assertIn("'month_duration_per_100km'", branch_source)
+        self.assertIn("'month_valid_duration_per_100km'", branch_source)
         self.assertIn("selected_calendar_year = calendar_year or selected_year", branch_source)
         self.assertIn("selected_calendar_month = calendar_month or timezone.localtime(start_date).month", branch_source)
         self.assertIn("calendar_months = _build_recent_calendar_months(selected_calendar_year, selected_calendar_month, tz)", branch_source)
@@ -143,6 +148,8 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn('id="chart-branch-company-boxplot"', template)
         self.assertIn('id="chart-branch-company-valid-duration"', template)
         self.assertIn('id="chart-branch-company-weekly"', template)
+        self.assertIn('id="chart-branch-company-monthly"', template)
+        self.assertIn('年初至今月趋势', template)
         self.assertIn('id="branch-company-drill-down-filter-badge"', template)
         self.assertIn('id="branch-company-btn-clear-filter"', template)
         self.assertIn('id="branch-company-filtered-kpi-summary"', template)
@@ -159,12 +166,18 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         for group_name in (
             "branchCompanyCountMetric",
             "branchCompanyDurationMetric",
-            "branchCompanyBoxplotMetric",
-            "branchCompanyValidMetric",
             "branchCompanyWeeklyMetric",
             "branchCompanyWeeklyScale",
         ):
             self.assertIn(f'name="{group_name}"', template)
+        boxplot_header = template.split('id="chart-branch-company-boxplot"', 1)[0].split('中断时长箱线图', 1)[-1]
+        self.assertNotIn('name="branchCompanyBoxplotMetric"', boxplot_header)
+        self.assertNotIn('id="branch-company-boxplot-normalized"', boxplot_header)
+        self.assertNotIn('百公里平均', boxplot_header)
+        valid_chart_header = template.split('id="chart-branch-company-valid-duration"', 1)[0].split('有效平均历时', 1)[-1]
+        self.assertNotIn('name="branchCompanyValidMetric"', valid_chart_header)
+        self.assertNotIn('id="branch-company-valid-normalized"', valid_chart_header)
+        self.assertNotIn('百公里平均', valid_chart_header)
 
     def test_dashboard_script_renders_branch_company_charts(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -222,6 +235,36 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("function renderBranchCompanyBoxplot(branchData)", source)
         self.assertIn("function renderBranchCompanyValidDurationChart(branchData)", source)
         self.assertIn("function renderBranchCompanyWeeklyChart(branchData)", source)
+        self.assertIn("const chartBranchCompanyMonthlyElement = document.getElementById('chart-branch-company-monthly');", source)
+        self.assertIn("let chartBranchCompanyMonthly = chartBranchCompanyMonthlyElement ? echarts.init(chartBranchCompanyMonthlyElement) : null;", source)
+        self.assertIn("if (chartBranchCompanyMonthly) chartBranchCompanyMonthly.resize();", source)
+        self.assertIn("renderBranchCompanyMonthlyChart(branchData);", source)
+        self.assertIn("function renderBranchCompanyMonthlyChart(branchData)", source)
+        self.assertIn("const monthlyData = branchData.monthly_trends || {};", source)
+        self.assertIn("month_count_per_100km", source)
+        self.assertIn("month_duration_per_100km", source)
+        self.assertIn("month_valid_duration_per_100km", source)
+        self.assertIn("type: 'bar'", source)
+        self.assertIn("function syncBranchCompanyWeeklyScaleAvailability()", source)
+        self.assertIn("weeklyScaleNormalized.disabled = isValidDuration;", source)
+        self.assertIn("if (isValidDuration && weeklyScaleNormalized.checked)", source)
+        self.assertIn("weeklyScaleRaw.checked = true;", source)
+        self.assertIn("function getBranchCompanyProvinceColor(name, chartTheme)", source)
+        self.assertIn("'浙江': '#4E79A7'", source)
+        self.assertIn("'山东': '#F28E2B'", source)
+        self.assertIn("'内蒙': '#59A14F'", source)
+        self.assertIn("'陕西': '#B07AA1'", source)
+        self.assertIn("'四川': '#EDC948'", source)
+        self.assertIn("'江西': '#9C755F'", source)
+        self.assertIn("itemStyle: { color: getBranchCompanyProvinceColor(item.name, chartTheme), borderRadius: [4, 4, 0, 0] }", source)
+        self.assertIn("const lineColor = getBranchCompanyProvinceColor(item.name, chartTheme);", source)
+        self.assertIn("itemStyle: { color: lineColor },", source)
+        self.assertIn("lineStyle: { width: 2, color: lineColor },", source)
+        self.assertIn("function formatBranchCompanyWeekMonthTick(value, index, labels)", source)
+        self.assertIn("'一月', '二月', '三月', '四月', '五月', '六月'", source)
+        self.assertIn("boundaryGap: false,", source)
+        self.assertIn("formatter: (value, index) => formatBranchCompanyWeekMonthTick(value, index, labels)", source)
+        self.assertNotIn("interval: Math.max(0, Math.floor(labels.length / 12))", source)
         self.assertIn("function buildBranchCompanyGrid(isWeekly = false)", source)
         self.assertIn("const selectedDateParts = inputDate.value.split('-').map(Number);", source)
         self.assertIn("&calendar_year=${selectedDateParts[0]}&calendar_month=${selectedDateParts[1]}", source)
@@ -229,9 +272,20 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("function buildBranchCompanyYAxis(unit, chartTheme)", source)
         self.assertIn("nameGap: 16", source)
         self.assertIn("nameTextStyle", source)
+        boxplot_chart_source = source.split("function renderBranchCompanyBoxplot(branchData)", 1)[1].split("function renderBranchCompanyValidDurationChart", 1)[0]
+        self.assertIn("const metric = 'duration';", boxplot_chart_source)
+        self.assertIn("value: item.value || [],", boxplot_chart_source)
+        self.assertIn("yAxis: buildBranchCompanyYAxis('小时', chartTheme)", boxplot_chart_source)
+        self.assertNotIn("getCheckedValue('branchCompanyBoxplotMetric'", boxplot_chart_source)
+        self.assertNotIn("per_100km", boxplot_chart_source)
         self.assertIn("tooltipFormatter = null", source)
         self.assertIn("_validDurationTotal: item.valid_duration_total || 0", source)
         self.assertIn("_validCount: item.valid_count || 0", source)
+        valid_chart_source = source.split("function renderBranchCompanyValidDurationChart(branchData)", 1)[1].split("function renderBranchCompanyWeeklyChart", 1)[0]
+        self.assertIn("const metric = 'valid_duration';", valid_chart_source)
+        self.assertNotIn("getCheckedValue('branchCompanyValidMetric'", valid_chart_source)
+        self.assertNotIn("valid_duration_per_100km", valid_chart_source)
+        self.assertNotIn("百公里有效平均历时", valid_chart_source)
         self.assertIn("function renderBranchCompanyDetailsTable()", source)
         self.assertIn("function handleBranchCompanyChartClick(params, fieldName)", source)
         self.assertIn("function handleBranchCompanyMetricFilterClick(metric)", source)
@@ -299,6 +353,7 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn(".statistics-branch-company-chart-grid", css)
         self.assertIn(".statistics-branch-company-chart", css)
         self.assertIn(".statistics-branch-company-weekly-chart", css)
+        self.assertIn(".statistics-branch-company-monthly-chart", css)
 
 
 if __name__ == "__main__":

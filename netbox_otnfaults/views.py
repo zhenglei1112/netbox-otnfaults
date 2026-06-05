@@ -43,7 +43,13 @@ from urllib.parse import urlencode
 import logging
 from .map_modes import get_mode_config
 from .statistics_period import build_period_display
-from .statistics_views import _parse_time_range, get_cable_break_base_queryset, truncate_sla
+from .statistics_views import (
+    _apply_physical_province_filter,
+    _parse_selected_provinces,
+    _parse_time_range,
+    get_cable_break_base_queryset,
+    truncate_sla,
+)
 from .services.map_preferences import (
     build_map_preference_context,
     get_user_map_style_config,
@@ -243,9 +249,11 @@ class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
             for key in time_keys
             if request.GET.get(key) not in [None, '']
         }
+        selected_provinces = _parse_selected_provinces(request)
+        query_params = list(time_params.items()) + [('provinces', province) for province in selected_provinces]
         map_data_url = reverse('plugins:netbox_otnfaults:statistics_cable_break_map_data')
-        if time_params:
-            map_data_url = f"{map_data_url}?{urlencode(time_params)}"
+        if query_params:
+            map_data_url = f"{map_data_url}?{urlencode(query_params)}"
 
         is_embedded_map = request.GET.get('modal') == 'true'
         start_date, end_date, _prev_start_date, _prev_end_date, filter_type = _parse_time_range(request)
@@ -286,7 +294,11 @@ class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
     def get(self, request):
         start_date, end_date, _prev_start_date, _prev_end_date, _filter_type = _parse_time_range(request)
         now = timezone.localtime()
-        base_qs = get_cable_break_base_queryset(start_date, end_date)
+        selected_provinces = _parse_selected_provinces(request)
+        base_qs = _apply_physical_province_filter(
+            get_cable_break_base_queryset(start_date, end_date),
+            selected_provinces,
+        )
         fault_qs = (
             base_qs
             .select_related('province', 'interruption_location_a', 'handling_unit')
