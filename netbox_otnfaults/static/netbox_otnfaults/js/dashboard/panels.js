@@ -187,7 +187,8 @@ window.Panels = (function () {
             events.push({
                 type: 'fault',
                 key: 'fault-' + fault.id,
-                badge: '故障',
+                badge: fault.category_display || '故障',
+                badge_color: COLORS.category_colors[fault.category] || '#FF1E1E',
                 title: fault.fault_number || '处理中故障',
                 status: fault.status_display || '',
                 severity: fault.severity || 'major',
@@ -220,6 +221,7 @@ window.Panels = (function () {
                 type: 'cutover',
                 key: 'cutover-' + cutover.id,
                 badge: '割接',
+                badge_color: '#F59E0B',
                 title: cutover.cutover_no || '计划割接',
                 status: cutover.status_display || '',
                 color: '#F59E0B',
@@ -236,6 +238,7 @@ window.Panels = (function () {
                 type: 'heavy_duty',
                 key: 'heavy-duty-' + heavyDuty.id,
                 badge: '重保',
+                badge_color: '#10B981',
                 title: heavyDuty.name || '重保信息',
                 status: '进行中',
                 color: '#10B981',
@@ -279,9 +282,10 @@ window.Panels = (function () {
         }
 
         container.innerHTML = events.slice(0, 12).map(function (event) {
+            var badgeStyle = event.badge_color ? ' style="background:' + event.badge_color + ';color:#fff;"' : '';
             return '<div class="event-item event-item--' + event.type +
                 '" data-event-key="' + event.key + '">' +
-                '<span class="event-badge">' + event.badge + '</span>' +
+                '<span class="event-badge"' + badgeStyle + '>' + event.badge + '</span>' +
                 '<div class="event-info">' +
                 '<div class="event-title">' + event.title + '</div>' +
                 '<div class="event-detail">' + _buildEventDetailText(event) + '</div>' +

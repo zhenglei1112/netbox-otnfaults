@@ -81,6 +81,26 @@ STATUS_NAMES = {
 }
 
 
+def _format_duration_seconds(total_seconds: int) -> str:
+    if total_seconds < 0:
+        return ""
+    d = total_seconds // 86400
+    h = (total_seconds % 86400) // 3600
+    m = (total_seconds % 3600) // 60
+    s = total_seconds % 60
+    
+    units = [
+        (d, "天"),
+        (h, "小时"),
+        (m, "分"),
+        (s, "秒"),
+    ]
+    for index, (value, _) in enumerate(units):
+        if value > 0:
+            return "".join(f"{amount}{label}" for amount, label in units[index:])
+    return "0秒"
+
+
 class DashboardPageView(PermissionRequiredMixin, View):
     """大屏页面视图 - 渲染全屏 HTML"""
     permission_required = 'netbox_otnfaults.view_otnfault'
@@ -163,29 +183,13 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             freshness = math.exp(-0.005 * age_minutes)
             priority_score = severity_weight * urgency_weight * max(impact_count, 1) * freshness
 
-            # 计算故障历时（简洁格式：X天Y小时Z分W秒）
+            # 计算故障历时
             duration_text = ''
             if fault.fault_occurrence_time:
                 _end = fault.fault_recovery_time or now
                 _delta = _end - fault.fault_occurrence_time
                 _ts = int(_delta.total_seconds())
-                if _ts >= 0:
-                    _d = _ts // 86400
-                    _h = (_ts % 86400) // 3600
-                    _m = (_ts % 3600) // 60
-                    _s = _ts % 60
-                    _parts: list[str] = []
-                    if _d > 0:
-                        _parts.append(f'{_d}天')
-                    if _h > 0:
-                        _parts.append(f'{_h}小时')
-                    if _m > 0:
-                        _parts.append(f'{_m}分')
-                    if _s > 0 or not _parts:
-                        _parts.append(f'{_s}秒')
-                    duration_text = ''.join(_parts)
-                    if not fault.fault_recovery_time:
-                        duration_text += '(进行中)'
+                duration_text = _format_duration_seconds(_ts)
 
             active_faults.append({
                 'id': fault.pk,
@@ -277,26 +281,13 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
         ticker_events = []
         for fault in recent_faults:
             z_sites = [s.name for s in fault.interruption_location.all()]
-            # 计算故障历时（简短格式）
+            # 计算故障历时
             duration_text = ''
             if fault.fault_occurrence_time:
                 end_time = fault.fault_recovery_time or now
                 delta = end_time - fault.fault_occurrence_time
                 total_seconds = int(delta.total_seconds())
-                if total_seconds >= 0:
-                    days = total_seconds // 86400
-                    hours = (total_seconds % 86400) // 3600
-                    minutes = (total_seconds % 3600) // 60
-                    parts = []
-                    if days > 0:
-                        parts.append(f'{days}天')
-                    if hours > 0:
-                        parts.append(f'{hours}小时')
-                    if minutes > 0 or not parts:
-                        parts.append(f'{minutes}分')
-                    duration_text = ''.join(parts)
-                    if not fault.fault_recovery_time:
-                        duration_text += '(进行中)'
+                duration_text = _format_duration_seconds(total_seconds)
             ticker_events.append({
                 'fault_number': fault.fault_number,
                 'category': fault.get_fault_category_display() if fault.fault_category else '未知',
