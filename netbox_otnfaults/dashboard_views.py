@@ -163,6 +163,30 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             freshness = math.exp(-0.005 * age_minutes)
             priority_score = severity_weight * urgency_weight * max(impact_count, 1) * freshness
 
+            # 计算故障历时（简洁格式：X天Y小时Z分W秒）
+            duration_text = ''
+            if fault.fault_occurrence_time:
+                _end = fault.fault_recovery_time or now
+                _delta = _end - fault.fault_occurrence_time
+                _ts = int(_delta.total_seconds())
+                if _ts >= 0:
+                    _d = _ts // 86400
+                    _h = (_ts % 86400) // 3600
+                    _m = (_ts % 3600) // 60
+                    _s = _ts % 60
+                    _parts: list[str] = []
+                    if _d > 0:
+                        _parts.append(f'{_d}天')
+                    if _h > 0:
+                        _parts.append(f'{_h}小时')
+                    if _m > 0:
+                        _parts.append(f'{_m}分')
+                    if _s > 0 or not _parts:
+                        _parts.append(f'{_s}秒')
+                    duration_text = ''.join(_parts)
+                    if not fault.fault_recovery_time:
+                        duration_text += '(进行中)'
+
             active_faults.append({
                 'id': fault.pk,
                 'fault_number': fault.fault_number,
@@ -184,7 +208,7 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
                 'reason': fault.get_interruption_reason_display() if fault.interruption_reason else '',
                 'occurrence_time': fault.fault_occurrence_time.isoformat() if fault.fault_occurrence_time else None,
                 'recovery_time': fault.fault_recovery_time.isoformat() if fault.fault_recovery_time else None,
-                'duration': fault.fault_duration or '',
+                'duration': duration_text,
                 'dispatch_time': fault.dispatch_time.isoformat() if fault.dispatch_time else None,
                 'departure_time': fault.departure_time.isoformat() if fault.departure_time else None,
                 'arrival_time': fault.arrival_time.isoformat() if fault.arrival_time else None,

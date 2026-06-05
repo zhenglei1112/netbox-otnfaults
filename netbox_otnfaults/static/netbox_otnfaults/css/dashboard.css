@@ -1763,18 +1763,15 @@ body.layout-overview #directing-indicator {
     border-radius: 4px;
     font-size: var(--fs-11);
     white-space: nowrap;
-    max-width: 50%;
 }
 
 .heavy-duty-hcard-name {
     color: var(--text-primary);
     font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .heavy-duty-hcard-time {
-    color: var(--text-dim);
+    color: #fff;
     font-family: var(--font-data);
     font-size: var(--fs-10);
 }
@@ -1806,7 +1803,7 @@ body.layout-overview #directing-indicator {
 }
 
 .heavy-duty-list-time {
-    color: var(--text-dim);
+    color: #fff;
     font-family: var(--font-data);
     font-size: var(--fs-10);
 }

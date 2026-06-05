@@ -154,6 +154,29 @@ window.Panels = (function () {
             (e.duration ? ' | 历时' + e.duration : '') + ' | ' + e.status;
     }
 
+    /**
+     * 构建事件队列详情文本（不含标题前缀，避免与 event-title 重复）
+     */
+    function _buildEventDetailText(e) {
+        if (e.type === 'cutover') {
+            return (e.time_text || '') + ' | ' + (e.location || '') +
+                (e.impact_count ? ' | 影响业务 ' + e.impact_count + ' 项' : '');
+        }
+        if (e.type === 'heavy_duty') {
+            return (e.time_text || '') + ' | ' + (e.description || '');
+        }
+        if (e.type === 'fault') {
+            return (e.site_text || '') +
+                (e.duration ? ' | 历时' + e.duration : '') + ' | ' + (e.status || '');
+        }
+        var siteText = e.site_a || '';
+        if (e.sites_z && e.sites_z.length > 0) {
+            siteText += ' → ' + e.sites_z.join('、');
+        }
+        return siteText + ' | ' + e.time +
+            (e.duration ? ' | 历时' + e.duration : '') + ' | ' + e.status;
+    }
+
     function _buildDashboardEvents(data) {
         var events = [];
         (data.active_faults || []).forEach(function (fault) {
@@ -261,7 +284,7 @@ window.Panels = (function () {
                 '<span class="event-badge">' + event.badge + '</span>' +
                 '<div class="event-info">' +
                 '<div class="event-title">' + event.title + '</div>' +
-                '<div class="event-detail">' + _buildTickerText(event) + '</div>' +
+                '<div class="event-detail">' + _buildEventDetailText(event) + '</div>' +
                 '</div>' +
                 '</div>';
         }).join('');
