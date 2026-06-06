@@ -147,6 +147,24 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn("physical_duration_boxplot_faults = list(_apply_physical_province_filter(", source)
         self.assertIn("'selected_provinces': selected_provinces", source)
 
+    def test_statistics_data_api_filters_previous_physical_comparison_by_selected_provinces(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        previous_source = source.split("if prev_start_date and prev_end_date:", 1)[1].split("display_end_date_str", 1)[0]
+        previous_branch_company_call = previous_source.split(
+            "prev_branch_company_stats = _build_branch_company_statistics(",
+            1,
+        )[1].split(")", 1)[0]
+
+        self.assertIn("prev_unfiltered_all_faults = list(prev_all_qs)", previous_source)
+        self.assertIn(
+            "prev_all_faults = list(_apply_physical_province_filter(prev_all_qs, selected_provinces))",
+            previous_source,
+        )
+        self.assertIn("prev_overall_faults = [", previous_source)
+        self.assertIn("prev_other_overview = _build_other_fault_summary(", previous_source)
+        self.assertIn("prev_unfiltered_all_faults,", previous_branch_company_call)
+        self.assertNotIn("prev_all_faults,", previous_branch_company_call)
+
     def test_statistics_dashboard_js_uses_theme_aware_chart_options(self) -> None:
         script = JS_PATH.read_text(encoding="utf-8")
 

@@ -1691,9 +1691,10 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             all_suspended_faults_total_count,
         )
         if prev_start_date and prev_end_date:
-            # 上周期全量故障（用于总体情况分类对比）
+            # 上周期故障：物理页对比遵循省份过滤，子公司统计保持全量口径。
             prev_all_qs = qs_all.filter(fault_occurrence_time__gte=prev_start_date, fault_occurrence_time__lt=prev_end_date)
-            prev_all_faults = list(prev_all_qs)
+            prev_unfiltered_all_faults = list(prev_all_qs)
+            prev_all_faults = list(_apply_physical_province_filter(prev_all_qs, selected_provinces))
             prev_overall_faults = [
                 f for f in prev_all_faults
                 if f.fault_category not in OVERALL_EXCLUDED_TOTAL_CATEGORIES
@@ -1708,7 +1709,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             # 上周期光缆中断概览（用于各子指标趋势对比）
             prev_cable_break_overview = _compute_cable_break_overview(prev_faults, now)
             prev_branch_company_stats = _build_branch_company_statistics(
-                prev_all_faults,
+                prev_unfiltered_all_faults,
                 prev_global_cable_break_faults,
                 unfiltered_open_suspended_faults_count,
                 prev_start_date,
