@@ -1,4 +1,4 @@
-﻿## 2026-05-25 调整割接地图图标显示效果
+## 2026-05-25 调整割接地图图标显示效果
 - [x] 增加回归测试，锁定割接点不再使用呼吸发光图层或动画。
 - [x] 移除一张图中割接点的呼吸发光 circle 图层、动画调度和可见性联动。
 - [x] 将割接卡片图标的静态阴影调整为浅阴影，提高底图上的可辨识度。
@@ -2261,3 +2261,13 @@
 - [x] 调整趋势图卡片与 canvas 样式，移除大屏断点下的固定高度拉伸。
 - [x] 调整 canvas 绘制尺寸计算，按实际 CSS 容器和设备像素比重绘。
 - [x] 运行定向测试和 JS 语法检查验证变更。
+
+## 2026-06-05 修复一张图全屏状态下浮动菜单被遮挡问题
+- [x] 增加源码/静态文件校验，确保 LayerToggleControl.js 和 MapStylePreferenceControl.js 在全屏模式下将浮动菜单挂载到全屏元素中。
+- [x] 优化浮动菜单定位机制，避免在全屏下由于 document.body 无法穿透而导致遮挡。
+- [x] 验证地图全屏与正常窗口下的菜单响应与销毁逻辑。
+
+## 2026-06-05 修复地图样式设置颜色选择时菜单被销毁问题
+- [ ] 引入 colorPickerActive 与 mouseInsideMenu 标记。
+- [ ] 修改 MapStylePreferenceControl.js 中的 focus/blur/change 与 mouseenter/mouseleave 监听。
+- [ ] 对 hideMenu、hideMenuWithDelay 和 document 关联点击函数追加状态拦截，解决 Mac Edge 下因调起系统色盘导致菜单提前销毁的 Bug。

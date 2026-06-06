@@ -52,8 +52,8 @@ class LayerToggleControl {
         this.pathGroupOverlayLoading = false;
         this.selectedPathGroupIds = new Set();
 
-        // 故障类型筛选（整合自 CategoryFilterControl），默认为新6大类+其它
-        this.selectedCategories = ['fiber_break', 'ac_fault', 'fiber_degradation', 'fiber_jitter', 'device_fault', 'power_fault', 'other'];
+        // 故障类型筛选（整合自 CategoryFilterControl），默认显示重点三类
+        this.selectedCategories = ['fiber_break', 'device_fault', 'power_fault'];
 
         // 时间范围选项（用于滑动条）
         this.timeRangeOptions = [
@@ -149,7 +149,15 @@ class LayerToggleControl {
         // Ensure menu is appended to container so mouseleave works for both button and menu
         if (this.floatingMenu) {
             menu.classList.add('floating-menu');
-            document.body.appendChild(menu);
+            const fullscreenEl = document.fullscreenElement || 
+                                 document.mozFullScreenElement || 
+                                 document.webkitFullscreenElement || 
+                                 document.msFullscreenElement;
+            if (fullscreenEl) {
+                fullscreenEl.appendChild(menu);
+            } else {
+                document.body.appendChild(menu);
+            }
         } else {
             this.container.appendChild(menu);
         }
@@ -423,13 +431,23 @@ class LayerToggleControl {
         const wrapper = document.createElement('div');
         wrapper.className = 'category-filter-wrapper p-2';
 
+        const categories = [
+            { key: 'fiber_break', name: window.FAULT_CATEGORY_NAMES?.fiber_break || '光缆中断', color: window.FAULT_CATEGORY_COLORS?.fiber_break || '#dc3545' },
+            { key: 'ac_fault', name: window.FAULT_CATEGORY_NAMES?.ac_fault || '空调故障', color: window.FAULT_CATEGORY_COLORS?.ac_fault || '#0d6efd' },
+            { key: 'fiber_degradation', name: window.FAULT_CATEGORY_NAMES?.fiber_degradation || '光缆劣化', color: window.FAULT_CATEGORY_COLORS?.fiber_degradation || '#f5a623' },
+            { key: 'fiber_jitter', name: window.FAULT_CATEGORY_NAMES?.fiber_jitter || '光缆抖动', color: window.FAULT_CATEGORY_COLORS?.fiber_jitter || '#ffc107' },
+            { key: 'device_fault', name: window.FAULT_CATEGORY_NAMES?.device_fault || '设备故障', color: window.FAULT_CATEGORY_COLORS?.device_fault || '#d63384' },
+            { key: 'power_fault', name: window.FAULT_CATEGORY_NAMES?.power_fault || '供电故障', color: window.FAULT_CATEGORY_COLORS?.power_fault || '#6f42c1' },
+            { key: 'other', name: window.FAULT_CATEGORY_NAMES?.other || '其他', color: window.FAULT_CATEGORY_COLORS?.other || '#6c757d' }
+        ];
+
         // 全选复选框
         const allItem = document.createElement('label');
         allItem.className = 'd-flex align-items-center mb-2';
 
         const allCheckbox = document.createElement('input');
         allCheckbox.type = 'checkbox';
-        allCheckbox.checked = this.selectedCategories.length >= 7;
+        allCheckbox.checked = this.areAllCategoriesSelected(categories);
         allCheckbox.className = 'form-check-input mt-0';
         allCheckbox.id = 'layer-cat-all';
 
@@ -451,16 +469,6 @@ class LayerToggleControl {
         // 分类网格（2列布局）
         const grid = document.createElement('div');
         grid.className = 'category-grid';
-
-        const categories = [
-            { key: 'fiber_break', name: window.FAULT_CATEGORY_NAMES?.fiber_break || '光缆中断', color: window.FAULT_CATEGORY_COLORS?.fiber_break || '#dc3545' },
-            { key: 'ac_fault', name: window.FAULT_CATEGORY_NAMES?.ac_fault || '空调故障', color: window.FAULT_CATEGORY_COLORS?.ac_fault || '#0d6efd' },
-            { key: 'fiber_degradation', name: window.FAULT_CATEGORY_NAMES?.fiber_degradation || '光缆劣化', color: window.FAULT_CATEGORY_COLORS?.fiber_degradation || '#f5a623' },
-            { key: 'fiber_jitter', name: window.FAULT_CATEGORY_NAMES?.fiber_jitter || '光缆抖动', color: window.FAULT_CATEGORY_COLORS?.fiber_jitter || '#ffc107' },
-            { key: 'device_fault', name: window.FAULT_CATEGORY_NAMES?.device_fault || '设备故障', color: window.FAULT_CATEGORY_COLORS?.device_fault || '#d63384' },
-            { key: 'power_fault', name: window.FAULT_CATEGORY_NAMES?.power_fault || '供电故障', color: window.FAULT_CATEGORY_COLORS?.power_fault || '#6f42c1' },
-            { key: 'other', name: window.FAULT_CATEGORY_NAMES?.other || '其他', color: window.FAULT_CATEGORY_COLORS?.other || '#6c757d' }
-        ];
 
         categories.forEach(cat => {
             const item = document.createElement('label');
@@ -484,8 +492,7 @@ class LayerToggleControl {
                 this.toggleCategory(cat.key, checkbox.checked);
 
                 // 更新全选状态
-                const allChecked = this.selectedCategories.length >= categories.length;
-                allCheckbox.checked = allChecked;
+                allCheckbox.checked = this.areAllCategoriesSelected(categories);
             };
 
             grid.appendChild(item);
@@ -960,6 +967,10 @@ class LayerToggleControl {
             this.selectedCategories = [];
         }
         this.triggerGlobalUpdate();
+    }
+
+    areAllCategoriesSelected(categories) {
+        return categories.every(cat => this.selectedCategories.includes(cat.key));
     }
 
     /**

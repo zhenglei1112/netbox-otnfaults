@@ -11,8 +11,11 @@ class MapStylePreferenceControl {
     this.valueBadges = {};
     this.currentGroup = "province";
     this.hideTimer = null;
+    this.colorPickerActive = false;
+    this.mouseInsideMenu = false;
     this.boundPositionMenu = () => this.positionMenu();
     this.boundDocumentClick = (event) => {
+      if (this.colorPickerActive) return;
       if (this.container?.contains(event.target) || this.menu?.contains(event.target)) return;
       this.hideMenu();
     };
@@ -113,10 +116,12 @@ class MapStylePreferenceControl {
   }
 
   hideMenuWithDelay() {
+    if (this.colorPickerActive) return;
     this.hideTimer = setTimeout(() => this.hideMenu(), 200);
   }
 
   hideMenu() {
+    if (this.colorPickerActive) return;
     if (this.menu && this.menu.parentNode) {
       this.menu.parentNode.removeChild(this.menu);
     }
@@ -134,9 +139,13 @@ class MapStylePreferenceControl {
     const menu = document.createElement("div");
     menu.className = "view-control-menu map-style-menu card shadow bg-body p-2 border border-secondary-subtle";
     menu.onmouseenter = () => {
+      this.mouseInsideMenu = true;
       if (this.hideTimer) clearTimeout(this.hideTimer);
     };
-    menu.onmouseleave = () => this.hideMenuWithDelay();
+    menu.onmouseleave = () => {
+      this.mouseInsideMenu = false;
+      this.hideMenuWithDelay();
+    };
     menu.addEventListener("click", (event) => event.stopPropagation());
 
     this.addHeader(menu, "地图样式");
@@ -158,7 +167,15 @@ class MapStylePreferenceControl {
     menu.appendChild(this.statusElement);
     menu.appendChild(this.createActions());
 
-    document.body.appendChild(menu);
+    const fullscreenEl = document.fullscreenElement || 
+                         document.mozFullScreenElement || 
+                         document.webkitFullscreenElement || 
+                         document.msFullscreenElement;
+    if (fullscreenEl) {
+      fullscreenEl.appendChild(menu);
+    } else {
+      document.body.appendChild(menu);
+    }
     this.menu = menu;
     this.positionMenu();
     window.addEventListener("resize", this.boundPositionMenu);
@@ -306,6 +323,18 @@ class MapStylePreferenceControl {
     input.addEventListener("input", () => {
       input.updateSwatch(input.value);
       this.preview();
+    });
+    input.addEventListener("focus", () => {
+      this.colorPickerActive = true;
+    });
+    input.addEventListener("blur", () => {
+      this.colorPickerActive = false;
+      if (!this.mouseInsideMenu) {
+        this.hideMenuWithDelay();
+      }
+    });
+    input.addEventListener("change", () => {
+      input.blur();
     });
     input.updateSwatch = (value) => {
       swatch.style.setProperty("--map-style-swatch-color", value);
