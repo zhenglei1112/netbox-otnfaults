@@ -900,7 +900,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             'power_data_type', 'root_cause_analysis', 'rectification_status', 'rectification_measures',
             'rectification_description', 'rectification_subject', 'rectification_progress',
             'planned_completion_date', 'actual_completion_date', 'rectification_completion_description',
-            'power_recovery_mode', 'power_maintenance_mode',
+            'power_recovery_mode', 'power_maintenance_mode', 'power_handling_unit', 'power_contract',
             name='供电故障补充信息'
         ),
         FieldSet(
@@ -964,6 +964,19 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             'external_party_object': '$handling_unit',
         }
     )
+    power_handling_unit = DynamicModelChoiceField(
+        queryset=ServiceProvider.objects.all(),
+        required=False,
+        label='代维方/租赁方'
+    )
+    power_contract = DynamicModelChoiceField(
+        queryset=Contract.objects.all(),
+        required=False,
+        label='代维/租赁合同',
+        query_params={
+            'external_party_object': '$power_handling_unit',
+        }
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -972,6 +985,10 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             self.fields['handling_unit'].widget.attrs['data-url'] = '/api/plugins/contracts/serviceproviders/'
         if 'contract' in self.fields:
             self.fields['contract'].widget.attrs['data-url'] = '/api/plugins/contracts/contracts/'
+        if 'power_handling_unit' in self.fields:
+            self.fields['power_handling_unit'].widget.attrs['data-url'] = '/api/plugins/contracts/serviceproviders/'
+        if 'power_contract' in self.fields:
+            self.fields['power_contract'].widget.attrs['data-url'] = '/api/plugins/contracts/contracts/'
 
     fault_category = forms.ChoiceField(
         choices=add_blank_choice(FaultCategoryChoices),

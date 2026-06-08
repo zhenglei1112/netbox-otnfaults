@@ -1,6 +1,7 @@
 from django.db.models import Q
 import django_filters
 from netbox.filtersets import NetBoxModelFilterSet
+from netbox_contract.models import ServiceProvider, Contract
 
 from .models import (
     BareFiberService,
@@ -59,6 +60,16 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
         method='filter_rectification_measures',
         label='整改措施',
     )
+    power_handling_unit = django_filters.ModelChoiceFilter(
+        field_name='handling_unit',
+        queryset=ServiceProvider.objects.all(),
+        label='代维方/租赁方 (供电)'
+    )
+    power_contract = django_filters.ModelChoiceFilter(
+        field_name='contract',
+        queryset=Contract.objects.all(),
+        label='代维/租赁合同 (供电)'
+    )
 
     class Meta:
         model = OtnFault
@@ -71,6 +82,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'fault_details', 'interruption_longitude',
             'interruption_latitude', 'province', 'urgency', 'first_report_source',
             'line_manager', 'operations_manager', 'maintenance_mode', 'handling_unit', 'contract',
+            'power_handling_unit', 'power_contract',
             'dispatch_time', 'departure_time', 'arrival_time',
             'timeout', 'timeout_reason', 'resource_type', 'resource_owner', 'cable_route',
             'handler', 'cable_break_location', 'recovery_mode', 'root_cause_analysis',
