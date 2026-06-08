@@ -108,7 +108,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn("flex-wrap: wrap;", filter_controls_block)
         self.assertIn("align-items: center;", filter_controls_block)
         self.assertIn("display: grid;", province_group_block)
-        self.assertIn("grid-template-columns: auto minmax(12rem, 18rem);", province_group_block)
+        self.assertIn("grid-template-columns: auto minmax(6rem, 9rem);", province_group_block)
         self.assertIn("height: 2.25rem;", province_ts_control_block)
         self.assertIn("flex-wrap: nowrap;", province_ts_control_block)
         self.assertIn("overflow: hidden;", province_ts_control_block)

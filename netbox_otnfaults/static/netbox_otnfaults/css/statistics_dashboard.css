@@ -136,7 +136,7 @@ body.modal-open {
 
 .physical-province-filter-group {
     display: grid;
-    grid-template-columns: auto minmax(12rem, 18rem);
+    grid-template-columns: auto minmax(6rem, 9rem);
     align-items: center;
     gap: 0.5rem;
     flex: 0 0 auto;
@@ -148,7 +148,7 @@ body.modal-open {
 }
 
 .physical-province-filter {
-    min-width: 12rem;
+    min-width: 6rem;
 }
 
 .physical-province-filter.ts-hidden-accessible {
@@ -176,9 +176,14 @@ body.modal-open {
     overflow: hidden;
 }
 
-.physical-province-filter-group .ts-wrapper.focus .ts-control {
+.physical-province-filter-group .ts-wrapper.focus .ts-control,
+.physical-province-filter-group .ts-wrapper.dropdown-active .ts-control {
     border-color: var(--statistics-primary);
     box-shadow: none !important;
+    height: auto;
+    min-height: 2.25rem;
+    flex-wrap: wrap;
+    overflow: visible;
 }
 
 .physical-province-filter-group .ts-wrapper.multi .ts-control > div {
