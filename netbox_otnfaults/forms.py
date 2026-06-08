@@ -211,6 +211,10 @@ class OtnFaultForm(NetBoxModelForm):
         super().__init__(*args, **kwargs)
         # 初始设置 API 数据源（前端会动态挂载 connected_to_a 参数）
         self.fields['interruption_location'].widget.attrs['data-url'] = '/api/plugins/otnfaults/connected-sites/'
+        if 'handling_unit' in self.fields:
+            self.fields['handling_unit'].widget.attrs['data-url'] = '/api/plugins/contracts/serviceproviders/'
+        if 'contract' in self.fields:
+            self.fields['contract'].widget.attrs['data-url'] = '/api/plugins/contracts/contracts/'
         self.fields['tags'].help_text = '若故障涉及88系统，需勾选对应标签。'
         ongoing_bare_fiber_impact_count = self._get_ongoing_impact_count(ServiceTypeChoices.BARE_FIBER)
         ongoing_circuit_impact_count = self._get_ongoing_impact_count(ServiceTypeChoices.CIRCUIT)
@@ -814,6 +818,13 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         value = self.cleaned_data.get('rectification_measures') or []
         return list(value)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'handling_unit' in self.fields:
+            self.fields['handling_unit'].widget.attrs['data-url'] = '/api/plugins/contracts/serviceproviders/'
+        if 'contract' in self.fields:
+            self.fields['contract'].widget.attrs['data-url'] = '/api/plugins/contracts/contracts/'
+
 class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
     otn_fault = DynamicModelChoiceField(
         queryset=OtnFault.objects.all(),
@@ -889,7 +900,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             'power_data_type', 'root_cause_analysis', 'rectification_status', 'rectification_measures',
             'rectification_description', 'rectification_subject', 'rectification_progress',
             'planned_completion_date', 'actual_completion_date', 'rectification_completion_description',
-            'power_recovery_mode', 'power_maintenance_mode', 'handling_unit', 'contract',
+            'power_recovery_mode', 'power_maintenance_mode',
             name='供电故障补充信息'
         ),
         FieldSet(
@@ -957,6 +968,10 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['interruption_location'].widget.attrs['data-url'] = '/api/plugins/otnfaults/connected-sites/'
+        if 'handling_unit' in self.fields:
+            self.fields['handling_unit'].widget.attrs['data-url'] = '/api/plugins/contracts/serviceproviders/'
+        if 'contract' in self.fields:
+            self.fields['contract'].widget.attrs['data-url'] = '/api/plugins/contracts/contracts/'
 
     fault_category = forms.ChoiceField(
         choices=add_blank_choice(FaultCategoryChoices),
@@ -1821,6 +1836,10 @@ class CutoverTaskForm(NetBoxModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if 'handling_unit' in self.fields:
+            self.fields['handling_unit'].widget.attrs['data-url'] = '/api/plugins/contracts/serviceproviders/'
+        if 'contract' in self.fields:
+            self.fields['contract'].widget.attrs['data-url'] = '/api/plugins/contracts/contracts/'
         self.fields['cutover_no_display'].initial = getattr(self.instance, 'cutover_no', '') or '保存后自动生成'
         for field_name in self.cutover_one_row_fields:
             if field_name in self.fields:

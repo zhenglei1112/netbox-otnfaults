@@ -1,0 +1,113 @@
+﻿.\.venv\Scripts\python.exe : .......F
+所在位置 行:1 字符: 1
++ .\.venv\Scripts\python.exe -m unittest tests/test_otnfault_edit_field ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (.......F:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+======================================================================
+FAIL: test_list_template_contains_last_week_and_last_month_shortcuts (tests.test_otnfault_list_time_filters.OtnFaultLis
+tTimeFiltersSourceTestCase.test_list_template_contains_last_week_and_last_month_shortcuts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Src\netbox-otnfaults\tests\test_otnfault_list_time_filters.py", line 56, in test_list_template_contains_last
+_week_and_last_month_shortcuts
+    self.assertIn(".otnfault-date-shortcuts .btn:last-child {", template_text)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '.otnfault-date-shortcuts .btn:last-child {' not found in '{% extends \'generic/object_list.html\' %}\n
+{% load helpers %}\n\n{% block content %}\n<style>\n  .table-responsive table.table td { vertical-align: middle !import
+ant; }\n  .otnfault-date-range-content {\n    display: flex;\n    flex-wrap: wrap;\n    align-items: center;\n    gap: 
+0.75rem;\n    width: 100%;\n  }\n  .otnfault-date-shortcuts-row {\n    width: 100%;\n  }\n  .otnfault-date-shortcuts-co
+ntent {\n    display: flex;\n    align-items: center;\n    width: 100%;\n    padding-top: 0.25rem;\n  }\n  .otnfault-da
+te-range-field {\n    flex: 1 1 18rem;\n    min-width: 0;\n  }\n  .otnfault-date-shortcuts {\n    flex: 0 0 auto;\n  }\
+n</style>\n<div id="otnfault-date-shortcuts" class="btn-group btn-group-sm otnfault-date-shortcuts d-none" role="group"
+ aria-label="故障起始时间快捷选择">\n  <button type="button" class="btn btn-outline-primary btn-sm" data-range="all">全部</button>\
+n  <button type="button" class="btn btn-outline-primary btn-sm" data-range="this-week">本周</button>\n  <button type="but
+ton" class="btn btn-outline-primary btn-sm" data-range="last-week">上周</button>\n  <button type="button" class="btn btn-
+outline-primary btn-sm" data-range="this-month">本月</button>\n  <button type="button" class="btn btn-outline-primary btn
+-sm" data-range="last-month">上月</button>\n  <button type="button" class="btn btn-outline-primary btn-sm" data-range="th
+is-year">本年</button>\n  <button type="button" class="btn btn-outline-primary btn-sm" data-range="last-7-days">过去七天</but
+ton>\n  <button type="button" class="btn btn-outline-primary btn-sm" data-range="last-30-days">过去一个月</button>\n</div>\n
+{{ block.super }}\n<script>\n  (function () {\n    function pad(value) {\n      return String(value).padStart(2, \'0\')
+;\n    }\n\n    function formatDateTime(value) {\n      return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${p
+ad(value.getDate())} ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;\n    }\n\n    fun
+ction startOfDay(value) {\n      return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 0, 0, 0);\n   
+ }\n\n    function endOfDay(value) {\n      return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 23,
+ 59, 59);\n    }\n\n    function startOfWeek(value) {\n      const date = startOfDay(value);\n      const day = date.ge
+tDay();\n      const delta = day === 0 ? -6 : 1 - day;\n      date.setDate(date.getDate() + delta);\n      return date;
+\n    }\n\n    function endOfWeek(value) {\n      const date = startOfWeek(value);\n      date.setDate(date.getDate() +
+ 6);\n      return endOfDay(date);\n    }\n\n    function startOfMonth(value) {\n      return new Date(value.getFullYea
+r(), value.getMonth(), 1, 0, 0, 0);\n    }\n\n    function endOfMonth(value) {\n      return new Date(value.getFullYear
+(), value.getMonth() + 1, 0, 23, 59, 59);\n    }\n\n    function startOfYear(value) {\n      return new Date(value.getF
+ullYear(), 0, 1, 0, 0, 0);\n    }\n\n    function setShortcutRange(rangeName, startInput, endInput) {\n      const now 
+= new Date();\n      let startValue = \'\';\n      let endValue = \'\';\n\n      if (rangeName === \'this-week\') {\n  
+      startValue = formatDateTime(startOfWeek(now));\n        endValue = formatDateTime(now);\n      } else if (rangeNa
+me === \'last-week\') {\n        const endDate = endOfWeek(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 
+7));\n        const startDate = startOfWeek(new Date(endDate));\n        startValue = formatDateTime(startDate);\n     
+   endValue = formatDateTime(endDate);\n      } else if (rangeName === \'this-month\') {\n        startValue = formatDa
+teTime(startOfMonth(now));\n        endValue = formatDateTime(now);\n      } else if (rangeName === \'last-month\') {\n
+        const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);\n        startValue = formatDateTime(
+startOfMonth(lastMonthDate));\n        endValue = formatDateTime(endOfMonth(lastMonthDate));\n      } else if (rangeNam
+e === \'this-year\') {\n        startValue = formatDateTime(startOfYear(now));\n        endValue = formatDateTime(now);
+\n      } else if (rangeName === \'last-7-days\') {\n        const startDate = startOfDay(new Date(now.getFullYear(), n
+ow.getMonth(), now.getDate() - 6));\n        startValue = formatDateTime(startDate);\n        endValue = formatDateTime
+(now);\n      } else if (rangeName === \'last-30-days\') {\n        const startDate = startOfDay(new Date(now.getFullYe
+ar(), now.getMonth(), now.getDate() - 29));\n        startValue = formatDateTime(startDate);\n        endValue = format
+DateTime(now);\n      }\n\n      startInput.value = startValue;\n      endInput.value = endValue;\n    }\n\n    documen
+t.addEventListener(\'DOMContentLoaded\', function () {\n      const startInput = document.querySelector(\'[name="fault_
+occurrence_time_after"]\');\n      const endInput = document.querySelector(\'[name="fault_occurrence_time_before"]\');\
+n      const shortcuts = document.getElementById(\'otnfault-date-shortcuts\');\n\n      if (!startInput || !endInput ||
+ !shortcuts) {\n        return;\n      }\n\n      const startRow = startInput.closest(\'.row\') || startInput.parentEle
+ment;\n      const endRow = endInput.closest(\'.row\') || endInput.parentElement;\n      const startLabelWrapper = star
+tRow ? startRow.firstElementChild : null;\n      const startControlWrapper = startLabelWrapper ? startLabelWrapper.next
+ElementSibling : null;\n      const endLabelWrapper = endRow ? endRow.firstElementChild : null;\n      const endControl
+Wrapper = endLabelWrapper ? endLabelWrapper.nextElementSibling : null;\n\n      if (startRow && endRow && startLabelWra
+pper && startControlWrapper && endControlWrapper && startRow.parentNode) {\n        const combinedRow = document.create
+Element(\'div\');\n        combinedRow.className = startRow.className ? `${startRow.className} otnfault-date-range-row`
+ : \'otnfault-date-range-row\';\n        const shortcutsRow = document.createElement(\'div\');\n        shortcutsRow.cl
+assName = endRow.className ? `${endRow.className} otnfault-date-shortcuts-row` : \'otnfault-date-shortcuts-row\';\n    
+    const labelWrapper = startLabelWrapper.cloneNode(true);\n        const shortcutsLabelWrapper = startLabelWrapper.cl
+oneNode(true);\n        const labelElement = labelWrapper.querySelector(\'label, .col-form-label, .form-label\');\n    
+    const shortcutsLabelElement = shortcutsLabelWrapper.querySelector(\'label, .col-form-label, .form-label\');\n      
+  const controlsWrapper = document.createElement(\'div\');\n        controlsWrapper.className = startControlWrapper.cla
+ssName;\n        const shortcutsControlsWrapper = document.createElement(\'div\');\n        shortcutsControlsWrapper.cl
+assName = startControlWrapper.className;\n        const rangeContent = document.createElement(\'div\');\n        rangeC
+ontent.className = \'otnfault-date-range-content\';\n        const shortcutsContent = document.createElement(\'div\');\
+n        shortcutsContent.className = \'otnfault-date-shortcuts-content\';\n        const startField = document.createE
+lement(\'div\');\n        const endField = document.createElement(\'div\');\n\n        startField.className = \'otnfaul
+t-date-range-field\';\n        endField.className = \'otnfault-date-range-field\';\n\n        while (startControlWrappe
+r.firstChild) {\n          startField.appendChild(startControlWrapper.firstChild);\n        }\n        while (endContro
+lWrapper.firstChild) {\n          endField.appendChild(endControlWrapper.firstChild);\n        }\n\n        if (labelEl
+ement) {\n          labelElement.textContent = \'故障起始时间\';\n        }\n        if (shortcutsLabelElement) {\n          
+shortcutsLabelElement.textContent = \'\';\n        }\n\n        rangeContent.appendChild(startField);\n        rangeCon
+tent.appendChild(endField);\n        controlsWrapper.appendChild(rangeContent);\n        combinedRow.appendChild(labelW
+rapper);\n        combinedRow.appendChild(controlsWrapper);\n        shortcutsContent.appendChild(shortcuts);\n        
+shortcutsControlsWrapper.appendChild(shortcutsContent);\n        shortcutsRow.appendChild(shortcutsLabelWrapper);\n    
+    shortcutsRow.appendChild(shortcutsControlsWrapper);\n\n        startRow.parentNode.insertBefore(combinedRow, startR
+ow);\n        startRow.parentNode.insertBefore(shortcutsRow, startRow);\n        startRow.remove();\n        if (endRow
+ !== startRow) {\n          endRow.remove();\n        }\n      }\n      shortcuts.classList.remove(\'d-none\');\n\n    
+  const buttons = Array.from(shortcuts.querySelectorAll(\'[data-range]\'));\n\n      function setActiveButton(activeBut
+ton) {\n        buttons.forEach((button) => {\n          button.classList.remove(\'btn-primary\', \'active\');\n       
+   button.classList.add(\'btn-outline-primary\');\n        });\n        if (activeButton) {\n          activeButton.cla
+ssList.remove(\'btn-outline-primary\');\n          activeButton.classList.add(\'btn-primary\', \'active\');\n        }\
+n      }\n\n      function refreshActiveState() {\n        const startVal = startInput.value;\n        const endVal = e
+ndInput.value;\n\n        if (!startVal && !endVal) {\n          const allButton = shortcuts.querySelector(\'[data-rang
+e="all"]\');\n          if (allButton) {\n            setActiveButton(allButton);\n          }\n          return;\n    
+    }\n\n        let matchedButton = null;\n        for (const button of buttons) {\n          const rangeName = button
+.getAttribute(\'data-range\');\n          if (rangeName === \'all\') continue;\n          \n          const tempStart =
+ { value: \'\' };\n          const tempEnd = { value: \'\' };\n          setShortcutRange(rangeName, tempStart, tempEnd
+);\n          \n          if (rangeName === \'last-month\' || rangeName === \'last-week\') {\n            if (tempStart
+.value === startVal && tempEnd.value === endVal) {\n              matchedButton = button;\n              break;\n      
+      }\n          } else if (tempStart.value === startVal) {\n            matchedButton = button;\n            break;\
+n          }\n        }\n        \n        setActiveButton(matchedButton);\n      }\n\n      refreshActiveState();\n\n 
+     buttons.forEach((button) => {\n        button.addEventListener(\'click\', function () {\n          const rangeName
+ = button.getAttribute(\'data-range\');\n          if (rangeName === \'all\') {\n            startInput.value = \'\';\n
+            endInput.value = \'\';\n          } else {\n            setShortcutRange(rangeName, startInput, endInput);\
+n          }\n          setActiveButton(button);\n        });\n      });\n    });\n  })();\n</script>\n{% endblock %}\n
+\n{% block extra_controls %}\n<a href="{% url \'plugins:netbox_otnfaults:otnfault_map_globe\' %}" class="btn btn-info">
+\n    <i class="mdi mdi-earth" aria-hidden="true"></i> 查看一张图\n</a>\n{% endblock %}\n'
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.004s
+
+FAILED (failures=1)
