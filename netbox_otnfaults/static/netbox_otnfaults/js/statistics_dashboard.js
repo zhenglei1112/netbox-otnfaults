@@ -3132,7 +3132,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const expandedMonths = Array.isArray(svc.interrupt_calendar_full) ? svc.interrupt_calendar_full : months;
         const maxCount = Number(interruptCalendarMaxCount || 0);
         return `
-                    <div class="service-interrupt-calendar" aria-label="近六个月业务中断日历">
+                    <div class="service-interrupt-calendar" aria-label="近三个月业务中断日历">
                         <div class="service-interrupt-calendar-months service-interrupt-calendar-months--default">${renderServiceInterruptCalendarMonthGrid(months, maxCount)}</div>
                         <div class="service-interrupt-calendar-months service-interrupt-calendar-months--expanded d-none">${renderServiceInterruptCalendarMonthGrid(expandedMonths, maxCount)}</div>
                         <button type="button" class="service-interrupt-calendar-toggle" aria-label="展开本年中断日历" title="展开本年中断日历">

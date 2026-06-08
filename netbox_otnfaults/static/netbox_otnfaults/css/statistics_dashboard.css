@@ -819,7 +819,7 @@ body.modal-open {
 
 .service-interrupt-calendar-months {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.9rem;
     align-items: start;
 }
@@ -3068,6 +3068,7 @@ body.modal-open {
 }
 
 .branch-performance-interrupt-calendar .service-interrupt-calendar-months {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0.42rem;
 }
 

@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 from pathlib import Path
 import re
 
@@ -1284,8 +1284,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("'annual_summary': annual_summary_payload,", views_source)
         self.assertIn("calendar_year = int(request.GET.get('calendar_year', selected_year))", views_source)
         self.assertIn("calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))", views_source)
-        self.assertIn("calendar_months = _build_recent_calendar_months(calendar_year, calendar_month, tz)", views_source)
-        self.assertIn("for offset in range(5, -1, -1):", views_source)
+        self.assertIn("calendar_months = _build_recent_calendar_months(calendar_year, calendar_month, tz, num_months=3)", views_source)
+        self.assertIn("for offset in range(num_months - 1, -1, -1):", views_source)
         self.assertIn("calendar_full_months = _build_year_to_month_calendar_months(calendar_year, calendar_month, tz)", views_source)
         self.assertIn("calendar_start = calendar_months[0]['start']", views_source)
         self.assertIn("calendar_end = calendar_months[-1]['end']", views_source)
@@ -1404,7 +1404,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertNotIn('<div class="service-runtime-calendar-metrics" aria-label="运行月历指标">', source)
         self.assertIn("${renderServiceInterruptCalendar(svc, card.interruptCalendarMaxCount)}", source)
         self.assertIn("function renderServiceInterruptCalendar(svc, interruptCalendarMaxCount)", source)
-        self.assertIn('<div class="service-interrupt-calendar" aria-label="近六个月业务中断日历">', source)
+        self.assertIn('<div class="service-interrupt-calendar" aria-label="近三个月业务中断日历">', source)
         self.assertIn("const months = Array.isArray(svc.interrupt_calendar) ? svc.interrupt_calendar : [];", source)
         self.assertIn("const expandedMonths = Array.isArray(svc.interrupt_calendar_full) ? svc.interrupt_calendar_full : months;", source)
         self.assertIn("const maxCount = Number(interruptCalendarMaxCount || 0);", source)

@@ -1181,6 +1181,8 @@ def _build_branch_company_statistics(
         })
 
     branch_cable_break_overview = _compute_cable_break_overview(branch_cable_break_faults, now)
+
+    branch_cable_break_overview = _compute_cable_break_overview(branch_cable_break_faults, now)
     branch_cable_break_overview['repeat_faults_count'] = _count_repeat_fiber_faults(
         branch_cable_break_faults,
         end_date,
@@ -1288,10 +1290,10 @@ def _parse_time_range(request):
     return start_date, end_date, prev_start_date, prev_end_date, filter_type
 
 
-def _build_recent_calendar_months(year: int, month: int, tz) -> list[dict[str, object]]:
-    """Return month metadata for the six months ending at the requested month."""
+def _build_recent_calendar_months(year: int, month: int, tz, num_months: int = 6) -> list[dict[str, object]]:
+    """Return month metadata for the recent months ending at the requested month."""
     months: list[dict[str, object]] = []
-    for offset in range(5, -1, -1):
+    for offset in range(num_months - 1, -1, -1):
         month_index = (year * 12 + month - 1) - offset
         item_year = month_index // 12
         item_month = (month_index % 12) + 1
@@ -1784,7 +1786,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
         year_end = timezone.datetime(selected_year + 1, 1, 1, tzinfo=tz)
         calendar_year = int(request.GET.get('calendar_year', selected_year))
         calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
-        calendar_months = _build_recent_calendar_months(calendar_year, calendar_month, tz)
+        calendar_months = _build_recent_calendar_months(calendar_year, calendar_month, tz, num_months=3)
         calendar_full_months = _build_year_to_month_calendar_months(calendar_year, calendar_month, tz)
         calendar_start = calendar_months[0]['start']
         calendar_end = calendar_months[-1]['end']
