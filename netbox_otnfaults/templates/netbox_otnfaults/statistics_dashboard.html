@@ -460,8 +460,18 @@
                         故障明细
                         <span class="badge bg-primary ms-2" id="drill-down-filter-badge" style="display:none"></span>
                     </h3>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-filter"
-                        style="display:none">清除图表过滤</button>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="排序方式">
+                            <input type="radio" class="btn-check" name="detailSortMode" id="detail-sort-time"
+                                value="time" autocomplete="off" checked>
+                            <label class="btn btn-outline-primary" for="detail-sort-time">按时间排序</label>
+                            <input type="radio" class="btn-check" name="detailSortMode" id="detail-sort-repeat"
+                                value="repeat" autocomplete="off">
+                            <label class="btn btn-outline-primary" for="detail-sort-repeat">按重复排序</label>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-filter"
+                            style="display:none">清除图表过滤</button>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover table-vcenter card-table">

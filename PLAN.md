@@ -1,3 +1,10 @@
+## 2026-06-08 故障明细增加按重复排序与回溯显示历史故障
+- [x] 后端 API (`statistics_views.py`) 计算前续重复日期值，获取与当期故障匹配的历史重复故障，附带 `in_period` 标志。
+- [x] 模板文件 (`statistics_dashboard.html`) 故障明细表头追加“按时间排序/按重复排序”单选按钮组。
+- [x] 前端样式 (`statistics_dashboard.css`) 增加 `.statistics-preceding-fault-row` 淡化显示样式。
+- [x] 前端脚本 (`statistics_dashboard.js`) 绑定排序切换事件，点击图表下钻时自动切回按时间排序。
+- [x] 前端脚本 (`statistics_dashboard.js`) 实现按重复排序的聚类分组与按最早发生时间排序的算法。
+
 ## 2026-06-08 修复业务卡片故障日历默认显示时长
 - [ ] 增加源码级回归测试，锁定裸纤和电路业务卡片故障中断日历默认显示近三个月，子公司卡片默认显示近六个月。
 - [ ] 调整业务卡片统计后端接口：为裸纤和电路业务卡片调用 `_build_recent_calendar_months` 时传递 `num_months=3`。

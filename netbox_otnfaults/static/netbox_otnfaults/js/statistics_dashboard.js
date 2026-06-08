@@ -59,6 +59,11 @@ document.addEventListener("DOMContentLoaded", function() {
         if (currentChartsData) renderCharts(currentChartsData);
     }));
 
+    const detailSortModeInputs = Array.from(document.querySelectorAll('input[name="detailSortMode"]'));
+    detailSortModeInputs.forEach(input => input.addEventListener('change', () => {
+        renderDetailsTable();
+    }));
+
     let excludedCategories = {
         resource_type: new Set(),
         province: new Set(),
@@ -2549,6 +2554,51 @@ document.addEventListener("DOMContentLoaded", function() {
         return item[fieldName] === value;
     }
 
+    function assignRepeatGroupColors(items) {
+        const parseTime = (str) => new Date(str.replace(/-/g, '/'));
+        items.forEach(item => { item.repeatGroupClass = ''; });
+        
+        let repeatItems = items.filter(item => item.is_repeat);
+        if (repeatItems.length === 0) return;
+        
+        const isRepeatMatch = (a, b) => {
+            if (a.site_a !== b.site_a) return false;
+            const zA = a.site_z.split(',').map(s => s.trim()).filter(Boolean);
+            const zB = b.site_z.split(',').map(s => s.trim()).filter(Boolean);
+            const hasOverlap = zA.some(z => zB.includes(z));
+            if (!hasOverlap) return false;
+            const diffMs = Math.abs(parseTime(a.fault_occurrence_time) - parseTime(b.fault_occurrence_time));
+            return diffMs <= 60 * 24 * 60 * 60 * 1000;
+        };
+        
+        let groups = [];
+        for (let item of repeatItems) {
+            let foundGroup = null;
+            for (let g of groups) {
+                if (g.some(member => isRepeatMatch(member, item))) {
+                    foundGroup = g;
+                    break;
+                }
+            }
+            if (foundGroup) {
+                foundGroup.push(item);
+            } else {
+                groups.push([item]);
+            }
+        }
+        
+        let colorIndex = 0;
+        for (let g of groups) {
+            if (g.length > 1) {
+                const colorClass = `repeat-group-color-${colorIndex % 6}`;
+                colorIndex++;
+                g.forEach(item => {
+                    item.repeatGroupClass = colorClass;
+                });
+            }
+        }
+    }
+
     function renderDetailsTable() {
         let filteredDetails = currentAllDetails;
         let activeConditions = []; // 存入文本用于展示当前所有生效的过滤状态
@@ -2602,6 +2652,12 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
 
+        assignRepeatGroupColors(filteredDetails);
+        const sortMode = document.querySelector('input[name="detailSortMode"]:checked')?.value || 'time';
+        if (sortMode === 'time') {
+            filteredDetails = filteredDetails.filter(item => item.in_period !== false);
+        }
+
         if (activeConditions.length > 0) {
             let conditionsText = activeConditions.join(' | ');
             badgeFilter.textContent = conditionsText;
@@ -2610,14 +2666,17 @@ document.addEventListener("DOMContentLoaded", function() {
             btnClearFilter.style.display = 'inline-block';
             
             // 计算局部 KPI
-            let fCount = filteredDetails.length;
+            let fCount = 0;
             let fDur = 0.0;
             let fLong = 0;
             let fRepeat = 0;
             filteredDetails.forEach(item => {
-                fDur += item.duration;
-                if (item.is_long) fLong++;
-                if (item.is_repeat) fRepeat++;
+                if (item.in_period !== false) {
+                    fCount++;
+                    fDur += item.duration;
+                    if (item.is_long) fLong++;
+                    if (item.is_repeat) fRepeat++;
+                }
             });
             let fAvg = fCount > 0 ? (fDur / fCount).toFixed(2) : "0.00";
             
@@ -2636,12 +2695,62 @@ document.addEventListener("DOMContentLoaded", function() {
             return;
         }
 
+        if (sortMode === 'repeat') {
+            const parseTime = (str) => new Date(str.replace(/-/g, '/'));
+            let itemsForSort = [...filteredDetails];
+            itemsForSort.sort((a, b) => parseTime(a.fault_occurrence_time) - parseTime(b.fault_occurrence_time));
+            
+            let groups = [];
+            for (let item of itemsForSort) {
+                if (item.is_repeat) {
+                    const isRepeatMatch = (a, b) => {
+                        if (a.site_a !== b.site_a) return false;
+                        const zA = a.site_z.split(',').map(s => s.trim()).filter(Boolean);
+                        const zB = b.site_z.split(',').map(s => s.trim()).filter(Boolean);
+                        const hasOverlap = zA.some(z => zB.includes(z));
+                        if (!hasOverlap) return false;
+                        const diffMs = Math.abs(parseTime(a.fault_occurrence_time) - parseTime(b.fault_occurrence_time));
+                        return diffMs <= 60 * 24 * 60 * 60 * 1000;
+                    };
+                    
+                    let foundGroup = null;
+                    for (let g of groups) {
+                        if (g.some(member => isRepeatMatch(member, item))) {
+                            foundGroup = g;
+                            break;
+                        }
+                    }
+                    if (foundGroup) {
+                        foundGroup.push(item);
+                    } else {
+                        groups.push([item]);
+                    }
+                } else {
+                    groups.push([item]);
+                }
+            }
+            
+            groups.sort((g1, g2) => {
+                return parseTime(g2[0].fault_occurrence_time) - parseTime(g1[0].fault_occurrence_time);
+            });
+            
+            filteredDetails = [];
+            for (let g of groups) {
+                filteredDetails.push(...g);
+            }
+        }
+
         const html = filteredDetails.map(item => {
             let badges = '';
             if (item.is_repeat) badges += '<span class="badge bg-purple text-white ms-1">重复</span>';
             if (item.is_long) badges += '<span class="badge bg-warning text-dark ms-1">≥6h</span>';
+            
+            const trClassList = [];
+            if (item.in_period === false) trClassList.push('statistics-preceding-fault-row');
+            if (item.repeatGroupClass) trClassList.push(item.repeatGroupClass);
+            const trClass = trClassList.length > 0 ? `class="${trClassList.join(' ')}"` : '';
 
-            return `<tr>
+            return `<tr ${trClass}>
                 <td><a href="${item.url}" target="_blank">${item.fault_number}</a></td>
                 <td>${item.fault_occurrence_time}</td>
                 <td>${item.fault_recovery_time}</td>
@@ -2666,8 +2775,13 @@ document.addEventListener("DOMContentLoaded", function() {
             let badges = '';
             if (item.is_repeat) badges += '<span class="badge bg-purple text-white ms-1">重复</span>';
             if (item.is_long) badges += '<span class="badge bg-warning text-dark ms-1">≥6h</span>';
+            
+            const trClassList = [];
+            if (item.in_period === false) trClassList.push('statistics-preceding-fault-row');
+            if (item.repeatGroupClass) trClassList.push(item.repeatGroupClass);
+            const trClass = trClassList.length > 0 ? `class="${trClassList.join(' ')}"` : '';
 
-            return `<tr>
+            return `<tr ${trClass}>
                 <td><a href="${item.url}" target="_blank">${item.fault_number}</a></td>
                 <td>${item.fault_occurrence_time}</td>
                 <td>${item.fault_recovery_time}</td>
@@ -2740,6 +2854,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (summaryDiv) summaryDiv.classList.add('d-none');
         }
 
+        assignRepeatGroupColors(filteredDetails);
         tbody.innerHTML = renderDetailRows(filteredDetails, '当前子公司范围及过滤条件下，无可展示的故障数据');
     }
 
@@ -2763,6 +2878,12 @@ document.addEventListener("DOMContentLoaded", function() {
         activeFilterExtraField = null;
         activeFilterExtraValue = null;
         activeFilterLabel = null;
+        
+        const timeRadio = document.getElementById('detail-sort-time');
+        if (timeRadio) {
+            timeRadio.checked = true;
+        }
+
         // 滚动到下方的表格
         const tbl = document.getElementById('details-tbody');
         if (tbl) {
@@ -2782,6 +2903,11 @@ document.addEventListener("DOMContentLoaded", function() {
             ? normalizeFilterValue(activeFilterExtraField, metric.dataset.filterExtraValue)
             : null;
         activeFilterLabel = metric.dataset.filterLabel || metric.dataset.filterValue;
+
+        const timeRadio = document.getElementById('detail-sort-time');
+        if (timeRadio) {
+            timeRadio.checked = true;
+        }
 
         const tbl = document.getElementById('details-tbody');
         if (tbl) {

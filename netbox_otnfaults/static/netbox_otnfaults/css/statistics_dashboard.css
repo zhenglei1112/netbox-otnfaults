@@ -3132,3 +3132,37 @@ body.modal-open {
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+.statistics-preceding-fault-row {
+    opacity: 0.55;
+}
+
+.statistics-preceding-fault-row:not([class*="repeat-group-color-"]) {
+    background-color: var(--statistics-surface-subtle, rgba(0, 0, 0, 0.02)) !important;
+}
+
+/* 重复分组浅底色体系 - 亮色模式（默认） */
+.repeat-group-color-0 { background-color: rgba(220, 53, 69, 0.08) !important; }
+.repeat-group-color-1 { background-color: rgba(13, 110, 253, 0.08) !important; }
+.repeat-group-color-2 { background-color: rgba(40, 167, 69, 0.08) !important; }
+.repeat-group-color-3 { background-color: rgba(111, 66, 193, 0.08) !important; }
+.repeat-group-color-4 { background-color: rgba(253, 126, 20, 0.08) !important; }
+.repeat-group-color-5 { background-color: rgba(32, 201, 151, 0.08) !important; }
+
+/* 重复分组浅底色体系 - 暗色模式 */
+[data-bs-theme="dark"] .repeat-group-color-0 { background-color: rgba(220, 53, 69, 0.18) !important; }
+[data-bs-theme="dark"] .repeat-group-color-1 { background-color: rgba(13, 110, 253, 0.18) !important; }
+[data-bs-theme="dark"] .repeat-group-color-2 { background-color: rgba(40, 167, 69, 0.18) !important; }
+[data-bs-theme="dark"] .repeat-group-color-3 { background-color: rgba(111, 66, 193, 0.18) !important; }
+[data-bs-theme="dark"] .repeat-group-color-4 { background-color: rgba(253, 126, 20, 0.18) !important; }
+[data-bs-theme="dark"] .repeat-group-color-5 { background-color: rgba(32, 201, 151, 0.18) !important; }
+
+.statistics-preceding-fault-row td {
+    color: var(--statistics-muted, #667085) !important;
+}
+
+.statistics-preceding-fault-row a {
+    color: var(--statistics-muted, #206bc4) !important;
+    opacity: 0.85;
+}
+

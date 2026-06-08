@@ -1582,6 +1582,56 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         # Detail List (供下钻表结构)
         details = []
 
+        # 计算前续日期窗口
+        preceding_duplicate_start_date = start_date
+        if filter_type == 'week':
+            preceding_duplicate_start_date = start_date - timedelta(days=14)
+        elif filter_type == 'month':
+            y, m = start_date.year, start_date.month
+            if m == 1:
+                preceding_duplicate_start_date = start_date.replace(year=y-1, month=12)
+            else:
+                preceding_duplicate_start_date = start_date.replace(month=m-1)
+        elif filter_type == 'quarter':
+            y, m = start_date.year, start_date.month
+            if m <= 3:
+                preceding_duplicate_start_date = start_date.replace(year=y-1, month=m+9)
+            else:
+                preceding_duplicate_start_date = start_date.replace(month=m-3)
+        elif filter_type == 'half':
+            y, m = start_date.year, start_date.month
+            if m <= 6:
+                preceding_duplicate_start_date = start_date.replace(year=y-1, month=m+6)
+            else:
+                preceding_duplicate_start_date = start_date.replace(month=m-6)
+        elif filter_type == 'year':
+            preceding_duplicate_start_date = start_date.replace(year=start_date.year-1)
+
+        preceding_faults = []
+        if preceding_duplicate_start_date < start_date:
+            preceding_qs = get_cable_break_base_queryset(preceding_duplicate_start_date, start_date)
+            preceding_qs = _apply_physical_province_filter(preceding_qs, selected_provinces)
+            preceding_faults = list(preceding_qs)
+
+        # 匹配前续周期内的重复故障
+        current_z_cache = {cf.id: set(s.id for s in cf.interruption_location.all()) for cf in faults}
+        preceding_z_cache = {pf.id: set(s.id for s in pf.interruption_location.all()) for pf in preceding_faults}
+
+        matched_preceding_faults = []
+        for pf in preceding_faults:
+            pf_z = preceding_z_cache.get(pf.id, set())
+            is_matched = False
+            for cf in faults:
+                if cf.is_fiber_fault and pf.is_fiber_fault:
+                    if pf.interruption_location_a_id == cf.interruption_location_a_id:
+                        cf_z = current_z_cache.get(cf.id, set())
+                        if pf_z.intersection(cf_z):
+                            if (cf.fault_occurrence_time - pf.fault_occurrence_time) <= timedelta(days=60):
+                                is_matched = True
+                                break
+            if is_matched:
+                matched_preceding_faults.append(pf)
+
         # 统计图表维度
         resource_stats = {}
         province_stats = _build_physical_province_chart_stats(global_cable_break_faults, now)
@@ -1600,21 +1650,32 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 long_faults_count += 1
                 
             # 重复故障判断
-            is_repeat = False
+            is_repeat_kpi = False
+            is_repeat_ui = False
             if fault.is_fiber_fault:
                 fault_z_site_ids = fault_z_sites_cache.get(fault.id, set(s.id for s in fault.interruption_location.all()))
                 
-                # 在 past_faults_list 中寻找符合条件的
+                # 1. 用于 KPI 的单向判定（仅检查先前故障）
                 for pf in past_faults_list:
-                    # 不能是自己，且发生时间符合区间
                     if pf.id != fault.id and pf.fault_occurrence_time < fault.fault_occurrence_time:
                         if (fault.fault_occurrence_time - pf.fault_occurrence_time) <= timedelta(days=60):
                             if pf.interruption_location_a_id == fault.interruption_location_a_id:
                                 pf_z_site_ids = fault_z_sites_cache.get(pf.id, set())
                                 if pf_z_site_ids.intersection(fault_z_site_ids):
-                                    is_repeat = True
+                                    is_repeat_kpi = True
                                     break
-                if is_repeat:
+                
+                # 2. 用于 UI 展示的双向判定（检查前后60天内的所有重复故障）
+                for pf in past_faults_list:
+                    if pf.id != fault.id:
+                        if abs(fault.fault_occurrence_time - pf.fault_occurrence_time) <= timedelta(days=60):
+                            if pf.interruption_location_a_id == fault.interruption_location_a_id:
+                                pf_z_site_ids = fault_z_sites_cache.get(pf.id, set())
+                                if pf_z_site_ids.intersection(fault_z_site_ids):
+                                    is_repeat_ui = True
+                                    break
+                
+                if is_repeat_kpi:
                     repeat_faults_count += 1
 
             # 填充图表分配
@@ -1674,9 +1735,42 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'cause_group': cause_group,
                 'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
                 'site_z': ', '.join(z_site_names),
-                'is_repeat': is_repeat,
+                'is_repeat': is_repeat_ui,
                 'is_long': duration_hours >= 6.0,
-                'url': fault.get_absolute_url()
+                'url': fault.get_absolute_url(),
+                'in_period': True
+            })
+
+        for fault in matched_preceding_faults:
+            occ_time = fault.fault_occurrence_time
+            end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
+            duration_hours = (end_t - occ_time).total_seconds() / 3600.0
+            prov_name = fault.province.name if fault.province else '未知'
+            reason = fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知'
+            z_site_names = [s.name for s in fault.interruption_location.all()]
+            
+            details.append({
+                'id': fault.id,
+                'fault_number': fault.fault_number,
+                'fault_occurrence_time': _format_local_datetime(occ_time),
+                'fault_recovery_time': _format_local_datetime(fault.fault_recovery_time) if fault.fault_recovery_time else '未恢复',
+                'duration': round(duration_hours, 2),
+                'category': fault.get_fault_category_display(),
+                'resource_type': fault.get_resource_type_display() if fault.resource_type else '未填写',
+                'source_group': _source_group_for_fault(fault),
+                'province': prov_name,
+                'reason': reason,
+                'duration_bucket': '',
+                'duration_histogram_bucket': '',
+                'is_valid_duration': duration_hours > 0.5,
+                'occurrence_period': _occurrence_period_for_fault(fault),
+                'cause_group': '施工类' if reason == '施工' else '非施工类',
+                'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
+                'site_z': ', '.join(z_site_names),
+                'is_repeat': True,
+                'is_long': duration_hours >= 6.0,
+                'url': fault.get_absolute_url(),
+                'in_period': False
             })
 
         # 使用辅助函数计算当前期光缆中断概览
