@@ -492,7 +492,7 @@ class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
     related_customers = models.JSONField(
         default=list,
         blank=True,
-        verbose_name='关联用户'
+        verbose_name='关联业务'
     )
     cutover_reason = models.TextField(
         verbose_name='割接原因'

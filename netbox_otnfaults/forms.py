@@ -1807,7 +1807,7 @@ class CutoverTaskForm(NetBoxModelForm):
         }
     )
     line_supervisor = DynamicModelChoiceField(queryset=get_user_model().objects.all(), required=False, label='线路主管')
-    related_customers = forms.JSONField(required=False, label='设置关联用户')
+    related_customers = forms.JSONField(required=False, label='设置关联业务')
     planned_cutover_times = forms.JSONField(required=False, label='计划割接时间记录')
     customer_approval_detail = forms.JSONField(required=False, label='客户审核明细')
     comments = CommentField(label='评论')
@@ -1818,7 +1818,7 @@ class CutoverTaskForm(NetBoxModelForm):
         FieldSet('resource_type', 'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract', name='资源信息'),
         FieldSet('implementation_unit', 'cutover_contact', 'cutover_contact_phone', 'line_supervisor', name='组织联系人'),
         FieldSet('planned_cutover_time', 'planned_cutover_times', 'planned_impact_minutes', name='计划割接时间'),
-        FieldSet('related_customers', name='关联用户'),
+        FieldSet('related_customers', name='关联业务'),
         FieldSet('started_at', 'completed_at', 'closed_at', name='实施时间线'),
         FieldSet('customer_approval_detail', 'is_timeout', 'timeout_reason', 'cutover_result', 'remaining_issues', name='考核与闭环'),
         FieldSet('rectification_status', 'rectification_measures', 'rectification_description', 'rectification_subject', 'rectification_progress', 'planned_completion_time', 'actual_completion_time', 'rectification_completion_description', name='整改信息'),

@@ -1430,16 +1430,16 @@ class CutoverTaskRelatedCustomersView(PermissionRequiredMixin, View):
         try:
             related_customers = json.loads(request.POST.get('related_customers', '[]'))
         except json.JSONDecodeError:
-            messages.error(request, '关联用户数据格式无效。')
+            messages.error(request, '关联业务数据格式无效。')
             return redirect(task.get_absolute_url())
 
         if not isinstance(related_customers, list):
-            messages.error(request, '关联用户数据必须是数组。')
+            messages.error(request, '关联业务数据必须是数组。')
             return redirect(task.get_absolute_url())
 
         task.related_customers = related_customers
         task.save(update_fields=['related_customers', 'last_updated'])
-        messages.success(request, '已保存关联用户协调维护信息。')
+        messages.success(request, '已保存关联业务协调维护信息。')
         return redirect(task.get_absolute_url())
 
 
@@ -1469,7 +1469,7 @@ class CutoverTaskGeneratePlannedTimeView(PermissionRequiredMixin, View):
                     customer['time'] = ''
                     customer['coordination_time'] = ''
             task.save(update_fields=['planned_cutover_time', 'planned_cutover_times', 'related_customers', 'last_updated'])
-            messages.success(request, '已生成新的割接时间，并重置关联用户协调状态。')
+            messages.success(request, '已生成新的割接时间，并重置关联业务协调状态。')
         else:
             messages.info(request, '当前主计划时间已经是最新时间记录。')
 
