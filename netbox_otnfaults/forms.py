@@ -12,7 +12,8 @@ from .models import (
     CircuitService, ServiceGroupChoices, BusinessCategoryChoices, ServiceTypeChoices,
     BusinessImpactChoices, CircuitOperationStatusChoices, SLALevelChoices,
     CutoverTask, CutoverImpact, CutoverStatusChoices, CutoverTypeChoices,
-    CutoverTimeoutStatusChoices, CutoverResultChoices, CutoverManagementUnitChoices, CutoverCoordinationStatusChoices, HeavyDuty
+    CutoverTimeoutStatusChoices, CutoverResultChoices, CutoverManagementUnitChoices, CutoverCoordinationStatusChoices, HeavyDuty,
+    HeavyDutyTypeChoices
 )
 import json
 
@@ -2146,7 +2147,7 @@ class HeavyDutyForm(NetBoxModelForm):
     )
 
     fieldsets = (
-        FieldSet('name', 'start_time', 'end_time', 'description', name='重要保障基本信息'),
+        FieldSet('name', 'type', 'start_time', 'end_time', 'description', name='重要保障基本信息'),
         FieldSet('sites', 'circuit_services', 'bare_fiber_services', name='保障范围'),
         FieldSet('tags', name='标签'),
     )
@@ -2154,7 +2155,7 @@ class HeavyDutyForm(NetBoxModelForm):
     class Meta:
         model = HeavyDuty
         fields = (
-            'name', 'start_time', 'end_time', 'description',
+            'name', 'type', 'start_time', 'end_time', 'description',
             'sites', 'circuit_services', 'bare_fiber_services',
             'comments', 'tags'
         )
@@ -2168,6 +2169,11 @@ class HeavyDutyForm(NetBoxModelForm):
 class HeavyDutyFilterForm(NetBoxModelFilterSetForm):
     model = HeavyDuty
     tag = TagFilterField(HeavyDuty)
+    type = forms.ChoiceField(
+        choices=add_blank_choice(HeavyDutyTypeChoices),
+        required=False,
+        label='类型'
+    )
     sites = DynamicModelMultipleChoiceField(
         queryset=Site.objects.all(),
         required=False,
@@ -2195,13 +2201,18 @@ class HeavyDutyFilterForm(NetBoxModelFilterSetForm):
     )
 
     fieldsets = (
-        FieldSet('q', 'filter_id', 'tag'),
+        FieldSet('q', 'filter_id', 'tag', 'type'),
         FieldSet('sites', 'circuit_services', 'bare_fiber_services', name='保障范围'),
         FieldSet('start_time_after', 'end_time_before', name='保障时间'),
     )
 
 
 class HeavyDutyImportForm(NetBoxModelImportForm):
+    type = forms.ChoiceField(
+        choices=HeavyDutyTypeChoices,
+        required=False,
+        label='类型'
+    )
     sites = CSVModelMultipleChoiceField(
         queryset=Site.objects.all(),
         to_field_name='name',
@@ -2224,7 +2235,7 @@ class HeavyDutyImportForm(NetBoxModelImportForm):
     class Meta:
         model = HeavyDuty
         fields = (
-            'name', 'start_time', 'end_time', 'description',
+            'name', 'type', 'start_time', 'end_time', 'description',
             'sites', 'circuit_services', 'bare_fiber_services',
             'comments', 'tags'
         )
@@ -2232,6 +2243,11 @@ class HeavyDutyImportForm(NetBoxModelImportForm):
 
 class HeavyDutyBulkEditForm(NetBoxModelBulkEditForm):
     model = HeavyDuty
+    type = forms.ChoiceField(
+        choices=add_blank_choice(HeavyDutyTypeChoices),
+        required=False,
+        label='类型'
+    )
     start_time = forms.DateTimeField(
         required=False,
         label='开始时间',
@@ -2268,7 +2284,7 @@ class HeavyDutyBulkEditForm(NetBoxModelBulkEditForm):
     )
 
     fieldsets = (
-        FieldSet('start_time', 'end_time', 'description', 'comments', name='重保信息'),
+        FieldSet('type', 'start_time', 'end_time', 'description', 'comments', name='重保信息'),
         FieldSet('sites', 'circuit_services', 'bare_fiber_services', name='保障范围'),
     )
 

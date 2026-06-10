@@ -344,6 +344,8 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
             heavy_duties_data.append({
                 'id': hd.pk,
                 'name': hd.name,
+                'type': hd.type,
+                'type_display': hd.get_type_display(),
                 'description': hd.description,
                 'start_time_display': hd.start_time.strftime('%m月%d日 %H:%M') if hd.start_time else '',
                 'end_time_display': hd.end_time.strftime('%m月%d日 %H:%M') if hd.end_time else '',

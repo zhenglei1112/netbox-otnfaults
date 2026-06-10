@@ -17,6 +17,7 @@ from .models import (
     PowerRootCauseAnalysisChoices,
     RecoveryModeChoices,
     HeavyDuty,
+    HeavyDutyTypeChoices,
 )
 
 
@@ -433,6 +434,10 @@ from dcim.models import Site
 
 class HeavyDutyFilterSet(NetBoxModelFilterSet):
     """重要保障过滤器"""
+    type = django_filters.MultipleChoiceFilter(
+        choices=[(value, label) for value, label, *_ in HeavyDutyTypeChoices.CHOICES],
+        label='类型'
+    )
     start_time_after = django_filters.DateTimeFilter(
         field_name='start_time', lookup_expr='gte'
     )
@@ -455,7 +460,7 @@ class HeavyDutyFilterSet(NetBoxModelFilterSet):
     class Meta:
         model = HeavyDuty
         fields = (
-            'id', 'name', 'start_time_after', 'end_time_before',
+            'id', 'name', 'type', 'start_time_after', 'end_time_before',
             'sites', 'circuit_services', 'bare_fiber_services',
         )
 

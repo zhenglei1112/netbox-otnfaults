@@ -2929,11 +2929,31 @@ class CutoverImpact(NetBoxModel, ImageAttachmentsMixin):
         return None
 
 
+class HeavyDutyTypeChoices(ChoiceSet):
+    key = 'HeavyDuty.type'
+
+    IMPORTANT = 'important'          # 重要保障
+    COMPANY_NOTICE = 'notice'        # 公司通知
+    DUTY_MEMO = 'memo'               # 值班备忘
+
+    CHOICES = [
+        (IMPORTANT, '重要保障', 'blue'),
+        (COMPANY_NOTICE, '公司通知', 'green'),
+        (DUTY_MEMO, '值班备忘', 'orange'),
+    ]
+
+
 class HeavyDuty(NetBoxModel):
     """重要保障信息模型"""
     name = models.CharField(
         max_length=200,
         verbose_name='重保标题'
+    )
+    type = models.CharField(
+        max_length=50,
+        choices=HeavyDutyTypeChoices,
+        default=HeavyDutyTypeChoices.IMPORTANT,
+        verbose_name='类型'
     )
     start_time = models.DateTimeField(
         verbose_name='开始时间'
@@ -2977,6 +2997,9 @@ class HeavyDuty(NetBoxModel):
 
     def get_absolute_url(self) -> str:
         return reverse('plugins:netbox_otnfaults:heavyduty', args=[self.pk])
+
+    def get_type_color(self) -> str | None:
+        return HeavyDutyTypeChoices.colors.get(self.type)
 
     def clean(self) -> None:
         super().clean()

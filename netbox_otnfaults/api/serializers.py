@@ -361,7 +361,7 @@ class HeavyDutySerializer(NetBoxModelSerializer):
     class Meta:
         model = HeavyDuty
         fields = (
-            'id', 'url', 'display', 'name', 'start_time', 'end_time', 'description',
+            'id', 'url', 'display', 'name', 'type', 'start_time', 'end_time', 'description',
             'sites', 'circuit_services', 'bare_fiber_services',
             'comments', 'tags', 'custom_fields', 'created', 'last_updated',
         )

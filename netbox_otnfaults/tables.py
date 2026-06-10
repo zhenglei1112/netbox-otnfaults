@@ -8,7 +8,8 @@ from .models import (
     MaintenanceModeChoices, RecoveryModeChoices, ResourceTypeChoices, ResourceOwnerChoices,
     CableRouteChoices, CableBreakLocationChoices, ServiceTypeChoices,
     ServiceGroupChoices, BusinessCategoryChoices, CableTypeChoices,
-    CutoverTask, CutoverImpact, HeavyDuty, CutoverTypeChoices, CutoverCoordinationStatusChoices
+    CutoverTask, CutoverImpact, HeavyDuty, CutoverTypeChoices, CutoverCoordinationStatusChoices,
+    HeavyDutyTypeChoices
 )
 from dcim.models import Site
 
@@ -1261,6 +1262,7 @@ class HeavyDutyTable(NetBoxTable):
         linkify=True,
         verbose_name='重保标题'
     )
+    type = columns.ChoiceFieldColumn(verbose_name='类型')
     start_time = tables.DateTimeColumn(
         format='Y-m-d H:i:s',
         verbose_name='开始时间'
@@ -1289,12 +1291,19 @@ class HeavyDutyTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = HeavyDuty
         fields = (
-            'pk', 'id', 'name', 'start_time', 'end_time', 'description',
+            'pk', 'id', 'name', 'type', 'start_time', 'end_time', 'description',
             'sites', 'circuit_services', 'bare_fiber_services', 'actions'
         )
         default_columns = (
-            'name', 'start_time', 'end_time', 'description', 'actions'
+            'name', 'type', 'start_time', 'end_time', 'description', 'actions'
         )
+
+    def render_type(self, value, record):
+        color = record.get_type_color() or 'secondary'
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_type_display())
+
+    def value_type(self, value: str | None, record: HeavyDuty) -> str:
+        return _display_or_empty(record.get_type_display())
 
 
 class HeavyDutySiteTable(NetBoxTable):
