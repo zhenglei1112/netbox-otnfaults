@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpRequest, HttpResponse
 from utilities.views import register_model_view, ViewTab
 from django_tables2 import RequestConfig
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, CutoverTask, CutoverImpact, HeavyDuty
+from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, CutoverTask, CutoverImpact, HeavyDuty, CutoverCoordinationStatusChoices
 from dcim.models import Site
 from .forms import (
     OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
@@ -324,6 +324,8 @@ class OtnFaultView(generic.ObjectView):
         impacts = (instance.impacts.all() | instance.secondary_impacts.all()).distinct()
         table = OtnFaultImpactSummaryTable(impacts, prefix='impact-')
         RequestConfig(request, paginate={'per_page': 25}).configure(table)
+        if not (instance.interruption_reason == 'cable_rectification' and instance.interruption_reason_detail == 'planned_reporting'):
+            table.exclude = ('coordination_status',)
 
         # -- 站点历史故障 --
         from django.db.models import Q
@@ -1410,37 +1412,11 @@ class CutoverTaskView(generic.ObjectView):
             'impacts_table': impacts_table,
             'impacts_count': all_impacts.count(),
             'generated_fault': instance.generated_faults.order_by('-created').first(),
-            'bare_fiber_services': [
-                {
-                    'id': service.pk,
-                    'tenant_group': service.tenant_group.name if service.tenant_group else '',
-                    'name': service.name,
-                }
-                for service in BareFiberService.objects.select_related('tenant_group').order_by('tenant_group__name', 'name')
-            ],
+
         }
 
 
-class CutoverTaskRelatedCustomersView(PermissionRequiredMixin, View):
-    """Maintain related customers and coordination data from the task detail page."""
-    permission_required = 'netbox_otnfaults.change_cutovertask'
 
-    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
-        task = get_object_or_404(CutoverTask, pk=pk)
-        try:
-            related_customers = json.loads(request.POST.get('related_customers', '[]'))
-        except json.JSONDecodeError:
-            messages.error(request, '关联业务数据格式无效。')
-            return redirect(task.get_absolute_url())
-
-        if not isinstance(related_customers, list):
-            messages.error(request, '关联业务数据必须是数组。')
-            return redirect(task.get_absolute_url())
-
-        task.related_customers = related_customers
-        task.save(update_fields=['related_customers', 'last_updated'])
-        messages.success(request, '已保存关联业务协调维护信息。')
-        return redirect(task.get_absolute_url())
 
 
 class CutoverTaskGeneratePlannedTimeView(PermissionRequiredMixin, View):
@@ -1463,13 +1439,9 @@ class CutoverTaskGeneratePlannedTimeView(PermissionRequiredMixin, View):
 
         if not task.planned_cutover_times or task.planned_cutover_times[-1] != new_time:
             task.planned_cutover_times.append(new_time)
-            for customer in task.related_customers:
-                if isinstance(customer, dict):
-                    customer['is_coordinated'] = False
-                    customer['time'] = ''
-                    customer['coordination_time'] = ''
-            task.save(update_fields=['planned_cutover_time', 'planned_cutover_times', 'related_customers', 'last_updated'])
-            messages.success(request, '已生成新的割接时间，并重置关联业务协调状态。')
+            task.save(update_fields=['planned_cutover_time', 'planned_cutover_times', 'last_updated'])
+            task.impacts.all().update(coordination_status=CutoverCoordinationStatusChoices.UNAPPROVED)
+            messages.success(request, '已生成新的割接时间，并重置所有影响业务协调状态。')
         else:
             messages.info(request, '当前主计划时间已经是最新时间记录。')
 
@@ -1552,18 +1524,7 @@ class CutoverTaskEditView(generic.ObjectEditView):
     form = CutoverTaskForm
     template_name = 'netbox_otnfaults/cutovertask_edit.html'
 
-    def get_extra_context(self, request, instance):
-        bare_fiber_services = [
-            {
-                'id': service.pk,
-                'tenant_group': service.tenant_group.name if service.tenant_group else '',
-                'name': service.name,
-            }
-            for service in BareFiberService.objects.select_related('tenant_group').order_by('tenant_group__name', 'name')
-        ]
-        return {
-            'bare_fiber_services': bare_fiber_services,
-        }
+
 
     def alter_object(self, obj, request, args, kwargs):
         if not obj.pk and not getattr(obj, 'registrant_id', None):
@@ -1621,18 +1582,7 @@ class CutoverImpactEditView(generic.ObjectEditView):
     form = CutoverImpactForm
     template_name = 'netbox_otnfaults/cutoverimpact_edit.html'
 
-    def get_extra_context(self, request, instance):
-        bare_fiber_services = [
-            {
-                'id': service.pk,
-                'tenant_group': service.tenant_group.name if service.tenant_group else '',
-                'name': service.name,
-            }
-            for service in BareFiberService.objects.select_related('tenant_group').order_by('tenant_group__name', 'name')
-        ]
-        return {
-            'bare_fiber_services': bare_fiber_services,
-        }
+
 
     def alter_object(self, obj, request, args, kwargs):
         if not obj.pk:

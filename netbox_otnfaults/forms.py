@@ -11,8 +11,8 @@ from .models import (
     OtnPath, CableTypeChoices, OtnPathGroup, OtnPathGroupSite, BareFiberService,
     CircuitService, ServiceGroupChoices, BusinessCategoryChoices, ServiceTypeChoices,
     BusinessImpactChoices, CircuitOperationStatusChoices, SLALevelChoices,
-    CutoverTask, CutoverImpact, CutoverStatusChoices,
-    CutoverTimeoutStatusChoices, CutoverResultChoices, CutoverManagementUnitChoices, HeavyDuty
+    CutoverTask, CutoverImpact, CutoverStatusChoices, CutoverTypeChoices,
+    CutoverTimeoutStatusChoices, CutoverResultChoices, CutoverManagementUnitChoices, CutoverCoordinationStatusChoices, HeavyDuty
 )
 import json
 
@@ -409,7 +409,7 @@ class OtnFaultImpactImportForm(NetBoxModelImportForm):
         model = OtnFaultImpact
         fields = (
             'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service', 
-            'service_interruption_time', 'service_recovery_time', 
+            'service_interruption_time', 'service_recovery_time', 'coordination_status',
             'comments', 'tags'
         )
 
@@ -470,7 +470,7 @@ class OtnFaultImpactForm(NetBoxModelForm):
         fields = (
             'otn_fault', 'secondary_faults', 'service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z',
             'circuit_business_category', 'circuit_service_group', 'circuit_special_line_name', 'circuit_service',
-            'business_impact', 'service_interruption_time', 'service_recovery_time',
+            'business_impact', 'service_interruption_time', 'service_recovery_time', 'coordination_status',
             'comments', 'tags',
         )
         widgets = {
@@ -841,6 +841,11 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='业务影响'
     )
+    coordination_status = forms.ChoiceField(
+        choices=add_blank_choice(CutoverCoordinationStatusChoices),
+        required=False,
+        label='协调状态'
+    )
     bare_fiber_service = DynamicModelChoiceField(
         queryset=BareFiberService.objects.all(),
         required=False,
@@ -868,11 +873,11 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
     model = OtnFaultImpact
     fieldsets = (
         ('故障影响业务', (
-            'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service', 'business_impact', 'service_interruption_time', 'service_recovery_time', 'comments',
+            'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service', 'business_impact', 'service_interruption_time', 'service_recovery_time', 'coordination_status', 'comments',
         )),
     )
     nullable_fields = (
-        'service_interruption_time', 'service_recovery_time', 'comments', 'bare_fiber_service', 'circuit_service'
+        'service_interruption_time', 'service_recovery_time', 'comments', 'bare_fiber_service', 'circuit_service', 'coordination_status'
     )
 
 class OtnFaultFilterForm(NetBoxModelFilterSetForm):
@@ -1236,6 +1241,12 @@ class OtnFaultImpactFilterForm(NetBoxModelFilterSetForm):
         choices=add_blank_choice(BusinessImpactChoices),
         required=False,
         label='业务影响'
+    )
+    coordination_status = forms.MultipleChoiceField(
+        choices=CutoverCoordinationStatusChoices,
+        required=False,
+        label='协调状态',
+        widget=forms.SelectMultiple()
     )
     service_interruption_time_after = forms.DateTimeField(
         required=False,
@@ -1778,7 +1789,6 @@ class CutoverTaskForm(NetBoxModelForm):
     )
     cutover_two_row_fields = (
         'planned_cutover_times',
-        'related_customers',
         'cutover_reason',
         'customer_approval_detail',
         'timeout_reason',
@@ -1806,31 +1816,33 @@ class CutoverTaskForm(NetBoxModelForm):
             'external_party_object': '$handling_unit',
         }
     )
-    line_supervisor = DynamicModelChoiceField(queryset=get_user_model().objects.all(), required=False, label='线路主管')
-    related_customers = forms.JSONField(required=False, label='设置关联业务')
     planned_cutover_times = forms.JSONField(required=False, label='计划割接时间记录')
     customer_approval_detail = forms.JSONField(required=False, label='客户审核明细')
+    re_cutover = DynamicModelChoiceField(
+        queryset=CutoverTask.objects.all(),
+        required=False,
+        label='再次割接'
+    )
     comments = CommentField(label='评论')
 
     fieldsets = (
-        FieldSet('cutover_no_display', 'status', 'registered_at', 'registrant', 'management_unit', 'management_unit_name', 'cutover_reason', name='割接信息'),
+        FieldSet('cutover_no_display', 'status', 'cutover_type', 'registered_at', 'registrant', 'management_unit', 'management_unit_name', 'cutover_reason', name='割接信息'),
         FieldSet('province', 'cutover_longitude', 'cutover_latitude', 'cutover_location', 'interruption_location_a', 'interruption_location', name='割接位置'),
         FieldSet('resource_type', 'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract', name='资源信息'),
         FieldSet('implementation_unit', 'cutover_contact', 'cutover_contact_phone', 'line_supervisor', name='组织联系人'),
         FieldSet('planned_cutover_time', 'planned_cutover_times', 'planned_impact_minutes', name='计划割接时间'),
-        FieldSet('related_customers', name='关联业务'),
         FieldSet('started_at', 'completed_at', 'closed_at', name='实施时间线'),
         FieldSet('customer_approval_detail', 'is_timeout', 'timeout_reason', 'cutover_result', 'remaining_issues', name='考核与闭环'),
-        FieldSet('rectification_status', 'rectification_measures', 'rectification_description', 'rectification_subject', 'rectification_progress', 'planned_completion_time', 'actual_completion_time', 'rectification_completion_description', name='整改信息'),
+        FieldSet('rectification_status', 'rectification_measures', 'rectification_description', 'rectification_subject', 'rectification_progress', 'planned_completion_time', 'actual_completion_time', 'rectification_completion_description', 're_cutover', name='整改信息'),
         FieldSet('comments', 'tags', name='其他'),
     )
 
     class Meta:
         model = CutoverTask
         fields = (
-            'status', 'registered_at', 'registrant', 'planned_cutover_time', 'planned_cutover_times',
+            'status', 'cutover_type', 'registered_at', 'registrant', 'planned_cutover_time', 'planned_cutover_times',
             'province', 'cutover_location', 'cutover_longitude', 'cutover_latitude',
-            'interruption_location_a', 'interruption_location', 'related_customers', 'cutover_reason',
+            'interruption_location_a', 'interruption_location', 'cutover_reason',
             'resource_type', 'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract',
             'management_unit', 'management_unit_name', 'implementation_unit',
             'cutover_contact', 'cutover_contact_phone', 'customer_approval_detail',
@@ -1839,7 +1851,7 @@ class CutoverTaskForm(NetBoxModelForm):
             'rectification_status', 'rectification_measures', 'rectification_description', 'rectification_subject',
             'rectification_progress', 'planned_completion_time', 'actual_completion_time',
             'rectification_completion_description', 'line_supervisor', 'planned_impact_minutes',
-            'comments', 'tags',
+            're_cutover', 'comments', 'tags',
         )
         widgets = {
             'registered_at': DateTimePicker(),
@@ -1876,9 +1888,6 @@ class CutoverTaskForm(NetBoxModelForm):
     def clean_planned_cutover_times(self) -> list[object]:
         return self._clean_json_list_field('planned_cutover_times')
 
-    def clean_related_customers(self) -> list[object]:
-        return self._clean_json_list_field('related_customers')
-
     def clean_customer_approval_detail(self) -> list[object]:
         return self._clean_json_list_field('customer_approval_detail')
 
@@ -1892,15 +1901,17 @@ class CutoverTaskFilterForm(NetBoxModelFilterSetForm):
     province = DynamicModelChoiceField(queryset=Region.objects.all(), required=False, label='省份')
     interruption_location_a = DynamicModelChoiceField(queryset=Site.objects.all(), required=False, label='割接位置A端站点')
     status = forms.ChoiceField(choices=add_blank_choice(CutoverStatusChoices), required=False, label='状态')
+    cutover_type = forms.ChoiceField(choices=add_blank_choice(CutoverTypeChoices), required=False, label='割接类型')
     management_unit = forms.ChoiceField(choices=add_blank_choice(CutoverManagementUnitChoices), required=False, label='割接管理单位')
     is_timeout = forms.ChoiceField(choices=add_blank_choice(CutoverTimeoutStatusChoices), required=False, label='割接是否超时')
     cutover_result = forms.ChoiceField(choices=add_blank_choice(CutoverResultChoices), required=False, label='割接效果')
+    re_cutover = DynamicModelChoiceField(queryset=CutoverTask.objects.all(), required=False, label='再次割接')
     planned_cutover_time_after = forms.DateTimeField(required=False, label='计划割接时间（开始）', widget=DateTimePicker())
     planned_cutover_time_before = forms.DateTimeField(required=False, label='计划割接时间（结束）', widget=DateTimePicker())
 
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
-        FieldSet('cutover_no', 'status', 'province', 'management_unit', 'is_timeout', 'cutover_result', 'registrant', 'line_supervisor', 'interruption_location_a', name='割接信息'),
+        FieldSet('cutover_no', 'status', 'cutover_type', 'province', 'management_unit', 'is_timeout', 'cutover_result', 'registrant', 'line_supervisor', 'interruption_location_a', 're_cutover', name='割接信息'),
         FieldSet('planned_cutover_time_after', 'planned_cutover_time_before', name='计划时间'),
     )
 
@@ -1911,19 +1922,20 @@ class CutoverTaskImportForm(NetBoxModelImportForm):
     interruption_location_a = CSVModelChoiceField(queryset=Site.objects.all(), to_field_name='name', help_text='割接位置A端站点')
     interruption_location = CSVModelMultipleChoiceField(queryset=Site.objects.all(), to_field_name='name', required=False, help_text='割接影响Z端站点')
     line_supervisor = CSVModelChoiceField(queryset=get_user_model().objects.all(), to_field_name='username', required=False, help_text='线路主管用户名')
+    re_cutover = CSVModelChoiceField(queryset=CutoverTask.objects.all(), to_field_name='cutover_no', required=False, help_text='再次割接编号')
 
     class Meta:
         model = CutoverTask
         fields = (
-            'status', 'registered_at', 'registrant', 'planned_cutover_time', 'planned_cutover_times',
+            'status', 'cutover_type', 'registered_at', 'registrant', 'planned_cutover_time', 'planned_cutover_times',
             'province', 'cutover_location', 'cutover_longitude', 'cutover_latitude',
-            'interruption_location_a', 'interruption_location', 'related_customers', 'cutover_reason',
+            'interruption_location_a', 'interruption_location', 'cutover_reason',
             'resource_type', 'cable_route', 'resource_owner', 'maintenance_mode',
             'management_unit', 'management_unit_name', 'implementation_unit',
             'cutover_contact', 'cutover_contact_phone', 'customer_approval_detail',
             'started_at', 'completed_at', 'closed_at',
             'is_timeout', 'timeout_reason', 'cutover_result', 'remaining_issues',
-            'line_supervisor', 'planned_impact_minutes', 'comments', 'tags',
+            'line_supervisor', 'planned_impact_minutes', 're_cutover', 'comments', 'tags',
         )
 
 
@@ -1931,17 +1943,19 @@ class CutoverTaskBulkEditForm(NetBoxModelBulkEditForm):
     """割接管理批量编辑表单"""
     model = CutoverTask
     status = forms.ChoiceField(choices=add_blank_choice(CutoverStatusChoices), required=False, label='状态')
+    cutover_type = forms.ChoiceField(choices=add_blank_choice(CutoverTypeChoices), required=False, label='割接类型')
     management_unit = forms.ChoiceField(choices=add_blank_choice(CutoverManagementUnitChoices), required=False, label='割接管理单位')
     is_timeout = forms.ChoiceField(choices=add_blank_choice(CutoverTimeoutStatusChoices), required=False, label='割接是否超时')
     cutover_result = forms.ChoiceField(choices=add_blank_choice(CutoverResultChoices), required=False, label='割接效果')
     planned_cutover_time = forms.DateTimeField(required=False, label='计划割接时间', widget=DateTimePicker())
     line_supervisor = DynamicModelChoiceField(queryset=get_user_model().objects.all(), required=False, label='线路主管')
+    re_cutover = DynamicModelChoiceField(queryset=CutoverTask.objects.all(), required=False, label='再次割接')
     comments = CommentField(label='评论')
 
     fieldsets = (
-        FieldSet('status', 'planned_cutover_time', 'management_unit', 'is_timeout', 'cutover_result', 'line_supervisor', 'comments', name='割接管理'),
+        FieldSet('status', 'cutover_type', 'planned_cutover_time', 'management_unit', 'is_timeout', 'cutover_result', 'line_supervisor', 're_cutover', 'comments', name='割接管理'),
     )
-    nullable_fields = ('planned_cutover_time', 'line_supervisor', 'comments')
+    nullable_fields = ('planned_cutover_time', 'line_supervisor', 're_cutover', 'comments')
 
 
 def _build_circuit_service_catalog() -> tuple[list[dict[str, Any]], str, list[tuple[str, str]]]:
@@ -1998,7 +2012,7 @@ class CutoverImpactForm(NetBoxModelForm):
     fieldsets = (
         FieldSet('cutover_task', name='割接任务'),
         FieldSet('service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z', 'circuit_business_category', 'circuit_service_group', 'circuit_special_line_name', 'circuit_service', name='业务信息'),
-        FieldSet('business_impact', 'service_interruption_time', 'service_recovery_time', name='影响时间'),
+        FieldSet('business_impact', 'service_interruption_time', 'service_recovery_time', 'coordination_status', name='影响时间'),
         FieldSet('comments', 'tags', name='其他'),
     )
 
@@ -2007,7 +2021,7 @@ class CutoverImpactForm(NetBoxModelForm):
         fields = (
             'cutover_task', 'service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z',
             'circuit_business_category', 'circuit_service_group', 'circuit_special_line_name', 'circuit_service',
-            'business_impact', 'service_interruption_time', 'service_recovery_time',
+            'business_impact', 'service_interruption_time', 'service_recovery_time', 'coordination_status',
             'comments', 'tags',
         )
         widgets = {
@@ -2072,10 +2086,15 @@ class CutoverImpactBulkEditForm(NetBoxModelBulkEditForm):
     circuit_service = DynamicModelChoiceField(queryset=CircuitService.objects.all(), required=False, label='电路业务')
     service_interruption_time = forms.DateTimeField(required=False, label='业务中断时间', widget=DateTimePicker())
     service_recovery_time = forms.DateTimeField(required=False, label='业务恢复时间', widget=DateTimePicker())
+    coordination_status = forms.ChoiceField(
+        choices=add_blank_choice(CutoverCoordinationStatusChoices),
+        required=False,
+        label='协调状态'
+    )
     comments = CommentField(label='评论')
 
     fieldsets = (
-        FieldSet('cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service', 'business_impact', 'service_interruption_time', 'service_recovery_time', 'comments', name='割接影响业务'),
+        FieldSet('cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service', 'business_impact', 'service_interruption_time', 'service_recovery_time', 'coordination_status', 'comments', name='割接影响业务'),
     )
     nullable_fields = ('service_interruption_time', 'service_recovery_time', 'comments', 'bare_fiber_service', 'circuit_service')
 
@@ -2092,13 +2111,18 @@ class CutoverImpactFilterForm(NetBoxModelFilterSetForm):
     circuit_business_category = forms.MultipleChoiceField(choices=[(v, l) for v, l, *_ in BusinessCategoryChoices.CHOICES], required=False, label='业务门类', widget=forms.SelectMultiple())
     circuit_service_group = forms.MultipleChoiceField(choices=[(v, l) for v, l, *_ in ServiceGroupChoices.CHOICES], required=False, label='业务组', widget=forms.SelectMultiple())
     business_impact = forms.ChoiceField(choices=add_blank_choice(BusinessImpactChoices), required=False, label='业务影响')
+    coordination_status = forms.ChoiceField(
+        choices=add_blank_choice(CutoverCoordinationStatusChoices),
+        required=False,
+        label='协调状态'
+    )
     service_interruption_time_after = forms.DateTimeField(required=False, label='业务中断时间（开始）', widget=DateTimePicker())
     service_interruption_time_before = forms.DateTimeField(required=False, label='业务中断时间（结束）', widget=DateTimePicker())
     service_recovery_time = forms.DateTimeField(required=False, label='业务恢复时间', widget=DateTimePicker())
 
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
-        FieldSet('cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service', 'business_impact', name='业务信息'),
+        FieldSet('cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service', 'business_impact', 'coordination_status', name='业务信息'),
         FieldSet('circuit_business_category', 'circuit_service_group', name='电路业务'),
         FieldSet('service_interruption_time_after', 'service_interruption_time_before', 'service_recovery_time', name='时间'),
     )

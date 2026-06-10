@@ -209,6 +209,7 @@ class OtnFaultImpactFilterSet(NetBoxModelFilterSet):
             'circuit_business_category',
             'circuit_service_group',
             'business_impact',
+            'coordination_status',
             'service_interruption_time_after',
             'service_interruption_time_before',
             'service_recovery_time',
@@ -326,9 +327,9 @@ class CutoverTaskFilterSet(NetBoxModelFilterSet):
     class Meta:
         model = CutoverTask
         fields = (
-            'id', 'cutover_no', 'status', 'province', 'management_unit',
+            'id', 'cutover_no', 'status', 'cutover_type', 'province', 'management_unit',
             'is_timeout', 'cutover_result', 'registrant', 'line_supervisor',
-            'interruption_location_a',
+            'interruption_location_a', 're_cutover',
         )
 
     def search(self, queryset, name, value):

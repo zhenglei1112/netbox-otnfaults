@@ -35,7 +35,7 @@ def test_cutover_task_model_defines_core_fields_and_helpers() -> None:
     assert "registered_at = models.DateTimeField" in source
     assert "registrant = models.ForeignKey" in source
     assert "planned_cutover_times = models.JSONField" in source
-    assert "related_customers = models.JSONField" in source
+    assert "re_cutover = models.ForeignKey" in source
     assert "interruption_location_a = models.ForeignKey" in source
     assert "interruption_location = models.ManyToManyField" in source
     assert "cutover_longitude = models.DecimalField" in source
@@ -87,10 +87,11 @@ def test_cutover_task_ui_forms_tables_filters_and_views_are_registered() -> None
     navigation = read_source("netbox_otnfaults/navigation.py")
 
     assert "class CutoverTaskForm(NetBoxModelForm):" in forms
+    assert "re_cutover = DynamicModelChoiceField" in forms
     assert "class CutoverTaskFilterForm(NetBoxModelFilterSetForm):" in forms
     assert "class CutoverTaskImportForm(NetBoxModelImportForm):" in forms
     assert "class CutoverTaskBulkEditForm(NetBoxModelBulkEditForm):" in forms
-    assert "FieldSet('cutover_no_display', 'status', 'registered_at', 'registrant'" in forms
+    assert "FieldSet('cutover_no_display', 'status', 'cutover_type', 'registered_at', 'registrant'" in forms
     assert "widget=DateTimePicker()" in forms
 
     assert "class CutoverTaskTable(NetBoxTable):" in tables
@@ -100,11 +101,13 @@ def test_cutover_task_ui_forms_tables_filters_and_views_are_registered() -> None
     assert "record.get_status_display()" in cutover_task_table
     assert '<span class="badge bg-{} text-white">{}</span>' in cutover_task_table
     assert "'actions'," in tables
+    assert "re_cutover = tables.Column" in tables
     assert "url_name='plugins:netbox_otnfaults:cutovertask_list'" in tables
 
     assert "class CutoverTaskFilterSet(NetBoxModelFilterSet):" in filters
     assert "planned_cutover_time_after = django_filters.DateTimeFilter" in filters
     assert "planned_cutover_time_before = django_filters.DateTimeFilter" in filters
+    assert "'re_cutover'" in filters
 
     assert "class CutoverTaskListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):" in views
     assert "@register_model_view(CutoverTask)" in views
@@ -140,8 +143,6 @@ def test_cutover_task_form_normalizes_empty_json_fields_to_lists() -> None:
     assert "return []" in forms
     assert "def clean_planned_cutover_times(self) -> list[object]:" in forms
     assert "return self._clean_json_list_field('planned_cutover_times')" in forms
-    assert "def clean_related_customers(self) -> list[object]:" in forms
-    assert "return self._clean_json_list_field('related_customers')" in forms
     assert "def clean_customer_approval_detail(self) -> list[object]:" in forms
     assert "return self._clean_json_list_field('customer_approval_detail')" in forms
 
@@ -150,7 +151,7 @@ def test_cutover_task_model_normalizes_nullable_json_fields_before_validation() 
     models = read_source("netbox_otnfaults/models.py")
 
     assert "def _normalize_json_list_fields(self) -> None:" in models
-    assert "for field_name in ('planned_cutover_times', 'related_customers', 'customer_approval_detail'):" in models
+    assert "for field_name in ('planned_cutover_times', 'customer_approval_detail'):" in models
     assert "if getattr(self, field_name) is None:" in models
     assert "setattr(self, field_name, [])" in models
     assert "self._normalize_json_list_fields()" in models
@@ -162,6 +163,8 @@ def test_cutover_task_api_serializer_viewset_router_and_templates_exist() -> Non
     api_urls = read_source("netbox_otnfaults/api/urls.py")
 
     assert "class CutoverTaskSerializer(NetBoxModelSerializer):" in serializers
+    assert "NestedCutoverTaskSerializer" in serializers
+    assert "re_cutover = NestedCutoverTaskSerializer" in serializers
     assert "model = CutoverTask" in serializers
     assert "'planned_cutover_times'" in serializers
     cutover_task_serializer = serializers.split("class CutoverTaskSerializer", 1)[1].split("class OtnMapPreferenceSerializer", 1)[0]
@@ -185,8 +188,10 @@ def test_cutover_task_api_serializer_viewset_router_and_templates_exist() -> Non
     assert "计划割接时间" in detail_template
     assert "割接位置" in detail_template
     assert "实施时间线" in detail_template
+    assert "再次割接" in detail_template
     assert "{% render_field form.cutover_no_display %}" in edit_template
     assert "{% render_field form.cutover_longitude %}" in edit_template
+    assert "{% render_field form.re_cutover %}" in edit_template
 
 
 def test_cutover_task_edit_inline_script_keeps_path_shortcuts_inside_iife() -> None:
@@ -204,67 +209,18 @@ def test_cutover_task_edit_inline_script_keeps_path_shortcuts_inside_iife() -> N
     )
 
 
-def test_cutover_task_related_customers_use_bare_fiber_multi_select() -> None:
+def test_cutover_impact_coordination_status() -> None:
     forms = read_source("netbox_otnfaults/forms.py")
     views = read_source("netbox_otnfaults/views.py")
-    urls = read_source("netbox_otnfaults/urls.py")
-    edit_template = read_source("netbox_otnfaults/templates/netbox_otnfaults/cutovertask_edit.html")
-    detail_template = read_source("netbox_otnfaults/templates/netbox_otnfaults/cutovertask.html")
+    tables = read_source("netbox_otnfaults/tables.py")
+    filtersets = read_source("netbox_otnfaults/filtersets.py")
+    serializers = read_source("netbox_otnfaults/api/serializers.py")
 
-    assert "related_customers = forms.JSONField(required=False, label='设置关联用户')" in forms
-
-    assert "def get_extra_context(self, request, instance):" in views
-    assert "BareFiberService.objects.select_related('tenant_group')" in views
-    assert "'bare_fiber_services': bare_fiber_services" in views
-
-    assert '{% load form_helpers helpers %}' in edit_template
-    assert "{{ bare_fiber_services|json_script:\"cutover-bare-fiber-services\" }}" in edit_template
-    assert "const bareFiberServices = JSON.parse(" in edit_template
-    assert "设置关联用户" in edit_template
-    assert "bare-fiber-service-checkbox" in edit_template
-    assert "service_id" in edit_template
-    assert "已协调" in edit_template
-    assert "是否协调" not in edit_template
-    assert "customer-coordinated" in edit_template
-    assert "customer-coordination-time" in edit_template
-    assert "syncJsonInput();" in edit_template
-
-    assert "class CutoverTaskRelatedCustomersView(PermissionRequiredMixin, View):" in views
-    assert "permission_required = 'netbox_otnfaults.change_cutovertask'" in views
-    assert "json.loads(request.POST.get('related_customers', '[]'))" in views
-    assert "task.related_customers = related_customers" in views
-    assert "task.save(update_fields=['related_customers', 'last_updated'])" in views
-    assert "cutovers/<int:pk>/related-customers/" in urls
-
-    assert "{{ bare_fiber_services|json_script:\"cutover-detail-bare-fiber-services\" }}" in detail_template
-    assert "{{ object.related_customers|json_script:\"cutover-detail-related-customers\" }}" in detail_template
-    assert "cutovertask_related_customers" in detail_template
-    assert "cutover-related-customers-form" in detail_template
-    assert "cutover-related-customers-json" in detail_template
-    assert "btn-set-related-customers" in detail_template
-    assert "保存协调信息" in detail_template
-    assert "customer-coordinated" in detail_template
-    assert "customer-coordination-time" in detail_template
-    assert "function formatCurrentMinute()" in detail_template
-    assert "String(value).padStart(2, '0')" in detail_template
-    assert "this.checked && !relatedCustomers[index].time" in detail_template
-    assert "timeInput.value = currentTime;" in detail_template
-    assert "customerModal" in detail_template
-    assert "bare-fiber-service-checkbox" in detail_template
-    assert "btn-save-customers" in detail_template
-    assert "modal-dialog modal-dialog-centered cutover-customer-dialog" in detail_template
-    assert "width: min(760px, calc(100vw - 2rem));" in detail_template
-    assert "max-height: 52vh;" in detail_template
-    assert "cutover-customer-picker .table > :not(caption) > * > *" in detail_template
-    assert "backdrop.style.backgroundColor = '#808080';" in detail_template
-    assert "backdrop.style.opacity = '1';" in detail_template
-    assert 'id="cutover-customer-picker"' not in detail_template
-    assert 'class="btn btn-ghost-primary btn-sm" id="btn-set-related-customers"' in detail_template
-    assert 'class="btn btn-primary generate-planned-time-btn" id="btn-save-customers"' in detail_template
-    assert 'class="btn btn-secondary generate-planned-time-btn" id="btn-cancel-related-customers"' in detail_template
-    assert "btn btn-outline-primary btn-sm" not in detail_template
-    assert "btn btn-sm btn-primary" not in detail_template
-    assert "btn btn-sm btn-outline-secondary" not in detail_template
+    assert "coordination_status" in forms
+    assert "CutoverCoordinationStatusChoices" in views
+    assert "coordination_status" in tables
+    assert "coordination_status" in filtersets
+    assert "coordination_status" in serializers
 
 
 def test_cutover_task_form_fieldsets_follow_detail_page_grouping_order() -> None:
@@ -278,7 +234,6 @@ def test_cutover_task_form_fieldsets_follow_detail_page_grouping_order() -> None
         "资源信息",
         "组织联系人",
         "计划割接时间",
-        "关联用户",
         "实施时间线",
         "考核与闭环",
         "整改信息",
@@ -287,12 +242,12 @@ def test_cutover_task_form_fieldsets_follow_detail_page_grouping_order() -> None
     positions = [fieldsets_source.index(f"name='{name}'") for name in expected_order]
     assert positions == sorted(positions)
 
-    assert "FieldSet('cutover_no_display', 'status', 'registered_at', 'registrant', 'management_unit', 'management_unit_name', 'cutover_reason', name='割接信息')" in fieldsets_source
+    assert "FieldSet('cutover_no_display', 'status', 'cutover_type', 'registered_at', 'registrant', 'management_unit', 'management_unit_name', 'cutover_reason', name='割接信息')" in fieldsets_source
     assert "FieldSet('province', 'cutover_longitude', 'cutover_latitude', 'cutover_location', 'interruption_location_a', 'interruption_location', name='割接位置')" in fieldsets_source
     assert "FieldSet('resource_type', 'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract', name='资源信息')" in fieldsets_source
     assert "FieldSet('implementation_unit', 'cutover_contact', 'cutover_contact_phone', 'line_supervisor', name='组织联系人')" in fieldsets_source
-    assert "FieldSet('related_customers', name='关联用户')" in fieldsets_source
     assert "FieldSet('customer_approval_detail', 'is_timeout', 'timeout_reason', 'cutover_result', 'remaining_issues', name='考核与闭环')" in fieldsets_source
+    assert "FieldSet('rectification_status', 'rectification_measures', 'rectification_description', 'rectification_subject', 'rectification_progress', 'planned_completion_time', 'actual_completion_time', 'rectification_completion_description', 're_cutover', name='整改信息')" in fieldsets_source
     assert "customer_approval_result" not in form_source
     assert "maintenance_unit" not in form_source
 
@@ -303,7 +258,6 @@ def test_cutover_task_form_fieldsets_follow_detail_page_grouping_order() -> None
         "资源信息",
         "组织联系人",
         "计划割接时间",
-        "关联用户",
         "实施时间线",
         "考核与闭环",
         "整改信息",
@@ -316,11 +270,10 @@ def test_cutover_task_form_fieldsets_follow_detail_page_grouping_order() -> None
     assert "审核与实施" not in edit_template
 
 
-def test_cutover_task_detail_renders_planned_times_and_related_customers_as_readable_tables() -> None:
+def test_cutover_task_detail_renders_planned_times_as_readable_tables() -> None:
     detail_template = read_source("netbox_otnfaults/templates/netbox_otnfaults/cutovertask.html")
 
     assert '<pre class="mb-0">{{ object.planned_cutover_times|default:"[]" }}</pre>' not in detail_template
-    assert '<pre class="mb-0">{{ object.related_customers|default:"[]" }}</pre>' not in detail_template
     assert "{% for time in object.planned_cutover_times reversed %}" in detail_template
     assert "第{{ forloop.revcounter }}次" in detail_template
     assert "最新" in detail_template
@@ -330,18 +283,6 @@ def test_cutover_task_detail_renders_planned_times_and_related_customers_as_read
     assert '[data-bs-theme="dark"] .cutover-time-record' in detail_template
     assert "bg-success-subtle" not in detail_template
     assert "bg-light" not in detail_template
-    assert "{{ object.related_customers|json_script:\"cutover-detail-related-customers\" }}" in detail_template
-    assert "relatedCustomers.forEach((item, index) => {" in detail_template
-    assert "item.tenant_group || item.tenant" in detail_template
-    assert "item.name || item.business" in detail_template
-    assert "item.time || item.coordination_time" in detail_template
-    assert "租户组" in detail_template
-    assert "业务名称" in detail_template
-    assert "已协调" in detail_template
-    assert "customer-coordinated" in detail_template
-    assert "保存协调信息" in detail_template
-    assert "协调时间" in detail_template
-    assert "暂无关联用户记录" in detail_template
 
 
 def test_cutover_task_detail_uses_standard_netbox_two_column_layout() -> None:
@@ -354,7 +295,6 @@ def test_cutover_task_detail_uses_standard_netbox_two_column_layout() -> None:
     assert "col-12 col-xl-7" not in detail_template
     assert "割接概览" not in detail_template
     assert detail_template.count('<div class="col col-md-6">') >= 2
-    assert "关联用户" in detail_template
     assert "割接信息</h5>" in detail_template
     assert 'class="badge bg-{{ object.get_status_color|default:\'secondary\' }} text-white"' in detail_template
     assert "{{ object.get_status_display|default:\"—\" }}" in detail_template
@@ -362,7 +302,6 @@ def test_cutover_task_detail_uses_standard_netbox_two_column_layout() -> None:
     assert "影响范围</h5>" not in detail_template
     assert "地域地点</h5>" not in detail_template
     assert '<tr><th scope="row">关联用户</th>' not in detail_template
-    assert "table-responsive cutover-related-customers-table" in detail_template
 
     left_column = detail_template.split('<div class="col col-md-6">', 1)[1].split('<div class="col col-md-6">', 1)[0]
     right_column = detail_template.split('<div class="col col-md-6">', 2)[2].split('</div>\n</div>\n\n{# 割接影响业务面板 #}', 1)[0]
@@ -388,8 +327,7 @@ def test_cutover_task_detail_uses_standard_netbox_two_column_layout() -> None:
     assert "Z端站点" not in cutover_location_card
     assert "<tr><th scope=\"row\">经度</th>" not in cutover_location_card
     assert "<tr><th scope=\"row\">纬度</th>" not in cutover_location_card
-    assert left_column.index("计划割接时间</h5>") < left_column.index("cutover-related-customers-form")
-    assert left_column.index("cutover-related-customers-form") < left_column.index("实施时间线</h5>")
+    assert left_column.index("计划割接时间</h5>") < left_column.index("实施时间线</h5>")
     timeline_card = left_column.split("实施时间线</h5>", 1)[1].split("考核与闭环</h5>", 1)[0]
     assert timeline_card.index("割接完成时间") < timeline_card.index("割接历时")
     assert timeline_card.index("割接历时") < timeline_card.index("割接封包时间")
@@ -494,17 +432,9 @@ def test_cutover_task_detail_keeps_attr_table_labels_on_one_line() -> None:
 
 
 def test_cutover_task_regenerating_planned_time_requires_confirmation_and_resets_customer_approval() -> None:
-    edit_template = read_source("netbox_otnfaults/templates/netbox_otnfaults/cutovertask_edit.html")
     detail_template = read_source("netbox_otnfaults/templates/netbox_otnfaults/cutovertask.html")
     views = read_source("netbox_otnfaults/views.py")
     urls = read_source("netbox_otnfaults/urls.py")
-
-    assert "生成新的割接时间，需要重新与每个关联用户确认（会清理掉已有的关联用户确认状态），确定要生成吗？" in edit_template
-    assert "if (!confirm(regenerateConfirmMessage)) {" in edit_template
-    assert "window.dispatchEvent(new CustomEvent('cutover:planned-time-regenerated'));" in edit_template
-    assert "window.addEventListener('cutover:planned-time-regenerated'" in edit_template
-    assert "item.is_coordinated = false;" in edit_template
-    assert "item.time = '';" in edit_template
 
     assert "class CutoverTaskGeneratePlannedTimeView(PermissionRequiredMixin, View):" in views
     assert "permission_required = 'netbox_otnfaults.change_cutovertask'" in views
@@ -512,31 +442,23 @@ def test_cutover_task_regenerating_planned_time_requires_confirmation_and_resets
     assert "parse_datetime(raw_time)" in views
     assert "task.planned_cutover_time = parsed_time" in views
     assert "task.planned_cutover_times.append(new_time)" in views
-    assert "customer['is_coordinated'] = False" in views
-    assert "customer['time'] = ''" in views
-    assert "customer['coordination_time'] = ''" in views
-    assert "'planned_cutover_times', 'related_customers'" in views
+    assert "task.impacts.all().update(coordination_status=" in views
     assert "cutovers/<int:pk>/generate-planned-time/" in urls
 
     assert "生成新的割接时间" in detail_template
     assert "cutovertask_generate_planned_time" in detail_template
     assert 'name="planned_cutover_time"' in detail_template
     assert 'type="datetime-local"' in detail_template
-    assert '<button type="submit" class="btn btn-ghost-primary btn-sm">' in detail_template
-    assert "{% csrf_token %}" in detail_template
-    assert "生成新的割接时间，需要重新与每个关联用户确认，会清理掉已有的关联用户确认状态和协调时间，确定生成吗？" in detail_template
-    assert "return confirm(" not in detail_template
+    assert 'id="id_planned_cutover_time_modal"' in detail_template
+    assert 'form="generate-planned-time-form"' in detail_template
+    assert "生成新的割接时间，需要重新与每个影响业务确认，会重置所有影响业务的协调状态，确定生成吗？" in detail_template
     assert 'id="generatePlannedTimeModal"' in detail_template
     assert 'class="modal-dialog modal-dialog-centered generate-planned-time-dialog"' in detail_template
     assert 'class="modal-content"' in detail_template
     assert "width: min(560px, calc(100vw - 2rem));" in detail_template
-    assert "aspect-ratio: 1.618 / 1;" not in detail_template
     assert 'class="modal-backdrop fade show"' in detail_template
     assert "background-color: #808080;" in detail_template
     assert "opacity: 1;" in detail_template
-    assert 'class="seal-reason-text"' not in detail_template
-    assert 'class="btn btn-primary generate-planned-time-btn"' in detail_template
-    assert 'class="btn btn-secondary generate-planned-time-btn"' in detail_template
     assert "确认生成" in detail_template
     assert "取消" in detail_template
     assert "showGeneratePlannedTimeModal()" in detail_template
@@ -686,3 +608,25 @@ def test_cutover_impact_tables_filters_api_urls_and_templates_are_registered() -
     assert "tomselect.settings.sortField = [{ field: '$order' }];" in edit_template
     assert ".filter((option) => option.value !== '')" in edit_template
     assert "if (!service.service_group || seen.has(service.service_group))" in edit_template
+
+
+def test_otn_fault_impact_coordination_status() -> None:
+    models = read_source("netbox_otnfaults/models.py")
+    forms = read_source("netbox_otnfaults/forms.py")
+    tables = read_source("netbox_otnfaults/tables.py")
+    filtersets = read_source("netbox_otnfaults/filtersets.py")
+    serializers = read_source("netbox_otnfaults/api/serializers.py")
+    generation_service = read_source("netbox_otnfaults/services/cutover_fault_generation.py")
+    detail_template = read_source("netbox_otnfaults/templates/netbox_otnfaults/otnfaultimpact.html")
+
+    assert "coordination_status = models.CharField" in models
+    otn_fault_impact_model = models.split("class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):", 1)[1].split("class ", 1)[0]
+    assert "coordination_status" in otn_fault_impact_model
+
+    assert "coordination_status" in forms
+    assert "coordination_status = columns.ChoiceFieldColumn" in tables
+    assert "coordination_status" in filtersets
+    assert "coordination_status" in serializers
+    assert "coordination_status=cutover_impact.coordination_status" in generation_service
+    assert "object.get_coordination_status_display" in detail_template
+

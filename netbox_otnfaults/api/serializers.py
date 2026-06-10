@@ -186,13 +186,13 @@ class OtnFaultImpactSerializer(NetBoxModelSerializer):
         fields = (
             'id', 'url', 'display', 'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service',
             'service_site_a', 'service_site_z',
-            'business_impact', 'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'business_impact', 'coordination_status', 'service_interruption_time', 'service_recovery_time', 'service_duration',
             'tags', 'comments', 'custom_fields', 'created', 'last_updated',
             'journal_entries',
         )
         brief_fields = (
             'id', 'url', 'display', 'otn_fault', 'service_type', 'bare_fiber_service', 'circuit_service',
-            'business_impact', 'service_interruption_time', 'service_recovery_time',
+            'business_impact', 'coordination_status', 'service_interruption_time', 'service_recovery_time',
         )
         read_only_fields = ('service_duration', 'journal_entries')
 
@@ -276,6 +276,16 @@ class CircuitServiceSerializer(NetBoxModelSerializer):
         )
 
 
+class NestedCutoverTaskSerializer(WritableNestedSerializer):
+    url = serializers.HyperlinkedIdentityField(
+        view_name='plugins-api:netbox_otnfaults-api:cutovertask-detail'
+    )
+
+    class Meta:
+        model = CutoverTask
+        fields = ('id', 'url', 'display', 'cutover_no')
+
+
 class CutoverTaskSerializer(NetBoxModelSerializer):
     """割接管理序列化器"""
     registrant = NestedUserSerializer(required=False)
@@ -283,6 +293,7 @@ class CutoverTaskSerializer(NetBoxModelSerializer):
     interruption_location_a = NestedSiteSerializer(required=False)
     interruption_location = NestedSiteSerializer(many=True, required=False)
     line_supervisor = NestedUserSerializer(required=False, allow_null=True)
+    re_cutover = NestedCutoverTaskSerializer(required=False, allow_null=True)
 
     class Meta:
         model = CutoverTask
@@ -299,7 +310,7 @@ class CutoverTaskSerializer(NetBoxModelSerializer):
             'rectification_measures', 'rectification_description', 'rectification_subject',
             'rectification_progress', 'planned_completion_time', 'actual_completion_time',
             'rectification_completion_description', 'line_supervisor', 'planned_impact_minutes',
-            'comments', 'tags', 'custom_fields',
+            're_cutover', 'comments', 'tags', 'custom_fields',
             'created', 'last_updated',
         )
 

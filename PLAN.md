@@ -1,3 +1,19 @@
+## 2026-06-09 割接管理：关联业务并入影响业务与时间 UI 重构
+- [x] 在 `models.py` 中为 `CutoverImpact` 新增 `coordination_status` 字段，选项包括已批准、未批准、强制割接，并删除 `CutoverTask` 中的 `related_customers`。
+- [x] 在 `forms.py`、`tables.py`、`views.py`、`urls.py`、`filtersets.py`、`serializers.py` 中更新相关引用，重构生成新计划时间时重置协调状态的逻辑。
+- [x] 精简割接详情页，移除卡片中“主计划时间”行与标题栏右侧的时间输入选项，将时间输入控件移入弹出 Modal 的最上方并设置最大宽度为 `250px`（限制输入框长度），将提示文本移至时间下方并使用更突出的警告框（`alert-warning`）样式。同时为 Modal 输入默认填充已有时间，将最新一条时间记录的前置“第N次”次数标识、时钟图标和时间文本突出显示为绿色并加粗，与最新旗标保持一致。
+- [x] 手动编写数据平滑迁移脚本 `0080_cutover_impact_integration.py`，并将旧的关联业务数据转换迁移至 `CutoverImpact` 中。
+- [x] 更新 `tests/test_cutover_management_scaffold.py` 单元测试，保证所有与废弃字段相关的断言对齐新逻辑并测试通过。
+
+## 2026-06-09 割接任务新增割接类型字段
+- [x] 在 `models.py` 定义 `CutoverTypeChoices(ChoiceSet)` 并为 `CutoverTask` 增加 `cutover_type` 字段（CharField）与 `get_cutover_type_color` 方法。
+- [x] 在 `forms.py` 的 `CutoverTaskForm`、`CutoverTaskFilterForm`、`CutoverTaskImportForm` 和 `CutoverTaskBulkEditForm` 中配置 `cutover_type` 字段。
+- [x] 在 `tables.py` 的 `CutoverTaskTable` 中引入并渲染 `cutover_type` 字段，确保 actions 列保持为最后一列。
+- [x] 在 `filtersets.py` 的 `CutoverTaskFilterSet` 字段中支持 `cutover_type`。
+- [x] 在 `serializers.py` 的 `CutoverTaskSerializer` 字段中支持 `cutover_type`。
+- [x] 在详情页 `cutovertask.html` 和编辑页 `cutovertask_edit.html` 中分别渲染割接类型。
+- [x] 生成并执行 Django 的数据迁移文件 `makemigrations`，并运行单元测试。
+
 ## 2026-06-08 故障明细增加按重复排序与回溯显示历史故障
 - [x] 后端 API (`statistics_views.py`) 计算前续重复日期值，获取与当期故障匹配的历史重复故障，附带 `in_period` 标志。
 - [x] 模板文件 (`statistics_dashboard.html`) 故障明细表头追加“按时间排序/按重复排序”单选按钮组。

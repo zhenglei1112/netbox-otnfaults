@@ -113,6 +113,7 @@ def create_fault_from_cutover(
                 ),
                 service_interruption_time=service_interruption_time,
                 service_recovery_time=service_recovery_time,
+                coordination_status=cutover_impact.coordination_status,
                 comments=cutover_impact.comments,
             )
             if is_bare_fiber:

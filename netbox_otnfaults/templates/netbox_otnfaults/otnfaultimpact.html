@@ -77,6 +77,12 @@
                         <th scope="row">业务影响</th>
                         <td>{% badge object.get_business_impact_display bg_color=object.get_business_impact_color %}</td>
                     </tr>
+                    {% if object.otn_fault and object.otn_fault.interruption_reason == 'cable_rectification' and object.otn_fault.interruption_reason_detail == 'planned_reporting' %}
+                    <tr>
+                        <th scope="row">协调状态</th>
+                        <td>{% badge object.get_coordination_status_display bg_color=object.get_coordination_status_color %}</td>
+                    </tr>
+                    {% endif %}
                     <tr>
                         <th scope="row">业务故障时间</th>
                         <td>{{ object.service_interruption_time|date:"Y-m-d H:i:s"|default:"—" }}</td>

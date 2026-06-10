@@ -255,6 +255,33 @@ class CutoverReportStatusChoices(ChoiceSet):
     ]
 
 
+class CutoverTypeChoices(ChoiceSet):
+    key = 'CutoverTask.cutover_type'
+
+    FIBER = 'fiber'
+    POWER = 'power'
+    ROOM_MIGRATION = 'room_migration'
+
+    CHOICES = [
+        (FIBER, '光缆割接', 'blue'),
+        (POWER, '电源割接', 'orange'),
+        (ROOM_MIGRATION, '机房搬迁', 'green'),
+    ]
+
+class CutoverCoordinationStatusChoices(ChoiceSet):
+    key = 'CutoverImpact.coordination_status'
+
+    APPROVED = 'approved'
+    UNAPPROVED = 'unapproved'
+    FORCED = 'forced'
+
+    CHOICES = [
+        (APPROVED, '已批准', 'green'),
+        (UNAPPROVED, '未批准', 'red'),
+        (FORCED, '强制割接', 'orange'),
+    ]
+
+
 class CutoverStatusChoices(ChoiceSet):
     key = 'CutoverTask.status'
 
@@ -431,6 +458,12 @@ class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
         default=CutoverStatusChoices.APPLYING,
         verbose_name='状态'
     )
+    cutover_type = models.CharField(
+        max_length=50,
+        choices=CutoverTypeChoices,
+        default=CutoverTypeChoices.FIBER,
+        verbose_name='割接类型'
+    )
     registered_at = models.DateTimeField(
         default=timezone.now,
         verbose_name='登记时间'
@@ -488,11 +521,6 @@ class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
         related_name='cutover_tasks_z',
         verbose_name='割接影响Z端站点',
         blank=True
-    )
-    related_customers = models.JSONField(
-        default=list,
-        blank=True,
-        verbose_name='关联业务'
     )
     cutover_reason = models.TextField(
         verbose_name='割接原因'
@@ -622,6 +650,15 @@ class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
         null=True,
         verbose_name='预计影响时长（分钟）'
     )
+    re_cutover = models.ForeignKey(
+        to='self',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='previous_cutovers',
+        verbose_name='再次割接',
+        help_text='本次割接未完成或效果不理想时，可选择下一次再次割接的任务'
+    )
     # remarks field removed
     tags = taggit.managers.TaggableManager(
         through='extras.TaggedItem',
@@ -643,6 +680,9 @@ class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
 
     def get_status_color(self) -> str | None:
         return CutoverStatusChoices.colors.get(self.status)
+
+    def get_cutover_type_color(self) -> str | None:
+        return CutoverTypeChoices.colors.get(self.cutover_type)
 
     def get_is_timeout_color(self) -> str | None:
         return CutoverTimeoutStatusChoices.colors.get(self.is_timeout)
@@ -668,7 +708,7 @@ class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
         return None
 
     def _normalize_json_list_fields(self) -> None:
-        for field_name in ('planned_cutover_times', 'related_customers', 'customer_approval_detail'):
+        for field_name in ('planned_cutover_times', 'customer_approval_detail'):
             if getattr(self, field_name) is None:
                 setattr(self, field_name, [])
 
@@ -1885,7 +1925,16 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         to='extras.Tag',
         blank=True
     )
+    coordination_status = models.CharField(
+        max_length=32,
+        choices=CutoverCoordinationStatusChoices,
+        default=CutoverCoordinationStatusChoices.APPROVED,
+        verbose_name='协调状态'
+    )
     comments = models.TextField(blank=True, verbose_name='评论')
+
+    def get_coordination_status_color(self) -> str:
+        return CutoverCoordinationStatusChoices.colors.get(self.coordination_status, 'gray')
 
     class Meta:
         ordering = ('-service_interruption_time',)
@@ -2722,6 +2771,12 @@ class CutoverImpact(NetBoxModel, ImageAttachmentsMixin):
         blank=True,
         verbose_name='业务恢复时间'
     )
+    coordination_status = models.CharField(
+        max_length=32,
+        choices=CutoverCoordinationStatusChoices,
+        default=CutoverCoordinationStatusChoices.UNAPPROVED,
+        verbose_name='协调状态'
+    )
 
     tags = taggit.managers.TaggableManager(
         through='extras.TaggedItem',
@@ -2752,6 +2807,9 @@ class CutoverImpact(NetBoxModel, ImageAttachmentsMixin):
     def __str__(self) -> str:
         service = self.bare_fiber_service if self.service_type == ServiceTypeChoices.BARE_FIBER else self.circuit_service
         return f"{self.cutover_task} - {service}"
+
+    def get_coordination_status_color(self) -> str | None:
+        return CutoverCoordinationStatusChoices.colors.get(self.coordination_status)
 
     def clean(self) -> None:
         super().clean()

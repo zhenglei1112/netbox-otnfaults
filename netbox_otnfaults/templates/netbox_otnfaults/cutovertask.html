@@ -30,6 +30,12 @@
             <span class="badge bg-{{ object.get_status_color|default:'secondary' }} text-white">{{ object.get_status_display|default:"—" }}</span>
           </td>
         </tr>
+        <tr>
+          <th scope="row">割接类型</th>
+          <td>
+            <span class="badge bg-{{ object.get_cutover_type_color|default:'secondary' }} text-white">{{ object.get_cutover_type_display|default:"—" }}</span>
+          </td>
+        </tr>
         <tr><th scope="row">登记时间</th><td>{% if object.registered_at %}{{ object.registered_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
         <tr><th scope="row">登记人</th><td>{{ object.registrant|default:"—" }}</td></tr>
         <tr><th scope="row">割接管理单位</th><td>{{ object.get_management_unit_display|default:"—" }}</td></tr>
@@ -88,16 +94,14 @@
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">计划割接时间</h5>
-        <form method="post" action="{% url 'plugins:netbox_otnfaults:cutovertask_generate_planned_time' object.pk %}" id="generate-planned-time-form" class="m-0 d-flex gap-2 align-items-center">
+        <form method="post" action="{% url 'plugins:netbox_otnfaults:cutovertask_generate_planned_time' object.pk %}" id="generate-planned-time-form" class="m-0">
           {% csrf_token %}
-          <input type="datetime-local" name="planned_cutover_time" class="form-control form-control-sm" style="width: 210px;" value="{% if object.planned_cutover_time %}{{ object.planned_cutover_time|date:'Y-m-d\\TH:i' }}{% endif %}" required>
           <button type="button" class="btn btn-ghost-primary btn-sm" onclick="showGeneratePlannedTimeModal()">
             <i class="mdi mdi-plus"></i> 生成新的割接时间
           </button>
         </form>
       </div>
       <table class="table table-hover attr-table">
-        <tr><th scope="row">主计划时间</th><td>{% if object.planned_cutover_time %}{{ object.planned_cutover_time|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
         <tr>
           <th scope="row">时间记录</th>
           <td>
@@ -106,9 +110,9 @@
                 {% for time in object.planned_cutover_times reversed %}
                   <li class="list-group-item cutover-time-record {% if forloop.first %}is-latest{% endif %} d-flex justify-content-between align-items-center py-1 px-2" style="font-size: 0.875rem;">
                     <span>
-                      <span class="badge bg-secondary text-white rounded-pill me-2" style="font-weight: normal;">第{{ forloop.revcounter }}次</span>
-                      <i class="mdi mdi-clock-outline me-1 text-muted"></i>
-                      {{ time }}
+                      <span class="badge {% if forloop.first %}bg-success{% else %}bg-secondary{% endif %} text-white rounded-pill me-2" style="font-weight: normal;">第{{ forloop.revcounter }}次</span>
+                      <i class="mdi mdi-clock-outline me-1 {% if forloop.first %}text-success{% else %}text-muted{% endif %}"></i>
+                      <span class="{% if forloop.first %}fw-bold text-success{% endif %}">{{ time }}</span>
                       {% if forloop.first %}
                         <span class="badge bg-success text-white rounded-pill ms-2">最新</span>
                       {% endif %}
@@ -181,7 +185,14 @@
             <h5 class="modal-title" id="generatePlannedTimeModalLabel">生成新的割接时间</h5>
           </div>
           <div class="modal-body">
-            <p id="generatePlannedTimeStatus" class="mb-0">生成新的割接时间，需要重新与每个关联业务确认，会清理掉已有的关联业务确认状态和协调时间，确定生成吗？</p>
+            <div class="mb-3">
+              <label class="form-label fw-semibold mb-2" for="id_planned_cutover_time_modal">请选择新的计划时间</label>
+              <input type="datetime-local" name="planned_cutover_time" id="id_planned_cutover_time_modal" form="generate-planned-time-form" class="form-control form-control-sm" style="max-width: 250px;" value="{% if object.planned_cutover_time %}{{ object.planned_cutover_time|date:'Y-m-d\TH:i' }}{% endif %}" required>
+            </div>
+            <div class="alert alert-warning mb-0 py-2 px-3" style="font-size: 0.925rem; border-left: 4px solid #ff9800;">
+              <i class="mdi mdi-alert-circle-outline me-2 text-warning" style="font-size: 1.1rem; vertical-align: middle;"></i>
+              <span id="generatePlannedTimeStatus" class="align-middle">生成新的割接时间，需要重新与每个影响业务确认，会重置所有影响业务的协调状态，确定生成吗？</span>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-primary generate-planned-time-btn" id="generatePlannedTimeConfirmBtn" onclick="submitGeneratePlannedTimeForm()">
@@ -196,68 +207,7 @@
     </div>
     <div class="modal-backdrop fade show" id="generatePlannedTimeBackdrop" style="display: none;"></div>
 
-    <form method="post" action="{% url 'plugins:netbox_otnfaults:cutovertask_related_customers' object.pk %}" id="cutover-related-customers-form" class="card">
-      {% csrf_token %}
-      <input type="hidden" name="related_customers" id="cutover-related-customers-json">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">
-          <i class="mdi mdi-account-group-outline me-1"></i>
-          关联业务
-        </h5>
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-ghost-primary btn-sm" id="btn-set-related-customers">
-            <i class="mdi mdi-account-multiple-plus-outline"></i> 设置关联业务
-          </button>
-          <button type="submit" class="btn btn-ghost-primary btn-sm">
-            保存协调信息
-          </button>
-        </div>
-      </div>
-      <div class="table-responsive cutover-related-customers-table">
-        <table class="table table-hover table-sm mb-0" id="cutover-related-customers-table">
-          <thead class="table-light text-muted">
-            <tr>
-              <th class="ps-3">租户组</th>
-              <th>业务名称</th>
-              <th style="width: 120px;">已协调</th>
-              <th style="width: 220px;">协调时间</th>
-              <th class="text-end pe-3" style="width: 80px;">操作</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
-        <div class="modal-dialog modal-dialog-centered cutover-customer-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">
-                <i class="mdi mdi-account-multiple-check-outline me-1"></i>设置关联业务
-              </h5>
-            </div>
-            <div class="modal-body p-0">
-              <div class="table-responsive cutover-customer-picker">
-                <table class="table table-hover table-sm mb-0">
-                  <thead class="table-light text-muted sticky-top">
-                    <tr>
-                      <th class="ps-3" style="width: 48px;"></th>
-                      <th>租户组</th>
-                      <th>业务名称</th>
-                    </tr>
-                  </thead>
-                  <tbody id="cutover-customer-picker-options"></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-primary generate-planned-time-btn" id="btn-save-customers">保存选择</button>
-              <button type="button" class="btn btn-secondary generate-planned-time-btn" id="btn-cancel-related-customers">取消</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </form>
-
+    
     <div class="card">
       <h5 class="card-header">实施时间线</h5>
       <table class="table table-hover attr-table">
@@ -299,6 +249,16 @@
         <tr><th scope="row">整改进度</th><td>{{ object.get_rectification_progress_display|default:"—" }}</td></tr>
         <tr><th scope="row">计划完成时间</th><td>{% if object.planned_completion_time %}{{ object.planned_completion_time|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
         <tr><th scope="row">实际完成时间</th><td>{% if object.actual_completion_time %}{{ object.actual_completion_time|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td></tr>
+        <tr>
+          <th scope="row">再次割接</th>
+          <td>
+            {% if object.re_cutover %}
+              {{ object.re_cutover|linkify }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
         <tr><th scope="row">整改完成情况描述</th><td>{{ object.rectification_completion_description|linebreaksbr|default:"—" }}</td></tr>
       </table>
     </div>
@@ -354,33 +314,16 @@
     </div>
   </div>
 </div>
-{{ bare_fiber_services|json_script:"cutover-detail-bare-fiber-services" }}
-{{ object.related_customers|json_script:"cutover-detail-related-customers" }}
 <script>
 (function() {
   'use strict';
 
-  const servicesScript = document.getElementById('cutover-detail-bare-fiber-services');
-  const customersScript = document.getElementById('cutover-detail-related-customers');
-  const jsonInput = document.getElementById('cutover-related-customers-json');
-  const tableBody = document.querySelector('#cutover-related-customers-table tbody');
-  const modalEl = document.getElementById('customerModal');
-  const pickerOptions = document.getElementById('cutover-customer-picker-options');
-  const btnSet = document.getElementById('btn-set-related-customers');
-  const btnApply = document.getElementById('btn-save-customers');
-  const btnCancel = document.getElementById('btn-cancel-related-customers');
   const plannedTimeForm = document.getElementById('generate-planned-time-form');
   const plannedTimeModal = document.getElementById('generatePlannedTimeModal');
   const plannedTimeBackdrop = document.getElementById('generatePlannedTimeBackdrop');
-  let backdrop = null;
 
   window.showGeneratePlannedTimeModal = function() {
     if (!plannedTimeForm || !plannedTimeModal || !plannedTimeBackdrop) {
-      return;
-    }
-
-    const plannedTimeInput = plannedTimeForm.querySelector('[name="planned_cutover_time"]');
-    if (plannedTimeInput && !plannedTimeInput.reportValidity()) {
       return;
     }
 
@@ -405,6 +348,10 @@
 
   window.submitGeneratePlannedTimeForm = function() {
     if (plannedTimeForm) {
+      const plannedTimeInput = document.getElementById('id_planned_cutover_time_modal');
+      if (plannedTimeInput && !plannedTimeInput.reportValidity()) {
+        return;
+      }
       plannedTimeForm.submit();
     }
   };
@@ -416,207 +363,5 @@
       }
     });
   }
-
-  if (!servicesScript || !customersScript || !jsonInput || !tableBody) {
-    return;
-  }
-
-  const bareFiberServices = JSON.parse(servicesScript.textContent || '[]');
-  let relatedCustomers = JSON.parse(customersScript.textContent || '[]');
-  if (!Array.isArray(relatedCustomers)) {
-    relatedCustomers = [];
-  }
-
-  function escapeHtml(value) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function getCustomerKey(item) {
-    return item.service_id ? `id:${item.service_id}` : `name:${item.name || item.business || ''}`;
-  }
-
-  function normalizeCustomer(item) {
-    const name = item.name || item.business || '';
-    const time = item.time || item.coordination_time || '';
-    return {
-      service_id: item.service_id || item.id || '',
-      tenant_group: item.tenant_group || item.tenant || '',
-      name: name,
-      business: item.business || name,
-      is_coordinated: Boolean(item.is_coordinated),
-      time: time,
-      coordination_time: time
-    };
-  }
-
-  function formatCurrentMinute() {
-    const now = new Date();
-    const pad = value => String(value).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  }
-
-  function syncJsonInput() {
-    jsonInput.value = JSON.stringify(relatedCustomers.map(normalizeCustomer));
-  }
-
-  function renderTable() {
-    tableBody.innerHTML = '';
-
-    if (relatedCustomers.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3 small">暂无关联业务记录</td></tr>';
-      syncJsonInput();
-      return;
-    }
-
-    relatedCustomers.forEach((item, index) => {
-      item = normalizeCustomer(item);
-      relatedCustomers[index] = item;
-      const checked = item.is_coordinated ? 'checked' : '';
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td class="align-middle ps-3 text-break" style="max-width: 180px;">${escapeHtml(item.tenant_group) || '-'}</td>
-        <td class="align-middle text-break" style="max-width: 260px;">${escapeHtml(item.business || item.name) || '-'}</td>
-        <td class="align-middle">
-          <input type="checkbox" class="form-check-input customer-coordinated" data-index="${index}" ${checked}>
-        </td>
-        <td class="align-middle">
-          <input type="text" class="form-control form-control-sm customer-coordination-time" data-index="${index}" value="${escapeHtml(item.time)}" placeholder="YYYY-MM-DD HH:MM">
-        </td>
-        <td class="align-middle text-end pe-3">
-          <button type="button" class="btn btn-sm btn-link text-danger p-0 btn-remove-related-customer" data-index="${index}" title="删除">
-            <i class="mdi mdi-trash-can-outline"></i>
-          </button>
-        </td>
-      `;
-      tableBody.appendChild(row);
-    });
-
-    tableBody.querySelectorAll('.customer-coordinated').forEach(input => {
-      input.addEventListener('change', function() {
-        const index = Number(this.dataset.index);
-        relatedCustomers[index].is_coordinated = this.checked;
-        if (this.checked && !relatedCustomers[index].time) {
-          const currentTime = formatCurrentMinute();
-          relatedCustomers[index].time = currentTime;
-          relatedCustomers[index].coordination_time = currentTime;
-          const timeInput = tableBody.querySelector(`.customer-coordination-time[data-index="${index}"]`);
-          if (timeInput) {
-            timeInput.value = currentTime;
-          }
-        }
-        syncJsonInput();
-      });
-    });
-    tableBody.querySelectorAll('.customer-coordination-time').forEach(input => {
-      input.addEventListener('input', function() {
-        const index = Number(this.dataset.index);
-        relatedCustomers[index].time = this.value;
-        relatedCustomers[index].coordination_time = this.value;
-        syncJsonInput();
-      });
-    });
-    tableBody.querySelectorAll('.btn-remove-related-customer').forEach(button => {
-      button.addEventListener('click', function() {
-        relatedCustomers.splice(Number(this.dataset.index), 1);
-        renderTable();
-      });
-    });
-
-    syncJsonInput();
-  }
-
-  function renderPicker() {
-    const selectedKeys = new Set(relatedCustomers.map(getCustomerKey));
-    pickerOptions.innerHTML = '';
-
-    if (bareFiberServices.length === 0) {
-      pickerOptions.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3 small">暂无裸纤业务</td></tr>';
-      return;
-    }
-
-    bareFiberServices.forEach(service => {
-      const key = `id:${service.id}`;
-      const checked = selectedKeys.has(key) ? 'checked' : '';
-      const option = document.createElement('tr');
-      option.innerHTML = `
-        <td class="ps-3 align-middle">
-          <input class="form-check-input bare-fiber-service-checkbox" type="checkbox" value="${escapeHtml(service.id)}" ${checked}>
-        </td>
-        <td class="align-middle text-break">${escapeHtml(service.tenant_group) || '-'}</td>
-        <td class="align-middle text-break">${escapeHtml(service.name) || '-'}</td>
-      `;
-      option.addEventListener('click', function(event) {
-        if (event.target.tagName.toLowerCase() !== 'input') {
-          const checkbox = option.querySelector('.bare-fiber-service-checkbox');
-          checkbox.checked = !checkbox.checked;
-        }
-      });
-      pickerOptions.appendChild(option);
-    });
-  }
-
-  function showModal() {
-    backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop fade show';
-    backdrop.style.zIndex = '1050';
-    backdrop.style.backgroundColor = '#808080';
-    backdrop.style.opacity = '1';
-    document.body.appendChild(backdrop);
-    modalEl.classList.add('show');
-    modalEl.style.display = 'block';
-    modalEl.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
-  }
-
-  function hideModal() {
-    modalEl.classList.remove('show');
-    modalEl.style.display = 'none';
-    modalEl.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('modal-open');
-    if (backdrop) {
-      backdrop.remove();
-      backdrop = null;
-    }
-  }
-
-  btnSet.addEventListener('click', function() {
-    renderPicker();
-    showModal();
-  });
-  btnCancel.addEventListener('click', hideModal);
-  modalEl.addEventListener('click', function(event) {
-    if (event.target === modalEl) {
-      hideModal();
-    }
-  });
-  btnApply.addEventListener('click', function() {
-    const existing = new Map(relatedCustomers.map(item => [getCustomerKey(item), normalizeCustomer(item)]));
-    const next = [];
-    pickerOptions.querySelectorAll('.bare-fiber-service-checkbox:checked').forEach(input => {
-      const service = bareFiberServices.find(item => String(item.id) === String(input.value));
-      if (!service) return;
-      const key = `id:${service.id}`;
-      next.push(existing.get(key) || {
-        service_id: service.id,
-        tenant_group: service.tenant_group || '',
-        name: service.name || '',
-        business: service.name || '',
-        is_coordinated: false,
-        time: '',
-        coordination_time: ''
-      });
-    });
-    relatedCustomers = next;
-    hideModal();
-    renderTable();
-  });
-
-  renderTable();
-})();
-</script>
+})();</script>
 {% endblock %}

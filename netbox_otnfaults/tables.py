@@ -8,7 +8,7 @@ from .models import (
     MaintenanceModeChoices, RecoveryModeChoices, ResourceTypeChoices, ResourceOwnerChoices,
     CableRouteChoices, CableBreakLocationChoices, ServiceTypeChoices,
     ServiceGroupChoices, BusinessCategoryChoices, CableTypeChoices,
-    CutoverTask, CutoverImpact, HeavyDuty
+    CutoverTask, CutoverImpact, HeavyDuty, CutoverTypeChoices, CutoverCoordinationStatusChoices
 )
 from dcim.models import Site
 
@@ -602,6 +602,9 @@ class OtnFaultImpactTable(NetBoxTable):
         orderable=False,
         empty_values=()
     )
+    coordination_status = columns.ChoiceFieldColumn(
+        verbose_name='协调状态'
+    )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:otnfaultimpact_list'
     )
@@ -610,12 +613,12 @@ class OtnFaultImpactTable(NetBoxTable):
         model = OtnFaultImpact
         fields = (
             'pk', 'id', 'service_type', 'service_name', 'business_impact', 'service_interruption_time', 'service_recovery_time',
-            'service_duration', 'otn_fault', 'secondary_faults', 'service_group',
+            'service_duration', 'otn_fault', 'secondary_faults', 'service_group', 'coordination_status',
             'comments', 'tags', 'actions',
         )
         default_columns = (
             'id', 'service_type', 'service_name', 'business_impact', 'service_interruption_time',
-            'service_recovery_time', 'service_duration', 'otn_fault',
+            'service_recovery_time', 'service_duration', 'otn_fault', 'coordination_status',
         )
 
     def render_service_name(self, record):
@@ -920,6 +923,7 @@ class CutoverTaskTable(NetBoxTable):
     """割接管理列表表格"""
     cutover_no = tables.Column(linkify=True, verbose_name='割接编号')
     status = columns.ChoiceFieldColumn(verbose_name='状态')
+    cutover_type = columns.ChoiceFieldColumn(verbose_name='割接类型')
     planned_cutover_time = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='计划割接时间')
     cutover_location = tables.Column(verbose_name='割接具体地点')
     management_unit = columns.ChoiceFieldColumn(verbose_name='割接管理单位')
@@ -929,17 +933,18 @@ class CutoverTaskTable(NetBoxTable):
     is_timeout = columns.ChoiceFieldColumn(verbose_name='割接是否超时')
     line_supervisor = tables.Column(linkify=True, verbose_name='线路主管')
     registered_at = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='登记时间')
+    re_cutover = tables.Column(linkify=True, verbose_name='再次割接')
     tags = columns.TagColumn(url_name='plugins:netbox_otnfaults:cutovertask_list')
 
     class Meta(NetBoxTable.Meta):
         model = CutoverTask
         fields = (
-            'pk', 'cutover_no', 'status', 'planned_cutover_time', 'province',
+            'pk', 'cutover_no', 'status', 'cutover_type', 'planned_cutover_time', 'province',
             'cutover_location', 'management_unit', 'implementation_unit', 'cutover_contact',
-            'cutover_result', 'is_timeout', 'line_supervisor', 'registered_at', 'tags', 'actions',
+            'cutover_result', 'is_timeout', 'line_supervisor', 'registered_at', 're_cutover', 'tags', 'actions',
         )
         default_columns = (
-            'cutover_no', 'status', 'planned_cutover_time', 'province', 'cutover_location',
+            'cutover_no', 'status', 'cutover_type', 'planned_cutover_time', 'province', 'cutover_location',
             'management_unit', 'implementation_unit', 'cutover_contact', 'cutover_result',
             'is_timeout', 'line_supervisor',
         )
@@ -950,6 +955,13 @@ class CutoverTaskTable(NetBoxTable):
     def render_status(self, value, record):
         color = record.get_status_color() or 'secondary'
         return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_status_display())
+
+    def value_cutover_type(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_cutover_type_display())
+
+    def render_cutover_type(self, value, record):
+        color = record.get_cutover_type_color() or 'secondary'
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_cutover_type_display())
 
     def value_cutover_result(self, value: str | None, record: CutoverTask) -> str:
         return _display_or_empty(record.get_cutover_result_display())
@@ -1141,6 +1153,9 @@ class CutoverImpactTable(NetBoxTable):
         verbose_name='中断历时',
         orderable=False
     )
+    coordination_status = columns.ChoiceFieldColumn(
+        verbose_name='协调状态'
+    )
 
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:cutoverimpact_list'
@@ -1150,12 +1165,12 @@ class CutoverImpactTable(NetBoxTable):
         model = CutoverImpact
         fields = (
             'pk', 'id', 'cutover_task', 'service_type', 'service_name', 'service_group',
-            'service_site_a', 'service_site_z',
+            'service_site_a', 'service_site_z', 'coordination_status',
             'service_duration', 'comments', 'tags', 'actions',
         )
         default_columns = (
             'id', 'cutover_task', 'service_type', 'service_name', 'business_impact',
-            'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'service_interruption_time', 'service_recovery_time', 'coordination_status', 'service_duration',
         )
 
     def render_service_name(self, record):
@@ -1187,6 +1202,13 @@ class CutoverImpactTable(NetBoxTable):
 
     def value_service_type(self, value: str | None, record: CutoverImpact) -> str:
         return _display_or_empty(record.get_service_type_display())
+
+    def render_coordination_status(self, value, record):
+        color = record.get_coordination_status_color() or 'secondary'
+        return format_html('<span class="badge bg-{} text-white">{}</span>', color, record.get_coordination_status_display())
+
+    def value_coordination_status(self, value: str | None, record: CutoverImpact) -> str:
+        return _display_or_empty(record.get_coordination_status_display())
 
 
     def render_service_duration(self, record):
@@ -1224,11 +1246,11 @@ class CutoverImpactSummaryTable(CutoverImpactTable):
         fields = (
             'id', 'service_type', 'service_name',
             'service_interruption_time', 'service_recovery_time', 'service_duration',
-            'business_impact', 'service_site_a', 'service_site_z', 'actions',
+            'business_impact', 'service_site_a', 'service_site_z', 'coordination_status', 'actions',
         )
         default_columns = (
             'id', 'service_type', 'service_name',
-            'service_interruption_time', 'service_recovery_time', 'service_duration',
+            'service_interruption_time', 'service_recovery_time', 'service_duration', 'coordination_status',
         )
         exclude = ('cutover_task', 'service_group', 'comments', 'tags', 'pk')
 
