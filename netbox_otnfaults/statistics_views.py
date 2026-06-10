@@ -603,10 +603,10 @@ def _duration_hours_for_fault(fault, now) -> float:
     return (end_t - fault.fault_occurrence_time).total_seconds() / 3600.0
 
 
-def _per_100km(value: float, length_km: float) -> float:
+def _per_1000km(value: float, length_km: float) -> float:
     if length_km <= 0:
         return 0.0
-    return round(value * 100.0 / length_km, 2)
+    return round(value * 1000.0 / length_km, 2)
 
 
 def _build_branch_week_ranges(year_start, year_end) -> list[dict[str, str]]:
@@ -700,8 +700,8 @@ def _classify_branch_fault_responsibility(fault) -> dict[str, object]:
 
 def _calculate_branch_performance_score(metrics: dict[str, float]) -> dict[str, object]:
     deductions = {
-        'frequency': min(30.0, metrics.get('count_per_100km', 0.0) * 18.0),
-        'duration': min(25.0, metrics.get('duration_per_100km', 0.0) * 4.0),
+        'frequency': min(30.0, metrics.get('count_per_1000km', 0.0) * 1.8),
+        'duration': min(25.0, metrics.get('duration_per_1000km', 0.0) * 0.4),
         'valid_duration': min(15.0, max(0.0, metrics.get('valid_duration', 0.0) - 4.0) * 3.0),
         'severity': min(
             15.0,
@@ -799,8 +799,8 @@ def _empty_branch_performance_metrics(length_km: float) -> dict[str, float]:
         'valid_duration': 0.0,
         'valid_duration_total': 0.0,
         'valid_count': 0.0,
-        'count_per_100km': 0.0,
-        'duration_per_100km': 0.0,
+        'count_per_1000km': 0.0,
+        'duration_per_1000km': 0.0,
         'long_count': 0.0,
         'timeout_count': 0.0,
         'repeat_count': 0.0,
@@ -813,8 +813,8 @@ def _finalize_branch_performance_metrics(metrics: dict[str, float], length_km: f
     valid_count = metrics.get('valid_count', 0.0)
     valid_duration_total = metrics.get('valid_duration_total', 0.0)
     metrics['valid_duration'] = round(valid_duration_total / valid_count, 2) if valid_count > 0 else 0.0
-    metrics['count_per_100km'] = _per_100km(metrics.get('count', 0.0), length_km)
-    metrics['duration_per_100km'] = _per_100km(metrics.get('duration', 0.0), length_km)
+    metrics['count_per_1000km'] = _per_1000km(metrics.get('count', 0.0), length_km)
+    metrics['duration_per_1000km'] = _per_1000km(metrics.get('duration', 0.0), length_km)
     return {
         key: round(value, 2) if isinstance(value, float) else value
         for key, value in metrics.items()
@@ -1073,15 +1073,15 @@ def _build_branch_company_statistics(
             'count': count,
             'duration': round(duration, 2),
             'path_length': length_km,
-            'count_per_100km': _per_100km(count, length_km),
-            'duration_per_100km': _per_100km(duration, length_km),
-            'per_100km': _per_100km(count, length_km),
+            'count_per_1000km': _per_1000km(count, length_km),
+            'duration_per_1000km': _per_1000km(duration, length_km),
+            'per_1000km': _per_1000km(count, length_km),
         })
         duration_boxplot.append({
             'name': province,
             'value': _calculate_boxplot_values(province_samples[province]),
-            'per_100km': [
-                _per_100km(value, length_km)
+            'per_1000km': [
+                _per_1000km(value, length_km)
                 for value in _calculate_boxplot_values(province_samples[province])
             ],
         })
@@ -1092,8 +1092,8 @@ def _build_branch_company_statistics(
             'valid_duration_total': round(valid_duration, 2),
             'valid_count': valid_count,
             'path_length': length_km,
-            'valid_duration_per_100km': _per_100km(valid_duration_avg, length_km),
-            'per_100km': _per_100km(valid_duration_avg, length_km),
+            'valid_duration_per_1000km': _per_1000km(valid_duration_avg, length_km),
+            'per_1000km': _per_1000km(valid_duration_avg, length_km),
         })
 
     tz = timezone.get_current_timezone()
@@ -1166,18 +1166,18 @@ def _build_branch_company_statistics(
             'counts': [weekly_by_province[province][week['key']]['count'] for week in week_ranges],
             'durations': [round(weekly_by_province[province][week['key']]['duration'], 2) for week in week_ranges],
             'valid_durations': [round(weekly_by_province[province][week['key']]['valid_duration'], 2) for week in week_ranges],
-            'week_count_per_100km': [_per_100km(weekly_by_province[province][week['key']]['count'], length_km) for week in week_ranges],
-            'week_duration_per_100km': [_per_100km(weekly_by_province[province][week['key']]['duration'], length_km) for week in week_ranges],
-            'week_valid_duration_per_100km': [_per_100km(weekly_by_province[province][week['key']]['valid_duration'], length_km) for week in week_ranges],
+            'week_count_per_1000km': [_per_1000km(weekly_by_province[province][week['key']]['count'], length_km) for week in week_ranges],
+            'week_duration_per_1000km': [_per_1000km(weekly_by_province[province][week['key']]['duration'], length_km) for week in week_ranges],
+            'week_valid_duration_per_1000km': [_per_1000km(weekly_by_province[province][week['key']]['valid_duration'], length_km) for week in week_ranges],
         })
         monthly_trends['series'].append({
             'name': province,
             'counts': [monthly_by_province[province][month['key']]['count'] for month in month_ranges],
             'durations': [round(monthly_by_province[province][month['key']]['duration'], 2) for month in month_ranges],
             'valid_durations': [round(monthly_by_province[province][month['key']]['valid_duration'], 2) for month in month_ranges],
-            'month_count_per_100km': [_per_100km(monthly_by_province[province][month['key']]['count'], length_km) for month in month_ranges],
-            'month_duration_per_100km': [_per_100km(monthly_by_province[province][month['key']]['duration'], length_km) for month in month_ranges],
-            'month_valid_duration_per_100km': [_per_100km(monthly_by_province[province][month['key']]['valid_duration'], length_km) for month in month_ranges],
+            'month_count_per_1000km': [_per_1000km(monthly_by_province[province][month['key']]['count'], length_km) for month in month_ranges],
+            'month_duration_per_1000km': [_per_1000km(monthly_by_province[province][month['key']]['duration'], length_km) for month in month_ranges],
+            'month_valid_duration_per_1000km': [_per_1000km(monthly_by_province[province][month['key']]['valid_duration'], length_km) for month in month_ranges],
         })
 
     branch_cable_break_overview = _compute_cable_break_overview(branch_cable_break_faults, now)

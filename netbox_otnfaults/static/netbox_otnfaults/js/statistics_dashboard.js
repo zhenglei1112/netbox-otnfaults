@@ -2032,8 +2032,8 @@ document.addEventListener("DOMContentLoaded", function() {
             { icon: 'mdi-account', tone: 'blue', value: responsibilityMetrics.count || 0, label: '责任起数' },
             { icon: 'mdi-clock-outline', tone: 'green', value: responsibilityMetrics.duration || 0, label: '责任时长（小时）' },
             { icon: 'mdi-chart-bar', tone: 'orange', value: responsibilityMetrics.valid_duration || 0, label: '有效平均（小时）' },
-            { icon: 'mdi-road-variant', tone: 'purple', value: responsibilityMetrics.count_per_100km || 0, label: '百公里起数' },
-            { icon: 'mdi-speedometer', tone: 'cyan', value: responsibilityMetrics.duration_per_100km || 0, label: '百公里时长（小时）' },
+            { icon: 'mdi-road-variant', tone: 'purple', value: responsibilityMetrics.count_per_1000km || 0, label: '千公里起数' },
+            { icon: 'mdi-speedometer', tone: 'cyan', value: responsibilityMetrics.duration_per_1000km || 0, label: '千公里时长（小时）' },
             { icon: 'mdi-sync', tone: 'blue', value: responsibilityMetrics.repeat_count || 0, label: '重复率（%）' },
         ];
         const metricHtml = metricItems.map(item => `
@@ -2332,15 +2332,15 @@ document.addEventListener("DOMContentLoaded", function() {
             chartBranchCompanyCount,
             branchData.province_bars || [],
             countMetric,
-            countMetric === 'count' ? '故障数' : '百公里故障数',
-            countMetric === 'count' ? '起' : '起/百公里'
+            countMetric === 'count' ? '故障数' : '千公里故障数',
+            countMetric === 'count' ? '起' : '起/千公里'
         );
         renderBranchBarChart(
             chartBranchCompanyDuration,
             branchData.province_bars || [],
             durationMetric,
-            durationMetric === 'duration' ? '故障历时' : '百公里故障历时',
-            durationMetric === 'duration' ? '小时' : '小时/百公里'
+            durationMetric === 'duration' ? '故障历时' : '千公里故障历时',
+            durationMetric === 'duration' ? '小时' : '小时/千公里'
         );
     }
 
@@ -2409,7 +2409,7 @@ document.addEventListener("DOMContentLoaded", function() {
             weeklyScaleNormalizedLabel.classList.toggle('disabled', isValidDuration);
             weeklyScaleNormalizedLabel.setAttribute(
                 'title',
-                isValidDuration ? '有效时长不支持百公里统计' : ''
+                isValidDuration ? '有效时长不支持千公里统计' : ''
             );
         }
     }
@@ -2440,11 +2440,11 @@ document.addEventListener("DOMContentLoaded", function() {
         const scale = getCheckedValue('branchCompanyWeeklyScale', 'raw');
         const weeklyData = branchData.weekly_trends || {};
         const labels = weeklyData.labels || [];
-        const metricKey = scale === 'per_100km'
-            ? (metric === 'count' ? 'week_count_per_100km' : metric === 'duration' ? 'week_duration_per_100km' : 'week_valid_duration_per_100km')
+        const metricKey = scale === 'per_1000km'
+            ? (metric === 'count' ? 'week_count_per_1000km' : metric === 'duration' ? 'week_duration_per_1000km' : 'week_valid_duration_per_1000km')
             : (metric === 'count' ? 'counts' : metric === 'duration' ? 'durations' : 'valid_durations');
-        const unit = scale === 'per_100km'
-            ? (metric === 'count' ? '起/百公里' : '小时/百公里')
+        const unit = scale === 'per_1000km'
+            ? (metric === 'count' ? '起/千公里' : '小时/千公里')
             : (metric === 'count' ? '起' : '小时');
         chartBranchCompanyWeekly.setOption({
             textStyle: { color: chartTheme.text },
@@ -2493,11 +2493,11 @@ document.addEventListener("DOMContentLoaded", function() {
         const scale = getCheckedValue('branchCompanyWeeklyScale', 'raw');
         const monthlyData = branchData.monthly_trends || {};
         const labels = monthlyData.labels || [];
-        const metricKey = scale === 'per_100km'
-            ? (metric === 'count' ? 'month_count_per_100km' : metric === 'duration' ? 'month_duration_per_100km' : 'month_valid_duration_per_100km')
+        const metricKey = scale === 'per_1000km'
+            ? (metric === 'count' ? 'month_count_per_1000km' : metric === 'duration' ? 'month_duration_per_1000km' : 'month_valid_duration_per_1000km')
             : (metric === 'count' ? 'counts' : metric === 'duration' ? 'durations' : 'valid_durations');
-        const unit = scale === 'per_100km'
-            ? (metric === 'count' ? '起/百公里' : '小时/百公里')
+        const unit = scale === 'per_1000km'
+            ? (metric === 'count' ? '起/千公里' : '小时/千公里')
             : (metric === 'count' ? '起' : '小时');
         chartBranchCompanyMonthly.setOption({
             textStyle: { color: chartTheme.text },

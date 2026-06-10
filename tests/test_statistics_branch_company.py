@@ -48,25 +48,25 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
             "'weekly_trends'",
             "'monthly_trends'",
             "'path_lengths'",
-            "'per_100km'",
+            "'per_1000km'",
         ):
             self.assertIn(key, branch_source)
 
-        self.assertIn("'count_per_100km'", branch_source)
+        self.assertIn("'count_per_1000km'", branch_source)
         self.assertIn("'count': count", branch_source)
-        self.assertIn("'duration_per_100km'", branch_source)
+        self.assertIn("'duration_per_1000km'", branch_source)
         self.assertIn("valid_duration_avg = valid_duration / valid_count if valid_count > 0 else 0.0", branch_source)
         self.assertIn("'valid_duration': round(valid_duration_avg, 2)", branch_source)
         self.assertIn("'valid_duration_total': round(valid_duration, 2)", branch_source)
         self.assertIn("'valid_count': valid_count", branch_source)
-        self.assertIn("'valid_duration_per_100km'", branch_source)
-        self.assertIn("'week_count_per_100km'", branch_source)
-        self.assertIn("'week_duration_per_100km'", branch_source)
-        self.assertIn("'week_valid_duration_per_100km'", branch_source)
+        self.assertIn("'valid_duration_per_1000km'", branch_source)
+        self.assertIn("'week_count_per_1000km'", branch_source)
+        self.assertIn("'week_duration_per_1000km'", branch_source)
+        self.assertIn("'week_valid_duration_per_1000km'", branch_source)
         self.assertIn("monthly_by_province = {", branch_source)
-        self.assertIn("'month_count_per_100km'", branch_source)
-        self.assertIn("'month_duration_per_100km'", branch_source)
-        self.assertIn("'month_valid_duration_per_100km'", branch_source)
+        self.assertIn("'month_count_per_1000km'", branch_source)
+        self.assertIn("'month_duration_per_1000km'", branch_source)
+        self.assertIn("'month_valid_duration_per_1000km'", branch_source)
         self.assertIn("selected_calendar_year = calendar_year or selected_year", branch_source)
         self.assertIn("selected_calendar_month = calendar_month or timezone.localtime(start_date).month", branch_source)
         self.assertIn("calendar_months = _build_recent_calendar_months(selected_calendar_year, selected_calendar_month, tz)", branch_source)
@@ -173,11 +173,11 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         boxplot_header = template.split('id="chart-branch-company-boxplot"', 1)[0].split('中断时长箱线图', 1)[-1]
         self.assertNotIn('name="branchCompanyBoxplotMetric"', boxplot_header)
         self.assertNotIn('id="branch-company-boxplot-normalized"', boxplot_header)
-        self.assertNotIn('百公里平均', boxplot_header)
+        self.assertNotIn('千公里平均', boxplot_header)
         valid_chart_header = template.split('id="chart-branch-company-valid-duration"', 1)[0].split('有效平均历时', 1)[-1]
         self.assertNotIn('name="branchCompanyValidMetric"', valid_chart_header)
         self.assertNotIn('id="branch-company-valid-normalized"', valid_chart_header)
-        self.assertNotIn('百公里平均', valid_chart_header)
+        self.assertNotIn('千公里平均', valid_chart_header)
 
     def test_dashboard_script_renders_branch_company_charts(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -241,9 +241,9 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("renderBranchCompanyMonthlyChart(branchData);", source)
         self.assertIn("function renderBranchCompanyMonthlyChart(branchData)", source)
         self.assertIn("const monthlyData = branchData.monthly_trends || {};", source)
-        self.assertIn("month_count_per_100km", source)
-        self.assertIn("month_duration_per_100km", source)
-        self.assertIn("month_valid_duration_per_100km", source)
+        self.assertIn("month_count_per_1000km", source)
+        self.assertIn("month_duration_per_1000km", source)
+        self.assertIn("month_valid_duration_per_1000km", source)
         self.assertIn("type: 'bar'", source)
         self.assertIn("function syncBranchCompanyWeeklyScaleAvailability()", source)
         self.assertIn("weeklyScaleNormalized.disabled = isValidDuration;", source)
@@ -277,15 +277,15 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("value: item.value || [],", boxplot_chart_source)
         self.assertIn("yAxis: buildBranchCompanyYAxis('小时', chartTheme)", boxplot_chart_source)
         self.assertNotIn("getCheckedValue('branchCompanyBoxplotMetric'", boxplot_chart_source)
-        self.assertNotIn("per_100km", boxplot_chart_source)
+        self.assertNotIn("per_1000km", boxplot_chart_source)
         self.assertIn("tooltipFormatter = null", source)
         self.assertIn("_validDurationTotal: item.valid_duration_total || 0", source)
         self.assertIn("_validCount: item.valid_count || 0", source)
-        valid_chart_source = source.split("function renderBranchCompanyValidDurationChart(branchData)", 1)[1].split("function renderBranchCompanyWeeklyChart", 1)[0]
+        valid_chart_source = source.split("function renderBranchCompanyValidDurationChart(branchData)", 1)[1].split("function renderBranchCompanyWeeklyChart(branchData)", 1)[0]
         self.assertIn("const metric = 'valid_duration';", valid_chart_source)
         self.assertNotIn("getCheckedValue('branchCompanyValidMetric'", valid_chart_source)
-        self.assertNotIn("valid_duration_per_100km", valid_chart_source)
-        self.assertNotIn("百公里有效平均历时", valid_chart_source)
+        self.assertNotIn("valid_duration_per_1000km", valid_chart_source)
+        self.assertNotIn("千公里有效平均历时", valid_chart_source)
         self.assertIn("function renderBranchCompanyDetailsTable()", source)
         self.assertIn("function handleBranchCompanyChartClick(params, fieldName)", source)
         self.assertIn("function handleBranchCompanyMetricFilterClick(metric)", source)

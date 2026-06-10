@@ -1,3 +1,11 @@
+## 2026-06-10 故障统计模块：子公司百公里统计口径修改为千公里
+- [ ] 后端逻辑修改：将 `statistics_views.py` 中的 `_per_100km` 辅助函数重命名为 `_per_1000km`，计算公式由 `* 100.0 / length_km` 调整为 `* 1000.0 / length_km`。
+- [ ] 扣分公式同步调整：将频次扣分 `min(30.0, count_per_100km * 18.0)` 调整为 `min(30.0, count_per_1000km * 1.8)`；将历时扣分 `min(25.0, duration_per_100km * 4.0)` 调整为 `min(25.0, duration_per_1000km * 0.4)`。
+- [ ] 后端响应数据对齐：将 `statistics_views.py` 中所有的 `per_100km`、`count_per_100km`、`duration_per_100km`、`valid_duration_per_100km` 等字段重命名为对应的 `per_1000km` 等千公里字段名。
+- [ ] 前端模板汉化与配置：将 `statistics_dashboard.html` 中所有“百公里”的文字变更为“千公里”，并更新 input 的 value 值（如 `count_per_1000km` 和 `per_1000km`）。
+- [ ] 前端脚本更新：在 `statistics_dashboard.js` 中将指标键名（如 `week_count_per_100km` 等）及图标 label（如“百公里起数”等）替换为千公里版本，单位从“起/百公里”、“小时/百公里”修改为“起/千公里”、“小时/千公里”。
+- [ ] 单元测试升级：修改 `tests/test_statistics_branch_company.py` 中的断言以适配千公里键名及千公里相关的中文文案，并确保所有测试全部通过。
+
 ## 2026-06-09 割接管理：关联业务并入影响业务与时间 UI 重构
 - [x] 在 `models.py` 中为 `CutoverImpact` 新增 `coordination_status` 字段，选项包括已批准、未批准、强制割接，并删除 `CutoverTask` 中的 `related_customers`。
 - [x] 在 `forms.py`、`tables.py`、`views.py`、`urls.py`、`filtersets.py`、`serializers.py` 中更新相关引用，重构生成新计划时间时重置协调状态的逻辑。
