@@ -165,6 +165,8 @@ document.addEventListener("DOMContentLoaded", function() {
     let currentChartsData = null;
     let currentCableBreakOverview = null;
     let currentPrevCableBreakOverview = null;
+    let currentBareFiberInterruption = null;
+    let currentPrevBareFiberInterruption = null;
     let currentBranchCompanyData = null;
     let currentPrevBranchCompanyData = null;
     let currentBranchCompanyDetails = [];
@@ -304,6 +306,9 @@ document.addEventListener("DOMContentLoaded", function() {
     function refreshChartsForTheme() {
         if (currentCableBreakOverview) {
             renderCableBreakOverview(currentCableBreakOverview, currentPrevCableBreakOverview || {});
+        }
+        if (currentBareFiberInterruption) {
+            renderBareFiberInterruption(currentBareFiberInterruption, currentPrevBareFiberInterruption || {});
         }
         if (currentChartsData) {
             renderCharts(currentChartsData);
@@ -727,6 +732,8 @@ document.addEventListener("DOMContentLoaded", function() {
             renderPhysicalDurationBoxplot(data.charts && data.charts.physical_duration_boxplot, selFilterType.value);
             currentCableBreakOverview = data.cable_break_overview || null;
             currentPrevCableBreakOverview = data.prev_cable_break_overview || null;
+            currentBareFiberInterruption = data.bare_fiber_interruption || null;
+            currentPrevBareFiberInterruption = data.prev_bare_fiber_interruption || null;
             currentChartsData = data.charts || null;
             currentBranchCompanyData = data.branch_company || null;
             currentPrevBranchCompanyData = data.prev_branch_company || null;
@@ -736,6 +743,7 @@ document.addEventListener("DOMContentLoaded", function() {
             renderBranchCompanySection(data.branch_company, data.prev_branch_company);
             renderBranchCompanyDetailsTable();
             renderCharts(data.charts);
+            renderBareFiberInterruption(data.bare_fiber_interruption, data.prev_bare_fiber_interruption);
         } catch (error) {
             console.error('Fetch error:', error);
             document.getElementById('details-tbody').innerHTML = '<tr><td colspan="10" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
@@ -1619,6 +1627,33 @@ document.addEventListener("DOMContentLoaded", function() {
                     data: histValues
                 }]
             });
+        }
+    }
+
+    function renderBareFiberInterruption(overview, prevOverview) {
+        overview = overview || {};
+        prevOverview = prevOverview || {};
+
+        const totalCountEl = document.getElementById('barefiber-total-count');
+        const distinctCountEl = document.getElementById('barefiber-distinct-count');
+        const totalDurationEl = document.getElementById('barefiber-total-duration');
+        const distinctDurationEl = document.getElementById('barefiber-distinct-duration');
+
+        if (totalCountEl) {
+            totalCountEl.textContent = formatCardCountValue(overview.total_count);
+            renderTrendBesideMetric(totalCountEl, overview.total_count, prevOverview.total_count, true);
+        }
+        if (distinctCountEl) {
+            distinctCountEl.textContent = formatCardCountValue(overview.distinct_count);
+            renderTrendBesideMetric(distinctCountEl, overview.distinct_count, prevOverview.distinct_count, true);
+        }
+        if (totalDurationEl) {
+            totalDurationEl.textContent = formatCardMetricValue(overview.total_duration);
+            renderTrendBesideMetric(totalDurationEl, overview.total_duration, prevOverview.total_duration, false);
+        }
+        if (distinctDurationEl) {
+            distinctDurationEl.textContent = formatCardMetricValue(overview.distinct_duration);
+            renderTrendBesideMetric(distinctDurationEl, overview.distinct_duration, prevOverview.distinct_duration, false);
         }
     }
 

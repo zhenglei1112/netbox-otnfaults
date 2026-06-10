@@ -1355,6 +1355,70 @@ def _apply_physical_province_filter(queryset: QuerySet, selected_provinces: list
     return queryset.filter(province__name__in=selected_provinces)
 
 
+def _compute_bare_fiber_interruption_overview(start_date, end_date, selected_provinces, now) -> dict:
+    """计算统计周期内裸纤业务的中断概览指标。"""
+    impacts = OtnFaultImpact.objects.select_related(
+        'otn_fault',
+        'otn_fault__province'
+    ).filter(
+        service_interruption_time__gte=start_date,
+        service_interruption_time__lt=end_date,
+        service_type=ServiceTypeChoices.BARE_FIBER,
+        otn_fault__is_suspended=False
+    ).exclude(
+        otn_fault__fault_status=FaultStatusChoices.SUSPENDED
+    )
+
+    if selected_provinces:
+        impacts = impacts.filter(otn_fault__province__name__in=selected_provinces)
+
+    filtered_impacts = []
+    for imp in impacts:
+        if imp.business_impact == BusinessImpactChoices.NOT_INTERRUPTED:
+            continue
+
+        fault = imp.otn_fault
+        is_rectification_planned = (
+            fault.interruption_reason == 'cable_rectification' and
+            fault.interruption_reason_detail == 'planned_reporting'
+        )
+        is_approved = imp.coordination_status == 'approved'
+
+        if is_rectification_planned and is_approved:
+            continue
+
+        filtered_impacts.append(imp)
+
+    total_count = len(filtered_impacts)
+
+    distinct_fault_ids = {imp.otn_fault_id for imp in filtered_impacts if imp.otn_fault_id}
+    distinct_count = len(distinct_fault_ids)
+
+    total_duration = 0.0
+    for imp in filtered_impacts:
+        end_t = imp.service_recovery_time if imp.service_recovery_time else now
+        duration_hours = (end_t - imp.service_interruption_time).total_seconds() / 3600.0
+        total_duration += duration_hours
+
+    fault_durations = {}
+    for imp in filtered_impacts:
+        end_t = imp.service_recovery_time if imp.service_recovery_time else now
+        dur = (end_t - imp.service_interruption_time).total_seconds() / 3600.0
+        fid = imp.otn_fault_id
+        if fid:
+            if fid not in fault_durations or dur > fault_durations[fid]:
+                fault_durations[fid] = dur
+    distinct_duration = sum(fault_durations.values())
+
+    return {
+        'total_count': total_count,
+        'distinct_count': distinct_count,
+        'total_duration': round(total_duration, 2),
+        'distinct_duration': round(distinct_duration, 2),
+    }
+
+
+
 def _build_physical_province_chart_stats(faults: list, now) -> dict[str, dict[str, float | int]]:
     province_stats: dict[str, dict[str, float | int]] = {}
     all_provinces = Region.objects.values_list('name', flat=True)
@@ -1430,6 +1494,18 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         calendar_year = int(request.GET.get('calendar_year', start_date.year))
         calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
         selected_provinces = _parse_selected_provinces(request)
+
+        # 计算当前期裸纤业务中断情况
+        bare_fiber_interruption = _compute_bare_fiber_interruption_overview(
+            start_date, end_date, selected_provinces, now
+        )
+
+        prev_bare_fiber_interruption = {}
+        if prev_start_date and prev_end_date:
+            prev_bare_fiber_interruption = _compute_bare_fiber_interruption_overview(
+                prev_start_date, prev_end_date, selected_provinces, now
+            )
+
 
         # 先预抓取一段无过滤条件的全量当前期基础查询集，仅用于提取“总体情况面板” Banner 数据
         qs_all = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
@@ -1851,6 +1927,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             },
             'cable_break_overview': cable_break_overview,
             'prev_cable_break_overview': prev_cable_break_overview,
+            'bare_fiber_interruption': bare_fiber_interruption,
+            'prev_bare_fiber_interruption': prev_bare_fiber_interruption,
             'branch_company': branch_company_stats,
             'prev_branch_company': prev_branch_company_stats,
             'other_overview': other_overview,

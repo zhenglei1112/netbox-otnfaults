@@ -948,6 +948,7 @@ body.modal-open {
     gap: var(--statistics-section-gap);
 }
 
+.page-statistics #tab-physical.show.active > .statistics-barefiber-overview,
 .page-statistics #tab-physical.show.active > .statistics-overall-overview,
 .page-statistics #tab-physical.show.active > .statistics-cable-break-overview,
 .page-statistics #tab-physical.show.active > .statistics-cable-break-deferred-metrics,
@@ -3164,5 +3165,23 @@ body.modal-open {
 .statistics-preceding-fault-row a {
     color: var(--statistics-muted, #206bc4) !important;
     opacity: 0.85;
+}
+
+.statistics-barefiber-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 1rem !important;
+}
+
+@media (max-width: 991.98px) {
+    .statistics-barefiber-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .statistics-barefiber-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
 }
 
