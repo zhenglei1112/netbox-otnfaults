@@ -1668,10 +1668,17 @@ class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
         label='环网保护'
     )
 
+    # 动态注入扩展字段过滤表单项
+    for field_name, verbose_name in CircuitService.EXTRA_FIELD_DEFINITIONS:
+        locals()[field_name] = forms.CharField(
+            required=False,
+            label=verbose_name
+        )
 
     fieldsets = (
         FieldSet('q', 'special_line_name', 'filter_id', 'tag'),
         FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', name='属性'),
+        FieldSet(*dict(CircuitService.EXTRA_FIELD_DEFINITIONS).keys(), name='扩展信息'),
     )
 
     special_line_name = forms.CharField(

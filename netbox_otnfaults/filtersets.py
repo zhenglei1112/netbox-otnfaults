@@ -271,6 +271,14 @@ class CircuitServiceFilterSet(NetBoxModelFilterSet):
     is_external_business = django_filters.BooleanFilter(label='对外业务')
     ring_protection = django_filters.BooleanFilter(label='环网保护')
 
+    # 动态注入扩展字段过滤器
+    for field_name, verbose_name in CircuitService.EXTRA_FIELD_DEFINITIONS:
+        locals()[field_name] = django_filters.CharFilter(
+            field_name=f'extra_fields__{field_name}',
+            lookup_expr='icontains',
+            label=verbose_name
+        )
+
     class Meta:
         model = CircuitService
         fields = (
@@ -286,6 +294,7 @@ class CircuitServiceFilterSet(NetBoxModelFilterSet):
             'ring_protection',
             'operation_status',
             'sla_level',
+            *dict(CircuitService.EXTRA_FIELD_DEFINITIONS).keys(),
         )
 
     def search(self, queryset, name, value):

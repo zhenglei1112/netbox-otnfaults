@@ -971,6 +971,23 @@ class CutoverTaskTable(NetBoxTable):
         return _display_or_empty(record.get_is_timeout_display())
 
 
+class ExtraFieldColumn(tables.Column):
+    def __init__(self, field_name, *args, **kwargs):
+        self.field_name = field_name
+        kwargs['accessor'] = 'extra_fields'
+        super().__init__(*args, **kwargs)
+
+    def render(self, value, record):
+        if isinstance(value, dict):
+            return value.get(self.field_name, '')
+        return ''
+
+    def value(self, value, record):
+        if isinstance(value, dict):
+            return value.get(self.field_name, '')
+        return ''
+
+
 class CircuitServiceTable(NetBoxTable):
     """电路业务列表表格"""
     special_line_name = tables.Column(
@@ -1028,10 +1045,20 @@ class CircuitServiceTable(NetBoxTable):
         url_name='plugins:netbox_otnfaults:circuitservice_list'
     )
 
+    # 动态注入扩展列
+    for field_name, verbose_name in CircuitService.EXTRA_FIELD_DEFINITIONS:
+        locals()[field_name] = ExtraFieldColumn(
+            field_name=field_name,
+            verbose_name=verbose_name,
+            orderable=False
+        )
+
     class Meta(NetBoxTable.Meta):
         model = CircuitService
         fields = (
-            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'created', 'last_updated', 'tags', 'actions',
+            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'created', 'last_updated', 'tags',
+            *dict(CircuitService.EXTRA_FIELD_DEFINITIONS).keys(),
+            'actions',
         )
         default_columns = (
             'business_category', 'service_group', 'special_line_name', 'name', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level',
