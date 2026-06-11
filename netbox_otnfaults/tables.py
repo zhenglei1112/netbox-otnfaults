@@ -196,6 +196,16 @@ class OtnFaultTable(NetBoxTable):
     fault_status = columns.ChoiceFieldColumn(
         verbose_name='处理状态'
     )
+    bare_fiber_impact_counts = tables.Column(
+        verbose_name='裸纤',
+        orderable=False,
+        empty_values=()
+    )
+    circuit_impact_counts = tables.Column(
+        verbose_name='电路',
+        orderable=False,
+        empty_values=()
+    )
     is_suspended = columns.BooleanColumn(
         verbose_name='挂起'
     )
@@ -238,14 +248,15 @@ class OtnFaultTable(NetBoxTable):
             'rectification_status', 'rectification_measures', 'rectification_description',
             'rectification_subject', 'rectification_progress', 'planned_completion_date',
             'actual_completion_date', 'rectification_completion_description', 'handling_unit', 'contract',
-            'fault_status', 'is_suspended',
+            'fault_status', 'bare_fiber_impact_counts', 'circuit_impact_counts', 'is_suspended',
             'manager_reviewed', 'manager_reviewer', 'manager_review_time',
             'noc_reviewed', 'noc_reviewer', 'noc_review_time',
             'comments', 'tags', 'actions',
         )
         default_columns = (
             'fault_number', 'fault_category', 'duty_officer', 'interruption_location_a', 'interruption_location',
-            'fault_occurrence_time', 'fault_duration', 'fault_status', 'progress',
+            'fault_occurrence_time', 'fault_duration', 'fault_status',
+            'bare_fiber_impact_counts', 'circuit_impact_counts', 'progress',
             'manager_reviewed', 'noc_reviewed',
         )
 
@@ -301,6 +312,54 @@ class OtnFaultTable(NetBoxTable):
 
     def value_fault_status(self, value: str | None, record: OtnFault) -> str:
         return _display_or_empty(record.get_fault_status_display())
+
+    @staticmethod
+    def _bare_fiber_impact_counts(record: OtnFault) -> tuple[int, int]:
+        return (
+            int(getattr(record, 'bare_fiber_not_interrupted_count', 0) or 0),
+            int(getattr(record, 'bare_fiber_interrupted_count', 0) or 0),
+        )
+
+    @staticmethod
+    def _circuit_impact_counts(record: OtnFault) -> tuple[int, int]:
+        return (
+            int(getattr(record, 'circuit_not_interrupted_count', 0) or 0),
+            int(getattr(record, 'circuit_interrupted_count', 0) or 0),
+        )
+
+    @staticmethod
+    def _render_impact_count(count: int, color: str, title: str) -> object:
+        if count == 0:
+            return '-'
+        return format_html(
+            '<span title="{}" style="color:{};font-weight:600">{}</span>',
+            title,
+            color,
+            count,
+        )
+
+    def _render_impact_count_pair(self, not_interrupted_count: int, interrupted_count: int, service_label: str) -> object:
+        return format_html(
+            '{}'
+            '<span class="text-muted mx-1">/</span>'
+            '{}',
+            self._render_impact_count(not_interrupted_count, '#fd7e14', f'{service_label}业务未中断数'),
+            self._render_impact_count(interrupted_count, '#dc3545', f'{service_label}业务中断数'),
+        )
+
+    def render_bare_fiber_impact_counts(self, record: OtnFault) -> object:
+        not_interrupted_count, interrupted_count = self._bare_fiber_impact_counts(record)
+        return self._render_impact_count_pair(not_interrupted_count, interrupted_count, '裸纤')
+
+    def value_bare_fiber_impact_counts(self, record: OtnFault) -> str:
+        return '/'.join(str(count) for count in self._bare_fiber_impact_counts(record))
+
+    def render_circuit_impact_counts(self, record: OtnFault) -> object:
+        not_interrupted_count, interrupted_count = self._circuit_impact_counts(record)
+        return self._render_impact_count_pair(not_interrupted_count, interrupted_count, '电路')
+
+    def value_circuit_impact_counts(self, record: OtnFault) -> str:
+        return '/'.join(str(count) for count in self._circuit_impact_counts(record))
 
     def render_maintenance_mode(self, value, record):
         color = record.get_maintenance_mode_color()
@@ -1350,5 +1409,3 @@ class HeavyDutySiteTable(NetBoxTable):
         model = Site
         fields = ('pk', 'name', 'region', 'status')
         default_columns = ('name', 'region', 'status')
-
-

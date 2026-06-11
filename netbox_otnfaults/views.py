@@ -3,7 +3,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpRequest, HttpResponse
 from utilities.views import register_model_view, ViewTab
 from django_tables2 import RequestConfig
-from .models import OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite, BareFiberService, CircuitService, CutoverTask, CutoverImpact, HeavyDuty, CutoverCoordinationStatusChoices
+from .models import (
+    OtnFault, OtnFaultImpact, OtnPath, OtnPathGroup, OtnPathGroupSite,
+    BareFiberService, CircuitService, CutoverTask, CutoverImpact, HeavyDuty,
+    CutoverCoordinationStatusChoices, ServiceTypeChoices, BusinessImpactChoices,
+)
 from dcim.models import Site
 from .forms import (
     OtnFaultForm, OtnFaultImpactForm, OtnFaultFilterForm, OtnFaultImpactFilterForm, 
@@ -33,6 +37,7 @@ from django.views.generic import View
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.db import transaction
+from django.db.models import Count, Q
 import json
 from typing import Any
 from django.core.serializers.json import DjangoJSONEncoder
@@ -102,7 +107,40 @@ def _format_statistics_map_period_label(filter_type, start_date, end_date, now) 
 
 class OtnFaultListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
     """OTN故障列表视图"""
-    queryset = OtnFault.objects.all()
+    queryset = OtnFault.objects.annotate(
+        bare_fiber_not_interrupted_count=Count(
+            'impacts',
+            filter=Q(
+                impacts__service_type=ServiceTypeChoices.BARE_FIBER,
+                impacts__business_impact=BusinessImpactChoices.NOT_INTERRUPTED,
+            ),
+            distinct=True,
+        ),
+        bare_fiber_interrupted_count=Count(
+            'impacts',
+            filter=Q(
+                impacts__service_type=ServiceTypeChoices.BARE_FIBER,
+                impacts__business_impact=BusinessImpactChoices.INTERRUPTED,
+            ),
+            distinct=True,
+        ),
+        circuit_not_interrupted_count=Count(
+            'impacts',
+            filter=Q(
+                impacts__service_type=ServiceTypeChoices.CIRCUIT,
+                impacts__business_impact=BusinessImpactChoices.NOT_INTERRUPTED,
+            ),
+            distinct=True,
+        ),
+        circuit_interrupted_count=Count(
+            'impacts',
+            filter=Q(
+                impacts__service_type=ServiceTypeChoices.CIRCUIT,
+                impacts__business_impact=BusinessImpactChoices.INTERRUPTED,
+            ),
+            distinct=True,
+        ),
+    )
     table = OtnFaultTable
     filterset = OtnFaultFilterSet
     filterset_form = OtnFaultFilterForm

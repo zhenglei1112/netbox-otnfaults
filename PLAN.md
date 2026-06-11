@@ -2309,3 +2309,12 @@
 - [ ] 引入 colorPickerActive 与 mouseInsideMenu 标记。
 - [ ] 修改 MapStylePreferenceControl.js 中的 focus/blur/change 与 mouseenter/mouseleave 监听。
 - [ ] 对 hideMenu、hideMenuWithDelay 和 document 关联点击函数追加状态拦截，解决 Mac Edge 下因调起系统色盘导致菜单提前销毁的 Bug。
+
+## 2026-06-11 故障列表增加故障影响业务数
+- [x] 在故障列表视图中为 `OtnFault` queryset 增加四类影响业务数量聚合：裸纤未中断、裸纤中断、电路未中断、电路中断。
+- [x] 在 `OtnFaultTable` 新增 `故障影响业务数` 非排序列，按 `裸纤未中断/裸纤中断/电路未中断/电路中断` 固定格式显示。
+- [x] 未中断数字使用橙色，中断数字使用红色；导出值使用纯文本 `0/0/0/0` 格式。
+- [x] 将新列加入默认列，并确保 `actions` 仍为表格最后一列。
+- [x] 增加源码级回归测试并运行定向测试、Python 编译检查。
+- [x] 按展示要求将单列拆分为 `裸纤`、`电路` 两列，每列分别显示未中断数/中断数。
+- [x] 将显示值为 0 的计数改为非彩色 `-`，仅非 0 计数使用橙色/红色显示。
