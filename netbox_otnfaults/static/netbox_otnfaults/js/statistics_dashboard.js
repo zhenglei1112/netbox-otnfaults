@@ -1894,19 +1894,32 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function renderBranchPerformanceMetricItem(label, value, unit = '', emphasized = false) {
-        const emphasisClass = emphasized ? ' branch-performance-annual-metric--emphasis' : '';
+        const emphasisClass = emphasized ? ' branch-performance-annual-metric-v2--emphasis' : '';
         return `
-            <div class="branch-performance-annual-metric${emphasisClass}">
-                <span>${escapeHtml(label)}</span>
-                <strong><span class="branch-performance-annual-value">${formatCardMetricValue(value)}</span>${unit ? `<small>${escapeHtml(unit)}</small>` : ''}</strong>
+            <div class="branch-performance-annual-metric-v2${emphasisClass}">
+                <div class="branch-performance-annual-value-row">
+                    <span class="branch-performance-annual-value">${formatCardMetricValue(value)}</span>${unit ? `<small class="branch-performance-annual-unit">${escapeHtml(unit)}</small>` : ''}
+                </div>
+                <div class="branch-performance-annual-label">${escapeHtml(label)}</div>
             </div>`;
     }
 
     function renderBranchPerformanceAnnualSection(title, items, modifier = '') {
+        let iconClass = 'mdi-server-network';
+        if (modifier.includes('bare-fiber')) {
+            iconClass = 'mdi-server-network';
+        } else if (modifier.includes('cable-break')) {
+            iconClass = 'mdi-transit-connection-horizontal';
+        } else if (modifier.includes('power')) {
+            iconClass = 'mdi-flash';
+        }
         return `
             <section class="branch-performance-annual-section ${modifier}">
-                <div class="branch-performance-annual-heading">${escapeHtml(title)}</div>
-                <div class="branch-performance-annual-grid">
+                <div class="branch-performance-annual-heading">
+                    <span class="branch-performance-annual-icon"><i class="mdi ${iconClass}"></i></span>
+                    <span class="branch-performance-annual-title">${escapeHtml(title)}</span>
+                </div>
+                <div class="branch-performance-annual-grid-v2">
                     ${items.join('')}
                 </div>
             </section>`;

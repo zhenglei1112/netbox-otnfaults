@@ -2723,38 +2723,61 @@ body.modal-open {
 }
 
 .branch-performance-annual-stats {
-    display: grid;
-    gap: 0.65rem;
-    margin: 0 0 0.95rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0;
 }
 
 .branch-performance-annual-section {
-    background: #ffffff;
-    border: 1px solid #dfe6f0;
-    border-radius: 10px;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
-    overflow: hidden;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--statistics-divider);
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+    padding: 0.75rem 0 0.85rem;
+}
+
+.branch-performance-annual-stats .branch-performance-annual-section:last-child {
+    border-bottom: none;
 }
 
 .branch-performance-annual-heading {
-    background: linear-gradient(180deg, #f8fbff, #eef5ff);
-    border-bottom: 1px solid #e5ebf4;
-    color: #263854;
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0;
-    line-height: 1.2;
-    padding: 0.42rem 0.65rem;
+    display: flex;
+    align-items: center;
+    gap: 0.62rem;
+    background: transparent !important;
+    border-bottom: none !important;
+    padding: 0 0 0.5rem 0 !important;
 }
 
-.branch-performance-annual-section--cable-break .branch-performance-annual-heading {
-    background: linear-gradient(180deg, #fff8e5, #fff2cc);
+.branch-performance-annual-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.branch-performance-annual-section--bare-fiber .branch-performance-annual-icon {
+    color: #078087;
+}
+
+.branch-performance-annual-section--cable-break .branch-performance-annual-icon {
     color: #7c4a03;
 }
 
-.branch-performance-annual-section--power .branch-performance-annual-heading {
-    background: linear-gradient(180deg, #f8f5ff, #f0eaff);
+.branch-performance-annual-section--power .branch-performance-annual-icon {
     color: #53389e;
+}
+
+.branch-performance-annual-title {
+    color: var(--statistics-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: left;
 }
 
 .branch-performance-annual-grid {
@@ -3271,3 +3294,102 @@ body.modal-open {
     }
 }
 
+
+
+/* 子公司绩效卡片年度指标数据 V2 布局 */
+.branch-performance-annual-grid-v2 {
+    background: #ffffff;
+    display: grid;
+    padding: 0.8rem 0;
+    gap: 0.65rem 0;
+    border-top: none;
+}
+
+/* 根据不同板块指定网格列数 */
+.branch-performance-annual-section--bare-fiber .branch-performance-annual-grid-v2 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.branch-performance-annual-section--cable-break .branch-performance-annual-grid-v2 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.branch-performance-annual-section--power .branch-performance-annual-grid-v2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* 响应式调整：移动端或较窄屏幕下自适应为 2 列 */
+@media (max-width: 767.98px) {
+    .branch-performance-annual-section--bare-fiber .branch-performance-annual-grid-v2,
+    .branch-performance-annual-section--cable-break .branch-performance-annual-grid-v2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* 年度指标卡片 V2 单元格样式 */
+.branch-performance-annual-metric-v2 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0.25rem 0.15rem;
+    position: relative;
+    border-left: 1px solid var(--statistics-divider);
+}
+
+/* 排除每一行第一个元素的左边框 */
+.branch-performance-annual-section--bare-fiber .branch-performance-annual-metric-v2:nth-child(4n+1),
+.branch-performance-annual-section--cable-break .branch-performance-annual-metric-v2:nth-child(4n+1),
+.branch-performance-annual-section--power .branch-performance-annual-metric-v2:nth-child(2n+1) {
+    border-left: none;
+}
+
+/* 针对在移动端（2列排列）的边框适配 */
+@media (max-width: 767.98px) {
+    .branch-performance-annual-section--bare-fiber .branch-performance-annual-metric-v2,
+    .branch-performance-annual-section--cable-break .branch-performance-annual-metric-v2 {
+        border-left: 1px solid var(--statistics-divider);
+    }
+    
+    .branch-performance-annual-section--bare-fiber .branch-performance-annual-metric-v2:nth-child(2n+1),
+    .branch-performance-annual-section--cable-break .branch-performance-annual-metric-v2:nth-child(2n+1) {
+        border-left: none;
+    }
+}
+
+/* 数据项数值和单位 */
+.branch-performance-annual-value-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.12rem;
+    min-width: 0;
+}
+.branch-performance-annual-value {
+    color: var(--statistics-heading);
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+.branch-performance-annual-metric-v2--emphasis .branch-performance-annual-value {
+    color: var(--statistics-primary);
+}
+.branch-performance-annual-unit {
+    color: var(--statistics-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+/* 故障大类特定重要指标高亮色彩保留 */
+.branch-performance-annual-section--cable-break .branch-performance-annual-grid-v2 .branch-performance-annual-metric-v2:nth-child(2) .branch-performance-annual-value {
+    color: #d97706; /* 千公里次数突出 */
+}
+
+/* 数据项标签名 */
+.branch-performance-annual-label {
+    margin-top: 0.35rem;
+    color: var(--statistics-muted);
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.15;
+    white-space: nowrap;
+}
