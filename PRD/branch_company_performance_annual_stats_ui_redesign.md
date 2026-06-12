@@ -15,15 +15,19 @@
 ## 2. 优化方案核心设计
 
 ### 2.1 整体网格与排版升级
-废弃原有基于 1px gap 灰色分隔线的左右排布网格，改用类似裸纤/电路业务卡片年度累计板块的平铺网格：
+* **大卡片头部 (Header)**：废除原有包含办公楼图标、局促文字和下划线的分公司卡片头部。全新依照裸纤卡片，直接重构为复用裸纤原生 `.service-strip-card-title` 类的 div 容器，在顶部被卡片圆角自然裁剪，其布局、背景色、文字大小均直接继承裸纤原生样式，以无污染的自然排列方式与裸纤卡片头保持完全一致（同时对该 div 绑定下钻事件）。
+* **卡片边距与板块分割 (Padding & Divider)**：
+  * 大卡片外层 `.statistics-branch-performance-card` 设为 `padding: 0 !important; overflow: hidden;`，使头部纯色背景条能够完全贴合卡片边缘。
+  * 为了在去掉卡片 padding 后仍能有精致的留白，卡片内的子板块在不同的屏幕宽度下适配两套不同的左右内边距：在**超大屏（6列）**状态下子板块左右 padding 统一设置为紧凑的 `0.65rem` 以防止内容和日历溢出重叠；在**中屏及以下（3列/2列）**状态下左右 padding 自动恢复为与裸纤业务卡片高度一致的标准的 `1.25rem`。
+  * 板块之间的水平分割线统一使用 `border-bottom: 1px solid var(--statistics-divider)` 进行 100% 通栏切分，最后一个板块（中断日历）底边框自动清除，防与月历图顶边框冲突。
 * **数据对齐**：统一改为 **“数值在上（醒目大字+小字单位），指标标签在下（小字灰色加粗）”** 的垂直对齐结构。
 * **背景与分隔线**：网格背景全部为纯白，删除原有的生硬灰色底色。移除模块外框线及行间水平分割线，但**指标格与格之间使用垂直细实线（`1px solid var(--statistics-divider)`）进行分割**，类似于裸纤/电路业务看板的分组指标样式，确保极简现代的同时结构清晰。
 * **板块外部框线与背景剥离（卡片级精简）**：取消原“裸纤业务”、“光缆中断”、“供电故障”这三个子板块各自的独立小卡片框线、白色背景、圆角与阴影。它们将直接作为平铺内容融入分公司绩效大卡片中，降低卡片嵌套的视觉层级。
-* **分组横向分割（仿照裸纤卡片）**：仿照裸纤业务卡片不同功能模块的设计，各子板块之间使用极简的横向底分割线（`border-bottom: 1px solid var(--statistics-divider)`）进行视觉上的分组隔离，且最后一个子板块的底分割线自动清除，杜绝多重边框重叠。
 * **多列响应式网格**：
   * **裸纤业务**（4项）：**1 行 4 列**。
   * **光缆中断**（7项）：**2 行 4 列**（第一行排4项，第二行排3项，最后一格留白占位），行间通过合理的 grid gap 进行自然过渡。
   * **供电故障**（2项）：**1 行 2 列**。
+
 
 ### 2.2 板块标题头部图标化与对齐 (Header Accent)
 在各板块 Heading 引入裸纤卡片式的高清标题 UI，将小图标与文字以 flex 水平居中对齐，并赋予相应的主题色彩：
@@ -39,19 +43,18 @@
 ## 3. 技术实现细节
 
 ### 3.1 JS 模板层重构 (`statistics_dashboard.js`)
-* 修改 `renderBranchPerformanceMetricItem` 方法：
-  将原本的左右排布 HTML 替换为垂直的“值+单位”在上、“标签”在下的新 HTML 结构。
-* 修改 `renderBranchPerformanceAnnualSection` 方法：
-  根据 `modifier` 传入的板块类别，在标题中动态拼接相应的 MDI 图标与包裹 span，满足新标题容器的层次结构。
+* **大卡片与头部通栏自然排列**：修改 `renderBranchCompanyPerformanceCard` 方法，外层复用裸纤原生 `.statistics-strip-card .service-strip-card` 容器，头部使用原生的 `.service-strip-card-title` 作为 div 渲染（移除旧的 `branch-performance-title` 类以避免样式污染），事件绑定直接定位到该原生类。表头将自动按照裸纤故障卡片的底色和排版进行自然排列，不引入任何多余强制覆盖。
+* **年度汇总与指标项共享类名**：各指标直接映射为原生的 `.service-annual-summary-item`、`.service-annual-summary-value` 和 `.service-annual-summary-label`。
 
-### 3.2 CSS 样式层定义 (`statistics_dashboard.css`)
-* 重构 `.branch-performance-annual-stats` 容器，将其变更为 `flex` 纵向流式排布，`gap` 置零，使板块衔接更紧凑。
-* 重构 `.branch-performance-annual-section` 样式，将其 `background`、`border`、`box-shadow` 和 `border-radius` 全部剔除，统一设置底边框 `border-bottom: 1px solid var(--statistics-divider)` 及适当的上下内边距，实现无卡片感的分组横线分割。
-* 特殊过滤：为 `.branch-performance-annual-stats .branch-performance-annual-section:last-child` 过滤掉底边框以防与月历图双重边框冲突。
-* 将 `.branch-performance-annual-heading` 头部背景和底边框移除，重写为 `display: flex; align-items: center; gap: 0.62rem` 且背景透明。
-* 新增 `.branch-performance-annual-icon`，字号为 `1.15rem`，并根据不同板块类名为其赋予相应的核心高亮色。
-* 新增 `.branch-performance-annual-title`，字号为 `1rem` 粗体，文字颜色继承系统主标题色。
-* 新增 `.branch-performance-annual-grid-v2` 样式，指定为白色背景，设置适当的行间距 `gap: 0.65rem 0`，并清除多余边框。
-* 通过子类修饰符，分别为 `--bare-fiber`、`--cable-break` 和 `--power` 设置对应的 `grid-template-columns` 属性。
-* 在 `.branch-performance-annual-metric-v2` 单元格间添加 `border-left`，并使用 `:nth-child(4n+1)` / `:nth-child(2n+1)` 过滤首列左边框。
-* 定义新版数值（大字、加粗、特殊高亮色彩）及标签（小字、置底、灰色加粗）的文字格式。
+### 3.2 CSS 样式层定义与精化 (`statistics_dashboard.css`)
+* **完全复用原生类，零样式污染**：子公司卡片内部标题、文字、竖线分割、底边线完全自动继承自裸纤卡片的原生样式，不需要任何额外的子公司自定义样式覆盖。
+* **大卡片重置**：将 `.statistics-branch-performance-card` 设为 `padding: 0 !important; overflow: hidden;` 让头部通栏。
+* **网格列数定义**：在子公司大卡片作用域下对 `.service-annual-summary-grid` 属性进行 4 列（裸纤/光缆）和 2 列（供电）的网格指定。
+
+
+### 3.3 大屏6列卡片流与紧凑版日历适配 (`statistics_dashboard.js` & `statistics_dashboard.css`)
+为了在超大屏下一行平铺展示全部 6 家子公司卡片，进行了以下整体尺寸压缩设计：
+* **JS 逻辑切片**：在 `renderBranchPerformanceInterruptCalendar` 中，对传入的日历数据进行 `slice(-3)` 截取，默认只加载最新的 **近 3 个月** 运行月历数据，这与裸纤业务看板保持一致。
+* **大屏紧凑边距**：超大屏下将大卡片 `.statistics-branch-performance-card` 设为 `padding: 0 !important; overflow: hidden;` 让头部通栏，同时将内部小节的左右内边距压缩为紧凑的 `0.65rem`，指标值字号调为 `1.15rem`，高度调为 `2rem`，日历小格子大小缩至 `0.45rem`（间距缩至 `0.15rem`），月份文字字号降至 `0.75rem`，确保极窄卡片下完美呈布。
+* **隔离与对齐优化（防止重叠）**：显式隔离了默认 3 个月状态下 `.service-interrupt-calendar-months--default`（强制平分 3 列，以对齐月份 and 天数格子，防止横向溢出）与 `.service-interrupt-calendar-months--expanded`（使用自适应 `auto-fill` 网格展开 12 个月），防止互相覆盖导致重合。
+* **中屏完全复刻裸纤**：当屏幕宽度小于 `1600px` 时，自动响应恢复为一排 3 列，同时子板块的左右 padding 自然舒展恢复为裸纤标准的 `1.25rem`，卡片头高度和字号也自适应恢复为裸纤原生大小，体验极佳。

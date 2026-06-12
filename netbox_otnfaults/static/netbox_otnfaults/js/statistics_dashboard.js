@@ -1894,13 +1894,13 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function renderBranchPerformanceMetricItem(label, value, unit = '', emphasized = false) {
-        const emphasisClass = emphasized ? ' branch-performance-annual-metric-v2--emphasis' : '';
+        const emphasisClass = emphasized ? ' service-annual-summary-value--emphasis' : '';
         return `
-            <div class="branch-performance-annual-metric-v2${emphasisClass}">
-                <div class="branch-performance-annual-value-row">
-                    <span class="branch-performance-annual-value">${formatCardMetricValue(value)}</span>${unit ? `<small class="branch-performance-annual-unit">${escapeHtml(unit)}</small>` : ''}
+            <div class="service-annual-summary-item branch-performance-annual-metric-v2">
+                <div class="service-annual-summary-value${emphasisClass}">
+                    ${formatCardMetricValue(value)}${unit ? `<small class="branch-performance-annual-unit">${escapeHtml(unit)}</small>` : ''}
                 </div>
-                <div class="branch-performance-annual-label">${escapeHtml(label)}</div>
+                <div class="service-annual-summary-label">${escapeHtml(label)}</div>
             </div>`;
     }
 
@@ -1914,15 +1914,15 @@ document.addEventListener("DOMContentLoaded", function() {
             iconClass = 'mdi-flash';
         }
         return `
-            <section class="branch-performance-annual-section ${modifier}">
+            <div class="branch-performance-annual-section ${modifier}">
                 <div class="branch-performance-annual-heading">
-                    <span class="branch-performance-annual-icon"><i class="mdi ${iconClass}"></i></span>
-                    <span class="branch-performance-annual-title">${escapeHtml(title)}</span>
+                    <span class="service-annual-icon"><i class="mdi ${iconClass}"></i></span>
+                    <div class="branch-performance-annual-title">${escapeHtml(title)}</div>
                 </div>
-                <div class="branch-performance-annual-grid-v2">
+                <div class="service-annual-summary-grid branch-performance-annual-grid-v2">
                     ${items.join('')}
                 </div>
-            </section>`;
+            </div>`;
     }
 
     function renderBranchPerformanceAnnualStats(card) {
@@ -1931,7 +1931,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const cableBreak = annual.cable_break || {};
         const power = annual.power || {};
         return `
-            <div class="branch-performance-annual-stats">
+            <div class="service-annual-summary branch-performance-annual-stats">
                 ${renderBranchPerformanceAnnualSection('\u88f8\u7ea4\u4e1a\u52a1', [
                     renderBranchPerformanceMetricItem('\u603b\u6b21\u6570', bareFiber.total_count, '\u8d77', true),
                     renderBranchPerformanceMetricItem('\u53bb\u9664\u540c\u6e90', bareFiber.distinct_count, '\u8d77', true),
@@ -1956,17 +1956,21 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderBranchPerformanceRuntimeCalendar(card) {
         return `
-                <div class="branch-performance-runtime-calendar">
-                    <div class="branch-performance-runtime-calendar-chart" aria-label="本年子公司故障月度统计"></div>
+                <div class="service-runtime-calendar branch-performance-runtime-calendar">
+                    <div class="service-runtime-calendar-heading">
+                        <span class="service-runtime-calendar-icon"><i class="mdi mdi-calendar-month-outline"></i></span>
+                        <div class="service-runtime-calendar-title">运行月历</div>
+                    </div>
+                    <div class="service-runtime-calendar-chart branch-performance-runtime-calendar-chart" aria-label="本年子公司故障月度统计"></div>
                 </div>`;
     }
 
     function renderBranchPerformanceInterruptCalendar(card, interruptCalendarMaxCount) {
-        const months = Array.isArray(card.interrupt_calendar) ? card.interrupt_calendar : [];
+        const months = Array.isArray(card.interrupt_calendar) ? card.interrupt_calendar.slice(-3) : [];
         const expandedMonths = Array.isArray(card.interrupt_calendar_full) ? card.interrupt_calendar_full : months;
         const maxCount = Number(interruptCalendarMaxCount || 0);
         return `
-                <div class="branch-performance-interrupt-calendar service-interrupt-calendar" aria-label="近六个月子公司中断日历">
+                <div class="branch-performance-interrupt-calendar service-interrupt-calendar" aria-label="近三个月子公司中断日历">
                     <div class="service-interrupt-calendar-months service-interrupt-calendar-months--default">${renderServiceInterruptCalendarMonthGrid(months, maxCount)}</div>
                     <div class="service-interrupt-calendar-months service-interrupt-calendar-months--expanded d-none">${renderServiceInterruptCalendarMonthGrid(expandedMonths, maxCount)}</div>
                     <button type="button" class="branch-performance-interrupt-calendar-toggle service-interrupt-calendar-toggle" aria-label="展开本年中断日历" title="展开本年中断日历">
@@ -2134,22 +2138,24 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function renderBranchCompanyPerformanceCard(card) {
+        const title = card.label || card.province || '-';
+        const annualYear = (card.annual_stats && card.annual_stats.year) || new Date().getFullYear();
+        const annualLabel = `年度累计（${annualYear}年）`;
         return `
-            <article class="card shadow-sm statistics-branch-performance-card" data-province="${escapeHtml(card.province || '')}">
-                <div class="branch-performance-card-top">
-                    <div class="branch-performance-company">
-                        <span class="branch-performance-company-icon"><i class="mdi mdi-office-building" aria-hidden="true"></i></span>
-                        <div class="branch-performance-company-main">
-                            <button type="button" class="branch-performance-title">
-                                <span>${escapeHtml(card.label || card.province || '-')}</span>
-                            </button>
-                        </div>
-                    </div>
+            <div class="statistics-strip-card service-strip-card statistics-branch-performance-card" data-province="${escapeHtml(card.province || '')}">
+                <div class="service-strip-card-title" title="${escapeHtml(`${title} ${annualLabel}`)}" role="button" tabindex="0">
+                    <span class="branch-performance-title-name">${escapeHtml(title)}</span>
+                    <span class="branch-performance-title-annual">
+                        <span class="branch-performance-title-annual-icon"><i class="mdi mdi-calendar-range-outline"></i></span>
+                        <span>${escapeHtml(annualLabel)}</span>
+                    </span>
                 </div>
-                ${renderBranchPerformanceAnnualStats(card)}
-                ${renderBranchPerformanceRuntimeCalendar(card)}
-                ${renderBranchPerformanceInterruptCalendar(card, card.interruptCalendarMaxCount)}
-            </article>`;
+                <div class="statistics-strip-card-body">
+                    ${renderBranchPerformanceAnnualStats(card)}
+                    ${renderBranchPerformanceRuntimeCalendar(card)}
+                    ${renderBranchPerformanceInterruptCalendar(card, card.interruptCalendarMaxCount)}
+                </div>
+            </div>`;
     }
 
     function renderBranchCompanyPerformanceCards(cards) {
@@ -2170,7 +2176,7 @@ document.addEventListener("DOMContentLoaded", function() {
         container.querySelectorAll('.statistics-branch-performance-card').forEach(cardEl => {
             const province = cardEl.dataset.province || '';
             const card = cardsWithCalendar.find(item => item.province === province);
-            const title = cardEl.querySelector('.branch-performance-title');
+            const title = cardEl.querySelector('.service-strip-card-title');
             if (title && card) {
                 title.addEventListener('click', () => handleBranchCompanyPerformanceCardClick(card));
             }
