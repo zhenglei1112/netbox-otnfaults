@@ -549,6 +549,17 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id="filtered-kpi-summary"', physical_tab)
         self.assertIn('id="details-tbody"', physical_tab)
 
+    def test_physical_tab_overview_sections_follow_branch_company_order(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        physical_tab = template.split('<div class="tab-pane fade show active" id="tab-physical"', 1)[1].split('<!-- ===== 裸纤业务故障 Tab ===== -->', 1)[0]
+
+        overall_index = physical_tab.index('<!-- 总体情况 -->')
+        barefiber_index = physical_tab.index('<!-- 裸纤业务中断情况 -->')
+        cable_break_index = physical_tab.index('<!-- 光缆中断 -->')
+
+        self.assertLess(overall_index, barefiber_index)
+        self.assertLess(barefiber_index, cable_break_index)
+
     def test_cable_break_tab_resizes_hidden_echarts_after_shown(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
         tab_source = source.split("// ---------------- Tab", 1)[1].split("// ---------------- 初始化启动", 1)[0]

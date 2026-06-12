@@ -990,6 +990,18 @@ class FaultStatisticsControl {
       return;
     }
 
+    // 检查匹配到的路径是否包含 geometry 数据，若缺失则通过 faultMapPlugin 异步批量拉取并补全
+    if (matchedPaths.length > 0) {
+      const missingGeometryPathIds = matchedPaths
+        .filter(p => !p.geometry || !p.geometry.coordinates || p.geometry.coordinates.length === 0)
+        .map(p => p.properties.id);
+      
+      if (missingGeometryPathIds.length > 0 && window.faultMapPlugin && window.faultMapPlugin.ensurePathsGeometry) {
+        console.log("[flyToPath] 路径缺失空间几何坐标，发起按需拉取:", missingGeometryPathIds);
+        await window.faultMapPlugin.ensurePathsGeometry(missingGeometryPathIds);
+      }
+    }
+
     // 清理已有弹窗
     // FIX: 优先处理 fault_mode.js 创建的全局 popup，防止其 close 事件干扰
     if (window._currentPathPopup) {
@@ -1110,15 +1122,17 @@ class FaultStatisticsControl {
       // 计算所有路径的边界并fly to
       const bounds = new maplibregl.LngLatBounds();
       matchedPaths.forEach((path) => {
-        const coords = path.geometry.coordinates;
-        coords.forEach((c) => bounds.extend(c));
+        if (path.geometry && path.geometry.coordinates) {
+          const coords = path.geometry.coordinates;
+          coords.forEach((c) => bounds.extend(c));
+        }
       });
 
       // 1. 立即显示静态高亮 (解决 FlyTo 过程无视觉反馈问题)
-      // 高亮所有匹配的路径（使用FeatureCollection）
+      // 高亮所有匹配的路径（使用FeatureCollection，过滤掉空地理信息的要素）
       const highlightData = {
         type: "FeatureCollection",
-        features: matchedPaths,
+        features: matchedPaths.filter(p => p.geometry && p.geometry.coordinates && p.geometry.coordinates.length > 0),
       };
 
       if (this.map.getSource("otn-paths-highlight")) {

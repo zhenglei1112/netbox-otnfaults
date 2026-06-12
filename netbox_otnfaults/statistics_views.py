@@ -20,7 +20,8 @@ from typing import Any
 from .models import (
     OtnFault, OtnFaultImpact, BareFiberService,
     FaultCategoryChoices, ResourceTypeChoices, CableTypeChoices,
-    ServiceTypeChoices, FaultStatusChoices, BusinessImpactChoices
+    ServiceTypeChoices, FaultStatusChoices, BusinessImpactChoices,
+    PowerFaultImpactChoices
 )
 from dcim.models import Region
 from .statistics_period import build_period_display
@@ -115,6 +116,10 @@ def _should_exclude_for_branch(fault) -> bool:
         except Exception:
             return False
     return False
+
+
+def _is_branch_company_fault(fault) -> bool:
+    return _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES and not _should_exclude_for_branch(fault)
 
 
 def truncate_sla(value: float) -> float:
@@ -867,9 +872,77 @@ def _build_branch_performance_calendar_payload(
     return payload
 
 
+def _build_branch_performance_bare_fiber_annual_stats(
+    year_start,
+    year_end,
+    now,
+) -> dict[str, dict[str, float | int]]:
+    stats: dict[str, dict[str, float | int]] = {
+        province: {
+            'total_count': 0,
+            'distinct_count': 0,
+            'total_duration': 0.0,
+            'distinct_duration': 0.0,
+        }
+        for province in BRANCH_PROVINCE_NAMES
+    }
+    fault_durations: dict[str, dict[int, float]] = {
+        province: {}
+        for province in BRANCH_PROVINCE_NAMES
+    }
+    impacts = OtnFaultImpact.objects.select_related(
+        'otn_fault',
+        'otn_fault__province',
+        'otn_fault__handling_unit',
+    ).filter(
+        service_interruption_time__gte=year_start,
+        service_interruption_time__lt=year_end,
+        service_type=ServiceTypeChoices.BARE_FIBER,
+        otn_fault__is_suspended=False,
+    ).exclude(
+        otn_fault__fault_status=FaultStatusChoices.SUSPENDED,
+    )
+
+    for imp in impacts:
+        if imp.business_impact == BusinessImpactChoices.NOT_INTERRUPTED:
+            continue
+
+        fault = imp.otn_fault
+        province = _branch_province_for_fault(fault)
+        if province not in BRANCH_PROVINCE_NAMES or _should_exclude_for_branch(fault):
+            continue
+
+        is_rectification_planned = (
+            fault.interruption_reason == 'cable_rectification' and
+            fault.interruption_reason_detail == 'planned_reporting'
+        )
+        is_approved = imp.coordination_status == 'approved'
+        if is_rectification_planned and is_approved:
+            continue
+
+        end_t = imp.service_recovery_time if imp.service_recovery_time else now
+        duration_hours = (end_t - imp.service_interruption_time).total_seconds() / 3600.0
+        stats[province]['total_count'] += 1
+        stats[province]['total_duration'] += duration_hours
+        if imp.otn_fault_id:
+            fault_durations[province][imp.otn_fault_id] = max(
+                fault_durations[province].get(imp.otn_fault_id, 0.0),
+                duration_hours,
+            )
+
+    for province in BRANCH_PROVINCE_NAMES:
+        durations = fault_durations[province].values()
+        stats[province]['distinct_count'] = len(fault_durations[province])
+        stats[province]['total_duration'] = round(float(stats[province]['total_duration']), 2)
+        stats[province]['distinct_duration'] = round(sum(durations), 2)
+
+    return stats
+
+
 def _build_branch_company_performance_cards(
     branch_faults: list,
     year_faults: list,
+    year_all_faults: list,
     path_lengths: dict[str, float],
     calendar_months: list[dict[str, object]],
     calendar_full_months: list[dict[str, object]],
@@ -911,6 +984,18 @@ def _build_branch_company_performance_cards(
     year_end = now if now.year == selected_year else timezone.datetime(selected_year + 1, 1, 1, tzinfo=tz)
     week_ranges = _build_branch_week_ranges(year_start, year_end)
     week_labels = [week['label'] for week in week_ranges]
+    bare_fiber_annual_stats = _build_branch_performance_bare_fiber_annual_stats(year_start, year_end, now)
+    year_fault_groups: dict[str, list] = {province: [] for province in BRANCH_PROVINCE_NAMES}
+    for fault in year_all_faults:
+        province = _branch_province_for_fault(fault)
+        if province in year_fault_groups:
+            year_fault_groups[province].append(fault)
+    year_cable_break_groups: dict[str, list] = {province: [] for province in BRANCH_PROVINCE_NAMES}
+    for fault in year_faults:
+        province = _branch_province_for_fault(fault)
+        if province in year_cable_break_groups:
+            year_cable_break_groups[province].append(fault)
+    year_repeat_fault_ids = _build_repeat_fault_id_set(year_faults, year_end, now)
 
     cards: list[dict[str, object]] = []
     for province in BRANCH_PROVINCE_NAMES:
@@ -965,6 +1050,41 @@ def _build_branch_company_performance_cards(
         overall_score = _calculate_branch_performance_score(overall_metrics)
         province_calendar_stats = calendar_stats[province]
         province_monthly_stats = province_calendar_stats['monthly_stats']
+        cable_break_annual_faults = year_cable_break_groups[province]
+        cable_break_durations = [
+            _duration_hours_for_fault(fault, now)
+            for fault in cable_break_annual_faults
+        ]
+        cable_break_duration_total = sum(cable_break_durations)
+        cable_break_valid_durations = [
+            duration
+            for duration in cable_break_durations
+            if duration > 0.5
+        ]
+        cable_break_valid_avg_duration = (
+            sum(cable_break_valid_durations) / len(cable_break_valid_durations)
+            if cable_break_valid_durations else 0.0
+        )
+        cable_break_long_count = sum(
+            1
+            for duration in cable_break_durations
+            if duration >= 6.0
+        )
+        cable_break_repeat_count = sum(
+            1
+            for fault in cable_break_annual_faults
+            if fault.id in year_repeat_fault_ids
+        )
+        power_faults = [
+            fault for fault in year_fault_groups[province]
+            if fault.fault_category == FaultCategoryChoices.POWER_FAULT
+            and _is_non_suspended_fault(fault)
+        ]
+        power_hosted_count = sum(
+            1
+            for fault in power_faults
+            if getattr(fault, 'power_fault_impact', None) == PowerFaultImpactChoices.HOSTED
+        )
         cards.append({
             'province': province,
             'label': f'{province}分公司',
@@ -977,12 +1097,30 @@ def _build_branch_company_performance_cards(
             'overall_metrics': overall_metrics,
             'responsibility_reason_top3': _sorted_count_items(responsibility_reason_counts)[:3],
             'overall_reason_top3': _sorted_count_items(overall_reason_counts)[:3],
+            'annual_stats': {
+                'bare_fiber': bare_fiber_annual_stats.get(province, {}),
+                'cable_break': {
+                    'total_count': len(cable_break_annual_faults),
+                    'count_per_1000km': _per_1000km(len(cable_break_annual_faults), length_km),
+                    'total_duration': round(cable_break_duration_total, 2),
+                    'duration_per_1000km': _per_1000km(cable_break_duration_total, length_km),
+                    'valid_avg_duration': round(cable_break_valid_avg_duration, 2),
+                    'long_count': cable_break_long_count,
+                    'repeat_count': cable_break_repeat_count,
+                },
+                'power': {
+                    'total_count': len(power_faults),
+                    'hosted_count': power_hosted_count,
+                },
+            },
             'monthly_stats': [
                 {
                     'month': month,
                     'label': f'{month}月',
                     'count': int(province_monthly_stats[month]['count']),
                     'duration': round(float(province_monthly_stats[month]['duration']), 2),
+                    'count_per_1000km': _per_1000km(province_monthly_stats[month]['count'], length_km),
+                    'duration_per_1000km': _per_1000km(province_monthly_stats[month]['duration'], length_km),
                 }
                 for month in range(1, 13)
             ],
@@ -1004,6 +1142,7 @@ def _build_branch_company_performance_cards(
                 for label, count in responsibility_basis.items()
             ],
         })
+    cards.sort(key=lambda card: card['annual_stats']['cable_break']['count_per_1000km'], reverse=True)
     return cards
 
 
@@ -1020,19 +1159,16 @@ def _build_branch_company_statistics(
     path_lengths = BRANCH_PROVINCE_PATH_LENGTHS.copy()
     branch_all_faults = [
         fault for fault in all_faults
-        if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
-        and not _should_exclude_for_branch(fault)
+        if _is_branch_company_fault(fault)
     ]
     branch_cable_break_faults = [
         fault for fault in cable_break_faults
-        if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
-        and not _should_exclude_for_branch(fault)
+        if _is_branch_company_fault(fault)
     ]
     branch_suspended_faults_count = sum(
         1
         for fault in OtnFault.objects.select_related('province', 'handling_unit').filter(_suspended_fault_q())
-        if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
-        and not _should_exclude_for_branch(fault)
+        if _is_branch_company_fault(fault)
     )
 
     overview_faults = [
@@ -1120,10 +1256,18 @@ def _build_branch_company_statistics(
         for province in BRANCH_PROVINCE_NAMES
     }
 
+    year_all_faults = [
+        fault for fault in OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit')
+        .prefetch_related('interruption_location')
+        .filter(
+            fault_occurrence_time__gte=year_start,
+            fault_occurrence_time__lt=year_end,
+        )
+        if _is_branch_company_fault(fault)
+    ]
     year_faults = [
         fault for fault in get_cable_break_base_queryset(year_start, year_end)
-        if _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES
-        and not _should_exclude_for_branch(fault)
+        if _is_branch_company_fault(fault)
     ]
     for fault in year_faults:
         province = _branch_province_for_fault(fault)
@@ -1183,6 +1327,13 @@ def _build_branch_company_statistics(
     branch_cable_break_overview = _compute_cable_break_overview(branch_cable_break_faults, now)
 
     branch_cable_break_overview = _compute_cable_break_overview(branch_cable_break_faults, now)
+    branch_bare_fiber_interruption = _compute_bare_fiber_interruption_overview(
+        start_date,
+        end_date,
+        [],
+        now,
+        branch_company_scope=True,
+    )
     branch_cable_break_overview['repeat_faults_count'] = _count_repeat_fiber_faults(
         branch_cable_break_faults,
         end_date,
@@ -1191,6 +1342,7 @@ def _build_branch_company_statistics(
     performance_cards = _build_branch_company_performance_cards(
         branch_cable_break_faults,
         year_faults,
+        year_all_faults,
         path_lengths,
         calendar_months,
         calendar_full_months,
@@ -1207,6 +1359,7 @@ def _build_branch_company_statistics(
             'categories': _build_fault_category_summary(overview_faults, now),
             'other': _build_other_fault_summary(branch_all_faults, branch_suspended_faults_count),
         },
+        'bare_fiber_interruption': branch_bare_fiber_interruption,
         'cable_break_overview': branch_cable_break_overview,
         'province_bars': province_bars,
         'duration_boxplot': duration_boxplot,
@@ -1355,7 +1508,13 @@ def _apply_physical_province_filter(queryset: QuerySet, selected_provinces: list
     return queryset.filter(province__name__in=selected_provinces)
 
 
-def _compute_bare_fiber_interruption_overview(start_date, end_date, selected_provinces, now) -> dict:
+def _compute_bare_fiber_interruption_overview(
+    start_date,
+    end_date,
+    selected_provinces: list[str],
+    now,
+    branch_company_scope: bool = False,
+) -> dict[str, float | int]:
     """计算统计周期内裸纤业务的中断概览指标。"""
     impacts = OtnFaultImpact.objects.select_related(
         'otn_fault',
@@ -1378,6 +1537,13 @@ def _compute_bare_fiber_interruption_overview(start_date, end_date, selected_pro
             continue
 
         fault = imp.otn_fault
+        if branch_company_scope:
+            if (
+                _branch_province_for_fault(fault) not in BRANCH_PROVINCE_NAMES
+                or _should_exclude_for_branch(fault)
+            ):
+                continue
+
         is_rectification_planned = (
             fault.interruption_reason == 'cable_rectification' and
             fault.interruption_reason_detail == 'planned_reporting'
@@ -1657,6 +1823,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
 
         # Detail List (供下钻表结构)
         details = []
+        branch_company_details = []
 
         # 计算前续日期窗口
         preceding_duplicate_start_date = start_date
@@ -1793,7 +1960,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             # 明细存储（仅返回精简信息给前端作本地过滤或列表展示)
             z_site_names = [s.name for s in fault.interruption_location.all()]
             
-            details.append({
+            detail = {
                 'id': fault.id,
                 'fault_number': fault.fault_number,
                 'fault_occurrence_time': _format_local_datetime(occ_time),
@@ -1815,7 +1982,10 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'is_long': duration_hours >= 6.0,
                 'url': fault.get_absolute_url(),
                 'in_period': True
-            })
+            }
+            details.append(detail)
+            if _is_branch_company_fault(fault):
+                branch_company_details.append(detail)
 
         for fault in matched_preceding_faults:
             occ_time = fault.fault_occurrence_time
@@ -1825,7 +1995,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             reason = fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知'
             z_site_names = [s.name for s in fault.interruption_location.all()]
             
-            details.append({
+            detail = {
                 'id': fault.id,
                 'fault_number': fault.fault_number,
                 'fault_occurrence_time': _format_local_datetime(occ_time),
@@ -1847,7 +2017,10 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'is_long': duration_hours >= 6.0,
                 'url': fault.get_absolute_url(),
                 'in_period': False
-            })
+            }
+            details.append(detail)
+            if _is_branch_company_fault(fault):
+                branch_company_details.append(detail)
 
         # 使用辅助函数计算当前期光缆中断概览
         cable_break_overview = _compute_cable_break_overview(faults, now)
@@ -1934,6 +2107,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             'other_overview': other_overview,
             'prev_other_overview': prev_other_overview,
             'selected_provinces': selected_provinces,
+            'branch_company_details': branch_company_details,
             'details': details
         })
 

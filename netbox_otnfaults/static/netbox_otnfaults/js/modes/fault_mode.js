@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 一张图模式插件
  */
 
@@ -63,6 +63,7 @@ const FaultModePlugin = {
     window.updateMapState = this.updateMapState.bind(this);
     window.setFaultMapAnimationSuspended = this.setAnimationSuspended.bind(this);
     window.highlightPath = this.highlightPath.bind(this); // 统一高亮入口
+    window.faultMapPlugin = this;
 
     if (this.layerToggleControl) {
       window.layerToggleControl = this.layerToggleControl;
@@ -1240,70 +1241,56 @@ const FaultModePlugin = {
   },
 
   _loadPathMetadata() {
-    // 加载 top5 路径等
+    // 加载 top5 路径等（轻量级，不带 geometry）
     if (typeof OTNFaultMapAPI !== "undefined") {
-      console.log("[FaultMode] Loading metadata...");
+      console.log("[FaultMode] Loading metadata (lightweight)...");
 
-      const loadPromise = OTNFaultMapAPI.fetchPaths().then((data) => {
-        // 预处理数据：确保 total_length 存在
-        if (data && Array.isArray(data)) {
-          // 定义计算距离函数 (Haversine Formula)
-          const calcLineDist = (coords) => {
-            let total = 0;
-            const R = 6371; // km
-            for (let i = 0; i < coords.length - 1; i++) {
-              const [lon1, lat1] = coords[i];
-              const [lon2, lat2] = coords[i + 1];
-              const dLat = (lat2 - lat1) * Math.PI / 180;
-              const dLon = (lon2 - lon1) * Math.PI / 180;
-              const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-              total += R * c;
-            }
-            return total;
-          };
-
-          data.forEach(item => {
-            if (item.properties && item.geometry) {
-              // 如果 total_length 缺失或为 null，尝试从其他字段或几何计算获取
-              if (item.properties.total_length == null) {
-                // 1. 尝试备选字段
-                if (item.properties.distance != null) item.properties.total_length = item.properties.distance;
-                else if (item.properties.length != null) item.properties.total_length = item.properties.length;
-
-                // 2. 如果仍无效，从几何计算
-                if (item.properties.total_length == null) {
-                  try {
-                    let totalKm = 0;
-                    if (item.geometry.type === 'LineString') {
-                      totalKm = calcLineDist(item.geometry.coordinates);
-                    } else if (item.geometry.type === 'MultiLineString') {
-                      item.geometry.coordinates.forEach(coords => {
-                        totalKm += calcLineDist(coords);
-                      });
-                    }
-                    if (totalKm > 0) {
-                      // 保留3位小数
-                      item.properties.total_length = Math.round(totalKm * 1000) / 1000;
-                    }
-                  } catch (e) {
-                    console.warn("[FaultMode] Failed to calculate length for path:", item.properties.id, e);
-                  }
-                }
-              }
-            }
-          });
-        }
-
-        // 保存元数据到全局变量（用于弹窗显示路径详情）
+      const loadPromise = OTNFaultMapAPI.fetchLightweightPaths().then((data) => {
+        // 保存元数据到全局变量（用于弹窗显示路径详情，此时暂无 geometry 坐标）
         window.OTNPathsMetadata = data || [];
-        // 注意：不再需要更新 FlowAnimator 的背景流动层（已优化删除）
         return data;
       });
       // 暴露 Promise 供控件(如FaultStatisticsControl)等待
       window.OTNPathsLoadingPromise = loadPromise;
+    }
+  },
+
+  /**
+   * 异步确保指定的路径 ID 列表在缓存中已经有几何坐标数据，如果缺失则实时补拉
+   * @param {number[]} pathIds - 路径 ID 数组
+   */
+  async ensurePathsGeometry(pathIds) {
+    if (!pathIds || pathIds.length === 0) return;
+
+    // 找出缓存中没有 geometry 数据，或者 geometry coordinates 为空数组的路径 ID
+    const missingIds = pathIds.filter(id => {
+      const cached = window.OTNPathsMetadata.find(
+        p => p.properties && p.properties.id == id
+      );
+      return !cached || !cached.geometry || !cached.geometry.coordinates || cached.geometry.coordinates.length === 0;
+    });
+
+    if (missingIds.length === 0) {
+      return;
+    }
+
+    console.log("[FaultMode] 正在异步拉取缺失的空间几何数据，路径 ID:", missingIds);
+    try {
+      const fetchedPaths = await OTNFaultMapAPI.fetchPathsGeometry(missingIds);
+
+      // 回填到本地缓存中
+      fetchedPaths.forEach(newPath => {
+        const cached = window.OTNPathsMetadata.find(
+          p => p.properties && p.properties.id == newPath.properties.id
+        );
+        if (cached) {
+          cached.geometry = newPath.geometry;
+        } else {
+          window.OTNPathsMetadata.push(newPath);
+        }
+      });
+    } catch (e) {
+      console.error("[FaultMode] 补拉空间几何数据失败:", e);
     }
   },
 
@@ -1360,7 +1347,7 @@ const FaultModePlugin = {
     }
   },
 
-  _showCutoverPopup(feature) {
+  async _showCutoverPopup(feature) {
     if (typeof PopupTemplates !== "undefined") {
       const cutoverId = feature.properties.id || feature.properties.number;
 
@@ -1447,11 +1434,11 @@ const FaultModePlugin = {
       });
 
       // 联动高亮 A-Z 站点与受影响路径
-      this._highlightCutoverImpacts(feature.properties);
+      await this._highlightCutoverImpacts(feature.properties);
     }
   },
 
-  _highlightCutoverImpacts(props) {
+  async _highlightCutoverImpacts(props) {
     const map = this.map;
     const aSiteId = props.a_site_id;
     let zSiteIds = props.z_site_ids;
@@ -1490,11 +1477,24 @@ const FaultModePlugin = {
     // 2. 高亮关联光缆路径并启动流光
     const pathFeatures = this._getImpactedPathFeatures(aSiteId, zSiteIds);
     if (pathFeatures.length > 0) {
-      const featureCollection = {
-        type: "FeatureCollection",
-        features: pathFeatures
-      };
-      this.highlightPath(featureCollection);
+      // 检查是否缺失几何数据并补拉
+      const pathIdsNeedGeometry = pathFeatures
+        .filter(p => !p.geometry || !p.geometry.coordinates || p.geometry.coordinates.length === 0)
+        .map(p => p.properties.id);
+
+      if (pathIdsNeedGeometry.length > 0) {
+        await this.ensurePathsGeometry(pathIdsNeedGeometry);
+      }
+
+      // 重新获取包含最新几何数据的路径特征
+      const updatedPathFeatures = this._getImpactedPathFeatures(aSiteId, zSiteIds);
+      if (updatedPathFeatures.length > 0) {
+        const featureCollection = {
+          type: "FeatureCollection",
+          features: updatedPathFeatures.filter(p => p.geometry && p.geometry.coordinates && p.geometry.coordinates.length > 0)
+        };
+        this.highlightPath(featureCollection);
+      }
     }
   },
 

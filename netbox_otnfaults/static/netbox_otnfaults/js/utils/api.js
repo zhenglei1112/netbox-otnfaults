@@ -102,6 +102,156 @@ const OTNFaultMapAPI = {
                 })
                 .filter(item => item !== null);
         });
+    },
+
+    /**
+     * 获取轻量级路径数据（不含 geometry 坐标）
+     * @returns {Promise<Array>} - 路径轻量特征数组
+     */
+    fetchLightweightPaths: function() {
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        
+        const csrfMatch = typeof document !== 'undefined'
+            ? document.cookie.match(/(?:^|; )csrftoken=([^;]+)/)
+            : null;
+        const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch[1]) : (window.OTNMapConfig ? window.OTNMapConfig.csrfToken : '');
+        
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+
+        const fetchPage = (url, accumulatedResults = []) => {
+            return fetch(url, {
+                method: 'GET',
+                headers: headers,
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const pageResults = data.results || [];
+                const results = accumulatedResults.concat(pageResults);
+                if (data.next) {
+                    return fetchPage(data.next, results);
+                }
+                return results;
+            });
+        };
+
+        return fetchPage('/api/plugins/otnfaults/paths/lightweight/')
+        .then(results => {
+            return results.map(path => {
+                return {
+                    type: 'Feature',
+                    geometry: null, // 初始化不带坐标
+                    properties: {
+                        id: path.id,
+                        name: path.name,
+                        url: path.url,
+                        a_site: path.site_a ? path.site_a.name : null,
+                        z_site: path.site_z ? path.site_z.name : null,
+                        a_site_id: path.site_a ? path.site_a.id : null,
+                        z_site_id: path.site_z ? path.site_z.id : null,
+                        total_length: path.calculated_length ? parseFloat(path.calculated_length).toFixed(3) : null
+                    }
+                };
+            });
+        });
+    },
+
+    /**
+     * 批量根据 ID 获取路径的完整几何坐标信息
+     * @param {number[]} pathIds - 路径 ID 数组
+     * @returns {Promise<Array>} - 路径完整 Feature 数组
+     */
+    fetchPathsGeometry: function(pathIds) {
+        if (!pathIds || pathIds.length === 0) {
+            return Promise.resolve([]);
+        }
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        
+        const csrfMatch = typeof document !== 'undefined'
+            ? document.cookie.match(/(?:^|; )csrftoken=([^;]+)/)
+            : null;
+        const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch[1]) : (window.OTNMapConfig ? window.OTNMapConfig.csrfToken : '');
+        
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+
+        const fetchPage = (url, accumulatedResults = []) => {
+            return fetch(url, {
+                method: 'GET',
+                headers: headers,
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const pageResults = data.results || [];
+                const results = accumulatedResults.concat(pageResults);
+                if (data.next) {
+                    return fetchPage(data.next, results);
+                }
+                return results;
+            });
+        };
+
+        // 通过多个 id 过滤条件查询
+        const queryParams = pathIds.map(id => `id=${id}`).join('&');
+        return fetchPage(`/api/plugins/otnfaults/paths/?${queryParams}`)
+        .then(results => {
+            return results
+                .filter(path => path.geometry)
+                .map(path => {
+                    let geometry = path.geometry;
+                    if (typeof geometry === 'string') {
+                        try {
+                            geometry = JSON.parse(geometry.replace(/'/g, '"'));
+                        } catch (e) {
+                            console.warn(`Failed to parse geometry for path ${path.id}:`, e);
+                            return null;
+                        }
+                    }
+                    if (Array.isArray(geometry)) {
+                        geometry = {
+                            type: 'LineString',
+                            coordinates: geometry
+                        };
+                    }
+
+                    return {
+                        type: 'Feature',
+                        geometry: geometry,
+                        properties: {
+                            id: path.id,
+                            name: path.name,
+                            url: `/plugins/otnfaults/paths/${path.id}/`,
+                            a_site: path.site_a ? path.site_a.name : null,
+                            z_site: path.site_z ? path.site_z.name : null,
+                            a_site_id: path.site_a ? path.site_a.id : null,
+                            z_site_id: path.site_z ? path.site_z.id : null,
+                            total_length: path.calculated_length ? parseFloat(path.calculated_length).toFixed(3) : null
+                        }
+                    };
+                })
+                .filter(item => item !== null);
+        });
     }
 };
 

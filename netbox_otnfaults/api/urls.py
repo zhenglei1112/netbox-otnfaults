@@ -19,6 +19,7 @@ router.register('heavy-duties', views.HeavyDutyViewSet)
 # 自定义路由放在 router.urls 之前，防止被 ViewSet 通配路由覆盖
 # 使用 re_path 支持带/不带尾部斜杠
 urlpatterns = [
+    path('paths/lightweight/', views.lightweight_paths_view, name='lightweight-paths'),
     path('path-groups/map-overlays/', views.path_group_map_overlays, name='path-group-map-overlays'),
     path('path-groups/<int:pk>/map-overlay/', views.path_group_map_overlay_detail, name='path-group-map-overlay-detail'),
     re_path(r'^path-groups/(?P<pk>\d+)/batch-add/?$', views.path_group_batch_add, name='path-group-batch-add'),
@@ -28,4 +29,3 @@ urlpatterns = [
     path('heatmap-data/', views.HeatmapDataView.as_view(), name='heatmap-data'),
     path('route-snapper/calculate/', views.RouteSnapperView.as_view(), name='route-snapper-calculate'),
 ] + router.urls
-

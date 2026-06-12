@@ -104,7 +104,7 @@
                 <button class="nav-link" id="tab-branch-performance-btn" data-bs-toggle="tab"
                     data-bs-target="#tab-branch-performance" type="button" role="tab" aria-controls="tab-branch-performance"
                     aria-selected="false">
-                    <i class="mdi mdi-chart-timeline-variant me-1"></i>子公司绩效评分
+                    <i class="mdi mdi-chart-timeline-variant me-1"></i>子公司绩效
                 </button>
             </li>
         </ul>
@@ -114,6 +114,51 @@
             <!-- ===== 物理故障统计 Tab ===== -->
             <div class="tab-pane fade show active" id="tab-physical" role="tabpanel" aria-labelledby="tab-physical-btn">
                 
+                <!-- 总体情况 -->
+                <section class="statistics-overall-overview mb-4">
+                    <div class="statistics-cable-break-heading-row mb-3">
+                        <h3 class="statistics-cable-break-heading mb-0">
+                            <span>总体情况</span>
+                        </h3>
+                    </div>
+                    <div class="statistics-cable-break-summary-grid statistics-overall-card-grid mb-3">
+                        <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-card">
+                            <div class="statistics-strip-card-body">
+                                <div
+                                    class="statistics-overall-metrics d-flex flex-row align-items-center w-100 py-1 statistics-strip-card-metrics">
+                                    <div
+                                        class="statistics-overall-main statistics-overall-metric-slot d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
+                                        <div
+                                            class="statistics-overall-value-row d-flex align-items-baseline justify-content-center">
+                                            <span
+                                                class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1"
+                                                id="kpi-overall-total">--</span>
+                                            <span
+                                                class="statistics-overall-unit statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
+                                        </div>
+                                        <div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1"
+                                            style="font-size: 12px;">故障总数</div>
+                                    </div>
+                                    <div id="kpi-overall-categories-flex-list"
+                                        class="statistics-overall-categories-list statistics-kpi-grouped-list px-4 py-1 flex-grow-1">
+                                        <div class="text-muted small">数据加载中...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="statistics-strip-card-footer">物理故障</div>
+                        </div>
+                        <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-other-card">
+                            <div class="statistics-strip-card-body">
+                                <div id="kpi-overall-other-flex-list"
+                                    class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                    <div class="text-muted small">数据加载中...</div>
+                                </div>
+                            </div>
+                            <div class="statistics-strip-card-footer">其他</div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- 裸纤业务中断情况 -->
                 <section class="statistics-barefiber-overview">
                     <div class="statistics-cable-break-heading-row mb-3">
@@ -180,51 +225,6 @@
                                 </div>
                             </div>
                             <div class="statistics-strip-card-footer">去除同源历时</div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 总体情况 -->
-                <section class="statistics-overall-overview mb-4">
-                    <div class="statistics-cable-break-heading-row mb-3">
-                        <h3 class="statistics-cable-break-heading mb-0">
-                            <span>总体情况</span>
-                        </h3>
-                    </div>
-                    <div class="statistics-cable-break-summary-grid statistics-overall-card-grid mb-3">
-                        <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-card">
-                            <div class="statistics-strip-card-body">
-                                <div
-                                    class="statistics-overall-metrics d-flex flex-row align-items-center w-100 py-1 statistics-strip-card-metrics">
-                                    <div
-                                        class="statistics-overall-main statistics-overall-metric-slot d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
-                                        <div
-                                            class="statistics-overall-value-row d-flex align-items-baseline justify-content-center">
-                                            <span
-                                                class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1"
-                                                id="kpi-overall-total">--</span>
-                                            <span
-                                                class="statistics-overall-unit statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
-                                        </div>
-                                        <div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1"
-                                            style="font-size: 12px;">故障总数</div>
-                                    </div>
-                                    <div id="kpi-overall-categories-flex-list"
-                                        class="statistics-overall-categories-list statistics-kpi-grouped-list px-4 py-1 flex-grow-1">
-                                        <div class="text-muted small">数据加载中...</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">物理故障</div>
-                        </div>
-                        <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-other-card">
-                            <div class="statistics-strip-card-body">
-                                <div id="kpi-overall-other-flex-list"
-                                    class="statistics-kpi-grouped-list px-4 py-1 h-100">
-                                    <div class="text-muted small">数据加载中...</div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">其他</div>
                         </div>
                     </div>
                 </section>
@@ -695,6 +695,75 @@
                 </div>
             </section>
 
+            <section class="statistics-barefiber-overview mb-4">
+                <div class="statistics-cable-break-heading-row mb-3">
+                    <h3 class="statistics-cable-break-heading mb-0">
+                        <span>裸纤业务中断情况</span>
+                    </h3>
+                </div>
+                <div class="statistics-barefiber-grid mb-3" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem;">
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="branch-barefiber-total-count">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">次</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">总起数</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">总起数</div>
+                    </div>
+
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="branch-barefiber-distinct-count">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">次</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">去除同源起数</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">去除同源起数</div>
+                    </div>
+
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="branch-barefiber-total-duration">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">小时</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">总历时</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">总历时</div>
+                    </div>
+
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="branch-barefiber-distinct-duration">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">小时</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">去除同源历时</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">去除同源历时</div>
+                    </div>
+                </div>
+            </section>
+
             <section class="statistics-cable-break-overview mb-4">
                 <div class="statistics-cable-break-heading-row mb-3">
                     <h3 class="statistics-cable-break-heading mb-0">
@@ -871,8 +940,18 @@
                         故障明细
                         <span class="badge bg-primary ms-2" id="branch-company-drill-down-filter-badge" style="display:none"></span>
                     </h3>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="branch-company-btn-clear-filter"
-                        style="display:none">清除图表过滤</button>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="子公司故障明细排序方式">
+                            <input type="radio" class="btn-check" name="branchCompanyDetailSortMode"
+                                id="branch-company-detail-sort-time" value="time" autocomplete="off" checked>
+                            <label class="btn btn-outline-primary" for="branch-company-detail-sort-time">按时间排序</label>
+                            <input type="radio" class="btn-check" name="branchCompanyDetailSortMode"
+                                id="branch-company-detail-sort-repeat" value="repeat" autocomplete="off">
+                            <label class="btn btn-outline-primary" for="branch-company-detail-sort-repeat">按重复排序</label>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="branch-company-btn-clear-filter"
+                            style="display:none">清除图表过滤</button>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover table-vcenter card-table">
@@ -900,13 +979,21 @@
             </div>
         </div>
 
-        <!-- ===== 子公司绩效评分 Tab ===== -->
+        <!-- ===== 子公司绩效 Tab ===== -->
         <div class="tab-pane fade" id="tab-branch-performance" role="tabpanel" aria-labelledby="tab-branch-performance-btn">
             <section class="statistics-branch-performance-section mb-4">
-                <div class="statistics-cable-break-heading-row mb-3">
+                <div class="statistics-cable-break-heading-row mb-3 d-flex justify-content-between align-items-center">
                     <h3 class="statistics-cable-break-heading mb-0">
-                        <span>六省绩效考核</span>
+                        <span>子公司绩效</span>
                     </h3>
+                    <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="子公司绩效月度图指标切换">
+                        <input type="radio" class="btn-check" name="branchPerformanceRuntimeScale"
+                            id="branch-performance-runtime-scale-normalized" value="per_1000km" autocomplete="off" checked>
+                        <label class="btn btn-outline-primary" for="branch-performance-runtime-scale-normalized">千公里</label>
+                        <input type="radio" class="btn-check" name="branchPerformanceRuntimeScale"
+                            id="branch-performance-runtime-scale-raw" value="raw" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="branch-performance-runtime-scale-raw">原始值</label>
+                    </div>
                 </div>
                 <div id="branch-company-performance-cards" class="statistics-branch-performance-grid">
                     <div class="text-center text-muted py-4">数据加载中...</div>

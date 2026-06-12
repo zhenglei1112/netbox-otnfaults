@@ -2684,7 +2684,7 @@ body.modal-open {
 .branch-performance-card-top {
     align-items: center;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(7rem, 8rem);
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.85rem;
     margin-bottom: 1rem;
 }
@@ -2720,6 +2720,92 @@ body.modal-open {
     font-weight: 800;
     letter-spacing: 0;
     line-height: 1.15;
+}
+
+.branch-performance-annual-stats {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0 0 0.95rem;
+}
+
+.branch-performance-annual-section {
+    background: #ffffff;
+    border: 1px solid #dfe6f0;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+}
+
+.branch-performance-annual-heading {
+    background: linear-gradient(180deg, #f8fbff, #eef5ff);
+    border-bottom: 1px solid #e5ebf4;
+    color: #263854;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.2;
+    padding: 0.42rem 0.65rem;
+}
+
+.branch-performance-annual-section--cable-break .branch-performance-annual-heading {
+    background: linear-gradient(180deg, #fff8e5, #fff2cc);
+    color: #7c4a03;
+}
+
+.branch-performance-annual-section--power .branch-performance-annual-heading {
+    background: linear-gradient(180deg, #f8f5ff, #f0eaff);
+    color: #53389e;
+}
+
+.branch-performance-annual-grid {
+    background: #e8edf5;
+    display: grid;
+    gap: 1px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.branch-performance-annual-metric {
+    align-items: baseline;
+    background: #ffffff;
+    display: flex;
+    gap: 0.45rem;
+    justify-content: space-between;
+    min-width: 0;
+    padding: 0.46rem 0.58rem;
+}
+
+.branch-performance-annual-metric span {
+    color: #667085;
+    font-size: 0.74rem;
+    line-height: 1.2;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.branch-performance-annual-metric strong {
+    color: #101b3c;
+    flex: 0 0 auto;
+    font-size: 0.94rem;
+    font-weight: 500;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.branch-performance-annual-metric--emphasis .branch-performance-annual-value {
+    font-weight: 850;
+}
+
+.branch-performance-annual-metric small {
+    color: #667085;
+    font-size: 0.66rem;
+    font-weight: 600;
+    margin-left: 0.12rem;
+}
+
+.branch-performance-annual-section--cable-break .branch-performance-annual-grid .branch-performance-annual-metric:nth-child(2) .branch-performance-annual-value {
+    color: #d97706;
 }
 
 .branch-performance-score-subline {

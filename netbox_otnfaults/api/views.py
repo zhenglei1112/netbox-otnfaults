@@ -581,3 +581,33 @@ def path_group_clear_sites(request, pk):
         'success': True,
         'cleared_sites': count
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def lightweight_paths_view(request):
+    """
+    轻量级路径接口，不返回 geometry 字段，用于前端初始化、搜索和统计。
+    """
+    queryset = OtnPath.objects.all().select_related('site_a', 'site_z').only(
+        'id', 'name', 'site_a__id', 'site_a__name', 'site_z__id', 'site_z__name', 'calculated_length'
+    )
+    
+    results = []
+    for path in queryset:
+        results.append({
+            'id': path.id,
+            'name': path.name,
+            'url': f'/plugins/otnfaults/paths/{path.id}/',
+            'site_a': {
+                'id': path.site_a.id if path.site_a else None,
+                'name': path.site_a.name if path.site_a else None,
+            },
+            'site_z': {
+                'id': path.site_z.id if path.site_z else None,
+                'name': path.site_z.name if path.site_z else None,
+            },
+            'calculated_length': float(path.calculated_length) if path.calculated_length else None
+        })
+        
+    return Response({'results': results})

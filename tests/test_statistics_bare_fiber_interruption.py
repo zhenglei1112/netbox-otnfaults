@@ -49,11 +49,11 @@ class StatisticsBareFiberInterruptionTestCase(unittest.TestCase):
 
         self.assertIn("let currentBareFiberInterruption = null;", source)
         self.assertIn("let currentPrevBareFiberInterruption = null;", source)
-        self.assertIn("function renderBareFiberInterruption(overview, prevOverview)", source)
-        self.assertIn("document.getElementById('barefiber-total-count')", source)
-        self.assertIn("document.getElementById('barefiber-distinct-count')", source)
-        self.assertIn("document.getElementById('barefiber-total-duration')", source)
-        self.assertIn("document.getElementById('barefiber-distinct-duration')", source)
+        self.assertIn("function renderBareFiberInterruption(overview, prevOverview, idPrefix = 'barefiber')", source)
+        self.assertIn("document.getElementById(`${idPrefix}-total-count`)", source)
+        self.assertIn("document.getElementById(`${idPrefix}-distinct-count`)", source)
+        self.assertIn("document.getElementById(`${idPrefix}-total-duration`)", source)
+        self.assertIn("document.getElementById(`${idPrefix}-distinct-duration`)", source)
         self.assertIn("renderBareFiberInterruption(data.bare_fiber_interruption, data.prev_bare_fiber_interruption);", source)
         self.assertIn("renderBareFiberInterruption(currentBareFiberInterruption, currentPrevBareFiberInterruption || {});", source)
 
