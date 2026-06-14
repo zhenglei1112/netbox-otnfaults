@@ -2077,7 +2077,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         position: 'right',
                         nameLocation: 'middle',
                         nameRotate: 0,
-                        nameGap: 18,
+                        nameGap: runtimeScale === 'per_1000km' ? 18 : 0,
                         nameTextStyle: { color: '#078087', fontSize: 10, fontWeight: 600, align: 'center', verticalAlign: 'middle', padding: [78, 0, 0, 0] },
                         minInterval: 1,
                         min: 0,

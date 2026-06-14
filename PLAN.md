@@ -5,6 +5,7 @@
 - [x] 移除了依赖 DOM 像素坐标计算的 visualMap 配置，彻底修复隐藏 Tab 下 coord 未定义的报错。
 - [x] 修复后端 statistics_views.py 在子公司 annual_stats 负载中缺少 year 键值的问题。
 - [x] 调整前端 statistics_dashboard.js 的 annualYear 计算逻辑，添加解析 inputDate 中选择年份的健壮性双兜底。
+- [x] 优化前端运行月历图对齐，使故障数轴的 nameGap 依模式动态计算，实现在“原始值”下“次”字与上方的“时”字水平完美对齐。
 - [x] 运行故障统计相关单元测试，全部测试用例通过。
 
 ## 2026-06-12 故障统计模块：子公司详情增加排序切换
