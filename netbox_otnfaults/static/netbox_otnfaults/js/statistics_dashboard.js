@@ -1999,26 +1999,58 @@ document.addEventListener("DOMContentLoaded", function() {
             const card = cardEl ? cardsByProvince.get(cardEl.dataset.province) || {} : {};
             const monthlyStats = Array.isArray(card.monthly_stats) ? card.monthly_stats : [];
             const runtimeScale = getBranchPerformanceRuntimeScale();
-            const countUnit = runtimeScale === 'per_1000km' ? '次/千公里' : '次';
+            const countAxisUnit = runtimeScale === 'per_1000km' ? '次/千公里' : '次';
             const durationUnit = runtimeScale === 'per_1000km' ? '时/千公里' : '时';
             const monthLabels = Array.from({ length: 12 }, (_item, index) => `${index + 1}月`);
+            const selectedDateParts = inputDate.value.split('-').map(Number);
+            const annualYear = (card.annual_stats && card.annual_stats.year) || (selectedDateParts && selectedDateParts[0]) || new Date().getFullYear();
+            const currentDate = new Date();
+            const currentYear = currentDate.getFullYear();
+            const currentMonth = currentDate.getMonth() + 1;
+            const isCurrentYear = annualYear === currentYear;
             const countValues = monthLabels.map((_label, index) => Number(
                 monthlyStats[index] && (runtimeScale === 'per_1000km' ? monthlyStats[index].count_per_1000km : monthlyStats[index].count) || 0
             ));
             const durationValues = monthLabels.map((_label, index) => Number(
                 monthlyStats[index] && (runtimeScale === 'per_1000km' ? monthlyStats[index].duration_per_1000km : monthlyStats[index].duration) || 0
             ));
+            const durationValuesPast = Array(12).fill(null);
+            const durationValuesFuture = Array(12).fill(null);
+            if (isCurrentYear) {
+                for (let i = 0; i < 12; i++) {
+                    if (i < currentMonth) {
+                        durationValuesPast[i] = durationValues[i];
+                    }
+                    if (i >= currentMonth - 1) {
+                        durationValuesFuture[i] = durationValues[i];
+                    }
+                }
+            } else if (annualYear < currentYear) {
+                for (let i = 0; i < 12; i++) {
+                    durationValuesPast[i] = durationValues[i];
+                }
+            } else {
+                for (let i = 0; i < 12; i++) {
+                    durationValuesFuture[i] = durationValues[i];
+                }
+            }
             const maxCount = Math.max(...countValues, 0);
             const maxDuration = Math.max(...durationValues, 0);
             const countAxisMax = Math.max(1, Math.ceil(maxCount * 2.6));
-            const durationAxisMin = -Math.max(1, Math.ceil(maxDuration * 1.5));
-            const durationAxisMax = Math.max(1, Math.ceil(maxDuration * 1.15));
+            let durationAxisMin, durationAxisMax;
+            if (maxDuration > 0) {
+                durationAxisMin = -Math.max(1, Math.ceil(maxDuration * 1.5));
+                durationAxisMax = Math.max(1, Math.ceil(maxDuration * 1.15));
+            } else {
+                durationAxisMin = -1.3;
+                durationAxisMax = 1.0;
+            }
             const theme = getChartTheme();
             const chart = echarts.init(element);
-            chart.setOption({
+            const chartOptions = {
                 animation: false,
                 backgroundColor: 'transparent',
-                grid: { top: 16, left: 4, right: 18, bottom: 20, containLabel: false },
+                grid: { top: 16, left: 4, right: runtimeScale === 'per_1000km' ? 42 : 24, bottom: 20, containLabel: false },
                 tooltip: Object.assign({
                     trigger: 'axis',
                     confine: true,
@@ -2027,7 +2059,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         const labelIndex = monthLabels.indexOf(label);
                         const count = countValues[labelIndex] || 0;
                         const duration = durationValues[labelIndex] || 0;
-                        return `${label}<br/>故障数：${formatCardMetricValue(count)}${countUnit}<br/>故障时长：${formatCardMetricValue(duration)}${durationUnit}`;
+                        return `${label}<br/>故障数：${formatCardMetricValue(count)}${countAxisUnit}<br/>故障时长：${formatCardMetricValue(duration)}${durationUnit}`;
                     }
                 }, buildTooltipTheme(theme)),
                 xAxis: {
@@ -2040,7 +2072,13 @@ document.addEventListener("DOMContentLoaded", function() {
                 },
                 yAxis: [
                     {
+                        name: countAxisUnit,
                         type: 'value',
+                        position: 'right',
+                        nameLocation: 'middle',
+                        nameRotate: 0,
+                        nameGap: 18,
+                        nameTextStyle: { color: '#078087', fontSize: 10, fontWeight: 600, align: 'center', verticalAlign: 'middle', padding: [78, 0, 0, 0] },
                         minInterval: 1,
                         min: 0,
                         max: countAxisMax,
@@ -2069,7 +2107,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         name: '故障时长',
                         type: 'line',
                         yAxisIndex: 1,
-                        data: durationValues,
+                        data: durationValuesPast,
                         smooth: true,
                         symbol: 'circle',
                         symbolSize: 4,
@@ -2086,7 +2124,30 @@ document.addEventListener("DOMContentLoaded", function() {
                         },
                         lineStyle: { width: 1.8, color: '#078087' },
                         itemStyle: { color: '#078087' },
-                        areaStyle: { color: 'rgba(7, 128, 135, 0.08)' }
+                        areaStyle: { color: '#078087', opacity: 0.08 }
+                    },
+                    {
+                        name: '故障时长',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: durationValuesFuture,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 4,
+                        label: {
+                            show: true,
+                            position: 'top',
+                            distance: 4,
+                            color: '#cbd5e1',
+                            fontSize: 9,
+                            formatter(params) {
+                                const value = Number(params.value || 0);
+                                return value > 0 ? formatCardMetricValue(value) : '';
+                            }
+                        },
+                        lineStyle: { width: 1.8, color: '#cbd5e1' },
+                        itemStyle: { color: '#cbd5e1' },
+                        areaStyle: { color: '#cbd5e1', opacity: 0.08 }
                     },
                     {
                         name: '故障数',
@@ -2102,7 +2163,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             fontSize: 9,
                             formatter(params) {
                                 const value = Number(params.value || 0);
-                                return value > 0 ? `${formatCardMetricValue(value)}${countUnit}` : '';
+                                return value > 0 ? formatCardMetricValue(value) : '';
                             }
                         },
                         itemStyle: {
@@ -2111,7 +2172,8 @@ document.addEventListener("DOMContentLoaded", function() {
                         }
                     }
                 ]
-            });
+            };
+            chart.setOption(chartOptions);
             branchPerformanceCalendarCharts.push(chart);
         });
     }
@@ -3355,16 +3417,48 @@ document.addEventListener("DOMContentLoaded", function() {
             const svc = card ? servicesByKey.get(card.dataset.serviceKey) || {} : {};
             const monthlyStats = Array.isArray(svc.monthly_stats) ? svc.monthly_stats : [];
             const monthLabels = Array.from({ length: 12 }, (_item, index) => `${index + 1}月`);
+            const selectedDateParts = inputDate.value.split('-').map(Number);
+            const annualYear = Number((svc.annual_summary && svc.annual_summary.year) || (selectedDateParts && selectedDateParts[0]) || new Date().getFullYear());
+            const currentDate = new Date();
+            const currentYear = currentDate.getFullYear();
+            const currentMonth = currentDate.getMonth() + 1;
+            const isCurrentYear = annualYear === currentYear;
             const countValues = monthLabels.map((_label, index) => Number(monthlyStats[index] && monthlyStats[index].count || 0));
             const durationValues = monthLabels.map((_label, index) => Number(monthlyStats[index] && monthlyStats[index].duration || 0));
+            const durationValuesPast = Array(12).fill(null);
+            const durationValuesFuture = Array(12).fill(null);
+            if (isCurrentYear) {
+                for (let i = 0; i < 12; i++) {
+                    if (i < currentMonth) {
+                        durationValuesPast[i] = durationValues[i];
+                    }
+                    if (i >= currentMonth - 1) {
+                        durationValuesFuture[i] = durationValues[i];
+                    }
+                }
+            } else if (annualYear < currentYear) {
+                for (let i = 0; i < 12; i++) {
+                    durationValuesPast[i] = durationValues[i];
+                }
+            } else {
+                for (let i = 0; i < 12; i++) {
+                    durationValuesFuture[i] = durationValues[i];
+                }
+            }
             const maxCount = Math.max(...countValues, 0);
             const maxDuration = Math.max(...durationValues, 0);
             const countAxisMax = Math.max(1, Math.ceil(maxCount * 2.6));
-            const durationAxisMin = -Math.max(1, Math.ceil(maxDuration * 1.5));
-            const durationAxisMax = Math.max(1, Math.ceil(maxDuration * 1.15));
+            let durationAxisMin, durationAxisMax;
+            if (maxDuration > 0) {
+                durationAxisMin = -Math.max(1, Math.ceil(maxDuration * 1.5));
+                durationAxisMax = Math.max(1, Math.ceil(maxDuration * 1.15));
+            } else {
+                durationAxisMin = -1.3;
+                durationAxisMax = 1.0;
+            }
             const theme = getChartTheme();
             const chart = echarts.init(element);
-            chart.setOption({
+            const chartOptions = {
                 animation: false,
                 backgroundColor: 'transparent',
                 grid: { top: 16, left: 4, right: 18, bottom: 20, containLabel: false },
@@ -3424,7 +3518,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         name: '故障时长',
                         type: 'line',
                         yAxisIndex: 1,
-                        data: durationValues,
+                        data: durationValuesPast,
                         smooth: true,
                         symbol: 'circle',
                         symbolSize: 4,
@@ -3441,7 +3535,30 @@ document.addEventListener("DOMContentLoaded", function() {
                         },
                         lineStyle: { width: 1.8, color: '#078087' },
                         itemStyle: { color: '#078087' },
-                        areaStyle: { color: 'rgba(7, 128, 135, 0.08)' }
+                        areaStyle: { color: '#078087', opacity: 0.08 }
+                    },
+                    {
+                        name: '故障时长',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: durationValuesFuture,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 4,
+                        label: {
+                            show: true,
+                            position: 'top',
+                            distance: 4,
+                            color: '#cbd5e1',
+                            fontSize: 9,
+                            formatter(params) {
+                                const value = Number(params.value || 0);
+                                return value > 0 ? formatCardMetricValue(value) : '';
+                            }
+                        },
+                        lineStyle: { width: 1.8, color: '#cbd5e1' },
+                        itemStyle: { color: '#cbd5e1' },
+                        areaStyle: { color: '#cbd5e1', opacity: 0.08 }
                     },
                     {
                         name: '故障数',
@@ -3466,7 +3583,8 @@ document.addEventListener("DOMContentLoaded", function() {
                         }
                     }
                 ]
-            });
+            };
+            chart.setOption(chartOptions);
             serviceCalendarCharts.push(chart);
         });
     }

@@ -272,6 +272,18 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("runtimeScale === 'per_1000km'", source)
         self.assertIn("monthlyStats[index].count_per_1000km", source)
         self.assertIn("monthlyStats[index].duration_per_1000km", source)
+        runtime_chart_source = source.split("function initBranchPerformanceRuntimeCalendarCharts(container, cardsByProvince)", 1)[1].split("function initBranchPerformanceInterruptCalendarToggles", 1)[0]
+        runtime_bar_source = runtime_chart_source.split("type: 'bar'", 1)[1]
+        self.assertIn("const countAxisUnit = runtimeScale === 'per_1000km' ? '次/千公里' : '次';", runtime_chart_source)
+        self.assertIn("name: countAxisUnit", runtime_chart_source)
+        count_axis_source = runtime_chart_source.split("name: countAxisUnit", 1)[1].split("minInterval: 1", 1)[0]
+        self.assertIn("nameLocation: 'middle'", count_axis_source)
+        self.assertIn("nameRotate: 0", count_axis_source)
+        self.assertNotIn("offset:", count_axis_source)
+        self.assertNotIn("nameLocation: 'start'", count_axis_source)
+        self.assertIn("padding: [78, 0, 0, 0]", count_axis_source)
+        self.assertIn("return value > 0 ? formatCardMetricValue(value) : '';", runtime_bar_source)
+        self.assertNotIn("${formatCardMetricValue(value)}${countUnit}", runtime_bar_source)
         self.assertIn("function renderBranchPerformanceInterruptCalendar(card, interruptCalendarMaxCount)", source)
         self.assertIn("branch-performance-interrupt-calendar", source)
         self.assertIn("initBranchPerformanceInterruptCalendarToggles(container)", source)

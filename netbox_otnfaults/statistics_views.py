@@ -1098,6 +1098,7 @@ def _build_branch_company_performance_cards(
             'responsibility_reason_top3': _sorted_count_items(responsibility_reason_counts)[:3],
             'overall_reason_top3': _sorted_count_items(overall_reason_counts)[:3],
             'annual_stats': {
+                'year': selected_year,
                 'bare_fiber': bare_fiber_annual_stats.get(province, {}),
                 'cable_break': {
                     'total_count': len(cable_break_annual_faults),
