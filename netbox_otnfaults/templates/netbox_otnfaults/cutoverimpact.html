@@ -26,6 +26,14 @@
           <tr><th scope="row">电路业务</th><td>{{ object.circuit_service|linkify|default:"—" }}</td></tr>
         {% endif %}
         <tr><th scope="row">业务影响</th><td>{{ object.get_business_impact_display }}</td></tr>
+        <tr>
+          <th scope="row">协调状态</th>
+          <td>
+            <span class="badge bg-{{ object.get_coordination_status_color|default:'secondary' }} text-white">
+              {{ object.get_coordination_status_display|default:"—" }}
+            </span>
+          </td>
+        </tr>
       </table>
     </div>
 

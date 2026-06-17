@@ -609,6 +609,9 @@ def test_cutover_impact_tables_filters_api_urls_and_templates_are_registered() -
     assert "impacts_count" not in cutover_impact_panel
     assert "secondary_cutovers" not in impact_template
     assert "其他关联割接" not in impact_template
+    assert "协调状态" in impact_template
+    assert "object.get_coordination_status_display" in impact_template
+    assert "object.get_coordination_status_color" in impact_template
     assert "id_circuit_special_line_name" in edit_template
     assert "tomselect.settings.sortField = [{ field: '$order' }];" in edit_template
     assert ".filter((option) => option.value !== '')" in edit_template
