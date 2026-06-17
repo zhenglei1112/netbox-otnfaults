@@ -20,25 +20,15 @@
   <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">割接位置</h2></div>
   <div class="row">
     {% render_field form.province %}
-    {% render_field form.cutover_longitude %}
-    {% render_field form.cutover_latitude %}
     {% render_field form.cutover_location %}
     {% render_field form.interruption_location_a %}
     {% render_field form.interruption_location %}
+    {% render_field form.cutover_longitude %}
+    {% render_field form.cutover_latitude %}
   </div>
 </div>
 
-<div class="field-group my-5">
-  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">资源信息</h2></div>
-  <div class="row">
-    {% render_field form.resource_type %}
-    {% render_field form.cable_route %}
-    {% render_field form.resource_owner %}
-    {% render_field form.maintenance_mode %}
-    {% render_field form.handling_unit %}
-    {% render_field form.contract %}
-  </div>
-</div>
+
 
 <div class="field-group my-5">
   <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">组织联系人</h2></div>
@@ -56,6 +46,18 @@
     {% render_field form.planned_cutover_time %}
     {% render_field form.planned_cutover_times %}
     {% render_field form.planned_impact_minutes %}
+  </div>
+</div>
+
+<div class="field-group my-5">
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">资源信息</h2></div>
+  <div class="row">
+    {% render_field form.resource_type %}
+    {% render_field form.cable_route %}
+    {% render_field form.resource_owner %}
+    {% render_field form.maintenance_mode %}
+    {% render_field form.handling_unit %}
+    {% render_field form.contract %}
   </div>
 </div>
 
@@ -537,18 +539,80 @@
         renderHistory();
     }
 
+    // 割接管理单位自动填充：当割接管理单位选择“本部”时，自动设置割接管理单位名称为“交通运输部通信信息中心网络公司”
+    function initManagementUnitAutoFill() {
+        const unitSelect = document.getElementById('id_management_unit');
+        const nameInput = document.getElementById('id_management_unit_name');
+        
+        if (!unitSelect || !nameInput) return;
+        
+        function fillName() {
+            if (unitSelect.value === 'headquarters') {
+                nameInput.value = '交通运输部通信信息中心网络公司';
+            } else {
+                nameInput.value = '';
+            }
+        }
+        
+        // 监听原生 change 事件
+        unitSelect.addEventListener('change', fillName);
+        
+        // 绑定 TomSelect change 事件（如果存在）
+        const ts = unitSelect.tomselect;
+        if (ts) {
+            ts.on('change', fillName);
+        } else {
+            let checkCount = 0;
+            const checkTS = setInterval(() => {
+                checkCount++;
+                if (unitSelect.tomselect) {
+                    unitSelect.tomselect.on('change', fillName);
+                    clearInterval(checkTS);
+                }
+                if (checkCount > 20) {
+                    clearInterval(checkTS);
+                }
+            }, 100);
+        }
+        
+        // 初始化时，如果已选择本部且名称为空，自动填充
+        if (unitSelect.value === 'headquarters' && !nameInput.value.trim()) {
+            fillName();
+        }
+    }
 
+
+
+    function initPlannedCutoverTimeDefaultToZero() {
+        const mainTimeInput = document.getElementById('id_planned_cutover_time');
+        if (mainTimeInput && mainTimeInput._flatpickr) {
+            const fp = mainTimeInput._flatpickr;
+            fp.set('defaultHour', 0);
+            fp.set('defaultMinute', 0);
+            fp.config.onOpen = [function(selectedDates, dateStr, instance) {
+                if (selectedDates.length === 0) {
+                    const d = new Date();
+                    d.setHours(0, 0, 0, 0);
+                    instance.setDate(d, true);
+                }
+            }];
+        }
+    }
 
     if (document.readyState === 'complete') {
         setTimeout(initMapPicker, 200);
         setTimeout(initPathShortcuts, 200);
         setTimeout(initPlannedTimes, 200);
+        setTimeout(initManagementUnitAutoFill, 200);
+        setTimeout(initPlannedCutoverTimeDefaultToZero, 400);
     } else {
         window.addEventListener('load', function() {
             setTimeout(initMapPicker, 200);
             setTimeout(initPathShortcuts, 200);
             setTimeout(initPlannedTimes, 200);
-            });
+            setTimeout(initManagementUnitAutoFill, 200);
+            setTimeout(initPlannedCutoverTimeDefaultToZero, 400);
+        });
     }
 })();
 </script>

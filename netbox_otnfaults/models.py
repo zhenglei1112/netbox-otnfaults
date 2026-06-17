@@ -519,7 +519,7 @@ class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
     interruption_location = models.ManyToManyField(
         to=Site,
         related_name='cutover_tasks_z',
-        verbose_name='割接影响Z端站点',
+        verbose_name='割接位置Z端站点',
         blank=True
     )
     cutover_reason = models.TextField(
@@ -715,6 +715,8 @@ class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
     def clean(self) -> None:
         self._normalize_json_list_fields()
         super().clean()
+        if self.management_unit == CutoverManagementUnitChoices.HEADQUARTERS and not self.management_unit_name:
+            self.management_unit_name = '交通运输部通信信息中心网络公司'
         errors: dict[str, str] = {}
         if self.is_timeout == CutoverTimeoutStatusChoices.YES and not self.timeout_reason:
             errors['timeout_reason'] = '割接超时时必须填写超时原因。'

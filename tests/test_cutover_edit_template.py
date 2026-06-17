@@ -70,6 +70,16 @@ class CutoverEditTemplateTestCase(unittest.TestCase):
         self.assertIn("customers[index].coordination_time = currentTime;", template)
         self.assertIn("timeInput.value = currentTime;", template)
 
+    def test_management_unit_autofill_logic(self) -> None:
+        template = CUTOVER_EDIT_TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn("initManagementUnitAutoFill", template)
+        self.assertIn("id_management_unit", template)
+        self.assertIn("id_management_unit_name", template)
+        self.assertIn("交通运输部通信信息中心网络公司", template)
+        self.assertIn("headquarters", template)
+        self.assertIn("nameInput.value = '';", template)
+
 
 if __name__ == "__main__":
     unittest.main()

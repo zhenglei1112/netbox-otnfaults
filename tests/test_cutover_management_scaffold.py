@@ -49,6 +49,8 @@ def test_cutover_task_model_defines_core_fields_and_helpers() -> None:
     assert "actual_interrupt_minutes" not in cutover_task_model
     assert "def get_absolute_url(self) -> str:" in source
     assert "reverse('plugins:netbox_otnfaults:cutovertask'" in source
+    assert "if self.management_unit == CutoverManagementUnitChoices.HEADQUARTERS and not self.management_unit_name:" in source
+    assert "self.management_unit_name = '交通运输部通信信息中心网络公司'" in source
 
 
 def test_cutover_task_number_is_system_generated_and_readonly() -> None:
@@ -233,9 +235,9 @@ def test_cutover_task_form_fieldsets_follow_detail_page_grouping_order() -> None
     expected_order = [
         "割接信息",
         "割接位置",
-        "资源信息",
         "组织联系人",
         "计划割接时间",
+        "资源信息",
         "实施时间线",
         "考核与闭环",
         "整改信息",
@@ -245,7 +247,7 @@ def test_cutover_task_form_fieldsets_follow_detail_page_grouping_order() -> None
     assert positions == sorted(positions)
 
     assert "FieldSet('cutover_no_display', 'status', 'cutover_type', 'registered_at', 'registrant', 'management_unit', 'management_unit_name', 'cutover_reason', name='割接信息')" in fieldsets_source
-    assert "FieldSet('province', 'cutover_longitude', 'cutover_latitude', 'cutover_location', 'interruption_location_a', 'interruption_location', name='割接位置')" in fieldsets_source
+    assert "FieldSet('province', 'cutover_location', 'interruption_location_a', 'interruption_location', 'cutover_longitude', 'cutover_latitude', name='割接位置')" in fieldsets_source
     assert "FieldSet('resource_type', 'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract', name='资源信息')" in fieldsets_source
     assert "FieldSet('implementation_unit', 'cutover_contact', 'cutover_contact_phone', 'line_supervisor', name='组织联系人')" in fieldsets_source
     assert "FieldSet('customer_approval_detail', 'is_timeout', 'timeout_reason', 'cutover_result', 'remaining_issues', name='考核与闭环')" in fieldsets_source
@@ -257,9 +259,9 @@ def test_cutover_task_form_fieldsets_follow_detail_page_grouping_order() -> None
     edit_titles = [
         "割接信息",
         "割接位置",
-        "资源信息",
         "组织联系人",
         "计划割接时间",
+        "资源信息",
         "实施时间线",
         "考核与闭环",
         "整改信息",
@@ -314,21 +316,22 @@ def test_cutover_task_detail_uses_standard_netbox_two_column_layout() -> None:
     assert "A端站点" not in cutover_info_card
     assert "Z端站点" not in cutover_info_card
     cutover_location_card = left_column.split("割接位置</h5>", 1)[1].split("计划割接时间</h5>", 1)[0]
-    assert "A端:" in cutover_location_card
-    assert "Z端:" in cutover_location_card
-    assert "省份与坐标" in cutover_location_card
-    assert "GPS:" in cutover_location_card
+    assert "省份" in cutover_location_card
+    assert "割接具体地点" in cutover_location_card
+    assert "割接位置A端站点" in cutover_location_card
+    assert "割接位置Z端站点" in cutover_location_card
+    assert "割接位置经度" in cutover_location_card
+    assert "割接位置纬度" in cutover_location_card
     assert "mdi mdi-map-marker" in cutover_location_card
     assert "location_map_url" in cutover_location_card
     assert "a_site={{ object.interruption_location_a.pk }}" in cutover_location_card
     assert "z_sites=" in cutover_location_card
     assert "q={{ object.cutover_latitude|unlocalize }},{{ object.cutover_longitude|unlocalize }}" in cutover_location_card
-    assert cutover_location_card.index("A端:") < cutover_location_card.index("省份与坐标")
-    assert cutover_location_card.index("省份与坐标") < cutover_location_card.index("割接具体地点")
-    assert "A端站点" not in cutover_location_card
-    assert "Z端站点" not in cutover_location_card
-    assert "<tr><th scope=\"row\">经度</th>" not in cutover_location_card
-    assert "<tr><th scope=\"row\">纬度</th>" not in cutover_location_card
+    assert cutover_location_card.index("省份") < cutover_location_card.index("割接具体地点")
+    assert cutover_location_card.index("割接具体地点") < cutover_location_card.index("割接位置A端站点")
+    assert cutover_location_card.index("割接位置A端站点") < cutover_location_card.index("割接位置Z端站点")
+    assert cutover_location_card.index("割接位置Z端站点") < cutover_location_card.index("割接位置经度")
+    assert cutover_location_card.index("割接位置经度") < cutover_location_card.index("割接位置纬度")
     assert left_column.index("计划割接时间</h5>") < left_column.index("实施时间线</h5>")
     timeline_card = left_column.split("实施时间线</h5>", 1)[1].split("考核与闭环</h5>", 1)[0]
     assert timeline_card.index("割接完成时间") < timeline_card.index("割接历时")

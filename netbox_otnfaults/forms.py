@@ -1813,8 +1813,14 @@ class CutoverTaskForm(NetBoxModelForm):
     )
     registrant = DynamicModelChoiceField(queryset=get_user_model().objects.all(), label='登记人')
     province = DynamicModelChoiceField(queryset=Region.objects.all(), required=False, label='省份')
-    interruption_location_a = DynamicModelChoiceField(queryset=Site.objects.all(), label='割接位置A端站点')
-    interruption_location = DynamicModelMultipleChoiceField(queryset=Site.objects.all(), required=False, label='割接影响Z端站点')
+    interruption_location_a = DynamicModelChoiceField(
+        queryset=Site.objects.all(),
+        label='割接位置A端站点',
+        query_params={
+            'region_id': '$province'
+        }
+    )
+    interruption_location = DynamicModelMultipleChoiceField(queryset=Site.objects.all(), required=False, label='割接位置Z端站点')
     handling_unit = DynamicModelChoiceField(queryset=ServiceProvider.objects.all(), required=False, label='代维方/租赁方')
     contract = DynamicModelChoiceField(
         queryset=Contract.objects.all(),
@@ -1835,10 +1841,10 @@ class CutoverTaskForm(NetBoxModelForm):
 
     fieldsets = (
         FieldSet('cutover_no_display', 'status', 'cutover_type', 'registered_at', 'registrant', 'management_unit', 'management_unit_name', 'cutover_reason', name='割接信息'),
-        FieldSet('province', 'cutover_longitude', 'cutover_latitude', 'cutover_location', 'interruption_location_a', 'interruption_location', name='割接位置'),
-        FieldSet('resource_type', 'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract', name='资源信息'),
+        FieldSet('province', 'cutover_location', 'interruption_location_a', 'interruption_location', 'cutover_longitude', 'cutover_latitude', name='割接位置'),
         FieldSet('implementation_unit', 'cutover_contact', 'cutover_contact_phone', 'line_supervisor', name='组织联系人'),
         FieldSet('planned_cutover_time', 'planned_cutover_times', 'planned_impact_minutes', name='计划割接时间'),
+        FieldSet('resource_type', 'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract', name='资源信息'),
         FieldSet('started_at', 'completed_at', 'closed_at', name='实施时间线'),
         FieldSet('customer_approval_detail', 'is_timeout', 'timeout_reason', 'cutover_result', 'remaining_issues', name='考核与闭环'),
         FieldSet('rectification_status', 'rectification_measures', 'rectification_description', 'rectification_subject', 'rectification_progress', 'planned_completion_time', 'actual_completion_time', 'rectification_completion_description', 're_cutover', name='整改信息'),
@@ -1849,8 +1855,8 @@ class CutoverTaskForm(NetBoxModelForm):
         model = CutoverTask
         fields = (
             'status', 'cutover_type', 'registered_at', 'registrant', 'planned_cutover_time', 'planned_cutover_times',
-            'province', 'cutover_location', 'cutover_longitude', 'cutover_latitude',
-            'interruption_location_a', 'interruption_location', 'cutover_reason',
+            'province', 'cutover_location', 'interruption_location_a', 'interruption_location',
+            'cutover_longitude', 'cutover_latitude', 'cutover_reason',
             'resource_type', 'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract',
             'management_unit', 'management_unit_name', 'implementation_unit',
             'cutover_contact', 'cutover_contact_phone', 'customer_approval_detail',
