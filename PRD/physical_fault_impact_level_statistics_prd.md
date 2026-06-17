@@ -543,3 +543,54 @@ def _impact_level_for_fault(fault: OtnFault) -> str | None:
 - 增加等级统计导出。
 - 增加等级指标按省份、故障原因、资源属性的拆解图。
 - 为历史数据提供批量标记重要电路业务和空调/设备 I 类故障的脚本。
+
+## 12. 方案优化建议与数据库端过滤设计（附录）
+
+经过对现有代码库的结构分析，为了确保该统计需求能够高性能、高可靠地落地，建议在具体实现时采纳以下优化方案：
+
+### 12.1 判定优先级设计
+在实现故障影响等级划分（包含聚合及明细过滤）时，判定逻辑应当严格遵循以下优先级：
+1. **割接故障排除**（最高优先级）：`source_cutover_task_id is not None`。如果是割接生成故障，直接排除，返回 `None`。
+2. **挂起故障分类（V类）**：若属于非割接的挂起故障（满足 `fault_status == 'suspended'` 或 `is_suspended == True`），则直接进入 **V类**。
+3. **普通分类判定（I-IV类）**：排除前两项后，依据具体故障分类与判定条件分类入 I 类至 IV 类。
+
+### 12.2 数据库端 ORM Q 表达式过滤
+为了规避由于内存过滤（全量拉取 `OtnFault` 进行 Python 匹配）导致的内存开销和分页性能瓶颈，应将 I-V 类判定封装为标准的 Django `Q` 查询条件。在 `statistics_views.py` 统计接口聚合与明细接口分页时直接使用。
+
+其中，光缆中断 I 类涉及 `OtnFaultImpact` 反向关系，不能直接依赖 `impacts__...` join 后计数，否则一条故障存在多条匹配影响业务时会重复计数；也不能在 II 类中直接对反向多值关系使用 `~Q(impacts__...)`，否则一条故障同时存在重要和非重要影响记录时容易出现 SQL 语义边界。实现时必须先用 `Exists` 标注是否存在 I 类业务影响，再基于布尔标注过滤和聚合。
+
+光缆中断 I 类业务影响标注示例：
+
+```python
+class_i_impact_exists = OtnFaultImpact.objects.filter(
+    otn_fault_id=OuterRef("pk"),
+    business_impact=BusinessImpactChoices.INTERRUPTED,
+).filter(
+    Q(service_type=ServiceTypeChoices.BARE_FIBER)
+    | Q(
+        service_type=ServiceTypeChoices.CIRCUIT,
+        circuit_service__is_important=True,
+    )
+)
+
+qs = qs.annotate(has_class_i_business_impact=Exists(class_i_impact_exists))
+```
+
+完成标注后，再组合以下等级过滤条件：
+
+* **V 类（非割接且挂起）**：
+  `Q_CLASS_V = Q(source_cutover_task__isnull=True) & (Q(fault_status=FaultStatusChoices.SUSPENDED) | Q(is_suspended=True))`
+
+* **IV 类（非割接、非挂起且为光缆劣化或抖动）**：
+  `Q_CLASS_IV = Q(source_cutover_task__isnull=True) & ~Q(fault_status=FaultStatusChoices.SUSPENDED) & Q(is_suspended=False) & Q(fault_category__in=[FaultCategoryChoices.FIBER_DEGRADATION, FaultCategoryChoices.FIBER_JITTER])`
+
+* **I 类（非割接、非挂起，且满足特定条件）**：
+  `Q_CLASS_I = Q(source_cutover_task__isnull=True) & ~Q(fault_status=FaultStatusChoices.SUSPENDED) & Q(is_suspended=False) & ((Q(fault_category=FaultCategoryChoices.FIBER_BREAK) & Q(has_class_i_business_impact=True)) | Q(fault_category=FaultCategoryChoices.POWER_FAULT, power_fault_impact=PowerFaultImpactChoices.HOSTED) | Q(fault_category=FaultCategoryChoices.AC_FAULT, ac_fault_is_class_i=True) | Q(fault_category=FaultCategoryChoices.DEVICE_FAULT, device_fault_is_class_i=True))`
+
+* **II 类（非割接、非挂起且属于非 I 类光缆中断）**：
+  `Q_CLASS_II = Q(source_cutover_task__isnull=True) & ~Q(fault_status=FaultStatusChoices.SUSPENDED) & Q(is_suspended=False) & Q(fault_category=FaultCategoryChoices.FIBER_BREAK) & Q(has_class_i_business_impact=False)`
+
+* **III 类（非割接、非挂起且属于非 I 类空调、设备或供电故障）**：
+  `Q_CLASS_III = Q(source_cutover_task__isnull=True) & ~Q(fault_status=FaultStatusChoices.SUSPENDED) & Q(is_suspended=False) & ((Q(fault_category=FaultCategoryChoices.POWER_FAULT) & ~Q(power_fault_impact=PowerFaultImpactChoices.HOSTED)) | (Q(fault_category=FaultCategoryChoices.AC_FAULT) & Q(ac_fault_is_class_i=False)) | (Q(fault_category=FaultCategoryChoices.DEVICE_FAULT) & Q(device_fault_is_class_i=False)))`
+
+通过使用上述 `Exists` 标注与 `Q` 查询组合，明细下钻 API 可以直接利用数据库端执行高效分页，避免因反向影响业务关系产生的行重复；同时主 API 可利用 `.aggregate(class_i_count=Count('id', filter=Q_CLASS_I))` 等进行单次 SQL 查询下的指标聚合。若实现中仍使用 `impacts__...` join 条件参与聚合，则对应 `Count` 必须显式增加 `distinct=True`。
