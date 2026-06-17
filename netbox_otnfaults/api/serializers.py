@@ -298,10 +298,10 @@ class CutoverTaskSerializer(NetBoxModelSerializer):
     class Meta:
         model = CutoverTask
         fields = (
-            'id', 'url', 'display', 'cutover_no', 'status', 'registered_at', 'registrant',
+            'id', 'url', 'display', 'cutover_no', 'status', 'cutover_type', 'registered_at', 'registrant',
             'planned_cutover_time', 'planned_cutover_times', 'province', 'cutover_location',
             'cutover_longitude', 'cutover_latitude', 'interruption_location_a',
-            'interruption_location', 'related_customers', 'cutover_reason', 'resource_type',
+            'interruption_location', 'cutover_reason', 'resource_type',
             'cable_route', 'resource_owner', 'maintenance_mode', 'handling_unit', 'contract',
             'management_unit', 'management_unit_name', 'implementation_unit',
             'cutover_contact', 'cutover_contact_phone', 'customer_approval_detail',

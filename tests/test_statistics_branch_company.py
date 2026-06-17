@@ -374,22 +374,6 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertNotIn("getCheckedValue('branchCompanyValidMetric'", valid_chart_source)
         self.assertNotIn("valid_duration_per_1000km", valid_chart_source)
         self.assertNotIn("千公里有效平均历时", valid_chart_source)
-        self.assertIn("function renderBranchCompanyDetailsTable()", source)
-        self.assertIn("function handleBranchCompanyChartClick(params, fieldName)", source)
-        self.assertIn("function handleBranchCompanyMetricFilterClick(metric)", source)
-        self.assertIn("const branchCompanyDetailSortModeInputs = Array.from(document.querySelectorAll('input[name=\"branchCompanyDetailSortMode\"]'));", source)
-        self.assertIn("branchCompanyDetailSortModeInputs.forEach(input => input.addEventListener('change', () => {", source)
-        self.assertIn("const sortMode = document.querySelector('input[name=\"branchCompanyDetailSortMode\"]:checked')?.value || 'time';", source)
-        self.assertIn("filteredDetails = sortDetailRows(filteredDetails, sortMode);", source)
-        self.assertIn("const timeRadio = document.getElementById('branch-company-detail-sort-time');", source)
-        self.assertIn("function sortDetailRows(details, sortMode)", source)
-        self.assertIn("currentBranchCompanyDetails = data.branch_company_details || [];", source)
-        self.assertIn("chartBranchCompanyCount.on('click', params => handleBranchCompanyChartClick(params, 'province'));", source)
-        self.assertIn("branch-company-details-tbody", source)
-        self.assertIn("有效平均历时", source)
-        self.assertIn("currentPrevBranchCompanyData = data.prev_branch_company || null;", source)
-        self.assertIn("renderBranchCompanySection(data.branch_company, data.prev_branch_company);", source)
-        self.assertIn("if (chartBranchCompanyCount) chartBranchCompanyCount.resize();", source)
         self.assertIn("renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData);", source)
         self.assertIn("activeTab.id === 'tab-branch-company-btn'", source)
         self.assertIn("activeTab.id === 'tab-branch-performance-btn'", source)
@@ -406,19 +390,6 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
 
         self.assertIn("def _should_exclude_for_branch(fault) -> bool:", source)
         self.assertIn("fault.handling_unit.name in EXCLUDED_HANDLING_UNITS", source)
-        self.assertIn("def _is_branch_company_fault(fault) -> bool:", source)
-        self.assertIn("return _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES and not _should_exclude_for_branch(fault)", source)
-
-        branch_stats_source = source.split("def _build_branch_company_statistics(", 1)[1].split("\n\n\ndef _parse_time_range", 1)[0]
-        self.assertIn("if _is_branch_company_fault(fault)", branch_stats_source)
-        self.assertIn("branch_company_details = [", source)
-        self.assertIn("'branch_company_details': branch_company_details", source)
-
-    def test_dashboard_script_uses_backend_filtered_branch_company_details(self) -> None:
-        source = JS_PATH.read_text(encoding="utf-8")
-
-        self.assertIn("currentBranchCompanyDetails = data.branch_company_details || [];", source)
-        self.assertNotIn("currentBranchCompanyDetails = currentAllDetails.filter", source)
 
     def test_css_defines_branch_company_chart_layout(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")

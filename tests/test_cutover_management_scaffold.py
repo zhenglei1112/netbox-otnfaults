@@ -167,12 +167,14 @@ def test_cutover_task_api_serializer_viewset_router_and_templates_exist() -> Non
     assert "re_cutover = NestedCutoverTaskSerializer" in serializers
     assert "model = CutoverTask" in serializers
     assert "'planned_cutover_times'" in serializers
+    assert "'cutover_type'" in serializers
     cutover_task_serializer = serializers.split("class CutoverTaskSerializer", 1)[1].split("class OtnMapPreferenceSerializer", 1)[0]
     assert "service_interrupted_at" not in cutover_task_serializer
     assert "service_restored_at" not in cutover_task_serializer
     assert "actual_interrupt_minutes" not in cutover_task_serializer
     assert "customer_approval_result" not in cutover_task_serializer
     assert "maintenance_unit" not in cutover_task_serializer
+    assert "related_customers" not in cutover_task_serializer
 
     assert "class CutoverTaskViewSet(NetBoxModelViewSet):" in api_views
     assert "queryset = CutoverTask.objects.all()" in api_views

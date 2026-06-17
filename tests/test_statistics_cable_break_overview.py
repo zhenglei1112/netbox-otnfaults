@@ -1124,7 +1124,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("serviceType: emptyServiceType,", source)
         self.assertIn("handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName, card.dataset.serviceType)", source)
         self.assertIn("function handleServiceCardClick(serviceKey, serviceName, serviceType)", source)
-        self.assertIn("activeServiceDetailFilterType = serviceType || (detail ? detail.service_type : null);", source)
+        self.assertIn("activeServiceDetailFilterType = serviceType;", source)
 
         self.assertIn(".bare-fiber-service-card-scope-toggle", css)
         self.assertIn(".bare-fiber-service-card-scope-toggle.d-none", css)
@@ -1562,18 +1562,17 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id="btn-clear-service-detail-filter"', template)
         self.assertIn('id="btn-clear-circuit-service-detail-filter"', template)
 
-        self.assertIn("'details': service_details", views_source)
+        self.assertIn("'results': results,", views_source)
         self.assertIn("'service_key': svc_key", views_source)
         self.assertIn("'impact_url': imp.get_absolute_url()", views_source)
         self.assertIn("'fault_url': imp.otn_fault.get_absolute_url() if imp.otn_fault else ''", views_source)
 
-        self.assertIn("let currentServiceDetails = [];", source)
+        self.assertIn("let servicePage = 1;", source)
         self.assertIn("let activeServiceDetailFilterKey = null;", source)
         self.assertIn("'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter'", source)
         self.assertIn("'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter'", source)
-        self.assertIn("function renderServiceDetailsTable(serviceType, tbodyId, badgeId, clearButtonId)", source)
+        self.assertIn("function loadServiceDetails(serviceType,", source)
         self.assertIn("function handleServiceCardClick(serviceKey, serviceName, serviceType)", source)
-        self.assertIn("badge.className = 'badge bg-success text-white ms-2';", source)
         self.assertIn('data-service-key="${escapeHtml(card.serviceKey)}"', source)
         self.assertIn("card.addEventListener('click', () => handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName, card.dataset.serviceType));", source)
 
@@ -1693,17 +1692,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("for i in range(1, 26):", views)
         self.assertIn("hist_bucket = _duration_histogram_bucket_index(duration_hours)", views)
         self.assertIn("label = _duration_histogram_bucket_label(i)", views)
-        self.assertIn("duration_histogram_bucket = _duration_histogram_bucket_label(_duration_histogram_bucket_index(duration_hours))", views)
 
-        for detail_field in [
-            "'source_group': source_group",
-            "'duration_bucket': duration_bucket",
-            "'duration_histogram_bucket': duration_histogram_bucket",
-            "'is_valid_duration': duration_hours > 0.5",
-            "'occurrence_period': occurrence_period",
-            "'cause_group': cause_group",
-        ]:
-            self.assertIn(detail_field, views)
+        self.assertIn("'source_group': _source_group_for_fault(fault)", views)
 
         compact_template = _compact_html(template)
         self.assertRegex(
@@ -1729,16 +1719,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("handleMetricFilterClick(metric);", source)
         self.assertIn("function handleMetricFilterClick(metric)", source)
         self.assertIn("function normalizeFilterValue(fieldName, value)", source)
-        self.assertIn("function applyDetailFilter(item, fieldName, value)", source)
-        self.assertIn("if (fieldName === 'duration_max')", source)
-        self.assertIn("return Number(item.duration || 0) <= Number(value || 0);", source)
         self.assertIn("chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket'));", source)
-        self.assertIn("else if (activeFilterField === 'duration_histogram_bucket') filterName =", source)
         self.assertIn("let activeFilterExtraField = null;", source)
         self.assertIn("let activeFilterExtraValue = null;", source)
-        self.assertIn("metric.dataset.filterExtraField || null", source)
-        self.assertIn("normalizeFilterValue(activeFilterExtraField, metric.dataset.filterExtraValue)", source)
-        self.assertIn("applyDetailFilter(item, activeFilterExtraField, activeFilterExtraValue)", source)
         self.assertIn("else if (activeFilterField === 'duration_max') { filterName = '历时指标'; filterValueDisp = `<=${formatCardMetricValue(activeFilterValue)}小时`; }", source)
         self.assertIn("else if (activeFilterField === 'duration_min') { filterName = '历时指标'; filterValueDisp = `>=${formatCardMetricValue(activeFilterValue)}小时`; }", source)
         self.assertIn("附加：有效历时>30分钟", source)

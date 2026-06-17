@@ -25,6 +25,7 @@ from .models import (
 )
 from dcim.models import Region
 from .statistics_period import build_period_display
+from .utils import detect_repeat_faults
 
 
 FAULT_CATEGORY_SUMMARY_ORDER: list[tuple[str, str]] = [
@@ -1658,9 +1659,31 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
     def get(self, request) -> JsonResponse:
         start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
         now = timezone.localtime()
+        
+        is_ended = end_date and end_date <= now
+        selected_provinces = _parse_selected_provinces(request)
+        
+        from django.core.cache import cache
+        import hashlib
+        
+        version_key = "otnfaults:stats:version"
+        cache_version = cache.get(version_key)
+        if cache_version is None:
+            cache_version = 1
+            cache.set(version_key, cache_version, timeout=None)
+            
+        provinces_str = ",".join(sorted(selected_provinces))
+        provinces_hash = hashlib.md5(provinces_str.encode('utf-8')).hexdigest() if provinces_str else "all"
+        
+        cache_key = f"otnfaults:stats:v{cache_version}:fault-summary:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{provinces_hash}"
+        
+        if is_ended:
+            cached_data = cache.get(cache_key)
+            if cached_data is not None:
+                return JsonResponse(cached_data)
+
         calendar_year = int(request.GET.get('calendar_year', start_date.year))
         calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
-        selected_provinces = _parse_selected_provinces(request)
 
         # 计算当前期裸纤业务中断情况
         bare_fiber_interruption = _compute_bare_fiber_interruption_overview(
@@ -1672,7 +1695,6 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             prev_bare_fiber_interruption = _compute_bare_fiber_interruption_overview(
                 prev_start_date, prev_end_date, selected_provinces, now
             )
-
 
         # 先预抓取一段无过滤条件的全量当前期基础查询集，仅用于提取“总体情况面板” Banner 数据
         qs_all = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
@@ -1752,7 +1774,6 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             prev_total_count = len(prev_faults)
             
             if prev_faults:
-                # 重复检测准备
                 p_fiber_faults = [f for f in prev_faults if f.is_fiber_fault]
                 if p_fiber_faults:
                     p_min_occ = min([f.fault_occurrence_time for f in p_fiber_faults])
@@ -1760,12 +1781,16 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                     p_past_qs = OtnFault.objects.filter(
                         fault_occurrence_time__gte=p_check_start,
                         fault_occurrence_time__lt=prev_end_date,
-                        fault_category__in=[FaultCategoryChoices.FIBER_BREAK, FaultCategoryChoices.FIBER_DEGRADATION, FaultCategoryChoices.FIBER_JITTER]
+                        fault_category__in=[FaultCategoryChoices.FIBER_BREAK, 
+                                            FaultCategoryChoices.FIBER_DEGRADATION, 
+                                            FaultCategoryChoices.FIBER_JITTER]
                     ).select_related('interruption_location_a').prefetch_related('interruption_location')
                     p_past_list = list(p_past_qs)
                 else:
                     p_past_list = []
-                p_z_cache = {pf.id: set(s.id for s in pf.interruption_location.all()) for pf in p_past_list}
+                
+                prev_repeat_result = detect_repeat_faults(prev_faults, p_past_list)
+                prev_repeat_faults = len(prev_repeat_result.kpi_repeat_ids)
                 
                 for f in prev_faults:
                     occ = f.fault_occurrence_time
@@ -1774,19 +1799,6 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                     prev_total_duration += dur
                     if dur >= 6.0:
                         prev_long_faults += 1
-                    
-                    is_r = False
-                    if f.is_fiber_fault:
-                        fz_ids = p_z_cache.get(f.id, set(s.id for s in f.interruption_location.all()))
-                        for pf in p_past_list:
-                            if pf.id != f.id and pf.fault_occurrence_time < f.fault_occurrence_time:
-                                if (f.fault_occurrence_time - pf.fault_occurrence_time).days <= 60:
-                                    if pf.interruption_location_a_id == f.interruption_location_a_id:
-                                        if p_z_cache.get(pf.id, set()).intersection(fz_ids):
-                                            is_r = True
-                                            break
-                        if is_r:
-                            prev_repeat_faults += 1
             prev_avg_duration = prev_total_duration / prev_total_count if prev_total_count > 0 else 0.0
         
         # 1. 统计 KPI
@@ -1795,16 +1807,10 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         long_faults_count = 0
         repeat_faults_count = 0
         
-        # 为了检查重复，获取范围内所有光缆类故障过去60天的故障字典进行比对
-        # 构建需比对重复的故障的子集（只查光纤中断/抖动/劣化）
         fiber_faults = [f for f in faults if f.is_fiber_fault]
-        
-        # 用预查过去60天的全量故障加速重复检测
         if fiber_faults:
             min_occurrence = min([f.fault_occurrence_time for f in fiber_faults])
             check_start = min_occurrence - timedelta(days=60)
-            
-            # 把当前范围内和此前60天的故障全部拿出来准备对比
             past_faults_qs = OtnFault.objects.filter(
                 fault_occurrence_time__gte=check_start,
                 fault_occurrence_time__lt=end_date if end_date else now,
@@ -1812,69 +1818,13 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                                     FaultCategoryChoices.FIBER_DEGRADATION, 
                                     FaultCategoryChoices.FIBER_JITTER]
             ).select_related('interruption_location_a').prefetch_related('interruption_location')
-            
             past_faults_list = list(past_faults_qs)
         else:
             past_faults_list = []
 
-        # 辅助字典提取Z端
-        fault_z_sites_cache = {}
-        for pf in past_faults_list:
-            fault_z_sites_cache[pf.id] = set(s.id for s in pf.interruption_location.all())
-
-        # Detail List (供下钻表结构)
-        details = []
-        branch_company_details = []
-
-        # 计算前续日期窗口
-        preceding_duplicate_start_date = start_date
-        if filter_type == 'week':
-            preceding_duplicate_start_date = start_date - timedelta(days=14)
-        elif filter_type == 'month':
-            y, m = start_date.year, start_date.month
-            if m == 1:
-                preceding_duplicate_start_date = start_date.replace(year=y-1, month=12)
-            else:
-                preceding_duplicate_start_date = start_date.replace(month=m-1)
-        elif filter_type == 'quarter':
-            y, m = start_date.year, start_date.month
-            if m <= 3:
-                preceding_duplicate_start_date = start_date.replace(year=y-1, month=m+9)
-            else:
-                preceding_duplicate_start_date = start_date.replace(month=m-3)
-        elif filter_type == 'half':
-            y, m = start_date.year, start_date.month
-            if m <= 6:
-                preceding_duplicate_start_date = start_date.replace(year=y-1, month=m+6)
-            else:
-                preceding_duplicate_start_date = start_date.replace(month=m-6)
-        elif filter_type == 'year':
-            preceding_duplicate_start_date = start_date.replace(year=start_date.year-1)
-
-        preceding_faults = []
-        if preceding_duplicate_start_date < start_date:
-            preceding_qs = get_cable_break_base_queryset(preceding_duplicate_start_date, start_date)
-            preceding_qs = _apply_physical_province_filter(preceding_qs, selected_provinces)
-            preceding_faults = list(preceding_qs)
-
-        # 匹配前续周期内的重复故障
-        current_z_cache = {cf.id: set(s.id for s in cf.interruption_location.all()) for cf in faults}
-        preceding_z_cache = {pf.id: set(s.id for s in pf.interruption_location.all()) for pf in preceding_faults}
-
-        matched_preceding_faults = []
-        for pf in preceding_faults:
-            pf_z = preceding_z_cache.get(pf.id, set())
-            is_matched = False
-            for cf in faults:
-                if cf.is_fiber_fault and pf.is_fiber_fault:
-                    if pf.interruption_location_a_id == cf.interruption_location_a_id:
-                        cf_z = current_z_cache.get(cf.id, set())
-                        if pf_z.intersection(cf_z):
-                            if (cf.fault_occurrence_time - pf.fault_occurrence_time) <= timedelta(days=60):
-                                is_matched = True
-                                break
-            if is_matched:
-                matched_preceding_faults.append(pf)
+        # 统一计算当前期的重复故障
+        repeat_result = detect_repeat_faults(faults, past_faults_list)
+        repeat_faults_count = len(repeat_result.kpi_repeat_ids)
 
         # 统计图表维度
         resource_stats = {}
@@ -1882,10 +1832,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         reason_stats = {}
 
         for fault in faults:
-            # 持续时间计算
             occ_time = fault.fault_occurrence_time
             end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
-            
             duration_delta = end_t - occ_time
             duration_hours = duration_delta.total_seconds() / 3600.0
             
@@ -1893,37 +1841,6 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             if duration_hours >= 6.0:
                 long_faults_count += 1
                 
-            # 重复故障判断
-            is_repeat_kpi = False
-            is_repeat_ui = False
-            if fault.is_fiber_fault:
-                fault_z_site_ids = fault_z_sites_cache.get(fault.id, set(s.id for s in fault.interruption_location.all()))
-                
-                # 1. 用于 KPI 的单向判定（仅检查先前故障）
-                for pf in past_faults_list:
-                    if pf.id != fault.id and pf.fault_occurrence_time < fault.fault_occurrence_time:
-                        if (fault.fault_occurrence_time - pf.fault_occurrence_time) <= timedelta(days=60):
-                            if pf.interruption_location_a_id == fault.interruption_location_a_id:
-                                pf_z_site_ids = fault_z_sites_cache.get(pf.id, set())
-                                if pf_z_site_ids.intersection(fault_z_site_ids):
-                                    is_repeat_kpi = True
-                                    break
-                
-                # 2. 用于 UI 展示的双向判定（检查前后60天内的所有重复故障）
-                for pf in past_faults_list:
-                    if pf.id != fault.id:
-                        if abs(fault.fault_occurrence_time - pf.fault_occurrence_time) <= timedelta(days=60):
-                            if pf.interruption_location_a_id == fault.interruption_location_a_id:
-                                pf_z_site_ids = fault_z_sites_cache.get(pf.id, set())
-                                if pf_z_site_ids.intersection(fault_z_site_ids):
-                                    is_repeat_ui = True
-                                    break
-                
-                if is_repeat_kpi:
-                    repeat_faults_count += 1
-
-            # 填充图表分配
-            # 1. 属性 (自建/协调/租赁/未填写)
             r_type = fault.resource_type or 'unfilled'
             r_type_display = fault.get_resource_type_display() if fault.resource_type else '未填写'
             if r_type_display not in resource_stats:
@@ -1931,101 +1848,14 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             resource_stats[r_type_display]['count'] += 1
             resource_stats[r_type_display]['duration'] += duration_hours
 
-            # 2. 省份
-            prov_name = fault.province.name if fault.province else '未知'
-
-            # 3. 原因 (一级)
             reason = fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知'
             if reason not in reason_stats:
                 reason_stats[reason] = {'count': 0, 'duration': 0.0}
             reason_stats[reason]['count'] += 1
             reason_stats[reason]['duration'] += duration_hours
 
-            source_group = _source_group_for_fault(fault)
-            if 6.0 <= duration_hours < 8.0:
-                duration_bucket = '6-8小时'
-            elif 8.0 <= duration_hours < 10.0:
-                duration_bucket = '8-10小时'
-            elif 10.0 <= duration_hours < 12.0:
-                duration_bucket = '10-12小时'
-            elif duration_hours >= 12.0:
-                duration_bucket = '12小时以上'
-            else:
-                duration_bucket = ''
-
-            occurrence_period = _occurrence_period_for_fault(fault)
-            cause_group = '施工类' if reason == '施工' else '非施工类'
-            duration_histogram_bucket = _duration_histogram_bucket_label(_duration_histogram_bucket_index(duration_hours))
-
-            
-            # 明细存储（仅返回精简信息给前端作本地过滤或列表展示)
-            z_site_names = [s.name for s in fault.interruption_location.all()]
-            
-            detail = {
-                'id': fault.id,
-                'fault_number': fault.fault_number,
-                'fault_occurrence_time': _format_local_datetime(occ_time),
-                'fault_recovery_time': _format_local_datetime(fault.fault_recovery_time) if fault.fault_recovery_time else '未恢复',
-                'duration': round(duration_hours, 2),
-                'category': fault.get_fault_category_display(),
-                'resource_type': r_type_display,
-                'source_group': source_group,
-                'province': prov_name,
-                'reason': reason,
-                'duration_bucket': duration_bucket,
-                'duration_histogram_bucket': duration_histogram_bucket,
-                'is_valid_duration': duration_hours > 0.5,
-                'occurrence_period': occurrence_period,
-                'cause_group': cause_group,
-                'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
-                'site_z': ', '.join(z_site_names),
-                'is_repeat': is_repeat_ui,
-                'is_long': duration_hours >= 6.0,
-                'url': fault.get_absolute_url(),
-                'in_period': True
-            }
-            details.append(detail)
-            if _is_branch_company_fault(fault):
-                branch_company_details.append(detail)
-
-        for fault in matched_preceding_faults:
-            occ_time = fault.fault_occurrence_time
-            end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
-            duration_hours = (end_t - occ_time).total_seconds() / 3600.0
-            prov_name = fault.province.name if fault.province else '未知'
-            reason = fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知'
-            z_site_names = [s.name for s in fault.interruption_location.all()]
-            
-            detail = {
-                'id': fault.id,
-                'fault_number': fault.fault_number,
-                'fault_occurrence_time': _format_local_datetime(occ_time),
-                'fault_recovery_time': _format_local_datetime(fault.fault_recovery_time) if fault.fault_recovery_time else '未恢复',
-                'duration': round(duration_hours, 2),
-                'category': fault.get_fault_category_display(),
-                'resource_type': fault.get_resource_type_display() if fault.resource_type else '未填写',
-                'source_group': _source_group_for_fault(fault),
-                'province': prov_name,
-                'reason': reason,
-                'duration_bucket': '',
-                'duration_histogram_bucket': '',
-                'is_valid_duration': duration_hours > 0.5,
-                'occurrence_period': _occurrence_period_for_fault(fault),
-                'cause_group': '施工类' if reason == '施工' else '非施工类',
-                'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
-                'site_z': ', '.join(z_site_names),
-                'is_repeat': True,
-                'is_long': duration_hours >= 6.0,
-                'url': fault.get_absolute_url(),
-                'in_period': False
-            }
-            details.append(detail)
-            if _is_branch_company_fault(fault):
-                branch_company_details.append(detail)
-
         # 使用辅助函数计算当前期光缆中断概览
         cable_break_overview = _compute_cable_break_overview(faults, now)
-
         avg_duration_hours = total_duration_hours / total_count if total_count > 0 else 0.0
 
         # 计算上周期的全维度对比数据
@@ -2037,7 +1867,6 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             all_suspended_faults_total_count,
         )
         if prev_start_date and prev_end_date:
-            # 上周期故障：物理页对比遵循省份过滤，子公司统计保持全量口径。
             prev_all_qs = qs_all.filter(fault_occurrence_time__gte=prev_start_date, fault_occurrence_time__lt=prev_end_date)
             prev_unfiltered_all_faults = list(prev_all_qs)
             prev_all_faults = list(_apply_physical_province_filter(prev_all_qs, selected_provinces))
@@ -2052,7 +1881,6 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 all_suspended_faults_total_count,
             )
 
-            # 上周期光缆中断概览（用于各子指标趋势对比）
             prev_cable_break_overview = _compute_cable_break_overview(prev_faults, now)
             prev_branch_company_stats = _build_branch_company_statistics(
                 prev_unfiltered_all_faults,
@@ -2065,14 +1893,12 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 calendar_month,
             )
 
-        # 为了展示准确的截止自然日（例如周日而非下周一，10月31日而非11月1日），展示日期需减去一天
         display_end_date_str = ''
         if end_date:
             display_end_date = end_date - timedelta(days=1)
             display_end_date_str = display_end_date.strftime('%Y-%m-%d')
 
-        # 返回 JSON 结构
-        return JsonResponse({
+        response_data = {
             'period': build_period_display(start_date, end_date, now),
             'kpis': {
                 'total_count': overall_total_count,
@@ -2108,9 +1934,12 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             'other_overview': other_overview,
             'prev_other_overview': prev_other_overview,
             'selected_provinces': selected_provinces,
-            'branch_company_details': branch_company_details,
-            'details': details
-        })
+        }
+
+        if is_ended:
+            cache.set(cache_key, response_data, timeout=12 * 3600)
+
+        return JsonResponse(response_data)
 
 
 
@@ -2131,18 +1960,8 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
         tz = timezone.get_current_timezone()
         year_start = timezone.datetime(selected_year, 1, 1, tzinfo=tz)
         year_end = timezone.datetime(selected_year + 1, 1, 1, tzinfo=tz)
-        calendar_year = int(request.GET.get('calendar_year', selected_year))
-        calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
-        calendar_months = _build_recent_calendar_months(calendar_year, calendar_month, tz, num_months=3)
-        calendar_full_months = _build_year_to_month_calendar_months(calendar_year, calendar_month, tz)
-        calendar_start = calendar_months[0]['start']
-        calendar_end = calendar_months[-1]['end']
-        calendar_full_start = calendar_full_months[0]['start']
-        calendar_full_end = calendar_full_months[-1]['end']
-        calendar_query_start = min(calendar_start, calendar_full_start)
-        calendar_query_end = max(calendar_end, calendar_full_end)
-
-        # 查询当前期的所有 FaultImpact
+        
+        # 1. 过滤当前周期的 impacts
         impacts_qs = OtnFaultImpact.objects.select_related(
             'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
         ).filter(
@@ -2153,34 +1972,66 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             | Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)
         )
         impacts = list(impacts_qs)
-        yearly_impacts_qs = OtnFaultImpact.objects.select_related(
-            'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
-        ).filter(
-            service_interruption_time__gte=year_start,
-            service_interruption_time__lt=year_end
-        ).filter(
-            Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
-            | Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)
-        ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
-        yearly_impacts = list(yearly_impacts_qs)
-        calendar_impacts_qs = OtnFaultImpact.objects.select_related(
-            'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
-        ).filter(
-            service_interruption_time__gte=calendar_query_start,
-            service_interruption_time__lt=calendar_query_end
-        ).filter(
-            Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
-            | Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)
-        ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
-        calendar_impacts = list(calendar_impacts_qs)
+        
+        # 提取当前期受影响的业务 ID 集合
+        affected_bf_ids = {imp.bare_fiber_service_id for imp in impacts if imp.service_type == ServiceTypeChoices.BARE_FIBER and imp.bare_fiber_service_id}
+        affected_cs_ids = {imp.circuit_service_id for imp in impacts if imp.service_type == ServiceTypeChoices.CIRCUIT and imp.circuit_service_id}
 
-        # 计算周期总小时数（用于 SLA）
+        # 2. 仅对当前周期有影响的业务，获取其年度 impacts 和日历
+        yearly_impacts = []
+        calendar_impacts = []
+        
+        calendar_year = int(request.GET.get('calendar_year', selected_year))
+        calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
+        calendar_months = _build_recent_calendar_months(calendar_year, calendar_month, tz, num_months=3)
+        calendar_full_months = _build_year_to_month_calendar_months(calendar_year, calendar_month, tz)
+        
+        if affected_bf_ids or affected_cs_ids:
+            # 获取年度 impacts
+            yearly_impacts_qs = OtnFaultImpact.objects.select_related(
+                'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
+            ).filter(
+                service_interruption_time__gte=year_start,
+                service_interruption_time__lt=year_end
+            ).filter(
+                Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
+                | Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)
+            ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
+            
+            yearly_impacts_qs = yearly_impacts_qs.filter(
+                Q(service_type=ServiceTypeChoices.BARE_FIBER, bare_fiber_service_id__in=affected_bf_ids)
+                | Q(service_type=ServiceTypeChoices.CIRCUIT, circuit_service_id__in=affected_cs_ids)
+            )
+            yearly_impacts = list(yearly_impacts_qs)
+
+            # 获取日历 impacts
+            calendar_start = calendar_months[0]['start']
+            calendar_end = calendar_months[-1]['end']
+            calendar_full_start = calendar_full_months[0]['start']
+            calendar_full_end = calendar_full_months[-1]['end']
+            calendar_query_start = min(calendar_start, calendar_full_start)
+            calendar_query_end = max(calendar_end, calendar_full_end)
+
+            calendar_impacts_qs = OtnFaultImpact.objects.select_related(
+                'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
+            ).filter(
+                service_interruption_time__gte=calendar_query_start,
+                service_interruption_time__lt=calendar_query_end
+            ).filter(
+                Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
+                | Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)
+            ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
+            
+            calendar_impacts_qs = calendar_impacts_qs.filter(
+                Q(service_type=ServiceTypeChoices.BARE_FIBER, bare_fiber_service_id__in=affected_bf_ids)
+                | Q(service_type=ServiceTypeChoices.CIRCUIT, circuit_service_id__in=affected_cs_ids)
+            )
+            calendar_impacts = list(calendar_impacts_qs)
+
         period_total_hours: float = (end_date - start_date).total_seconds() / 3600.0
         annual_total_hours: float = (year_end - year_start).total_seconds() / 3600.0
 
-        # 按业务 key 聚合
-        service_map: dict = {}  # key -> stats dict
-        service_details: list[dict[str, str | int | float | bool]] = []
+        service_map: dict = {}
 
         def initialize_service_stats(
             svc_name: str,
@@ -2196,9 +2047,9 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'sort_rank': svc_sort_rank,
                 'has_current_period_faults': False,
                 'count': 0,
-                'break_count': 0,   # 中断
-                'jitter_count': 0,  # 抖动
-                'degrade_count': 0, # 劣化
+                'break_count': 0,
+                'jitter_count': 0,
+                'degrade_count': 0,
                 'other_count': 0,
                 'category_stats': {
                     label: {
@@ -2223,22 +2074,12 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 },
                 'total_duration': 0.0,
                 'long_count': 0,
-                'intervals': [],  # 用于 SLA 合并时段
-                'occurrence_times': [],  # 用于重复判断
+                'intervals': [],
+                'occurrence_times': [],
             }
 
-        for service in BareFiberService.objects.select_related('tenant_group').order_by('name'):
-            svc_key = f'bf_{service.pk}'
-            svc_group_label = service.tenant_group.name if service.tenant_group else '未分组'
-            service_map[svc_key] = initialize_service_stats(
-                service.name,
-                '裸纤业务',
-                svc_group_label,
-                0,
-            )
-
+        # 遍历 impacts 填充受到故障影响的业务卡片
         for imp in impacts:
-            # 确定业务标识和名称
             if imp.service_type == ServiceTypeChoices.BARE_FIBER and imp.bare_fiber_service:
                 svc_key = f'bf_{imp.bare_fiber_service_id}'
                 svc_name = imp.bare_fiber_service.name
@@ -2252,11 +2093,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 svc_group_label = imp.circuit_service.get_business_category_display() if imp.circuit_service.business_category else '未分组'
                 svc_sort_rank = 1
             else:
-                svc_key = f'unknown_{imp.id}'
-                svc_name = str(imp)
-                svc_type_label = '未知'
-                svc_group_label = '未分组'
-                svc_sort_rank = 2
+                continue
 
             if svc_key not in service_map:
                 service_map[svc_key] = initialize_service_stats(
@@ -2270,7 +2107,6 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             stats['has_current_period_faults'] = True
             stats['count'] += 1
 
-            # 分类计数
             fault_cat = imp.otn_fault.fault_category if imp.otn_fault else None
             category_label = imp.otn_fault.get_fault_category_display() if imp.otn_fault else '未知'
             if category_label not in stats['category_stats']:
@@ -2288,7 +2124,6 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             else:
                 stats['other_count'] += 1
 
-            # 业务中断时长
             svc_start = imp.service_interruption_time
             svc_end = imp.service_recovery_time if imp.service_recovery_time else now
             dur_hours = (svc_end - svc_start).total_seconds() / 3600.0
@@ -2298,33 +2133,18 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             if dur_hours >= 6.0:
                 stats['long_count'] += 1
 
-            service_details.append({
-                'id': imp.id,
-                'service_key': svc_key,
-                'service_name': svc_name,
-                'service_type': svc_type_label,
-                'fault_number': imp.otn_fault.fault_number if imp.otn_fault else '',
-                'fault_category': imp.otn_fault.get_fault_category_display() if imp.otn_fault else '未知',
-                'service_interruption_time': _format_local_datetime(svc_start),
-                'service_recovery_time': _format_local_datetime(imp.service_recovery_time) if imp.service_recovery_time else '未恢复',
-                'duration': round(dur_hours, 2),
-                'is_long': dur_hours >= 6.0,
-                'impact_url': imp.get_absolute_url(),
-                'fault_url': imp.otn_fault.get_absolute_url() if imp.otn_fault else '',
-            })
-
-            # 记录时段供 SLA 计算（合并重叠）
             stats['intervals'].append((svc_start, svc_end))
-            # 记录发生时间供重复判断
             stats['occurrence_times'].append(svc_start)
 
+        # 填充年度 impacts
         for year_imp in yearly_impacts:
             if year_imp.service_type == ServiceTypeChoices.BARE_FIBER and year_imp.bare_fiber_service:
                 svc_key = f'bf_{year_imp.bare_fiber_service_id}'
             elif year_imp.service_type == ServiceTypeChoices.CIRCUIT and year_imp.circuit_service:
                 svc_key = f'cs_{year_imp.circuit_service_id}'
             else:
-                svc_key = f'unknown_{year_imp.id}'
+                continue
+            
             if svc_key not in service_map:
                 continue
 
@@ -2339,13 +2159,15 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             stats['annual_summary']['total_duration'] += month_dur_hours
             stats['annual_summary']['intervals'].append((year_imp.service_interruption_time, month_end))
 
+        # 填充日历
         for calendar_imp in calendar_impacts:
             if calendar_imp.service_type == ServiceTypeChoices.BARE_FIBER and calendar_imp.bare_fiber_service:
                 svc_key = f'bf_{calendar_imp.bare_fiber_service_id}'
             elif calendar_imp.service_type == ServiceTypeChoices.CIRCUIT and calendar_imp.circuit_service:
                 svc_key = f'cs_{calendar_imp.circuit_service_id}'
             else:
-                svc_key = f'unknown_{calendar_imp.id}'
+                continue
+            
             if svc_key not in service_map:
                 continue
 
@@ -2357,7 +2179,6 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             if calendar_key in stats['interrupt_calendar_full'] and calendar_day.day in stats['interrupt_calendar_full'][calendar_key]:
                 stats['interrupt_calendar_full'][calendar_key][calendar_day.day] += 1
 
-        # 构建返回结果
         def calculate_merged_interval_sla(
             intervals: list[tuple[Any, Any]],
             scope_start: Any,
@@ -2389,14 +2210,12 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             total_dur = stats['total_duration']
             avg_dur = total_dur / count if count > 0 else 0.0
 
-            # 重复故障：同一业务 60 天内有多次影响
             repeat_count = 0
             times_sorted = sorted(stats['occurrence_times'])
             for i in range(1, len(times_sorted)):
                 if (times_sorted[i] - times_sorted[i - 1]).days <= 60:
                     repeat_count += 1
 
-            # SLA：合并重叠时段后计算不可用总时长
             intervals = sorted(stats['intervals'], key=lambda x: x[0])
             merged: list = []
             for s, e in intervals:
@@ -2408,7 +2227,8 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 (e - s).total_seconds() / 3600.0 for s, e in merged
             )
             sla = ((period_total_hours - unavailable_hours) / period_total_hours * 100.0) if period_total_hours > 0 else 100.0
-            sla = max(0.0, sla)  # 防止负值
+            sla = max(0.0, sla)
+            
             annual_intervals = sorted(stats['annual_summary']['intervals'], key=lambda x: x[0])
             annual_merged: list = []
             for s, e in annual_intervals:
@@ -2436,6 +2256,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                     key=lambda item: (category_order.get(item[0], len(category_order)), item[0])
                 )
             ]
+            
             monthly_stats_payload = []
             for month, month_stats in stats['monthly_stats'].items():
                 month_start = timezone.datetime(selected_year, month, 1, tzinfo=tz)
@@ -2455,12 +2276,14 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                     'duration': round(month_stats['duration'], 2),
                     'sla': truncate_sla(monthly_sla),
                 })
+                
             annual_summary_payload = {
                 'year': selected_year,
                 'count': stats['annual_summary']['count'],
                 'total_duration': round(stats['annual_summary']['total_duration'], 2),
                 'sla': truncate_sla(annual_sla),
             }
+            
             interrupt_calendar_payload = [
                 {
                     'key': month_info['key'],
@@ -2478,6 +2301,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 }
                 for month_info in calendar_months
             ]
+            
             interrupt_calendar_full_payload = [
                 {
                     'key': month_info['key'],
@@ -2520,12 +2344,10 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'sla': truncate_sla(sla),
             })
 
-        # 按业务类型分组：裸纤在前，电路在后；组内按故障总数降序，名称升序兜底。
         services_result.sort(key=lambda x: (x['sort_rank'], -x['count'], x['name']))
         for result in services_result:
             result.pop('sort_rank', None)
 
-        # 展示日期
         display_end_date_str = ''
         if end_date:
             display_end_date = end_date - timedelta(days=1)
@@ -2535,5 +2357,339 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             'period': build_period_display(start_date, end_date, now),
             'period_total_hours': round(period_total_hours, 2),
             'services': services_result,
-            'details': service_details,
+        })
+
+
+class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
+    """
+    故障明细分页与过滤接口。
+    """
+    permission_required = 'netbox_otnfaults.view_otnfault'
+
+    def get(self, request) -> JsonResponse:
+        start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
+        now = timezone.localtime()
+        selected_provinces = _parse_selected_provinces(request)
+
+        qs = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
+        qs = qs.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
+        qs = _apply_physical_province_filter(qs, selected_provinces)
+
+        category = request.GET.get('category')
+        if category == 'overall_total':
+            qs = qs.exclude(fault_category__in=OVERALL_EXCLUDED_TOTAL_CATEGORIES)
+        elif category:
+            qs = qs.filter(fault_category=category)
+
+        resource_type = request.GET.get('resource_type')
+        if resource_type == 'unfilled':
+            qs = qs.filter(Q(resource_type='') | Q(resource_type__isnull=True))
+        elif resource_type:
+            qs = qs.filter(resource_type=resource_type)
+
+        reason = request.GET.get('reason')
+        if reason:
+            reason_map = {
+                '施工': 'construction',
+                '人为': 'human_factor',
+                '交通事故': 'traffic_accident',
+                '动物破坏': 'animal_damage',
+                '自然灾害': 'natural_disaster',
+                '火灾故障': 'fire',
+                '无法查明': 'unknown',
+                '光缆整改': 'cable_rectification',
+            }
+            reason_val = reason_map.get(reason, reason)
+            qs = qs.filter(interruption_reason=reason_val)
+
+        is_long = request.GET.get('is_long')
+        if is_long == 'true':
+            qs = qs.annotate(
+                duration=ExpressionWrapper(
+                    Coalesce(F('fault_recovery_time'), now) - F('fault_occurrence_time'),
+                    output_field=DurationField()
+                )
+            ).filter(duration__gte=timedelta(hours=6))
+
+        duration_bucket = request.GET.get('duration_bucket')
+        if duration_bucket:
+            qs = qs.annotate(
+                duration_hours=ExpressionWrapper(
+                    (Coalesce(F('fault_recovery_time'), now) - F('fault_occurrence_time')),
+                    output_field=DurationField()
+                )
+            )
+            if duration_bucket == '6-8小时':
+                qs = qs.filter(duration_hours__gte=timedelta(hours=6), duration_hours__lt=timedelta(hours=8))
+            elif duration_bucket == '8-10小时':
+                qs = qs.filter(duration_hours__gte=timedelta(hours=8), duration_hours__lt=timedelta(hours=10))
+            elif duration_bucket == '10-12小时':
+                qs = qs.filter(duration_hours__gte=timedelta(hours=10), duration_hours__lt=timedelta(hours=12))
+            elif duration_bucket == '12小时以上':
+                qs = qs.filter(duration_hours__gte=timedelta(hours=12))
+
+        scope = request.GET.get('scope')
+        if scope == 'branch_company':
+            qs = qs.filter(province__name__in=BRANCH_PROVINCE_NAMES).exclude(
+                handling_unit__name__in=EXCLUDED_HANDLING_UNITS
+            )
+
+        province = request.GET.get('province')
+        if province:
+            qs = qs.filter(province__name=province)
+
+        ordering = request.GET.get('ordering', '-fault_occurrence_time')
+        if ordering.replace('-', '') in ['fault_occurrence_time', 'duration']:
+            if 'duration' in ordering:
+                qs = qs.annotate(
+                    duration=ExpressionWrapper(
+                        Coalesce(F('fault_recovery_time'), now) - F('fault_occurrence_time'),
+                        output_field=DurationField()
+                    )
+                )
+            qs = qs.order_by(ordering)
+        else:
+            qs = qs.order_by('-fault_occurrence_time')
+
+        total_count = qs.count()
+        page = int(request.GET.get('page', 1))
+        per_page = int(request.GET.get('per_page', 25))
+        
+        start_index = (page - 1) * per_page
+        end_index = page * per_page
+        
+        page_faults = list(qs[start_index:end_index])
+
+        ui_repeat_ids = set()
+        if page_faults:
+            fiber_faults = [f for f in page_faults if f.is_fiber_fault]
+            if fiber_faults:
+                min_t = min(f.fault_occurrence_time for f in fiber_faults)
+                max_t = max(f.fault_occurrence_time for f in fiber_faults)
+                past_qs = OtnFault.objects.filter(
+                    fault_occurrence_time__gte=min_t - timedelta(days=60),
+                    fault_occurrence_time__lt=max_t + timedelta(days=60),
+                    fault_category__in=[FaultCategoryChoices.FIBER_BREAK, 
+                                        FaultCategoryChoices.FIBER_DEGRADATION, 
+                                        FaultCategoryChoices.FIBER_JITTER]
+                ).select_related('interruption_location_a').prefetch_related('interruption_location')
+                repeat_result = detect_repeat_faults(page_faults, list(past_qs))
+                ui_repeat_ids = repeat_result.ui_repeat_ids
+
+        results = []
+        for fault in page_faults:
+            occ_time = fault.fault_occurrence_time
+            end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
+            duration_hours = (end_t - occ_time).total_seconds() / 3600.0
+            z_site_names = [s.name for s in fault.interruption_location.all()]
+            
+            results.append({
+                'id': fault.id,
+                'fault_number': fault.fault_number,
+                'fault_occurrence_time': _format_local_datetime(occ_time),
+                'fault_recovery_time': _format_local_datetime(fault.fault_recovery_time) if fault.fault_recovery_time else '未恢复',
+                'duration': round(duration_hours, 2),
+                'category': fault.get_fault_category_display(),
+                'resource_type': fault.get_resource_type_display() if fault.resource_type else '未填写',
+                'source_group': _source_group_for_fault(fault),
+                'province': fault.province.name if fault.province else '未知',
+                'reason': fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知',
+                'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
+                'site_z': ', '.join(z_site_names),
+                'is_repeat': fault.id in ui_repeat_ids,
+                'is_long': duration_hours >= 6.0,
+                'url': fault.get_absolute_url(),
+                'in_period': True
+            })
+
+        num_pages = math.ceil(total_count / per_page) if per_page > 0 else 1
+        
+        return JsonResponse({
+            'results': results,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total_count,
+                'start': start_index + 1 if total_count > 0 else 0,
+                'end': min(end_index, total_count),
+                'pages': num_pages
+            }
+        })
+
+
+class FaultRepeatsAPI(PermissionRequiredMixin, View):
+    """
+    特定故障的关联重复故障列表接口。
+    """
+    permission_required = 'netbox_otnfaults.view_otnfault'
+    
+    def get(self, request) -> JsonResponse:
+        fault_id = request.GET.get('fault_id')
+        if not fault_id:
+            return JsonResponse({'results': []})
+        try:
+            fault = OtnFault.objects.prefetch_related('interruption_location').get(pk=fault_id)
+        except OtnFault.DoesNotExist:
+            return JsonResponse({'results': []})
+            
+        if not fault.is_fiber_fault or not fault.fault_occurrence_time:
+            return JsonResponse({'results': []})
+            
+        t = fault.fault_occurrence_time
+        past_qs = OtnFault.objects.filter(
+            fault_occurrence_time__gte=t - timedelta(days=60),
+            fault_occurrence_time__lt=t + timedelta(days=60),
+            fault_category__in=[FaultCategoryChoices.FIBER_BREAK, 
+                                FaultCategoryChoices.FIBER_DEGRADATION, 
+                                FaultCategoryChoices.FIBER_JITTER]
+        ).select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
+        
+        z_ids = set(s.id for s in fault.interruption_location.all())
+        matched_faults = []
+        for f in past_qs:
+            if f.id == fault.id:
+                continue
+            if f.interruption_location_a_id == fault.interruption_location_a_id:
+                f_z_ids = set(s.id for s in f.interruption_location.all())
+                if z_ids.intersection(f_z_ids):
+                    matched_faults.append(f)
+        
+        all_matched = [fault] + sorted(matched_faults, key=lambda x: x.fault_occurrence_time)
+        
+        results = []
+        now = timezone.localtime()
+        for f in all_matched:
+            occ_time = f.fault_occurrence_time
+            end_t = f.fault_recovery_time if f.fault_recovery_time else now
+            duration_hours = (end_t - occ_time).total_seconds() / 3600.0
+            z_site_names = [s.name for s in f.interruption_location.all()]
+            results.append({
+                'id': f.id,
+                'fault_number': f.fault_number,
+                'fault_occurrence_time': _format_local_datetime(occ_time),
+                'fault_recovery_time': _format_local_datetime(f.fault_recovery_time) if f.fault_recovery_time else '未恢复',
+                'duration': round(duration_hours, 2),
+                'category': f.get_fault_category_display(),
+                'resource_type': f.get_resource_type_display() if f.resource_type else '未填写',
+                'source_group': _source_group_for_fault(f),
+                'province': f.province.name if f.province else '未知',
+                'reason': f.get_interruption_reason_display() if f.interruption_reason else '未填/未知',
+                'site_a': f.interruption_location_a.name if f.interruption_location_a else '',
+                'site_z': ', '.join(z_site_names),
+                'is_repeat': True,
+                'is_long': duration_hours >= 6.0,
+                'url': f.get_absolute_url(),
+                'in_period': True if (t - timedelta(seconds=1)) <= f.fault_occurrence_time <= (t + timedelta(seconds=1)) else False
+            })
+        return JsonResponse({'results': results})
+
+
+class ServiceStatisticsDetailsAPI(PermissionRequiredMixin, View):
+    """
+    业务受影响明细分页接口。
+    """
+    permission_required = 'netbox_otnfaults.view_otnfaultimpact'
+    
+    def get(self, request) -> JsonResponse:
+        start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
+        now = timezone.localtime()
+        
+        impacts_qs = OtnFaultImpact.objects.select_related(
+            'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
+        ).filter(
+            service_interruption_time__gte=start_date,
+            service_interruption_time__lt=end_date
+        ).filter(
+            Q(service_type=ServiceTypeChoices.BARE_FIBER, business_impact=BusinessImpactChoices.INTERRUPTED)
+            | Q(service_type=ServiceTypeChoices.CIRCUIT, business_impact=BusinessImpactChoices.INTERRUPTED)
+        )
+        
+        service_type = request.GET.get('service_type')
+        if service_type:
+            impacts_qs = impacts_qs.filter(service_type=service_type)
+            
+        service_key = request.GET.get('service_key')
+        if service_key:
+            if service_key.startswith('bf_'):
+                impacts_qs = impacts_qs.filter(bare_fiber_service_id=service_key.split('_')[1])
+            elif service_key.startswith('cs_'):
+                impacts_qs = impacts_qs.filter(circuit_service_id=service_key.split('_')[1])
+                
+        is_long = request.GET.get('is_long')
+        if is_long == 'true':
+            impacts_qs = impacts_qs.annotate(
+                duration=ExpressionWrapper(
+                    Coalesce(F('service_recovery_time'), now) - F('service_interruption_time'),
+                    output_field=DurationField()
+                )
+            ).filter(duration__gte=timedelta(hours=6))
+            
+        ordering = request.GET.get('ordering', '-service_interruption_time')
+        if ordering.replace('-', '') in ['service_interruption_time', 'duration']:
+            if 'duration' in ordering:
+                impacts_qs = impacts_qs.annotate(
+                    duration=ExpressionWrapper(
+                        Coalesce(F('service_recovery_time'), now) - F('service_interruption_time'),
+                        output_field=DurationField()
+                    )
+                )
+            impacts_qs = impacts_qs.order_by(ordering)
+        else:
+            impacts_qs = impacts_qs.order_by('-service_interruption_time')
+            
+        total_count = impacts_qs.count()
+        page = int(request.GET.get('page', 1))
+        per_page = int(request.GET.get('per_page', 25))
+        
+        start_index = (page - 1) * per_page
+        end_index = page * per_page
+        
+        page_impacts = list(impacts_qs[start_index:end_index])
+        
+        results = []
+        for imp in page_impacts:
+            svc_start = imp.service_interruption_time
+            svc_end = imp.service_recovery_time if imp.service_recovery_time else now
+            dur_hours = (svc_end - svc_start).total_seconds() / 3600.0
+            
+            if imp.service_type == ServiceTypeChoices.BARE_FIBER and imp.bare_fiber_service:
+                svc_key = f'bf_{imp.bare_fiber_service_id}'
+                svc_name = imp.bare_fiber_service.name
+                svc_type_label = '裸纤业务'
+            elif imp.service_type == ServiceTypeChoices.CIRCUIT and imp.circuit_service:
+                svc_key = f'cs_{imp.circuit_service_id}'
+                svc_name = imp.circuit_service.special_line_name or imp.circuit_service.name
+                svc_type_label = '电路业务'
+            else:
+                svc_key = f'unknown_{imp.id}'
+                svc_name = str(imp)
+                svc_type_label = '未知'
+                
+            results.append({
+                'id': imp.id,
+                'service_key': svc_key,
+                'service_name': svc_name,
+                'service_type': svc_type_label,
+                'fault_number': imp.otn_fault.fault_number if imp.otn_fault else '',
+                'fault_category': imp.otn_fault.get_fault_category_display() if imp.otn_fault else '未知',
+                'service_interruption_time': _format_local_datetime(svc_start),
+                'service_recovery_time': _format_local_datetime(imp.service_recovery_time) if imp.service_recovery_time else '未恢复',
+                'duration': round(dur_hours, 2),
+                'is_long': dur_hours >= 6.0,
+                'impact_url': imp.get_absolute_url(),
+                'fault_url': imp.otn_fault.get_absolute_url() if imp.otn_fault else '',
+            })
+            
+        num_pages = math.ceil(total_count / per_page) if per_page > 0 else 1
+        
+        return JsonResponse({
+            'results': results,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total_count,
+                'start': start_index + 1 if total_count > 0 else 0,
+                'end': min(end_index, total_count),
+                'pages': num_pages
+            }
         })

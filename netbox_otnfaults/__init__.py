@@ -37,6 +37,9 @@ class OtnFaultsConfig(PluginConfig):
     def ready(self):
         super().ready()
         
+        # Register Signals
+        from . import signals
+        
         # Register API URLs
         from . import api
         

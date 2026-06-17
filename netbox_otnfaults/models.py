@@ -1390,6 +1390,8 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
             GinIndex(fields=['recovery_mode']),
             GinIndex(fields=['root_cause_analysis']),
             GinIndex(fields=['rectification_measures']),
+            models.Index(fields=["fault_category", "fault_occurrence_time"], name="otnfault_cat_occ_idx"),
+            models.Index(fields=["is_suspended", "fault_status", "fault_occurrence_time"], name="otnfault_susp_stat_occ_idx"),
         ]
         verbose_name = '故障'
         verbose_name_plural = '故障'
@@ -1940,6 +1942,9 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         ordering = ('-service_interruption_time',)
         verbose_name = '故障影响业务'
         verbose_name_plural = '故障影响业务'
+        indexes = [
+            models.Index(fields=["service_type", "business_impact", "service_interruption_time"], name="otnimpact_type_biz_time_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['otn_fault', 'bare_fiber_service'],

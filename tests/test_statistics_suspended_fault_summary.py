@@ -11,8 +11,8 @@ class StatisticsSuspendedFaultSummaryTestCase(unittest.TestCase):
     def test_backend_returns_open_and_total_suspended_counts(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("all_suspended_faults_total_count = qs_all.filter(_suspended_fault_q()).count()", source)
-        self.assertIn("all_open_suspended_faults_count = qs_all.filter(_suspended_fault_q()).exclude(fault_status=FaultStatusChoices.CLOSED).count()", source)
+        self.assertIn("all_suspended_faults_total_count = _apply_physical_province_filter(qs_all.filter(_suspended_fault_q()), selected_provinces).count()", source)
+        self.assertIn("all_open_suspended_faults_count = _apply_physical_province_filter(", source)
         self.assertIn("'suspended_faults': suspended_faults_count", source)
         self.assertIn("'suspended_faults_total': suspended_faults_total_count", source)
 
