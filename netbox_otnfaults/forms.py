@@ -126,6 +126,14 @@ class OtnFaultForm(NetBoxModelForm):
         label='网管人员复核时间',
         widget=forms.DateTimeInput(attrs={'readonly': True, 'class': 'form-control'})
     )
+    ac_fault_is_class_i = forms.BooleanField(
+        required=False,
+        label='空调故障是否为I类'
+    )
+    device_fault_is_class_i = forms.BooleanField(
+        required=False,
+        label='设备故障是否为I类'
+    )
     
     fieldsets = (
         FieldSet(
@@ -137,6 +145,7 @@ class OtnFaultForm(NetBoxModelForm):
             'first_report_source', 'duty_officer',
             'fault_occurrence_time', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
             'closure_time', 'handler', 'fault_details', 'fault_status', 'is_suspended',
+            'ac_fault_is_class_i', 'device_fault_is_class_i',
             name='故障信息'
         ),
         FieldSet(
@@ -174,7 +183,7 @@ class OtnFaultForm(NetBoxModelForm):
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
             'fault_occurrence_time', 'fault_recovery_time',
             'closure_time', 'first_report_source', 'duty_officer', 'handler', 'fault_details',
-            'fault_status', 'is_suspended',
+            'fault_status', 'is_suspended', 'ac_fault_is_class_i', 'device_fault_is_class_i',
             # 线路主管补充信息组字段
             'line_manager', 'resource_type', 'resource_owner', 'cable_route', 'cable_break_location', 'recovery_mode',
             'maintenance_mode', 'handling_unit', 'contract', 'dispatch_time',
@@ -764,6 +773,14 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         label='挂起',
         help_text='该故障为挂起故障，不计入故障时长统计'
     )
+    ac_fault_is_class_i = forms.NullBooleanField(
+        required=False,
+        label='空调故障是否为I类'
+    )
+    device_fault_is_class_i = forms.NullBooleanField(
+        required=False,
+        label='设备故障是否为I类'
+    )
     timeout = forms.BooleanField(
         required=False,
         label='规定时间内完成修复'
@@ -788,7 +805,8 @@ class OtnFaultBulkEditForm(NetBoxModelBulkEditForm):
         'rectification_subject', 'rectification_progress', 'planned_completion_date',
         'actual_completion_date', 'rectification_completion_description',
         'interruption_reason', 'interruption_reason_detail', 'maintenance_mode', 'resource_type',
-            'resource_owner', 'cable_break_location', 'recovery_mode', 'root_cause_analysis', 'fault_status', 'is_suspended', 'handler', 'timeout_reason', 'comments',
+        'resource_owner', 'cable_break_location', 'recovery_mode', 'root_cause_analysis', 'fault_status', 'is_suspended',
+        'ac_fault_is_class_i', 'device_fault_is_class_i', 'handler', 'timeout_reason', 'comments',
         'interruption_location_a', 'first_report_source', 'cable_route'
     )
 
@@ -884,11 +902,22 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
 class OtnFaultFilterForm(NetBoxModelFilterSetForm):
     tag = TagFilterField(OtnFault)
     model = OtnFault
+    ac_fault_is_class_i = forms.NullBooleanField(
+        required=False,
+        label='空调故障是否为I类',
+        widget=forms.Select(choices=[(None, '---------'), (True, '是'), (False, '否')])
+    )
+    device_fault_is_class_i = forms.NullBooleanField(
+        required=False,
+        label='设备故障是否为I类',
+        widget=forms.Select(choices=[(None, '---------'), (True, '是'), (False, '否')])
+    )
     
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
         FieldSet(
-            'source_cutover_task', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'fault_status', 'is_suspended', 'urgency', 'province',
+            'source_cutover_task', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'fault_status', 'is_suspended',
+            'ac_fault_is_class_i', 'device_fault_is_class_i', 'urgency', 'province',
             'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
             'first_report_source', 'duty_officer',
@@ -1591,6 +1620,10 @@ class CircuitServiceForm(NetBoxModelForm):
         required=False,
         label='对部服务'
     )
+    is_important = forms.BooleanField(
+        required=False,
+        label='是否重要业务'
+    )
     ring_protection = forms.BooleanField(
         required=False,
         label='环网保护'
@@ -1601,7 +1634,7 @@ class CircuitServiceForm(NetBoxModelForm):
     )
 
     fieldsets = (
-        FieldSet('special_line_name', 'name', 'slug', 'business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', name='电路业务'),
+        FieldSet('special_line_name', 'name', 'slug', 'business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'is_important', 'ring_protection', 'operation_status', 'sla_level', name='电路业务'),
         FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
         FieldSet(*EXTRA_FIELD_FIELD_NAMES, name='扩展信息'),
         FieldSet('tags', name='其他'),
@@ -1609,7 +1642,7 @@ class CircuitServiceForm(NetBoxModelForm):
 
     class Meta:
         model = CircuitService
-        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'extra_fields', 'comments', 'tags')
+        fields = ('special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'is_important', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'extra_fields', 'comments', 'tags')
         widgets = {
             'billing_start_time': DatePicker(),
             'billing_end_time': DatePicker(),
@@ -1663,6 +1696,10 @@ class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='对部服务'
     )
+    is_important = forms.NullBooleanField(
+        required=False,
+        label='是否重要业务'
+    )
     ring_protection = forms.NullBooleanField(
         required=False,
         label='环网保护'
@@ -1677,7 +1714,7 @@ class CircuitServiceFilterForm(NetBoxModelFilterSetForm):
 
     fieldsets = (
         FieldSet('q', 'special_line_name', 'filter_id', 'tag'),
-        FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', name='属性'),
+        FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'is_important', 'ring_protection', 'operation_status', 'sla_level', name='属性'),
         FieldSet(*dict(CircuitService.EXTRA_FIELD_DEFINITIONS).keys(), name='扩展信息'),
     )
 
@@ -1742,6 +1779,10 @@ class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
         required=False,
         label='对部服务'
     )
+    is_important = forms.NullBooleanField(
+        required=False,
+        label='是否重要业务'
+    )
     ring_protection = forms.NullBooleanField(
         required=False,
         label='环网保护'
@@ -1783,11 +1824,11 @@ class CircuitServiceBulkEditForm(NetBoxModelBulkEditForm):
 
 
     fieldsets = (
-        FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', name='基本信息'),
+        FieldSet('business_category', 'service_group', 'bandwidth', 'business_manager', 'is_external_business', 'is_important', 'ring_protection', 'operation_status', 'sla_level', name='基本信息'),
         FieldSet('billing_start_time', 'billing_end_time', name='计费周期'),
     )
 
-    nullable_fields = ('service_group', 'business_category', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time')
+    nullable_fields = ('service_group', 'business_category', 'bandwidth', 'business_manager', 'billing_start_time', 'billing_end_time', 'is_important')
 
 
 class CutoverTaskForm(NetBoxModelForm):

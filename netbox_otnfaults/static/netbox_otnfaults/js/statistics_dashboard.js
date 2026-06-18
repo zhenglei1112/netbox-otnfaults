@@ -6,6 +6,9 @@ document.addEventListener("DOMContentLoaded", function() {
     let chartResource = echarts.init(document.getElementById('chart-resource'));
     let chartProvince = echarts.init(document.getElementById('chart-province'));
     let chartReason = echarts.init(document.getElementById('chart-reason'));
+    let chartRingFiber = echarts.init(document.getElementById('chart-ring-fiber'));
+    let chartRingPower = echarts.init(document.getElementById('chart-ring-power'));
+    let chartRingEnvironment = echarts.init(document.getElementById('chart-ring-environment'));
     const chartHistogramElement = document.getElementById('chart-cable-break-histogram');
     let chartHistogram = chartHistogramElement ? echarts.init(chartHistogramElement) : null;
     const chartPhysicalDailyElement = document.getElementById('chart-physical-daily-faults');
@@ -88,6 +91,9 @@ document.addEventListener("DOMContentLoaded", function() {
         chartResource.resize();
         chartProvince.resize();
         chartReason.resize();
+        chartRingFiber.resize();
+        chartRingPower.resize();
+        chartRingEnvironment.resize();
         if (chartHistogram) chartHistogram.resize();
         if (chartPhysicalDaily) chartPhysicalDaily.resize();
         if (chartPhysicalDurationBoxplot) chartPhysicalDurationBoxplot.resize();
@@ -322,6 +328,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         if (currentChartsData) {
             renderCharts(currentChartsData);
+            renderRingCharts(currentChartsData);
             renderOverallDailyFaultChart(currentChartsData.physical_daily);
             renderPhysicalDurationBoxplot(currentChartsData.physical_duration_boxplot, selFilterType.value);
         }
@@ -391,6 +398,33 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (btnCableBreakMap) {
         btnCableBreakMap.addEventListener('click', openCableBreakMapModal);
+    }
+    const cardCutover = document.getElementById('card-cutover-implemented');
+    if (cardCutover) {
+        cardCutover.addEventListener('click', function(e) {
+            e.preventDefault();
+            let url = '/plugins/netbox-otnfaults/cutovers/';
+            const type = selFilterType.value;
+            const dateVal = inputDate.value;
+            const period = buildLocalPeriodForDate(type, dateVal);
+            if (period && period.start) {
+                url += `?planned_cutover_time_after=${period.start}T00:00:00`;
+                if (period.end && period.end !== '当前') {
+                    url += `&planned_cutover_time_before=${period.end}T23:59:59`;
+                } else {
+                    const today = new Date();
+                    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                    url += `&planned_cutover_time_before=${todayStr}T23:59:59`;
+                }
+            }
+            const provinces = getSelectedPhysicalProvinces();
+            if (provinces.length > 0) {
+                provinces.forEach(p => {
+                    url += `&province=${encodeURIComponent(p)}`;
+                });
+            }
+            window.open(url, '_blank');
+        });
     }
     if (cableBreakMapIframe) {
         cableBreakMapIframe.addEventListener('load', () => {
@@ -861,6 +895,7 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             renderKPIs(data.kpis, data.prev_kpis, selFilterType.value);
+            renderImpactLevelOverview(data.impact_level_summary, data.prev_impact_level_summary, selFilterType.value);
             renderOverallSummary(data.kpis, data.charts, data.prev_charts);
             renderOverallOtherSummary(data.other_overview, data.prev_other_overview);
             renderOverallDailyFaultChart(data.charts && data.charts.physical_daily);
@@ -876,6 +911,7 @@ document.addEventListener("DOMContentLoaded", function() {
             renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview);
             renderBranchCompanySection(data.branch_company, data.prev_branch_company);
             renderCharts(data.charts);
+            renderRingCharts(data.charts);
             renderBareFiberInterruption(data.bare_fiber_interruption, data.prev_bare_fiber_interruption);
 
             // 异步加载明细分页
@@ -932,6 +968,37 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
         
+    }
+
+    function renderImpactLevelOverview(summary, prevSummary, type) {
+        summary = summary || {};
+        prevSummary = prevSummary || {};
+
+        const fields = [
+            { id: 'kpi-level-total', key: 'total' },
+            { id: 'kpi-level-class-i-ii', key: 'class_i_ii' },
+            { id: 'kpi-level-class-i', key: 'class_i' },
+            { id: 'kpi-level-class-ii', key: 'class_ii' },
+            { id: 'kpi-level-class-iii', key: 'class_iii' },
+            { id: 'kpi-level-class-iv', key: 'class_iv' },
+            { id: 'kpi-level-class-v', key: 'class_v' },
+            { id: 'kpi-level-cutover', key: 'cutover_implemented' }
+        ];
+
+        fields.forEach(field => {
+            const el = document.getElementById(field.id);
+            if (!el) return;
+            const currentVal = summary[field.key] !== undefined ? summary[field.key] : 0;
+            const prevVal = prevSummary[field.key];
+            
+            el.textContent = formatCardCountValue(currentVal);
+            if (prevVal !== undefined) {
+                renderTrendBesideMetric(el, currentVal, prevVal, true);
+            } else {
+                const trendEl = el.parentElement.parentElement.querySelector('.statistics-metric-trend');
+                if (trendEl) trendEl.innerHTML = '';
+            }
+        });
     }
 
     function renderOverallSummary(kpis, chartsData, prevChartsData) {
@@ -1965,6 +2032,94 @@ document.addEventListener("DOMContentLoaded", function() {
 
     }
 
+    function renderRingCharts(chartsData) {
+        if (!chartsData) return;
+        const theme = getChartTheme();
+
+        const buildRingOption = (titleText, dataList) => {
+            const total = dataList.reduce((sum, item) => sum + (item.value || 0), 0);
+            
+            const colorMap = {
+                'I类': '#ef4444',
+                'II类': theme.chartPalette[0],
+                'III类': theme.chartPalette[0],
+                '挂起': '#94a3b8'
+            };
+            const colors = dataList.map(item => colorMap[item.name] || theme.primary);
+
+            return {
+                textStyle: { color: theme.text },
+                color: colors,
+                tooltip: {
+                    ...buildTooltipTheme(theme),
+                    trigger: 'item',
+                    formatter: function(params) {
+                        const percent = total > 0 ? ((params.value / total) * 100).toFixed(2) : "0.00";
+                        return `${params.marker}${params.name}: ${params.value}起 (${percent}%)`;
+                    }
+                },
+                title: {
+                    text: total + '起',
+                    subtext: '总数',
+                    left: 'center',
+                    top: '32%',
+                    textStyle: {
+                        fontSize: 20,
+                        fontWeight: 'bold',
+                        color: theme.heading
+                    },
+                    subtextStyle: {
+                        fontSize: 11,
+                        color: theme.muted
+                    }
+                },
+                legend: {
+                    bottom: 5,
+                    left: 'center',
+                    itemWidth: 10,
+                    itemHeight: 10,
+                    formatter: function(name) {
+                        const item = dataList.find(d => d.name === name);
+                        if (!item) return name;
+                        const val = item.value || 0;
+                        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : "0.0";
+                        return `${name} ${val}起 (${pct}%)`;
+                    },
+                    ...buildLegendTheme(theme)
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['48%', '66%'],
+                    center: ['50%', '42%'],
+                    label: { show: false },
+                    labelLine: { show: false },
+                    itemStyle: {
+                        borderColor: theme.surface,
+                        borderWidth: 2
+                    },
+                    data: dataList,
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: theme.dark ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.2)'
+                        }
+                    }
+                }]
+            };
+        };
+
+        if (chartsData.ring_fiber) {
+            chartRingFiber.setOption(buildRingOption('光缆中断', chartsData.ring_fiber));
+        }
+        if (chartsData.ring_power) {
+            chartRingPower.setOption(buildRingOption('供电故障', chartsData.ring_power));
+        }
+        if (chartsData.ring_environment) {
+            chartRingEnvironment.setOption(buildRingOption('空调与设备', chartsData.ring_environment));
+        }
+    }
+
     function getCheckedValue(name, fallback) {
         const checked = document.querySelector(`input[name="${name}"]:checked`);
         return checked ? checked.value : fallback;
@@ -2980,6 +3135,16 @@ document.addEventListener("DOMContentLoaded", function() {
             else if (activeFilterField === 'is_valid_duration') { filterName = '特殊标签'; filterValueDisp = '有效平均'; }
             else if (activeFilterField === 'is_long') { filterName = '特殊标签'; filterValueDisp = '长时故障(≥6h)'; }
             else if (activeFilterField === 'is_repeat') { filterName = '特殊标签'; filterValueDisp = '历史重复故障'; }
+            else if (activeFilterField === 'impact_level') {
+                filterName = '影响程度';
+                if (activeFilterValue === 'total') filterValueDisp = '总次数';
+                else if (activeFilterValue === 'class_i_ii') filterValueDisp = 'I类和II类';
+                else if (activeFilterValue === 'class_i') filterValueDisp = 'I类';
+                else if (activeFilterValue === 'class_ii') filterValueDisp = 'II类';
+                else if (activeFilterValue === 'class_iii') filterValueDisp = 'III类';
+                else if (activeFilterValue === 'class_iv') filterValueDisp = 'IV类';
+                else if (activeFilterValue === 'class_v') filterValueDisp = 'V类';
+            }
 
             activeConditions.push(`下钻：${filterName}=${filterValueDisp}`);
             if (activeFilterExtraField === 'is_valid_duration' && activeFilterExtraValue === true) {
@@ -3003,10 +3168,15 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
+    function getImpactLevelBadge(level) {
+        if (!level) return '—';
+        return `<span class="badge bg-indigo text-white" style="color: #fff !important;">${level}</span>`;
+    }
+
     function renderDetailsTableHtml(results) {
         const tbody = document.getElementById('details-tbody');
         if (results.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-muted">包含过滤条件下，无可展示的故障数据</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-muted">包含过滤条件下，无可展示的故障数据</td></tr>`;
             return;
         }
 
@@ -3030,6 +3200,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <td>${item.fault_recovery_time}</td>
                 <td><strong class="${item.is_long ? 'text-danger' : ''}">${item.duration}</strong></td>
                 <td>${item.category}</td>
+                <td>${getImpactLevelBadge(item.impact_level)}</td>
                 <td>${item.resource_type}</td>
                 <td>${item.province}</td>
                 <td>${item.reason}</td>
@@ -3057,7 +3228,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderDetailRows(details, emptyText) {
         if (details.length === 0) {
-            return `<tr><td colspan="10" class="text-center py-4 text-muted">${emptyText}</td></tr>`;
+            return `<tr><td colspan="11" class="text-center py-4 text-muted">${emptyText}</td></tr>`;
         }
 
         assignRepeatGroupColors(details);
@@ -3080,6 +3251,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <td>${item.fault_recovery_time}</td>
                 <td><strong class="${item.is_long ? 'text-danger' : ''}">${item.duration}</strong></td>
                 <td>${item.category}</td>
+                <td>${getImpactLevelBadge(item.impact_level)}</td>
                 <td>${item.resource_type}</td>
                 <td>${item.province}</td>
                 <td>${item.reason}</td>
@@ -3101,7 +3273,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const tbody = document.getElementById('branch-company-details-tbody');
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4">加载中...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center py-4">加载中...</td></tr>';
 
         try {
             const response = await fetch(url);
@@ -3124,7 +3296,7 @@ document.addEventListener("DOMContentLoaded", function() {
             updateBranchFilterBadgeAndSummary(pagination);
         } catch (error) {
             console.error('Fetch branch details error:', error);
-            tbody.innerHTML = '<tr><td colspan="10" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         }
     }
 

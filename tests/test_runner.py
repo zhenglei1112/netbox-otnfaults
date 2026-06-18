@@ -2,9 +2,14 @@ import unittest
 import sys
 
 from test_heavy_duty import HeavyDutySourceCodeTestCase
+from test_statistics_impact_level import StatisticsImpactLevelTestCase
 
 if __name__ == '__main__':
-    suite = unittest.TestLoader().loadTestsFromTestCase(HeavyDutySourceCodeTestCase)
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite((
+        loader.loadTestsFromTestCase(HeavyDutySourceCodeTestCase),
+        loader.loadTestsFromTestCase(StatisticsImpactLevelTestCase),
+    ))
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
     

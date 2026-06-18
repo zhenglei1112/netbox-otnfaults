@@ -144,7 +144,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
             'line_manager', 'operations_manager', 'resource_type', 'resource_owner', 'cable_route',
             'maintenance_mode', 'dispatch_time', 'departure_time',
             'arrival_time', 'repair_time', 'timeout', 'timeout_reason',
-            'handler', 'recovery_mode', 'cable_break_location', 'handling_unit', 'fault_status', 'is_suspended', 'status_color',
+            'handler', 'recovery_mode', 'cable_break_location', 'handling_unit', 'fault_status', 'is_suspended', 'ac_fault_is_class_i', 'device_fault_is_class_i', 'status_color',
             'closure_time', 'power_data_type', 'root_cause_analysis', 'rectification_status',
             'rectification_measures', 'rectification_description', 'rectification_subject',
             'rectification_progress', 'planned_completion_date', 'actual_completion_date',
@@ -157,7 +157,7 @@ class OtnFaultSerializer(NetBoxModelSerializer):
         brief_fields = (
             'id', 'url', 'display', 'fault_number', 'source_cutover_task', 'duty_officer', 'fault_occurrence_time',
             'fault_category', 'interruption_reason', 'urgency', 'first_report_source',
-            'fault_status', 'is_suspended',
+            'fault_status', 'is_suspended', 'ac_fault_is_class_i', 'device_fault_is_class_i',
         )
         read_only_fields = (
             'fault_number', 'fault_duration', 'processing_duration',
@@ -271,7 +271,7 @@ class CircuitServiceSerializer(NetBoxModelSerializer):
         model = CircuitService
         fields = (
             'id', 'url', 'display', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth',
-            'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'extra_fields',
+            'business_manager', 'is_external_business', 'is_important', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'extra_fields',
             'comments', 'tags', 'custom_fields', 'created', 'last_updated',
         )
 

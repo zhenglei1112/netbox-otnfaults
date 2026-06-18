@@ -1103,6 +1103,9 @@ class CircuitServiceTable(NetBoxTable):
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:circuitservice_list'
     )
+    is_important = tables.BooleanColumn(
+        verbose_name='是否重要业务'
+    )
 
     # 动态注入扩展列
     for field_name, verbose_name in CircuitService.EXTRA_FIELD_DEFINITIONS:
@@ -1115,12 +1118,12 @@ class CircuitServiceTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CircuitService
         fields = (
-            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'created', 'last_updated', 'tags',
+            'pk', 'special_line_name', 'name', 'slug', 'service_group', 'business_category', 'bandwidth', 'business_manager', 'is_external_business', 'is_important', 'ring_protection', 'operation_status', 'sla_level', 'billing_start_time', 'billing_end_time', 'created', 'last_updated', 'tags',
             *dict(CircuitService.EXTRA_FIELD_DEFINITIONS).keys(),
             'actions',
         )
         default_columns = (
-            'business_category', 'service_group', 'special_line_name', 'name', 'bandwidth', 'business_manager', 'is_external_business', 'ring_protection', 'operation_status', 'sla_level',
+            'business_category', 'service_group', 'special_line_name', 'name', 'bandwidth', 'business_manager', 'is_external_business', 'is_important', 'ring_protection', 'operation_status', 'sla_level',
         )
 
     def render_service_group(self, value, record):

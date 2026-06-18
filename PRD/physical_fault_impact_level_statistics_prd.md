@@ -594,3 +594,24 @@ qs = qs.annotate(has_class_i_business_impact=Exists(class_i_impact_exists))
   `Q_CLASS_III = Q(source_cutover_task__isnull=True) & ~Q(fault_status=FaultStatusChoices.SUSPENDED) & Q(is_suspended=False) & ((Q(fault_category=FaultCategoryChoices.POWER_FAULT) & ~Q(power_fault_impact=PowerFaultImpactChoices.HOSTED)) | (Q(fault_category=FaultCategoryChoices.AC_FAULT) & Q(ac_fault_is_class_i=False)) | (Q(fault_category=FaultCategoryChoices.DEVICE_FAULT) & Q(device_fault_is_class_i=False)))`
 
 通过使用上述 `Exists` 标注与 `Q` 查询组合，明细下钻 API 可以直接利用数据库端执行高效分页，避免因反向影响业务关系产生的行重复；同时主 API 可利用 `.aggregate(class_i_count=Count('id', filter=Q_CLASS_I))` 等进行单次 SQL 查询下的指标聚合。若实现中仍使用 `impacts__...` join 条件参与聚合，则对应 `Count` 必须显式增加 `distinct=True`。
+
+## 13. 故障和异常事件等级占比环形图设计（新增）
+
+### 13.1 页面展示与布局
+在“故障和异常事件（按影响程度划分等级）”卡片区域的下方，新增一行（Row）平铺展示三个 ECharts 环形占比图，分别对应以下分类的等级占比：
+1. **光缆中断故障等级占比**（包含分项：I类、II类、挂起）
+2. **供电故障等级占比**（包含分项：I类、三类、挂起）
+3. **空调与设备故障等级占比**（包含分项：I类、三类、挂起）
+
+图表采用 Doughnut（环形图）设计，高度设定为 260px，中心放置“总起数”，鼠标悬浮在分项上时能浮动展示分项起数和占比，底部配有 legend（图例），其格式为：`[分类名称]  [起数]起 [占比]%`。
+
+### 13.2 后端数据源
+后端聚合接口 `FaultStatisticsDataAPI` 返回的 `charts` 属性中需新增以下三个字段：
+- `ring_fiber`: 光缆中断对应的等级起数列表（`[{"name": "I类", "value": ...}, ...]`）
+- `ring_power`: 供电故障对应的等级起数列表（`[{"name": "I类", "value": ...}, ...]`）
+- `ring_environment`: 空调与设备故障对应的等级起数列表（`[{"name": "I类", "value": ...}, ...]`）
+
+### 13.3 统计口径
+- 严格遵循第 4 节定义的判定口径，并且必须排除割接任务关联故障。
+- 环形图中的“挂起”分项：即属于对应大类（光缆中断/供电故障/空调与设备故障）的、满足挂起条件（`fault_status=suspended` 或 `is_suspended=True`）的故障起数。
+

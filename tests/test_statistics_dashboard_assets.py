@@ -233,7 +233,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
 
         self.assertIn("statistics-metric-help-modal", template)
         self.assertIn("statistics-metric-help-grid", template)
-        self.assertEqual(template.count('class="statistics-metric-help-card"'), 4)
+        self.assertEqual(template.count('class="statistics-metric-help-card"'), 5)
         self.assertIn("statistics-metric-help-card-title", template)
         self.assertIn("statistics-metric-help-footer", template)
         self.assertIn("statistics-metric-help-confirm", template)

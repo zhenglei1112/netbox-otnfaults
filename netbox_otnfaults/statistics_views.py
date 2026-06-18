@@ -7,7 +7,7 @@ from django.shortcuts import render
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
-from django.db.models import Count, Q, F, Func, DurationField, ExpressionWrapper, QuerySet
+from django.db.models import Count, Q, F, Func, DurationField, ExpressionWrapper, QuerySet, Exists, OuterRef
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.views import View
 from datetime import timedelta, date
@@ -21,11 +21,100 @@ from .models import (
     OtnFault, OtnFaultImpact, BareFiberService,
     FaultCategoryChoices, ResourceTypeChoices, CableTypeChoices,
     ServiceTypeChoices, FaultStatusChoices, BusinessImpactChoices,
-    PowerFaultImpactChoices
+    PowerFaultImpactChoices, CutoverTask
 )
 from dcim.models import Region
 from .statistics_period import build_period_display
 from .utils import detect_repeat_faults
+
+
+def _annotate_class_i_business_impact(queryset: QuerySet) -> QuerySet:
+    class_i_impact_exists = OtnFaultImpact.objects.filter(
+        otn_fault_id=OuterRef("pk"),
+        business_impact=BusinessImpactChoices.INTERRUPTED,
+    ).filter(
+        Q(service_type=ServiceTypeChoices.BARE_FIBER)
+        | Q(
+            service_type=ServiceTypeChoices.CIRCUIT,
+            circuit_service__is_important=True,
+        )
+    )
+    return queryset.annotate(has_class_i_business_impact=Exists(class_i_impact_exists))
+
+
+def _get_impact_level_display(fault: OtnFault, has_class_i_business_impact: bool) -> str:
+    if fault.source_cutover_task_id is not None:
+        return "割接排除"
+    if fault.fault_status == FaultStatusChoices.SUSPENDED or fault.is_suspended:
+        return "V类"
+    
+    is_class_i_fiber = (
+        fault.fault_category == FaultCategoryChoices.FIBER_BREAK 
+        and has_class_i_business_impact
+    )
+    is_class_i_power = (
+        fault.fault_category == FaultCategoryChoices.POWER_FAULT 
+        and fault.power_fault_impact == PowerFaultImpactChoices.HOSTED
+    )
+    is_class_i_ac = (
+        fault.fault_category == FaultCategoryChoices.AC_FAULT 
+        and getattr(fault, 'ac_fault_is_class_i', False)
+    )
+    is_class_i_device = (
+        fault.fault_category == FaultCategoryChoices.DEVICE_FAULT 
+        and getattr(fault, 'device_fault_is_class_i', False)
+    )
+    
+    if is_class_i_fiber or is_class_i_power or is_class_i_ac or is_class_i_device:
+        return "I类"
+        
+    if fault.fault_category == FaultCategoryChoices.FIBER_BREAK:
+        return "II类"
+        
+    if fault.fault_category in [
+        FaultCategoryChoices.POWER_FAULT,
+        FaultCategoryChoices.AC_FAULT,
+        FaultCategoryChoices.DEVICE_FAULT
+    ]:
+        return "III类"
+        
+    if fault.fault_category in [
+        FaultCategoryChoices.FIBER_DEGRADATION,
+        FaultCategoryChoices.FIBER_JITTER
+    ]:
+        return "IV类"
+        
+    return "未知"
+
+
+# 声明等级 Q 查询条件组合
+Q_NOT_CUTOVER = Q(source_cutover_task__isnull=True)
+Q_NOT_SUSPENDED = ~Q(fault_status=FaultStatusChoices.SUSPENDED) & Q(is_suspended=False)
+
+Q_CLASS_V = Q_NOT_CUTOVER & (Q(fault_status=FaultStatusChoices.SUSPENDED) | Q(is_suspended=True))
+
+Q_CLASS_IV = Q_NOT_CUTOVER & Q_NOT_SUSPENDED & Q(fault_category__in=[
+    FaultCategoryChoices.FIBER_DEGRADATION, 
+    FaultCategoryChoices.FIBER_JITTER
+])
+
+Q_CLASS_I = Q_NOT_CUTOVER & Q_NOT_SUSPENDED & (
+    (Q(fault_category=FaultCategoryChoices.FIBER_BREAK) & Q(has_class_i_business_impact=True))
+    | Q(fault_category=FaultCategoryChoices.POWER_FAULT, power_fault_impact=PowerFaultImpactChoices.HOSTED)
+    | Q(fault_category=FaultCategoryChoices.AC_FAULT, ac_fault_is_class_i=True)
+    | Q(fault_category=FaultCategoryChoices.DEVICE_FAULT, device_fault_is_class_i=True)
+)
+
+Q_CLASS_II = Q_NOT_CUTOVER & Q_NOT_SUSPENDED & Q(fault_category=FaultCategoryChoices.FIBER_BREAK) & Q(has_class_i_business_impact=False)
+
+Q_CLASS_III = Q_NOT_CUTOVER & Q_NOT_SUSPENDED & (
+    (Q(fault_category=FaultCategoryChoices.POWER_FAULT) & ~Q(power_fault_impact=PowerFaultImpactChoices.HOSTED))
+    | (Q(fault_category=FaultCategoryChoices.AC_FAULT) & Q(ac_fault_is_class_i=False))
+    | (Q(fault_category=FaultCategoryChoices.DEVICE_FAULT) & Q(device_fault_is_class_i=False))
+)
+
+Q_CLASS_I_II = Q_CLASS_I | Q_CLASS_II
+Q_CLASS_TOTAL = Q_NOT_CUTOVER
 
 
 FAULT_CATEGORY_SUMMARY_ORDER: list[tuple[str, str]] = [
@@ -1701,6 +1790,121 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         all_current_qs = qs_all.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
         filtered_current_qs = _apply_physical_province_filter(all_current_qs, selected_provinces)
         all_faults = list(filtered_current_qs)
+
+        # 计算当前期影响程度等级指标卡片数据
+        annotated_current_qs = _annotate_class_i_business_impact(filtered_current_qs)
+        current_level_stats = annotated_current_qs.aggregate(
+            total=Count('id', filter=Q_CLASS_TOTAL),
+            class_i_ii=Count('id', filter=Q_CLASS_I_II),
+            class_i=Count('id', filter=Q_CLASS_I),
+            class_ii=Count('id', filter=Q_CLASS_II),
+            class_iii=Count('id', filter=Q_CLASS_III),
+            class_iv=Count('id', filter=Q_CLASS_IV),
+            class_v=Count('id', filter=Q_CLASS_V),
+        )
+        current_cutover_count = CutoverTask.objects.filter(
+            started_at__gte=start_date,
+            started_at__lt=end_date
+        )
+        if selected_provinces:
+            current_cutover_count = current_cutover_count.filter(province__name__in=selected_provinces)
+        current_level_stats['cutover_implemented'] = current_cutover_count.count()
+
+        # 计算上周期影响程度等级指标卡片数据
+        prev_level_stats = {
+            "total": 0, "class_i_ii": 0, "class_i": 0, "class_ii": 0,
+            "class_iii": 0, "class_iv": 0, "class_v": 0, "cutover_implemented": 0
+        }
+        if prev_start_date and prev_end_date:
+            prev_qs = qs_all.filter(fault_occurrence_time__gte=prev_start_date, fault_occurrence_time__lt=prev_end_date)
+            filtered_prev_qs = _apply_physical_province_filter(prev_qs, selected_provinces)
+            annotated_prev_qs = _annotate_class_i_business_impact(filtered_prev_qs)
+            prev_level_stats = annotated_prev_qs.aggregate(
+                total=Count('id', filter=Q_CLASS_TOTAL),
+                class_i_ii=Count('id', filter=Q_CLASS_I_II),
+                class_i=Count('id', filter=Q_CLASS_I),
+                class_ii=Count('id', filter=Q_CLASS_II),
+                class_iii=Count('id', filter=Q_CLASS_III),
+                class_iv=Count('id', filter=Q_CLASS_IV),
+                class_v=Count('id', filter=Q_CLASS_V),
+            )
+            prev_cutover_count = CutoverTask.objects.filter(
+                started_at__gte=prev_start_date,
+                started_at__lt=prev_end_date
+            )
+            if selected_provinces:
+                prev_cutover_count = prev_cutover_count.filter(province__name__in=selected_provinces)
+            prev_level_stats['cutover_implemented'] = prev_cutover_count.count()
+
+        # 计算当前期影响程度等级占比环形图数据
+        ring_fiber = {"class_i": 0, "class_ii": 0, "suspended": 0}
+        ring_power = {"class_i": 0, "class_iii": 0, "suspended": 0}
+        ring_environment = {"class_i": 0, "class_iii": 0, "suspended": 0}
+
+        for fault in annotated_current_qs:
+            if fault.source_cutover_task_id is not None:
+                continue
+            is_suspended = fault.fault_status == FaultStatusChoices.SUSPENDED or fault.is_suspended
+            
+            if fault.fault_category == FaultCategoryChoices.FIBER_BREAK:
+                if is_suspended:
+                    ring_fiber["suspended"] += 1
+                elif fault.has_class_i_business_impact:
+                    ring_fiber["class_i"] += 1
+                else:
+                    ring_fiber["class_ii"] += 1
+            elif fault.fault_category == FaultCategoryChoices.POWER_FAULT:
+                if is_suspended:
+                    ring_power["suspended"] += 1
+                elif fault.power_fault_impact == PowerFaultImpactChoices.HOSTED:
+                    ring_power["class_i"] += 1
+                else:
+                    ring_power["class_iii"] += 1
+            elif fault.fault_category in [FaultCategoryChoices.AC_FAULT, FaultCategoryChoices.DEVICE_FAULT]:
+                is_class_i_ac = fault.fault_category == FaultCategoryChoices.AC_FAULT and getattr(fault, 'ac_fault_is_class_i', False)
+                is_class_i_device = fault.fault_category == FaultCategoryChoices.DEVICE_FAULT and getattr(fault, 'device_fault_is_class_i', False)
+                if is_suspended:
+                    ring_environment["suspended"] += 1
+                elif is_class_i_ac or is_class_i_device:
+                    ring_environment["class_i"] += 1
+                else:
+                    ring_environment["class_iii"] += 1
+
+        # 计算上周期影响程度等级占比环形图数据
+        prev_ring_fiber = {"class_i": 0, "class_ii": 0, "suspended": 0}
+        prev_ring_power = {"class_i": 0, "class_iii": 0, "suspended": 0}
+        prev_ring_environment = {"class_i": 0, "class_iii": 0, "suspended": 0}
+
+        if prev_start_date and prev_end_date:
+            for fault in annotated_prev_qs:
+                if fault.source_cutover_task_id is not None:
+                    continue
+                is_suspended = fault.fault_status == FaultStatusChoices.SUSPENDED or fault.is_suspended
+                
+                if fault.fault_category == FaultCategoryChoices.FIBER_BREAK:
+                    if is_suspended:
+                        prev_ring_fiber["suspended"] += 1
+                    elif fault.has_class_i_business_impact:
+                        prev_ring_fiber["class_i"] += 1
+                    else:
+                        prev_ring_fiber["class_ii"] += 1
+                elif fault.fault_category == FaultCategoryChoices.POWER_FAULT:
+                    if is_suspended:
+                        prev_ring_power["suspended"] += 1
+                    elif fault.power_fault_impact == PowerFaultImpactChoices.HOSTED:
+                        prev_ring_power["class_i"] += 1
+                    else:
+                        prev_ring_power["class_iii"] += 1
+                elif fault.fault_category in [FaultCategoryChoices.AC_FAULT, FaultCategoryChoices.DEVICE_FAULT]:
+                    is_class_i_ac = fault.fault_category == FaultCategoryChoices.AC_FAULT and getattr(fault, 'ac_fault_is_class_i', False)
+                    is_class_i_device = fault.fault_category == FaultCategoryChoices.DEVICE_FAULT and getattr(fault, 'device_fault_is_class_i', False)
+                    if is_suspended:
+                        prev_ring_environment["suspended"] += 1
+                    elif is_class_i_ac or is_class_i_device:
+                        prev_ring_environment["class_i"] += 1
+                    else:
+                        prev_ring_environment["class_iii"] += 1
+
         unfiltered_current_faults = list(all_current_qs)
         all_suspended_faults_total_count = _apply_physical_province_filter(qs_all.filter(_suspended_fault_q()), selected_provinces).count()
         all_open_suspended_faults_count = _apply_physical_province_filter(
@@ -1900,6 +2104,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
 
         response_data = {
             'period': build_period_display(start_date, end_date, now),
+            'impact_level_summary': current_level_stats,
+            'prev_impact_level_summary': prev_level_stats,
             'kpis': {
                 'total_count': overall_total_count,
                 'total_duration': round(total_duration_hours, 2),
@@ -1921,9 +2127,39 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'category': overall_category_stats,
                 'physical_daily': physical_daily_stats,
                 'physical_duration_boxplot': physical_duration_boxplot_stats,
+                'ring_fiber': [
+                    {"name": "I类", "value": ring_fiber["class_i"]},
+                    {"name": "II类", "value": ring_fiber["class_ii"]},
+                    {"name": "挂起", "value": ring_fiber["suspended"]}
+                ],
+                'ring_power': [
+                    {"name": "I类", "value": ring_power["class_i"]},
+                    {"name": "III类", "value": ring_power["class_iii"]},
+                    {"name": "挂起", "value": ring_power["suspended"]}
+                ],
+                'ring_environment': [
+                    {"name": "I类", "value": ring_environment["class_i"]},
+                    {"name": "III类", "value": ring_environment["class_iii"]},
+                    {"name": "挂起", "value": ring_environment["suspended"]}
+                ]
             },
             'prev_charts': {
                 'category': prev_overall_category_stats,
+                'ring_fiber': [
+                    {"name": "I类", "value": prev_ring_fiber["class_i"]},
+                    {"name": "II类", "value": prev_ring_fiber["class_ii"]},
+                    {"name": "挂起", "value": prev_ring_fiber["suspended"]}
+                ],
+                'ring_power': [
+                    {"name": "I类", "value": prev_ring_power["class_i"]},
+                    {"name": "III类", "value": prev_ring_power["class_iii"]},
+                    {"name": "挂起", "value": prev_ring_power["suspended"]}
+                ],
+                'ring_environment': [
+                    {"name": "I类", "value": prev_ring_environment["class_i"]},
+                    {"name": "III类", "value": prev_ring_environment["class_iii"]},
+                    {"name": "挂起", "value": prev_ring_environment["suspended"]}
+                ]
             },
             'cable_break_overview': cable_break_overview,
             'prev_cable_break_overview': prev_cable_break_overview,
@@ -2374,6 +2610,25 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
         qs = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
         qs = qs.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
         qs = _apply_physical_province_filter(qs, selected_provinces)
+        qs = _annotate_class_i_business_impact(qs)
+
+        # 影响程度等级下钻过滤
+        impact_level = request.GET.get('impact_level')
+        if impact_level:
+            if impact_level == 'total':
+                qs = qs.filter(Q_CLASS_TOTAL)
+            elif impact_level == 'class_i_ii':
+                qs = qs.filter(Q_CLASS_I_II)
+            elif impact_level == 'class_i':
+                qs = qs.filter(Q_CLASS_I)
+            elif impact_level == 'class_ii':
+                qs = qs.filter(Q_CLASS_II)
+            elif impact_level == 'class_iii':
+                qs = qs.filter(Q_CLASS_III)
+            elif impact_level == 'class_iv':
+                qs = qs.filter(Q_CLASS_IV)
+            elif impact_level == 'class_v':
+                qs = qs.filter(Q_CLASS_V)
 
         category = request.GET.get('category')
         if category == 'overall_total':
@@ -2490,6 +2745,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 'fault_recovery_time': _format_local_datetime(fault.fault_recovery_time) if fault.fault_recovery_time else '未恢复',
                 'duration': round(duration_hours, 2),
                 'category': fault.get_fault_category_display(),
+                'impact_level': _get_impact_level_display(fault, getattr(fault, 'has_class_i_business_impact', False)),
                 'resource_type': fault.get_resource_type_display() if fault.resource_type else '未填写',
                 'source_group': _source_group_for_fault(fault),
                 'province': fault.province.name if fault.province else '未知',

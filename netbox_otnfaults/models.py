@@ -1239,6 +1239,16 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         verbose_name='挂起',
         help_text='该故障为挂起故障，不计入故障时长统计'
     )
+    ac_fault_is_class_i = models.BooleanField(
+        default=False,
+        verbose_name='空调故障是否为I类',
+        help_text='仅空调故障时有效。标识空调故障是否引发网络设备不能正常工作。'
+    )
+    device_fault_is_class_i = models.BooleanField(
+        default=False,
+        verbose_name='设备故障是否为I类',
+        help_text='仅设备故障时有效。标识该设备故障是否产生实际影响，不属于设备部件冗余配置未产生任何影响的情况。'
+    )
     
     # 19) 光缆中断部位，为选择型字段，分为尾纤、出局缆、长途光缆
     cable_break_location = models.CharField(
@@ -2651,6 +2661,11 @@ class CircuitService(NetBoxModel):
         blank=True,
         null=True,
         verbose_name='计费结束时间'
+    )
+    is_important = models.BooleanField(
+        default=False,
+        verbose_name='是否重要业务',
+        help_text='标识该电路业务是否属于重要电路业务，用于影响程度等级划分统计。'
     )
     extra_fields = models.JSONField(
         default=dict,

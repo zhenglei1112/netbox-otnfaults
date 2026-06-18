@@ -8,6 +8,80 @@
 <link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=33" rel="stylesheet">
 <style>
   .table-container ul.pagination { display: none !important; }
+
+  /* 影响程度等级彩色方块图块 */
+  .impact-level-block-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 4px;
+      height: 260px; /* 与环形图 260px 高度完全一致 */
+  }
+  .impact-level-block-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      border-radius: 6px;
+      padding: 4px;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+      position: relative;
+  }
+  .impact-level-block-item:hover {
+      transform: translateY(-2px);
+      opacity: 0.95;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  .impact-level-block-item .block-value-wrapper {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      flex-wrap: wrap;
+  }
+  .impact-level-block-item .block-value {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #ffffff !important;
+      line-height: 1.1;
+  }
+  .impact-level-block-item .block-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      margin-top: 3px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
+  /* 自定义趋势小标在彩色方块中的颜色，以保证可读性 */
+  .impact-level-block-item .statistics-trend-diff {
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-left: 4px;
+  }
+  .impact-level-block-item .statistics-trend-diff.text-danger {
+      color: #fee2e2 !important; /* 浅红 */
+  }
+  .impact-level-block-item .statistics-trend-diff.text-success {
+      color: #dcfce7 !important; /* 浅绿 */
+  }
+
+  /* 裸纤业务中断情况卡片式样网格 */
+  .barefiber-block-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 6px;
+      height: 260px; /* 与环形图/等级汇总 260px 高度完全一致 */
+  }
+  .barefiber-card-item {
+      transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .barefiber-card-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.12) !important;
+  }
 </style>
 
 <div class="page page-statistics">
@@ -118,7 +192,7 @@
             <div class="tab-pane fade show active" id="tab-physical" role="tabpanel" aria-labelledby="tab-physical-btn">
                 
                 <!-- 总体情况 -->
-                <section class="statistics-overall-overview mb-4">
+                <section class="statistics-overall-overview mb-4 d-none">
                     <div class="statistics-cable-break-heading-row mb-3">
                         <h3 class="statistics-cable-break-heading mb-0">
                             <span>总体情况</span>
@@ -158,6 +232,120 @@
                                 </div>
                             </div>
                             <div class="statistics-strip-card-footer">其他</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 故障和异常事件（按影响程度划分等级） -->
+                <section class="statistics-impact-level-overview mb-4">
+                    <div class="statistics-cable-break-heading-row mb-3">
+                        <h3 class="statistics-cable-break-heading mb-0">
+                            <span>故障和异常事件（按影响程度划分等级）</span>
+                        </h3>
+                    </div>
+                    <div class="row statistics-chart-area mt-3 mb-3">
+                        <!-- 左侧：3个环形图 -->
+                        <div class="col-lg-9 col-md-12">
+                            <div class="row h-100">
+                                <div class="col-lg-4 col-md-12 mb-3 mb-lg-0">
+                                    <div class="card shadow-sm h-100">
+                                        <div class="card-header border-bottom-0 py-2">
+                                            <h3 class="card-title mb-0" style="font-size: 1rem;">光缆中断故障等级占比</h3>
+                                        </div>
+                                        <div class="card-body p-0 d-flex align-items-center justify-content-center" style="position: relative;">
+                                            <div id="chart-ring-fiber" style="width: 100%; height: 260px;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4 col-md-12 mb-3 mb-lg-0">
+                                    <div class="card shadow-sm h-100">
+                                        <div class="card-header border-bottom-0 py-2">
+                                            <h3 class="card-title mb-0" style="font-size: 1rem;">供电故障等级占比</h3>
+                                        </div>
+                                        <div class="card-body p-0 d-flex align-items-center justify-content-center" style="position: relative;">
+                                            <div id="chart-ring-power" style="width: 100%; height: 260px;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4 col-md-12 mb-3 mb-lg-0">
+                                    <div class="card shadow-sm h-100">
+                                        <div class="card-header border-bottom-0 py-2">
+                                            <h3 class="card-title mb-0" style="font-size: 1rem;">空调与设备故障等级占比</h3>
+                                        </div>
+                                        <div class="card-body p-0 d-flex align-items-center justify-content-center" style="position: relative;">
+                                            <div id="chart-ring-environment" style="width: 100%; height: 260px;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 右侧：图块样式面板 -->
+                        <div class="col-lg-3 col-md-12">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header border-bottom-0 py-2">
+                                    <h3 class="card-title mb-0" style="font-size: 1rem;">故障等级与事件汇总</h3>
+                                </div>
+                                <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                    <div class="impact-level-block-grid">
+                                        <!-- 总次数 -->
+                                        <div class="impact-level-block-item statistics-drill-metric" data-filter-field="impact_level" data-filter-value="total" data-filter-label="总次数" style="background-color: #206bc4;">
+                                            <div class="block-value-wrapper">
+                                                <span class="block-value" id="kpi-level-total">--</span>
+                                            </div>
+                                            <div class="block-label">总次数</div>
+                                        </div>
+                                        <!-- I类和II类 -->
+                                        <div class="impact-level-block-item statistics-drill-metric" data-filter-field="impact_level" data-filter-value="class_i_ii" data-filter-label="I类和II类" style="background-color: #d63939;">
+                                            <div class="block-value-wrapper">
+                                                <span class="block-value" id="kpi-level-class-i-ii">--</span>
+                                            </div>
+                                            <div class="block-label">I类和II类</div>
+                                        </div>
+                                        <!-- I类 -->
+                                        <div class="impact-level-block-item statistics-drill-metric" data-filter-field="impact_level" data-filter-value="class_i" data-filter-label="I类" style="background-color: #ae3ec9;">
+                                            <div class="block-value-wrapper">
+                                                <span class="block-value" id="kpi-level-class-i">--</span>
+                                            </div>
+                                            <div class="block-label">I类</div>
+                                        </div>
+                                        <!-- II类 -->
+                                        <div class="impact-level-block-item statistics-drill-metric" data-filter-field="impact_level" data-filter-value="class_ii" data-filter-label="II类" style="background-color: #f59f00;">
+                                            <div class="block-value-wrapper">
+                                                <span class="block-value" id="kpi-level-class-ii">--</span>
+                                            </div>
+                                            <div class="block-label">II类</div>
+                                        </div>
+                                        <!-- III类 -->
+                                        <div class="impact-level-block-item" data-filter-field="impact_level" data-filter-value="class_iii" data-filter-label="III类" style="background-color: #2fb344;">
+                                            <div class="block-value-wrapper">
+                                                <span class="block-value" id="kpi-level-class-iii">--</span>
+                                            </div>
+                                            <div class="block-label">III类</div>
+                                        </div>
+                                        <!-- IV类 -->
+                                        <div class="impact-level-block-item statistics-drill-metric" data-filter-field="impact_level" data-filter-value="class_iv" data-filter-label="IV类" style="background-color: #0ca678;">
+                                            <div class="block-value-wrapper">
+                                                <span class="block-value" id="kpi-level-class-iv">--</span>
+                                            </div>
+                                            <div class="block-label">IV类</div>
+                                        </div>
+                                        <!-- V类 -->
+                                        <div class="impact-level-block-item statistics-drill-metric" data-filter-field="impact_level" data-filter-value="class_v" data-filter-label="V类" style="background-color: #667085;">
+                                            <div class="block-value-wrapper">
+                                                <span class="block-value" id="kpi-level-class-v">--</span>
+                                            </div>
+                                            <div class="block-label">V类</div>
+                                        </div>
+                                        <!-- 割接实施 -->
+                                        <div class="impact-level-block-item" id="card-cutover-implemented" style="background-color: #4263eb; cursor: pointer;">
+                                            <div class="block-value-wrapper">
+                                                <span class="block-value" id="kpi-level-cutover">--</span>
+                                            </div>
+                                            <div class="block-label">割接实施</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -555,6 +743,7 @@
                                 <th>恢复时间</th>
                                 <th>历时(小时)</th>
                                 <th>分类</th>
+                                <th>故障等级</th>
                                 <th>光缆属性</th>
                                 <th>省份</th>
                                 <th>一级原因</th>
@@ -564,7 +753,7 @@
                         </thead>
                         <tbody id="details-tbody">
                             <tr>
-                                <td colspan="10" class="text-center text-muted py-4">数据加载中...</td>
+                                <td colspan="11" class="text-center text-muted py-4">数据加载中...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1025,6 +1214,7 @@
                                 <th>恢复时间</th>
                                 <th>历时(小时)</th>
                                 <th>分类</th>
+                                <th>故障等级</th>
                                 <th>光缆属性</th>
                                 <th>省份</th>
                                 <th>一级原因</th>
@@ -1034,7 +1224,7 @@
                         </thead>
                         <tbody id="branch-company-details-tbody">
                             <tr>
-                                <td colspan="10" class="text-center text-muted py-4">数据加载中...</td>
+                                <td colspan="11" class="text-center text-muted py-4">数据加载中...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1110,6 +1300,29 @@
                                 <li>每日中断图固定展示当前自然年内未挂起光缆中断，可在中断数量和中断时长之间切换，并支持按天/按周查看。</li>
                                 <li>中断时长箱线图跟随当前统计周期，展示每日光缆中断历时的最小值、Q1、中位数、Q3、最大值；“滤除短时”表示仅保留历时大于 0.5
                                     小时的样本，“滤除整改”表示排除一级原因为“光缆整改”的样本。</li>
+                            </ul>
+                        </div>
+                    </section>
+                    <section class="statistics-metric-help-card">
+                        <h6 class="statistics-metric-help-card-title">故障和异常事件等级说明</h6>
+                        <div class="statistics-metric-help-card-body">
+                            <ul class="mb-0">
+                                <li><strong>总次数：</strong>统计当期非割接故障和异常事件总数，包括光缆中断、空调/供电/设备故障、光缆抖动/劣化以及挂起的故障（不含由割接自动生成的故障）。</li>
+                                <li><strong>I类故障（严重故障）：</strong>非割接、非挂起且满足以下条件之一：
+                                    <ul>
+                                        <li>光缆中断导致了裸纤业务中断，或导致了重要电路业务（is_important=True）中断；</li>
+                                        <li>供电故障导致设备脱管；</li>
+                                        <li>空调故障引发网络设备不能正常工作（ac_fault_is_class_i=True）；</li>
+                                        <li>设备故障产生实际影响且非部件冗余（device_fault_is_class_i=True）。</li>
+                                    </ul>
+                                </li>
+                                <li><strong>II类故障（一般故障）：</strong>非割接、非挂起，且不满足I类故障条件的光缆中断故障。</li>
+                                <li><strong>I类和II类（阻断故障）：</strong>I类故障和II类故障起数的总和。</li>
+                                <li><strong>III类事件（重要隐患）：</strong>非割接、非挂起，且不属于I类故障的空调故障、未导致脱管的供电故障、未产生实际影响的设备故障。</li>
+                                <li><strong>IV类事件（一般隐患）：</strong>非割接、非挂起的“光缆抖动”和“光缆劣化”异常事件。</li>
+                                <li><strong>V类（挂起的故障）：</strong>当期处于“挂起”状态（is_suspended=True 或 状态为挂起）的非割接故障。</li>
+                                <li><strong>割接实施：</strong>当期已开始实施的割接任务次数，以割接任务的实际开始时间（started_at）落入当期为准。</li>
+                                <li><strong>多线路中断规则：</strong>多条物理线路同时中断引发同一重要业务中断时，按物理故障记录逐条计入I类。</li>
                             </ul>
                         </div>
                     </section>

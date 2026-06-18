@@ -90,7 +90,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'rectification_status', 'rectification_measures', 'rectification_description',
             'rectification_subject', 'rectification_progress', 'planned_completion_date',
             'actual_completion_date', 'rectification_completion_description', 'comments',
-            'fault_status', 'is_suspended', 'manager_reviewed', 'manager_reviewer', 'noc_reviewed', 'noc_reviewer',
+            'fault_status', 'is_suspended', 'ac_fault_is_class_i', 'device_fault_is_class_i', 'manager_reviewed', 'manager_reviewer', 'noc_reviewed', 'noc_reviewer',
             'manager_review_time', 'noc_review_time'
         )
 
@@ -269,6 +269,7 @@ class CircuitServiceFilterSet(NetBoxModelFilterSet):
     """电路业务过滤器"""
 
     is_external_business = django_filters.BooleanFilter(label='对外业务')
+    is_important = django_filters.BooleanFilter(label='重要业务')
     ring_protection = django_filters.BooleanFilter(label='环网保护')
 
     # 动态注入扩展字段过滤器
@@ -291,6 +292,7 @@ class CircuitServiceFilterSet(NetBoxModelFilterSet):
             'bandwidth',
             'business_manager',
             'is_external_business',
+            'is_important',
             'ring_protection',
             'operation_status',
             'sla_level',
