@@ -939,7 +939,7 @@ document.addEventListener("DOMContentLoaded", function() {
             : undefined;
         renderTrendBesideMetric(overallTotal, kpis.total_count, prevOverallTotal, true);
 
-        let htmlContent = buildFlexGroup(categories, "起", "", "text-indigo", prevCategories);
+        let htmlContent = buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category");
         categoriesList.innerHTML = htmlContent;
     }
 
@@ -953,8 +953,8 @@ document.addEventListener("DOMContentLoaded", function() {
         const prevSuspendedDisplayValue = `${prevOtherOverview.suspended_faults || 0}/${prevOtherOverview.suspended_faults_total || 0}`;
 
         const items = [
-            { name: '光缆劣化', value: otherOverview.fiber_degradation || 0 },
-            { name: '光缆抖动', value: otherOverview.fiber_jitter || 0 },
+            { name: '光缆劣化', value: otherOverview.fiber_degradation || 0, filterField: 'category' },
+            { name: '光缆抖动', value: otherOverview.fiber_jitter || 0, filterField: 'category' },
             {
                 name: '挂起的故障（未关闭/总数）',
                 value: otherOverview.suspended_faults || 0,

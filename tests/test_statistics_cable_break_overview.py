@@ -440,7 +440,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
         self.assertIn("statistics-overall-main", overall_section)
         self.assertNotIn('style="flex: 0 0 220px; border-right: 1px solid rgba(0,0,0,0.08);"', overall_section)
-        self.assertIn('buildFlexGroup(categories, "起", "", "text-indigo", prevCategories)', overall_source)
+        self.assertIn('buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category")', overall_source)
         self.assertNotIn('buildFlexGroup(categories, "起", "故障分类"', overall_source)
         self.assertIn(".statistics-overall-main", css)
         self.assertIn(".statistics-kpi-group-items > .text-center + .text-center::before", css)
@@ -618,8 +618,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('<div class="statistics-strip-card-footer">其他</div>', overall_section)
         self.assertIn("renderOverallOtherSummary(data.other_overview, data.prev_other_overview);", source)
         self.assertIn("function renderOverallOtherSummary(otherOverview, prevOtherOverview)", source)
-        self.assertIn("{ name: '光缆劣化', value: otherOverview.fiber_degradation || 0 }", source)
-        self.assertIn("{ name: '光缆抖动', value: otherOverview.fiber_jitter || 0 }", source)
+        self.assertIn("{ name: '光缆劣化', value: otherOverview.fiber_degradation || 0, filterField: 'category' }", source)
+        self.assertIn("{ name: '光缆抖动', value: otherOverview.fiber_jitter || 0, filterField: 'category' }", source)
         self.assertIn("const suspendedDisplayValue = `${otherOverview.suspended_faults || 0}/${otherOverview.suspended_faults_total || 0}`;", source)
         self.assertIn("name: '挂起的故障（未关闭/总数）'", source)
         self.assertNotIn("infoTitle: '未关闭的挂起故障（总数）'", source)
@@ -825,11 +825,35 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             self.assertGreater(current_index, previous_index)
             previous_index = current_index
 
+    def test_physical_fault_type_summaries_all_filter_detail_by_category(self) -> None:
+        source = JS_PATH.read_text(encoding="utf-8")
+        overall_source = source.split(
+            "function renderOverallSummary",
+            1,
+        )[1].split(
+            "function renderOverallOtherSummary",
+            1,
+        )[0]
+        other_source = source.split(
+            "function renderOverallOtherSummary",
+            1,
+        )[1].split(
+            "function parsePhysicalDailyLabelDate",
+            1,
+        )[0]
+
+        self.assertIn(
+            'buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category")',
+            overall_source,
+        )
+        self.assertIn("name: '光缆劣化', value: otherOverview.fiber_degradation || 0, filterField: 'category'", other_source)
+        self.assertIn("name: '光缆抖动', value: otherOverview.fiber_jitter || 0, filterField: 'category'", other_source)
+        self.assertNotIn("filterField: 'category'", other_source.split("name: '挂起的故障（未关闭/总数）'", 1)[1])
     def test_physical_fault_summary_submetric_numbers_use_same_color_as_other_cards(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
         overall_source = source.split("function renderOverallSummary", 1)[1].split("function formatTrendDiff", 1)[0]
 
-        self.assertIn('buildFlexGroup(categories, "起", "", "text-indigo", prevCategories)', overall_source)
+        self.assertIn('buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category")', overall_source)
         self.assertNotIn('buildFlexGroup(categories, "起", "故障分类", "text-indigo", prevCategories)', overall_source)
         self.assertNotIn('buildFlexGroup(categories, "起", "故障分类", "text-secondary", prevCategories)', overall_source)
 
