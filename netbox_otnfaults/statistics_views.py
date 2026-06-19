@@ -1751,6 +1751,8 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         
         is_ended = end_date and end_date <= now
         selected_provinces = _parse_selected_provinces(request)
+        calendar_year = int(request.GET.get('calendar_year', start_date.year))
+        calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
         
         from django.core.cache import cache
         import hashlib
@@ -1764,15 +1766,12 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         provinces_str = ",".join(sorted(selected_provinces))
         provinces_hash = hashlib.md5(provinces_str.encode('utf-8')).hexdigest() if provinces_str else "all"
         
-        cache_key = f"otnfaults:stats:v{cache_version}:fault-summary:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{provinces_hash}"
+        cache_key = f"otnfaults:stats:v{cache_version}:fault-summary:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{provinces_hash}:{calendar_year}:{calendar_month}"
         
         if is_ended:
             cached_data = cache.get(cache_key)
             if cached_data is not None:
                 return JsonResponse(cached_data)
-
-        calendar_year = int(request.GET.get('calendar_year', start_date.year))
-        calendar_month = int(request.GET.get('calendar_month', timezone.localtime(start_date).month))
 
         # 计算当前期裸纤业务中断情况
         bare_fiber_interruption = _compute_bare_fiber_interruption_overview(
@@ -2629,96 +2628,147 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
         qs = _apply_physical_province_filter(qs, selected_provinces)
         qs = _annotate_class_i_business_impact(qs)
 
-        # 影响程度等级下钻过滤
+        category_aliases: dict[str, str] = {
+            '光缆中断': FaultCategoryChoices.FIBER_BREAK,
+            '空调故障': FaultCategoryChoices.AC_FAULT,
+            '光缆劣化': FaultCategoryChoices.FIBER_DEGRADATION,
+            '光缆抖动': FaultCategoryChoices.FIBER_JITTER,
+            '设备故障': FaultCategoryChoices.DEVICE_FAULT,
+            '供电故障': FaultCategoryChoices.POWER_FAULT,
+        }
+        resource_type_aliases: dict[str, str] = {
+            '自建': ResourceTypeChoices.SELF_BUILT,
+            '协调': ResourceTypeChoices.COORDINATED,
+            '租赁': ResourceTypeChoices.LEASED,
+            '未填写': 'unfilled',
+        }
+        reason_aliases: dict[str, str] = {
+            '施工': 'construction', '人为': 'human_factor', '交通事故': 'traffic_accident',
+            '动物破坏': 'animal_damage', '自然灾害': 'natural_disaster', '火灾故障': 'fire',
+            '无法查明': 'unknown', '光缆整改': 'cable_rectification',
+        }
+
         impact_level = request.GET.get('impact_level')
-        if impact_level:
-            if impact_level == 'total':
-                qs = qs.filter(Q_CLASS_TOTAL)
-            elif impact_level == 'class_i_ii':
-                qs = qs.filter(Q_CLASS_I_II)
-            elif impact_level == 'class_i':
-                qs = qs.filter(Q_CLASS_I)
-            elif impact_level == 'class_ii':
-                qs = qs.filter(Q_CLASS_II)
-            elif impact_level == 'class_iii':
-                qs = qs.filter(Q_CLASS_III)
-            elif impact_level == 'class_iv':
-                qs = qs.filter(Q_CLASS_IV)
-            elif impact_level == 'class_v':
-                qs = qs.filter(Q_CLASS_V)
-
         category = request.GET.get('category')
-        if category == 'overall_total':
-            qs = qs.exclude(fault_category__in=OVERALL_EXCLUDED_TOTAL_CATEGORIES)
-        elif category:
-            qs = qs.filter(fault_category=category)
-
         resource_type = request.GET.get('resource_type')
-        if resource_type == 'unfilled':
-            qs = qs.filter(Q(resource_type='') | Q(resource_type__isnull=True))
-        elif resource_type:
-            qs = qs.filter(resource_type=resource_type)
-
+        source_group = request.GET.get('source_group')
         reason = request.GET.get('reason')
-        if reason:
-            reason_map = {
-                '施工': 'construction',
-                '人为': 'human_factor',
-                '交通事故': 'traffic_accident',
-                '动物破坏': 'animal_damage',
-                '自然灾害': 'natural_disaster',
-                '火灾故障': 'fire',
-                '无法查明': 'unknown',
-                '光缆整改': 'cable_rectification',
-            }
-            reason_val = reason_map.get(reason, reason)
-            qs = qs.filter(interruption_reason=reason_val)
-
         is_valid_duration = request.GET.get('is_valid_duration')
-        if is_valid_duration == 'true':
-            qs = qs.annotate(
-                duration=ExpressionWrapper(
-                    Coalesce(F('fault_recovery_time'), now) - F('fault_occurrence_time'),
-                    output_field=DurationField()
-                )
-            ).filter(duration__gt=timedelta(minutes=30))
-
         is_long = request.GET.get('is_long')
-        if is_long == 'true':
-            qs = qs.annotate(
-                duration=ExpressionWrapper(
-                    Coalesce(F('fault_recovery_time'), now) - F('fault_occurrence_time'),
-                    output_field=DurationField()
-                )
-            ).filter(duration__gte=timedelta(hours=6))
-
         duration_bucket = request.GET.get('duration_bucket')
-        if duration_bucket:
-            qs = qs.annotate(
-                duration_hours=ExpressionWrapper(
-                    (Coalesce(F('fault_recovery_time'), now) - F('fault_occurrence_time')),
-                    output_field=DurationField()
-                )
-            )
-            if duration_bucket == '6-8小时':
-                qs = qs.filter(duration_hours__gte=timedelta(hours=6), duration_hours__lt=timedelta(hours=8))
-            elif duration_bucket == '8-10小时':
-                qs = qs.filter(duration_hours__gte=timedelta(hours=8), duration_hours__lt=timedelta(hours=10))
-            elif duration_bucket == '10-12小时':
-                qs = qs.filter(duration_hours__gte=timedelta(hours=10), duration_hours__lt=timedelta(hours=12))
-            elif duration_bucket == '12小时以上':
-                qs = qs.filter(duration_hours__gte=timedelta(hours=12))
-
+        duration_histogram_bucket = request.GET.get('duration_histogram_bucket')
+        duration_min = request.GET.get('duration_min')
+        duration_max = request.GET.get('duration_max')
+        occurrence_period = request.GET.get('occurrence_period')
+        cause_group = request.GET.get('cause_group')
         scope = request.GET.get('scope')
-        if scope == 'branch_company':
-            qs = qs.filter(province__name__in=BRANCH_PROVINCE_NAMES).exclude(
-                handling_unit__name__in=EXCLUDED_HANDLING_UNITS
-            )
-
         province = request.GET.get('province')
-        if province:
-            qs = qs.filter(province__name=province)
+        is_repeat = request.GET.get('is_repeat')
 
+        def parse_duration_hours(value: str | None) -> float | None:
+            if value in (None, ''):
+                return None
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        def apply_detail_filters(queryset: QuerySet) -> QuerySet:
+            if impact_level:
+                impact_filters: dict[str, Q] = {
+                    'total': Q_CLASS_TOTAL,
+                    'class_i_ii': Q_CLASS_I_II,
+                    'class_i': Q_CLASS_I,
+                    'class_ii': Q_CLASS_II,
+                    'class_iii': Q_CLASS_III,
+                    'class_iv': Q_CLASS_IV,
+                    'class_v': Q_CLASS_V,
+                }
+                if impact_level in impact_filters:
+                    queryset = queryset.filter(impact_filters[impact_level])
+            if category == 'overall_total':
+                queryset = queryset.exclude(fault_category__in=OVERALL_EXCLUDED_TOTAL_CATEGORIES)
+            elif category:
+                queryset = queryset.filter(fault_category=category_aliases.get(category, category))
+
+            normalized_resource_type = resource_type_aliases.get(resource_type, resource_type)
+            if normalized_resource_type == 'unfilled':
+                queryset = queryset.filter(Q(resource_type='') | Q(resource_type__isnull=True))
+            elif normalized_resource_type:
+                queryset = queryset.filter(resource_type=normalized_resource_type)
+
+            if source_group == '自控':
+                queryset = queryset.filter(
+                    resource_type__in=[ResourceTypeChoices.SELF_BUILT, ResourceTypeChoices.COORDINATED]
+                )
+            elif source_group == '第三方':
+                queryset = queryset.filter(resource_type=ResourceTypeChoices.LEASED)
+            elif source_group == '其他/未填':
+                queryset = queryset.filter(
+                    Q(resource_type='') | Q(resource_type__isnull=True)
+                    | ~Q(resource_type__in=[ResourceTypeChoices.SELF_BUILT, ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED])
+                )
+
+            if reason:
+                queryset = queryset.filter(interruption_reason=reason_aliases.get(reason, reason))
+            if occurrence_period == '日间':
+                queryset = queryset.filter(fault_occurrence_time__hour__gte=6, fault_occurrence_time__hour__lt=18)
+            elif occurrence_period == '夜间':
+                queryset = queryset.filter(Q(fault_occurrence_time__hour__lt=6) | Q(fault_occurrence_time__hour__gte=18))
+            if cause_group == '施工类':
+                queryset = queryset.filter(interruption_reason='construction')
+            elif cause_group == '非施工类':
+                queryset = queryset.exclude(interruption_reason='construction')
+
+            minimum_hours = parse_duration_hours(duration_min)
+            maximum_hours = parse_duration_hours(duration_max)
+            needs_duration = any([is_valid_duration == 'true', is_long == 'true', bool(duration_bucket), bool(duration_histogram_bucket), minimum_hours is not None, maximum_hours is not None])
+            if needs_duration:
+                queryset = queryset.annotate(
+                    duration=ExpressionWrapper(
+                        Coalesce(F('fault_recovery_time'), now) - F('fault_occurrence_time'),
+                        output_field=DurationField(),
+                    )
+                )
+            if is_valid_duration == 'true':
+                queryset = queryset.filter(duration__gt=timedelta(minutes=30))
+            if is_long == 'true':
+                queryset = queryset.filter(duration__gte=timedelta(hours=6))
+
+            duration_ranges: dict[str, tuple[float, float | None]] = {
+                '6-8小时': (6, 8), '8-10小时': (8, 10),
+                '10-12小时': (10, 12), '12小时以上': (12, None),
+            }
+            if duration_bucket in duration_ranges:
+                lower, upper = duration_ranges[duration_bucket]
+                queryset = queryset.filter(duration__gte=timedelta(hours=lower))
+                if upper is not None:
+                    queryset = queryset.filter(duration__lt=timedelta(hours=upper))
+
+            if duration_histogram_bucket:
+                if duration_histogram_bucket == '>24':
+                    queryset = queryset.filter(duration__gt=timedelta(hours=24))
+                else:
+                    try:
+                        histogram_upper = int(duration_histogram_bucket)
+                    except (TypeError, ValueError):
+                        histogram_upper = 0
+                    if 1 <= histogram_upper <= 24:
+                        if histogram_upper > 1:
+                            queryset = queryset.filter(duration__gt=timedelta(hours=histogram_upper - 1))
+                        queryset = queryset.filter(duration__lte=timedelta(hours=histogram_upper))
+            if minimum_hours is not None:
+                queryset = queryset.filter(duration__gte=timedelta(hours=minimum_hours))
+            if maximum_hours is not None:
+                queryset = queryset.filter(duration__lte=timedelta(hours=maximum_hours))
+
+            if scope == 'branch_company':
+                queryset = queryset.filter(province__name__in=BRANCH_PROVINCE_NAMES).exclude(handling_unit__name__in=EXCLUDED_HANDLING_UNITS)
+            if province:
+                queryset = queryset.filter(province__name=province)
+            return queryset
+
+        qs = apply_detail_filters(qs)
         ordering = request.GET.get('ordering', '-fault_occurrence_time')
         if ordering.replace('-', '') in ['fault_occurrence_time', 'duration']:
             if 'duration' in ordering:
@@ -2755,7 +2805,8 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                     ).exclude(handling_unit__name__in=EXCLUDED_HANDLING_UNITS)
                 if province:
                     preceding_qs = preceding_qs.filter(province__name=province)
-                preceding_faults = list(_annotate_class_i_business_impact(preceding_qs))
+                preceding_qs = apply_detail_filters(_annotate_class_i_business_impact(preceding_qs))
+                preceding_faults = list(preceding_qs)
                 repeat_result = detect_repeat_faults(
                     current_faults,
                     preceding_faults,
@@ -2763,6 +2814,11 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 )
                 ui_repeat_ids = repeat_result.ui_repeat_ids
                 matched_preceding_faults = repeat_result.matched_preceding_faults
+        if is_repeat == 'true':
+            current_faults = [fault for fault in current_faults if fault.id in ui_repeat_ids]
+        elif is_repeat == 'false':
+            current_faults = [fault for fault in current_faults if fault.id not in ui_repeat_ids]
+            matched_preceding_faults = []
 
         results = []
         for fault in current_faults:

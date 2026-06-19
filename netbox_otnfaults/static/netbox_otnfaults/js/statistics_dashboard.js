@@ -2986,22 +2986,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 url += `&${activeFilterExtraField}=${encodeURIComponent(activeFilterExtraValue)}`;
             }
         }
-        if (excludedCategories.resource_type.size > 0) {
-            Array.from(excludedCategories.resource_type).forEach(v => {
-                url += `&exclude_resource_type=${encodeURIComponent(v)}`;
-            });
-        }
-        if (excludedCategories.province.size > 0) {
-            Array.from(excludedCategories.province).forEach(v => {
-                url += `&exclude_province=${encodeURIComponent(v)}`;
-            });
-        }
-        if (excludedCategories.reason.size > 0) {
-            Array.from(excludedCategories.reason).forEach(v => {
-                url += `&exclude_reason=${encodeURIComponent(v)}`;
-            });
-        }
-
         const tbody = document.getElementById('details-tbody');
         tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4">加载中...</td></tr>';
 

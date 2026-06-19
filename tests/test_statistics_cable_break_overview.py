@@ -1653,6 +1653,78 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn(".filter(item => item.in_period !== false)", source)
         self.assertIn("groups.sort((g1, g2) =>", source)
 
+    def test_statistics_details_support_all_existing_drill_filters(self) -> None:
+        views_source = VIEWS_PATH.read_text(encoding="utf-8")
+        details_source = views_source.split(
+            "class FaultStatisticsDetailsAPI",
+            1,
+        )[1].split(
+            "class FaultRepeatsAPI",
+            1,
+        )[0]
+        script = JS_PATH.read_text(encoding="utf-8")
+
+        for expected in [
+            "category_aliases: dict[str, str] = {",
+            "'光缆中断': FaultCategoryChoices.FIBER_BREAK",
+            "source_group = request.GET.get('source_group')",
+            "resource_type__in=[ResourceTypeChoices.SELF_BUILT, ResourceTypeChoices.COORDINATED]",
+            "duration_histogram_bucket = request.GET.get('duration_histogram_bucket')",
+            "duration_min = request.GET.get('duration_min')",
+            "duration_max = request.GET.get('duration_max')",
+            "occurrence_period = request.GET.get('occurrence_period')",
+            "fault_occurrence_time__hour__gte=6",
+            "cause_group = request.GET.get('cause_group')",
+            "interruption_reason='construction'",
+            "is_repeat = request.GET.get('is_repeat')",
+            "current_faults = [fault for fault in current_faults if fault.id in ui_repeat_ids]",
+        ]:
+            self.assertIn(expected, details_source)
+
+        self.assertNotIn("exclude_resource_type=", script)
+        self.assertNotIn("exclude_province=", script)
+        self.assertNotIn("exclude_reason=", script)
+        self.assertIn(
+            "filteredDetails = filteredDetails.filter(item => !excludedCategories.resource_type.has(item.resource_type));",
+            script,
+        )
+
+    def test_statistics_cache_key_isolated_by_calendar_selection(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        data_api_source = source.split(
+            "class FaultStatisticsDataAPI",
+            1,
+        )[1].split(
+            "class ServiceStatisticsDataAPI",
+            1,
+        )[0]
+
+        cache_key_line = next(
+            line for line in data_api_source.splitlines()
+            if "cache_key = f" in line
+        )
+        self.assertIn("{calendar_year}", cache_key_line)
+        self.assertIn("{calendar_month}", cache_key_line)
+        self.assertLess(
+            data_api_source.index("calendar_year = int(request.GET.get("),
+            data_api_source.index("cached_data = cache.get(cache_key)"),
+        )
+
+    def test_statistics_query_indexes_have_migration(self) -> None:
+        migration_path = (
+            REPO_ROOT
+            / "netbox_otnfaults"
+            / "migrations"
+            / "0087_statistics_query_indexes.py"
+        )
+        self.assertTrue(migration_path.exists())
+        migration_source = migration_path.read_text(encoding="utf-8")
+
+        self.assertIn("('netbox_otnfaults', '0086_circuitservice_is_important_and_more')", migration_source)
+        self.assertIn("name='otnfault_cat_occ_idx'", migration_source)
+        self.assertIn("name='otnfault_susp_stat_occ_idx'", migration_source)
+        self.assertIn("name='otnimpact_type_biz_time_idx'", migration_source)
+
     def test_reason_pie_uses_doughnut_with_metrics_in_expanded_legend(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
         source = JS_PATH.read_text(encoding="utf-8")

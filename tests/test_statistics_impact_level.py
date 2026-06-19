@@ -67,7 +67,9 @@ class StatisticsImpactLevelTestCase(unittest.TestCase):
         
         # 校验 FaultStatisticsDetailsAPI 中对 impact_level 参数的下钻过滤
         self.assertIn("impact_level = request.GET.get('impact_level')", views_source)
-        self.assertIn("elif impact_level == 'class_i':", views_source)
+        self.assertIn("impact_filters: dict[str, Q] = {", views_source)
+        self.assertIn("'class_i': Q_CLASS_I", views_source)
+        self.assertIn("queryset = queryset.filter(impact_filters[impact_level])", views_source)
 
     def test_frontend_dashboard_and_js(self) -> None:
         html_source = _read(DASHBOARD_HTML_PATH)
