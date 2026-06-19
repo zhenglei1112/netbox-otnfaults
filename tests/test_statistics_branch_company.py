@@ -408,6 +408,28 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("currentBranchCompanyDetails = data.results || [];", JS_PATH.read_text(encoding="utf-8"))
         self.assertIn("filteredDetails = sortDetailRows(filteredDetails, sortMode);", JS_PATH.read_text(encoding="utf-8"))
 
+    def test_branch_company_details_use_normalized_scope_instead_of_exact_region_names(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        details_source = source.split(
+            "class FaultStatisticsDetailsAPI",
+            1,
+        )[1].split(
+            "class FaultRepeatsAPI",
+            1,
+        )[0]
+
+        self.assertIn(
+            "current_faults = [fault for fault in current_faults if _is_branch_company_fault(fault)]",
+            details_source,
+        )
+        self.assertIn(
+            "preceding_faults = [fault for fault in preceding_faults if _is_branch_company_fault(fault)]",
+            details_source,
+        )
+        self.assertNotIn(
+            "queryset = queryset.filter(province__name__in=BRANCH_PROVINCE_NAMES)",
+            details_source,
+        )
     def test_css_defines_branch_company_chart_layout(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
 

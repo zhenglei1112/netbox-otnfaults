@@ -2762,9 +2762,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
             if maximum_hours is not None:
                 queryset = queryset.filter(duration__lte=timedelta(hours=maximum_hours))
 
-            if scope == 'branch_company':
-                queryset = queryset.filter(province__name__in=BRANCH_PROVINCE_NAMES).exclude(handling_unit__name__in=EXCLUDED_HANDLING_UNITS)
-            if province:
+            if province and scope != 'branch_company':
                 queryset = queryset.filter(province__name=province)
             return queryset
 
@@ -2783,6 +2781,14 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
             qs = qs.order_by('-fault_occurrence_time')
 
         current_faults = list(qs)
+        if scope == 'branch_company':
+            current_faults = [fault for fault in current_faults if _is_branch_company_fault(fault)]
+            if province:
+                normalized_province = _normalize_branch_province_name(province)
+                current_faults = [
+                    fault for fault in current_faults
+                    if _branch_province_for_fault(fault) == normalized_province
+                ]
         ui_repeat_ids: set[int] = set()
         matched_preceding_faults: list[OtnFault] = []
         if current_faults:
@@ -2799,14 +2805,16 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                     'province', 'interruption_location_a', 'handling_unit'
                 ).prefetch_related('interruption_location')
                 preceding_qs = _apply_physical_province_filter(preceding_qs, selected_provinces)
-                if scope == 'branch_company':
-                    preceding_qs = preceding_qs.filter(
-                        province__name__in=BRANCH_PROVINCE_NAMES
-                    ).exclude(handling_unit__name__in=EXCLUDED_HANDLING_UNITS)
-                if province:
-                    preceding_qs = preceding_qs.filter(province__name=province)
                 preceding_qs = apply_detail_filters(_annotate_class_i_business_impact(preceding_qs))
                 preceding_faults = list(preceding_qs)
+                if scope == 'branch_company':
+                    preceding_faults = [fault for fault in preceding_faults if _is_branch_company_fault(fault)]
+                    if province:
+                        normalized_province = _normalize_branch_province_name(province)
+                        preceding_faults = [
+                            fault for fault in preceding_faults
+                            if _branch_province_for_fault(fault) == normalized_province
+                        ]
                 repeat_result = detect_repeat_faults(
                     current_faults,
                     preceding_faults,
