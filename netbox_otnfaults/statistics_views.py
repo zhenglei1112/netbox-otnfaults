@@ -2638,8 +2638,11 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
         }
         resource_type_aliases: dict[str, str] = {
             '自建': ResourceTypeChoices.SELF_BUILT,
+            '自建光缆': ResourceTypeChoices.SELF_BUILT,
             '协调': ResourceTypeChoices.COORDINATED,
+            '协调资源': ResourceTypeChoices.COORDINATED,
             '租赁': ResourceTypeChoices.LEASED,
+            '租赁纤芯': ResourceTypeChoices.LEASED,
             '未填写': 'unfilled',
         }
         reason_aliases: dict[str, str] = {
@@ -2824,7 +2827,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 min_t = min(f.fault_occurrence_time for f in fiber_faults)
                 preceding_qs = OtnFault.objects.filter(
                     fault_occurrence_time__gte=min_t - timedelta(days=60),
-                    fault_occurrence_time__lt=start_date,
+                    fault_occurrence_time__lt=end_date if end_date else now,
                     fault_category__in=[FaultCategoryChoices.FIBER_BREAK, 
                                         FaultCategoryChoices.FIBER_DEGRADATION, 
                                         FaultCategoryChoices.FIBER_JITTER]
@@ -2851,6 +2854,8 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 kpi_repeat_ids = repeat_result.kpi_repeat_ids
                 ui_repeat_ids = repeat_result.ui_repeat_ids
                 matched_preceding_faults = repeat_result.matched_preceding_faults
+                current_ids = {f.id for f in current_faults}
+                matched_preceding_faults = [f for f in matched_preceding_faults if f.id not in current_ids]
                 if detail_scope == 'cable_break':
                     matched_preceding_faults = []
         repeat_filter_ids = kpi_repeat_ids if detail_scope == 'cable_break' else ui_repeat_ids
