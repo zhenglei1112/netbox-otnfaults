@@ -2878,6 +2878,11 @@ class ServiceStatisticsDetailsAPI(PermissionRequiredMixin, View):
         )
         
         service_type = request.GET.get('service_type')
+        service_type_aliases: dict[str, str] = {
+            '裸纤业务': ServiceTypeChoices.BARE_FIBER,
+            '电路业务': ServiceTypeChoices.CIRCUIT,
+        }
+        service_type = service_type_aliases.get(service_type, service_type)
         if service_type:
             impacts_qs = impacts_qs.filter(service_type=service_type)
             

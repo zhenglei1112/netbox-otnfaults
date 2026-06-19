@@ -4087,9 +4087,13 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
+    function getServiceTypeValue(serviceType) {
+        return serviceType === '裸纤业务' ? 'bare_fiber' : 'circuit';
+    }
+
     async function loadServiceDetails(serviceType, page, perPage, ordering, listId, infoId, dropdownId, tbodyId, badgeId, clearButtonId) {
         const selectedDateParts = inputDate.value.split('-').map(Number);
-        let url = `${window.SERVICE_STATISTICS_DETAILS_API}?${buildTimeParams()}&service_type=${encodeURIComponent(serviceType)}&page=${page}&per_page=${perPage}&ordering=${ordering}`;
+        let url = `${window.SERVICE_STATISTICS_DETAILS_API}?${buildTimeParams()}&service_type=${encodeURIComponent(getServiceTypeValue(serviceType))}&page=${page}&per_page=${perPage}&ordering=${ordering}`;
 
         if (activeServiceDetailFilterKey && activeServiceDetailFilterType === serviceType) {
             url += `&service_key=${encodeURIComponent(activeServiceDetailFilterKey)}`;

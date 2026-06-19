@@ -1582,9 +1582,17 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter'", source)
         self.assertIn("'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter'", source)
         self.assertIn("function loadServiceDetails(serviceType,", source)
+        self.assertIn("function getServiceTypeValue(serviceType)", source)
+        self.assertIn("serviceType === '裸纤业务' ? 'bare_fiber' : 'circuit'", source)
+        self.assertIn("service_type=${encodeURIComponent(getServiceTypeValue(serviceType))}", source)
         self.assertIn("function handleServiceCardClick(serviceKey, serviceName, serviceType)", source)
         self.assertIn('data-service-key="${escapeHtml(card.serviceKey)}"', source)
         self.assertIn("card.addEventListener('click', () => handleServiceCardClick(card.dataset.serviceKey, card.dataset.serviceName, card.dataset.serviceType));", source)
+
+        self.assertIn("service_type_aliases: dict[str, str] = {", views_source)
+        self.assertIn("'裸纤业务': ServiceTypeChoices.BARE_FIBER", views_source)
+        self.assertIn("'电路业务': ServiceTypeChoices.CIRCUIT", views_source)
+        self.assertIn("service_type = service_type_aliases.get(service_type, service_type)", views_source)
 
     def test_reason_pie_uses_doughnut_with_metrics_in_expanded_legend(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
