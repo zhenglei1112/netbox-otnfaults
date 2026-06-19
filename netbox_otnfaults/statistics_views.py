@@ -2191,6 +2191,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
 
     def get(self, request) -> JsonResponse:
         start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
+        include_all_bare_fiber: bool = request.GET.get('include_all_bare_fiber') == '1'
         now = timezone.localtime()
         selected_year = int(request.GET.get('year', start_date.year))
         tz = timezone.get_current_timezone()
@@ -2212,8 +2213,13 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
         # 提取当前期受影响的业务 ID 集合
         affected_bf_ids = {imp.bare_fiber_service_id for imp in impacts if imp.service_type == ServiceTypeChoices.BARE_FIBER and imp.bare_fiber_service_id}
         affected_cs_ids = {imp.circuit_service_id for imp in impacts if imp.service_type == ServiceTypeChoices.CIRCUIT and imp.circuit_service_id}
+        all_bare_fiber_services = list(
+            BareFiberService.objects.select_related('tenant_group').order_by('name')
+        ) if include_all_bare_fiber else []
+        statistics_bf_ids = affected_bf_ids | {service.pk for service in all_bare_fiber_services}
 
-        # 2. 仅对当前周期有影响的业务，获取其年度 impacts 和日历
+        # 2. 默认仅对当前周期有影响的业务获取年度 impacts 和日历；
+        # 请求全部裸纤业务时，为全部裸纤业务补充年度和日历统计。
         yearly_impacts = []
         calendar_impacts = []
         
@@ -2222,7 +2228,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
         calendar_months = _build_recent_calendar_months(calendar_year, calendar_month, tz, num_months=3)
         calendar_full_months = _build_year_to_month_calendar_months(calendar_year, calendar_month, tz)
         
-        if affected_bf_ids or affected_cs_ids:
+        if statistics_bf_ids or affected_cs_ids:
             # 获取年度 impacts
             yearly_impacts_qs = OtnFaultImpact.objects.select_related(
                 'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
@@ -2235,7 +2241,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
             
             yearly_impacts_qs = yearly_impacts_qs.filter(
-                Q(service_type=ServiceTypeChoices.BARE_FIBER, bare_fiber_service_id__in=affected_bf_ids)
+                Q(service_type=ServiceTypeChoices.BARE_FIBER, bare_fiber_service_id__in=statistics_bf_ids)
                 | Q(service_type=ServiceTypeChoices.CIRCUIT, circuit_service_id__in=affected_cs_ids)
             )
             yearly_impacts = list(yearly_impacts_qs)
@@ -2259,7 +2265,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
             ).filter(otn_fault__is_suspended=False).exclude(otn_fault__fault_status=FaultStatusChoices.SUSPENDED)
             
             calendar_impacts_qs = calendar_impacts_qs.filter(
-                Q(service_type=ServiceTypeChoices.BARE_FIBER, bare_fiber_service_id__in=affected_bf_ids)
+                Q(service_type=ServiceTypeChoices.BARE_FIBER, bare_fiber_service_id__in=statistics_bf_ids)
                 | Q(service_type=ServiceTypeChoices.CIRCUIT, circuit_service_id__in=affected_cs_ids)
             )
             calendar_impacts = list(calendar_impacts_qs)
@@ -2313,6 +2319,17 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
                 'intervals': [],
                 'occurrence_times': [],
             }
+
+        if include_all_bare_fiber:
+            for service in all_bare_fiber_services:
+                svc_key = f'bf_{service.pk}'
+                svc_group_label = service.tenant_group.name if service.tenant_group else '未分组'
+                service_map[svc_key] = initialize_service_stats(
+                    service.name,
+                    '裸纤业务',
+                    svc_group_label,
+                    0,
+                )
 
         # 遍历 impacts 填充受到故障影响的业务卡片
         for imp in impacts:

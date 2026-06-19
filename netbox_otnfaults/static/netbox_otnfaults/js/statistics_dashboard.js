@@ -3496,21 +3496,29 @@ document.addEventListener("DOMContentLoaded", function() {
     let serviceCalendarCharts = [];
     let currentBareFiberServices = [];
     let bareFiberServiceCardScope = 'faulted';
+    let bareFiberAllServicesLoaded = false;
+    let serviceDataRequestSequence = 0;
 
-    async function loadServiceData() {
-        disposeServiceCalendarCharts();
-        setServiceCardsLoading('service-cards-container');
-        setServiceCardsLoading('circuit-service-cards-container');
-        setServiceDetailsLoading('service-details-tbody');
-        setServiceDetailsLoading('circuit-service-details-tbody');
+    async function loadServiceData({ includeAllBareFiber = false } = {}) {
+        const requestSequence = ++serviceDataRequestSequence;
+        const preserveExistingCards = includeAllBareFiber && currentBareFiberServices.length > 0;
+        if (!preserveExistingCards) {
+            disposeServiceCalendarCharts();
+            setServiceCardsLoading('service-cards-container');
+            setServiceCardsLoading('circuit-service-cards-container');
+            setServiceDetailsLoading('service-details-tbody');
+            setServiceDetailsLoading('circuit-service-details-tbody');
+        }
 
         const selectedDateParts = inputDate.value.split('-').map(Number);
         let url = `${window.SERVICE_STATISTICS_DATA_API}?${buildTimeParams()}&calendar_year=${selectedDateParts[0]}&calendar_month=${selectedDateParts[1]}`;
+        if (includeAllBareFiber) url += '&include_all_bare_fiber=1';
 
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response error');
             const data = await response.json();
+            if (requestSequence !== serviceDataRequestSequence) return;
 
             if (data.period && data.period.start) {
                 const periodEl = document.getElementById('period-display');
@@ -3523,6 +3531,7 @@ document.addEventListener("DOMContentLoaded", function() {
             activeServiceDetailFilterName = null;
             activeServiceDetailFilterType = null;
             currentBareFiberServices = getServicesByType(services, '裸纤业务');
+            bareFiberAllServicesLoaded = includeAllBareFiber;
             renderBareFiberServiceCards();
             renderServiceCards(getServicesByType(services, '电路业务'), 'circuit-service-cards-container', '电路业务');
 
@@ -3533,11 +3542,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
             serviceDataLoaded = true;
         } catch (error) {
+            if (requestSequence !== serviceDataRequestSequence) return;
             console.error('Service data fetch error:', error);
-            setServiceCardsError('service-cards-container');
-            setServiceCardsError('circuit-service-cards-container');
-            setServiceDetailsError('service-details-tbody');
-            setServiceDetailsError('circuit-service-details-tbody');
+            if (!preserveExistingCards) {
+                setServiceCardsError('service-cards-container');
+                setServiceCardsError('circuit-service-cards-container');
+                setServiceDetailsError('service-details-tbody');
+                setServiceDetailsError('circuit-service-details-tbody');
+            }
         }
     }
 
@@ -4212,6 +4224,10 @@ document.addEventListener("DOMContentLoaded", function() {
         input.addEventListener('change', () => {
             if (!input.checked) return;
             bareFiberServiceCardScope = input.value === 'all' ? 'all' : 'faulted';
+            if (bareFiberServiceCardScope === 'all' && !bareFiberAllServicesLoaded) {
+                loadServiceData({ includeAllBareFiber: true });
+                return;
+            }
             renderBareFiberServiceCards();
         });
     });
@@ -4229,7 +4245,9 @@ document.addEventListener("DOMContentLoaded", function() {
         syncPhysicalProvinceFilterVisibility();
         const activeTab = document.querySelector('#statisticsTab .nav-link.active');
         if (activeTab && (activeTab.id === 'tab-service-btn' || activeTab.id === 'tab-circuit-service-btn')) {
-            loadServiceData();
+            loadServiceData({
+                includeAllBareFiber: activeTab.id === 'tab-service-btn' && bareFiberServiceCardScope === 'all',
+            });
         } else if (activeTab && (activeTab.id === 'tab-branch-company-btn' || activeTab.id === 'tab-branch-performance-btn')) {
             loadData();
         } else {
@@ -4244,7 +4262,9 @@ document.addEventListener("DOMContentLoaded", function() {
             syncBareFiberServiceCardScopeToggle();
             syncPhysicalProvinceFilterVisibility();
             if (event.target.id === 'tab-service-btn' || event.target.id === 'tab-circuit-service-btn') {
-                loadServiceData();
+                loadServiceData({
+                    includeAllBareFiber: event.target.id === 'tab-service-btn' && bareFiberServiceCardScope === 'all',
+                });
             } else if (event.target.id === 'tab-branch-company-btn' || event.target.id === 'tab-branch-performance-btn') {
                 loadData();
                 setTimeout(() => {

@@ -10,7 +10,7 @@ def test_service_statistics_sorts_bare_fiber_before_circuit_by_count_then_name()
 
     assert "svc_sort_rank = 0" in source
     assert "svc_sort_rank = 1" in source
-    assert "svc_sort_rank = 2" in source
+    assert "svc_sort_rank = 2" not in source
     assert "'sort_rank': svc_sort_rank" in source
     assert "services_result.sort(key=lambda x: (x['sort_rank'], -x['count'], x['name']))" in source
     assert "result.pop('sort_rank', None)" in source
@@ -27,12 +27,21 @@ def test_service_statistics_payload_exposes_group_label_for_bare_fiber_and_circu
     assert "'group_label': stats['group_label']" in source
 
 
-def test_service_statistics_initializes_all_bare_fiber_services() -> None:
+def test_service_statistics_initializes_all_bare_fiber_services_only_when_requested() -> None:
     source = VIEWS_PATH.read_text(encoding="utf-8")
 
     assert "BareFiberService" in source
     assert "dict(ServiceTypeChoices.CHOICES)" not in source
-    assert "for service in BareFiberService.objects.select_related('tenant_group').order_by('name')" in source
+    assert "include_all_bare_fiber: bool = request.GET.get('include_all_bare_fiber') == '1'" in source
+    conditional_block = source.split("if include_all_bare_fiber:", 1)[1].split(
+        "# 遍历 impacts 填充受到故障影响的业务卡片",
+        1,
+    )[0]
+    assert "BareFiberService.objects.select_related('tenant_group').order_by('name')" in source
+    assert "for service in all_bare_fiber_services:" in conditional_block
+    assert "statistics_bf_ids = affected_bf_ids | {service.pk for service in all_bare_fiber_services}" in source
+    assert "bare_fiber_service_id__in=statistics_bf_ids" in source
+    assert "circuit_service_id__in=affected_cs_ids" in source
     assert "svc_key = f'bf_{service.pk}'" in source
     assert "'has_current_period_faults': False" in source
     assert "stats['has_current_period_faults'] = True" in source
