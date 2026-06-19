@@ -391,6 +391,21 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("def _should_exclude_for_branch(fault) -> bool:", source)
         self.assertIn("fault.handling_unit.name in EXCLUDED_HANDLING_UNITS", source)
 
+    def test_branch_company_details_filter_valid_duration_on_server(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        details_source = source.split(
+            "class FaultStatisticsDetailsAPI",
+            1,
+        )[1].split(
+            "class FaultRepeatsAPI",
+            1,
+        )[0]
+
+        self.assertIn("is_valid_duration = request.GET.get('is_valid_duration')", details_source)
+        self.assertIn("if is_valid_duration == 'true':", details_source)
+        self.assertIn("Coalesce(F('fault_recovery_time'), now) - F('fault_occurrence_time')", details_source)
+        self.assertIn("duration__gt=timedelta(minutes=30)", details_source)
+
     def test_css_defines_branch_company_chart_layout(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
 

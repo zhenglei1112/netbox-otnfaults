@@ -2674,6 +2674,15 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
             reason_val = reason_map.get(reason, reason)
             qs = qs.filter(interruption_reason=reason_val)
 
+        is_valid_duration = request.GET.get('is_valid_duration')
+        if is_valid_duration == 'true':
+            qs = qs.annotate(
+                duration=ExpressionWrapper(
+                    Coalesce(F('fault_recovery_time'), now) - F('fault_occurrence_time'),
+                    output_field=DurationField()
+                )
+            ).filter(duration__gt=timedelta(minutes=30))
+
         is_long = request.GET.get('is_long')
         if is_long == 'true':
             qs = qs.annotate(
