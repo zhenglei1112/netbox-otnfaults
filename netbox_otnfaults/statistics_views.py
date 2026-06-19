@@ -2648,6 +2648,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
             '无法查明': 'unknown', '光缆整改': 'cable_rectification',
         }
 
+        detail_scope = request.GET.get('detail_scope')
         impact_level = request.GET.get('impact_level')
         fault_group = request.GET.get('fault_group')
         category = request.GET.get('category')
@@ -2675,6 +2676,10 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 return None
 
         def apply_detail_filters(queryset: QuerySet) -> QuerySet:
+            if detail_scope == 'cable_break':
+                queryset = queryset.filter(fault_category=FaultCategoryChoices.FIBER_BREAK)
+                queryset = queryset.filter(is_suspended=False)
+                queryset = queryset.exclude(fault_status=FaultStatusChoices.SUSPENDED)
             if impact_level:
                 impact_filters: dict[str, Q] = {
                     'total': Q_CLASS_TOTAL,
@@ -2719,7 +2724,9 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                     | ~Q(resource_type__in=[ResourceTypeChoices.SELF_BUILT, ResourceTypeChoices.COORDINATED, ResourceTypeChoices.LEASED])
                 )
 
-            if reason:
+            if reason == '未填/未知':
+                queryset = queryset.filter(Q(interruption_reason='') | Q(interruption_reason__isnull=True))
+            elif reason:
                 queryset = queryset.filter(interruption_reason=reason_aliases.get(reason, reason))
             if occurrence_period == '日间':
                 queryset = queryset.filter(fault_occurrence_time__hour__gte=6, fault_occurrence_time__hour__lt=18)
@@ -2832,6 +2839,8 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 )
                 ui_repeat_ids = repeat_result.ui_repeat_ids
                 matched_preceding_faults = repeat_result.matched_preceding_faults
+                if detail_scope == 'cable_break':
+                    matched_preceding_faults = []
         if is_repeat == 'true':
             current_faults = [fault for fault in current_faults if fault.id in ui_repeat_ids]
         elif is_repeat == 'false':

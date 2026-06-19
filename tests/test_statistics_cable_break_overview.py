@@ -151,9 +151,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("...durationMetricItems.slice(2)", source)
         self.assertIn("const remainingFilteredAverageItems = filteredAverageItems.slice(1);", source)
         self.assertIn("const repairPercentileItems = durationMetricItems.slice(0, 2);", source)
-        self.assertIn('durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems);', source)
-        self.assertIn('durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems);', source)
-        self.assertIn('filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems);', source)
+        self.assertIn('durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems, undefined, "cable_break");', source)
+        self.assertIn('durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems, undefined, "cable_break");', source)
+        self.assertIn('filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems, undefined, "cable_break");', source)
 
     def test_cable_break_group_layout_uses_bottom_labels_and_short_separators(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -263,7 +263,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id: "cable-break-long-total"', source)
         self.assertIn('filterField: "is_long"', source)
         self.assertIn('filterField: "duration_bucket"', source)
-        self.assertIn('htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems);', source)
+        self.assertIn('htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break");', source)
         self.assertNotIn('buildFlexGroup(longItems, "起", "历时分布"', source)
         self.assertIn(".statistics-cable-break-five-card .statistics-kpi-group-items", css)
         self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
@@ -305,9 +305,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('<div class="statistics-strip-card-footer">原因TOP3</div>', primary_grid)
         self.assertIn('<div class="statistics-strip-card-footer">光缆属性</div>', deferred_grid)
         self.assertIn("const reasonTop3 = normalizeTopItems(overview.reason_top3 || [], 3);", source)
-        self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason")', source)
+        self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break")', source)
         self.assertIn('const sourceCounts = normalizeNamedItems(overview.source_counts || [], ["自控", "第三方", "其他/未填"]);', source)
-        self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group")', source)
+        self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break")', source)
         self.assertIn("renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, true);", source)
         self.assertIn(".statistics-cable-break-count-card .statistics-cable-break-static-metrics", css)
         self.assertIn("grid-template-columns: minmax(0, 1fr);", css)
@@ -726,8 +726,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("...overallAverageItems", source)
         self.assertIn("...filteredAverageItems.slice(0, 1)", source)
         self.assertIn("const remainingFilteredAverageItems = filteredAverageItems.slice(1);", source)
-        self.assertIn('durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems);', source)
-        self.assertIn('filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems);', source)
+        self.assertIn('durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems, undefined, "cable_break");', source)
+        self.assertIn('filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems, undefined, "cable_break");', source)
         self.assertIn(".statistics-cable-break-primary-grid", css)
         self.assertIn(".statistics-cable-break-deferred-grid", css)
         self.assertNotIn(".statistics-cable-break-filtered-average-card {\n    grid-column: span 2;\n}", css)
@@ -768,7 +768,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('value: Number(m.timeout_rate || 0)', source)
         self.assertIn('prevValue: prevMetrics.timeout_rate', source)
         self.assertIn("const repairPercentileItems = durationMetricItems.slice(0, 2);", source)
-        self.assertIn('durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems);', source)
+        self.assertIn('durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems, undefined, "cable_break");', source)
         self.assertIn(".statistics-cable-break-deferred-grid", css)
         self.assertIn(".statistics-cable-break-deferred-card-narrow", css)
         self.assertIn("grid-column: span 2;", css)
@@ -1892,7 +1892,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("handleMetricFilterClick(metric);", source)
         self.assertIn("function handleMetricFilterClick(metric)", source)
         self.assertIn("function normalizeFilterValue(fieldName, value)", source)
-        self.assertIn("chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket'));", source)
+        self.assertIn("chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket', 'cable_break'));", source)
         self.assertIn("let activeFilterExtraField = null;", source)
         self.assertIn("let activeFilterExtraValue = null;", source)
         self.assertIn("else if (activeFilterField === 'duration_max') { filterName = '历时指标'; filterValueDisp = `<=${formatCardMetricValue(activeFilterValue)}小时`; }", source)
@@ -1900,12 +1900,12 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("附加：有效历时>30分钟", source)
         self.assertIn("const itemUnit = item && item.unit !== undefined ? item.unit : unit;", source)
         self.assertIn("buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel", source)
-        self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason")', source)
-        self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group")', source)
-        self.assertIn('buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems)', source)
-        self.assertIn('buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems)', source)
-        self.assertIn('buildFlexGroup(durReasonItems, "时", "", "text-indigo", prevDurReasonItems, "reason")', source)
-        self.assertIn('buildFlexGroup(durSourceItems, "时", "", "text-indigo", prevDurSourceItems, "source_group")', source)
+        self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break")', source)
+        self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break")', source)
+        self.assertIn('buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break")', source)
+        self.assertIn('buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems, undefined, "cable_break")', source)
+        self.assertIn('buildFlexGroup(durReasonItems, "时", "", "text-indigo", prevDurReasonItems, "reason", "cable_break")', source)
+        self.assertIn('buildFlexGroup(durSourceItems, "时", "", "text-indigo", prevDurSourceItems, "source_group", "cable_break")', source)
 
     def test_statistics_cards_disable_text_selection_but_keep_tables_selectable(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -2331,7 +2331,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
         self.assertIn("const cableBreakMetricsToggle = document.getElementById('cable-break-metrics-toggle');", source)
         self.assertIn("const durationSummaryItems = [", source)
-        self.assertIn("durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, \"\", \"\", \"text-indigo\", prevDurationSummaryItems);", source)
+        self.assertIn("durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, \"\", \"\", \"text-indigo\", prevDurationSummaryItems, undefined, \"cable_break\");", source)
         self.assertNotIn("document.getElementById('cable-break-average-overall-list')", source)
         self.assertNotIn("document.getElementById('cable-break-valid-average-list')", source)
         self.assertNotIn("document.getElementById('cable-break-timeout-rate-list')", source)
@@ -2638,5 +2638,44 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("padding: 0.1rem 0.45rem;", css)
 
 
+    def test_cable_break_cards_and_details_share_the_same_scope(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        script = JS_PATH.read_text(encoding="utf-8")
+        views_source = VIEWS_PATH.read_text(encoding="utf-8")
+        physical_cable_break = template.split(
+            'id="cable-break-total-count"', 1
+        )[0].rsplit(
+            'class="statistics-drill-metric', 1
+        )[1]
+        render_source = script.split(
+            "function renderCableBreakOverview", 1
+        )[1].split(
+            "function renderRingCharts", 1
+        )[0]
+        details_source = views_source.split(
+            "class FaultStatisticsDetailsAPI", 1
+        )[1].split(
+            "class FaultRepeatsAPI", 1
+        )[0]
+
+        self.assertIn('data-detail-scope="cable_break"', physical_cable_break)
+        self.assertRegex(template, r'id="card-repeat-faults"[^>]+data-detail-scope="cable_break"')
+        self.assertIn("detailScope = null", script)
+        self.assertIn('data-detail-scope="${detailScope}"', script)
+        self.assertGreaterEqual(render_source.count('"cable_break"'), 9)
+        self.assertIn("activeFilterScope = metric.dataset.detailScope || null;", script)
+        self.assertIn("clearFaultLegendExclusions();", script)
+        self.assertIn("detail_scope=${encodeURIComponent(activeFilterScope)}", script)
+        self.assertIn("统计范围=光缆中断", script)
+        self.assertIn("挂起状态=非挂起", script)
+        self.assertIn("formatFaultFilterCondition(activeFilterExtraField", script)
+
+        self.assertIn("detail_scope = request.GET.get('detail_scope')", details_source)
+        self.assertIn("if detail_scope == 'cable_break':", details_source)
+        self.assertIn("fault_category=FaultCategoryChoices.FIBER_BREAK", details_source)
+        self.assertIn("queryset = queryset.filter(is_suspended=False)", details_source)
+        self.assertIn("queryset = queryset.exclude(fault_status=FaultStatusChoices.SUSPENDED)", details_source)
+        self.assertIn("if reason == '未填/未知':", details_source)
+        self.assertIn("if detail_scope == 'cable_break':\n                    matched_preceding_faults = []", details_source)
 if __name__ == "__main__":
     unittest.main()

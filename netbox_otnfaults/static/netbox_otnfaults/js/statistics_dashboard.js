@@ -87,6 +87,15 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
+    function clearFaultLegendExclusions() {
+        excludedCategories.resource_type.clear();
+        excludedCategories.province.clear();
+        excludedCategories.reason.clear();
+        chartResource.dispatchAction({ type: 'legendAllSelect' });
+        chartProvince.dispatchAction({ type: 'legendAllSelect' });
+        chartReason.dispatchAction({ type: 'legendAllSelect' });
+    }
+
     function resizeStatisticsCharts() {
         chartResource.resize();
         chartProvince.resize();
@@ -156,7 +165,7 @@ document.addEventListener("DOMContentLoaded", function() {
     chartRingFiber.getZr().on('click', event => handleImpactRingCenterClick(chartRingFiber, 'fiber', event));
     chartRingPower.getZr().on('click', event => handleImpactRingCenterClick(chartRingPower, 'power', event));
     chartRingEnvironment.getZr().on('click', event => handleImpactRingCenterClick(chartRingEnvironment, 'environment', event));
-    if (chartHistogram) chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket'));
+    if (chartHistogram) chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket', 'cable_break'));
     if (chartBranchCompanyCount) chartBranchCompanyCount.on('click', params => handleBranchCompanyChartClick(params, 'province'));
     if (chartBranchCompanyDuration) chartBranchCompanyDuration.on('click', params => handleBranchCompanyChartClick(params, 'province'));
     if (chartBranchCompanyBoxplot) chartBranchCompanyBoxplot.on('click', params => handleBranchCompanyChartClick(params, 'province'));
@@ -193,6 +202,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let activeFilterExtraField = null;
     let activeFilterExtraValue = null;
     let activeFilterLabel = null;
+    let activeFilterScope = null;
     let activeBranchCompanyFilterField = null;
     let activeBranchCompanyFilterValue = null;
     let activeBranchCompanyFilterExtraField = null;
@@ -1342,7 +1352,7 @@ document.addEventListener("DOMContentLoaded", function() {
         trendEl.innerHTML = buildTrendArrow(currentValue, previousValue, integer);
     }
 
-    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue, filterLabel, valueId, filterExtraField, filterExtraValue, infoTitle, infoLabel, displayValueOverride) {
+    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue, filterLabel, valueId, filterExtraField, filterExtraValue, infoTitle, infoLabel, displayValueOverride, detailScope = null) {
         const countUnit = isCountUnit(unit);
         const arrow = buildTrendArrow(value, prevValue, countUnit);
         const displayValue = displayValueOverride !== undefined
@@ -1354,7 +1364,7 @@ document.addEventListener("DOMContentLoaded", function() {
             : "";
         const filterClass = filterField ? " statistics-drill-metric" : "";
         const filterAttrs = filterField
-            ? ` data-filter-field="${filterField}" data-filter-value="${filterValue}"${filterExtraField ? ` data-filter-extra-field="${filterExtraField}" data-filter-extra-value="${filterExtraValue}"` : ""} data-filter-label="${filterLabel || title}"`
+            ? ` data-filter-field="${filterField}" data-filter-value="${filterValue}"${filterExtraField ? ` data-filter-extra-field="${filterExtraField}" data-filter-extra-value="${filterExtraValue}"` : ""}${detailScope ? ` data-detail-scope="${detailScope}"` : ""} data-filter-label="${filterLabel || title}"`
             : "";
         const valueIdAttr = valueId ? ` id="${valueId}"` : "";
         return `
@@ -1365,7 +1375,7 @@ document.addEventListener("DOMContentLoaded", function() {
         `;
     }
 
-    function buildFlexGroup(items, unit, groupTitle, colorClass, prevItems, filterField) {
+    function buildFlexGroup(items, unit, groupTitle, colorClass, prevItems, filterField, detailScope = null) {
         if (!items || items.length === 0) return "";
         const compactClass = items.length >= 4 ? " statistics-kpi-group--compact" : "";
         let groupHtml = `<div class="statistics-kpi-group${compactClass}">`;
@@ -1390,7 +1400,8 @@ document.addEventListener("DOMContentLoaded", function() {
             const itemInfoLabel = item && item.infoLabel !== undefined ? item.infoLabel : undefined;
             const itemDisplayValue = item && item.displayValue !== undefined ? item.displayValue : undefined;
             const itemUnit = item && item.unit !== undefined ? item.unit : unit;
-            groupHtml += buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel, itemDisplayValue);
+            const itemDetailScope = item && item.detailScope !== undefined ? item.detailScope : detailScope;
+            groupHtml += buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel, itemDisplayValue, itemDetailScope);
         });
         groupHtml += `</div>`;
         if (groupTitle) {
@@ -1450,11 +1461,11 @@ document.addEventListener("DOMContentLoaded", function() {
         const prevSourceCounts = prevOverview.source_counts || [];
         const reasonTop3 = normalizeTopItems(overview.reason_top3 || [], 3);
         const reasonList = document.getElementById('cable-break-reason-top3-flex-list');
-        if (reasonList) reasonList.innerHTML = buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason");
+        if (reasonList) reasonList.innerHTML = buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break");
 
         const sourceCounts = normalizeNamedItems(overview.source_counts || [], ["自控", "第三方", "其他/未填"]);
         const sourceList = document.getElementById('cable-break-source-flex-list');
-        if (sourceList) sourceList.innerHTML = buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group");
+        if (sourceList) sourceList.innerHTML = buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break");
 
         // 卡片2: 长时中断起数
         let htmlLong = "";
@@ -1494,7 +1505,7 @@ document.addEventListener("DOMContentLoaded", function() {
             {name: "起数", value: prevLongTotal},
             ...prevLongItems,
         ];
-        htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems);
+        htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break");
         
         const longList = document.getElementById('cable-break-long-flex-list');
         if (longList) longList.innerHTML = htmlLong;
@@ -1534,7 +1545,7 @@ document.addEventListener("DOMContentLoaded", function() {
             {name: "总历时", value: prevLongDurationTotal},
             ...prevLongDurationItems,
         ];
-        htmlLongDuration += buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems);
+        htmlLongDuration += buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems, undefined, "cable_break");
         
         const longDurationList = document.getElementById('cable-break-long-duration-flex-list');
         if (longDurationList) longDurationList.innerHTML = htmlLongDuration;
@@ -1553,7 +1564,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const prevDurReasonItems = prevDurReasonTop3.map(i => ({...i, value: Number(i.value || 0)}));
         const durationReasonList = document.getElementById('cable-break-duration-reason-flex-list');
         if (durationReasonList) {
-            durationReasonList.innerHTML = buildFlexGroup(durReasonItems, "时", "", "text-indigo", prevDurReasonItems, "reason");
+            durationReasonList.innerHTML = buildFlexGroup(durReasonItems, "时", "", "text-indigo", prevDurReasonItems, "reason", "cable_break");
         }
 
         const durSourceItems = normalizeNamedItems((overview.source_duration_counts || []).map(i => ({
@@ -1563,7 +1574,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const prevDurSourceItems = prevDurSourceCounts.map(i => ({...i, value: Number(i.value || 0)}));
         const durationSourceList = document.getElementById('cable-break-duration-source-flex-list');
         if (durationSourceList) {
-            durationSourceList.innerHTML = buildFlexGroup(durSourceItems, "时", "", "text-indigo", prevDurSourceItems, "source_group");
+            durationSourceList.innerHTML = buildFlexGroup(durSourceItems, "时", "", "text-indigo", prevDurSourceItems, "source_group", "cable_break");
         }
 
         // 平均历时
@@ -1694,13 +1705,13 @@ document.addEventListener("DOMContentLoaded", function() {
             const repairPercentileItems = durationMetricItems.slice(0, 2);
             const prevRepairPercentileItems = prevDurationMetricItems.slice(0, 2);
             if (durationTotalList) {
-                durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems);
+                durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems, undefined, "cable_break");
             }
             if (durationMetricsList) {
-                durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems);
+                durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems, undefined, "cable_break");
             }
             if (filteredAverageList) {
-                filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems);
+                filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems, undefined, "cable_break");
             }
         }
         
@@ -2985,6 +2996,9 @@ document.addEventListener("DOMContentLoaded", function() {
     async function loadFaultDetails() {
         let url = `${window.STATISTICS_DETAILS_API}?${buildTimeParams()}&ordering=${faultOrdering}`;
         url += buildPhysicalProvinceParams();
+        if (activeFilterScope) {
+            url += `&detail_scope=${encodeURIComponent(activeFilterScope)}`;
+        }
 
         if (activeFilterField && activeFilterValue !== null) {
             url += `&${activeFilterField}=${encodeURIComponent(activeFilterValue)}`;
@@ -3005,6 +3019,28 @@ document.addEventListener("DOMContentLoaded", function() {
             console.error('Fetch details error:', error);
             tbody.innerHTML = '<tr><td colspan="10" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         }
+    }
+
+    function formatFaultFilterCondition(field, value) {
+        const impactLevelLabels = {
+            total: '全部等级', class_i_ii: 'I类和II类', class_i: 'I类', class_ii: 'II类',
+            class_iii: 'III类', class_iv: 'IV类', class_v: '挂起'
+        };
+        if (field === 'category' || field === 'fault_group') return `故障类型=${value === 'fiber' ? '光缆中断' : value}`;
+        if (field === 'resource_type' || field === 'source_group') return `光缆属性=${value}`;
+        if (field === 'province') return `省份=${value}`;
+        if (field === 'reason') return `原因=${value}`;
+        if (field === 'duration_bucket') return `故障历时=${value}`;
+        if (field === 'duration_histogram_bucket') return `故障历时频数=${value}小时`;
+        if (field === 'duration_max') return `故障历时<=${formatCardMetricValue(value)}小时`;
+        if (field === 'duration_min') return `故障历时>=${formatCardMetricValue(value)}小时`;
+        if (field === 'occurrence_period') return `发生时段=${value}`;
+        if (field === 'cause_group') return `故障成因=${value}`;
+        if (field === 'is_valid_duration') return '有效历时>30分钟';
+        if (field === 'is_long') return '故障历时>=6小时';
+        if (field === 'is_repeat') return `重复故障=${value === true || value === 'true' ? '是' : '否'}`;
+        if (field === 'impact_level') return `故障等级=${impactLevelLabels[value] || value}`;
+        return `${field}=${value}`;
     }
 
     function updateFaultFilterBadgeAndSummary(filteredDetails) {
@@ -3048,9 +3084,18 @@ document.addEventListener("DOMContentLoaded", function() {
                 else if (activeFilterValue === 'class_v') filterValueDisp = 'V类';
             }
 
-            activeConditions.push(`下钻：${filterName}=${filterValueDisp}`);
-            if (activeFilterExtraField === 'is_valid_duration' && activeFilterExtraValue === true) {
-                activeConditions.push('附加：有效历时>30分钟');
+            if (activeFilterScope === 'cable_break') {
+                activeConditions.push('统计范围=光缆中断');
+                activeConditions.push('挂起状态=非挂起');
+                activeConditions.push(`下钻条件：${formatFaultFilterCondition(activeFilterField, activeFilterValue)}`);
+                if (activeFilterExtraField && activeFilterExtraValue !== null) {
+                    activeConditions.push(`附加条件：${formatFaultFilterCondition(activeFilterExtraField, activeFilterExtraValue)}`);
+                }
+            } else {
+                activeConditions.push(`下钻：${filterName}=${filterValueDisp}`);
+                if (activeFilterExtraField === 'is_valid_duration' && activeFilterExtraValue === true) {
+                    activeConditions.push('附加：有效历时>30分钟');
+                }
             }
         }
 
@@ -3299,6 +3344,7 @@ document.addEventListener("DOMContentLoaded", function() {
         activeFilterExtraField = impactLevel ? 'impact_level' : null;
         activeFilterExtraValue = impactLevel;
         activeFilterLabel = label || impactRingGroupLabels[faultGroup] || faultGroup;
+        activeFilterScope = null;
 
         const timeRadio = document.getElementById('detail-sort-time');
         if (timeRadio) timeRadio.checked = true;
@@ -3333,13 +3379,15 @@ document.addEventListener("DOMContentLoaded", function() {
         drillDownImpactRing(faultGroup);
     }
 
-    function handleChartClick(params, fieldName) {
+    function handleChartClick(params, fieldName, detailScope = null) {
         if (!params.name) return;
         activeFilterField = fieldName;
         activeFilterValue = params.name;
         activeFilterExtraField = null;
         activeFilterExtraValue = null;
         activeFilterLabel = null;
+        activeFilterScope = detailScope;
+        if (activeFilterScope === 'cable_break') clearFaultLegendExclusions();
         
         const timeRadio = document.getElementById('detail-sort-time');
         if (timeRadio) {
@@ -3365,6 +3413,8 @@ document.addEventListener("DOMContentLoaded", function() {
             ? normalizeFilterValue(activeFilterExtraField, metric.dataset.filterExtraValue)
             : null;
         activeFilterLabel = metric.dataset.filterLabel || metric.dataset.filterValue;
+        activeFilterScope = metric.dataset.detailScope || null;
+        if (activeFilterScope === 'cable_break') clearFaultLegendExclusions();
 
         const timeRadio = document.getElementById('detail-sort-time');
         if (timeRadio) {
@@ -3427,13 +3477,9 @@ document.addEventListener("DOMContentLoaded", function() {
         activeFilterExtraField = null;
         activeFilterExtraValue = null;
         activeFilterLabel = null;
+        activeFilterScope = null;
         
-        excludedCategories.resource_type.clear();
-        excludedCategories.province.clear();
-        excludedCategories.reason.clear();
-        
-        chartResource.dispatchAction({ type: 'legendAllSelect' });
-        chartReason.dispatchAction({ type: 'legendAllSelect' });
+        clearFaultLegendExclusions();
         
         loadFaultDetails();
     });

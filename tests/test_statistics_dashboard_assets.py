@@ -27,7 +27,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
         self.assertIn("statistics_dashboard.css' %}?v=33", template)
-        self.assertIn("statistics_dashboard.js' %}?v=39", template)
+        self.assertIn("statistics_dashboard.js' %}?v=40", template)
 
     def test_statistics_dashboard_css_covers_light_and_dark_theme_surfaces(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")

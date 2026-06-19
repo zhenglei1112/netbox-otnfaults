@@ -79,6 +79,10 @@ class StatisticsImpactLevelTestCase(unittest.TestCase):
         self.assertIn('id="kpi-level-class-i"', html_source)
         self.assertIn('id="kpi-level-class-ii"', html_source)
         self.assertIn('id="kpi-level-class-iii"', html_source)
+        self.assertRegex(
+            html_source,
+            r'class="impact-level-block-item statistics-drill-metric"[^>]+data-filter-value="class_iii"',
+        )
         self.assertIn('id="kpi-level-class-iv"', html_source)
         self.assertIn('id="kpi-level-class-v"', html_source)
         self.assertIn('id="card-cutover-implemented"', html_source)

@@ -316,7 +316,7 @@
                                             <div class="block-label">II类</div>
                                         </div>
                                         <!-- III类 -->
-                                        <div class="impact-level-block-item" data-filter-field="impact_level" data-filter-value="class_iii" data-filter-label="III类" style="background-color: #2fb344;">
+                                        <div class="impact-level-block-item statistics-drill-metric" data-filter-field="impact_level" data-filter-value="class_iii" data-filter-label="III类" style="background-color: #2fb344;">
                                             <div class="block-value-wrapper">
                                                 <span class="block-value" id="kpi-level-class-iii">--</span>
                                             </div>
@@ -438,7 +438,7 @@
                                 <div
                                     class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
                                     <div class="statistics-drill-metric text-center" data-filter-field="category"
-                                        data-filter-value="光缆中断" data-filter-label="总起数">
+                                        data-filter-value="光缆中断" data-filter-label="总起数" data-detail-scope="cable_break">
                                         <div class="d-flex align-items-baseline justify-content-center">
                                             <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1"
                                                 id="cable-break-total-count">--</span>
@@ -479,7 +479,7 @@
                                 <div
                                     class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
                                     <div class="statistics-drill-metric text-center" id="card-repeat-faults"
-                                        data-filter-field="is_repeat" data-filter-value="true" data-filter-label="重复起数"
+                                        data-filter-field="is_repeat" data-filter-value="true" data-filter-label="重复起数" data-detail-scope="cable_break"
                                         title="点击过滤出重复故障">
                                         <div class="d-flex align-items-baseline justify-content-center">
                                             <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1"
@@ -1377,5 +1377,5 @@
     window.FAULT_REPEATS_API = "{% url 'plugins:netbox_otnfaults:statistics_fault_repeats' %}";
     window.SERVICE_STATISTICS_DETAILS_API = "{% url 'plugins:netbox_otnfaults:statistics_service_details' %}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=39"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=40"></script>
 {% endblock %}
