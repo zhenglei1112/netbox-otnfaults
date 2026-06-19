@@ -156,16 +156,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ---------------- 统一事件绑定 ----------------
     // 点击下钻
-    chartResource.on('click', params => handleChartClick(params, 'resource_type'));
-    chartProvince.on('click', params => handleChartClick(params, 'province'));
-    chartReason.on('click', params => handleChartClick(params, 'reason'));
+    chartResource.on('click', params => handleChartClick(params, 'resource_type', 'cable_break', currentMetricResource));
+    chartProvince.on('click', params => handleChartClick(params, 'province', 'cable_break', currentMetricProvince));
+    chartReason.on('click', params => handleChartClick(params, 'reason', 'cable_break', currentMetricReason));
     chartRingFiber.on('click', params => handleImpactRingSectorClick(params, 'fiber'));
     chartRingPower.on('click', params => handleImpactRingSectorClick(params, 'power'));
     chartRingEnvironment.on('click', params => handleImpactRingSectorClick(params, 'environment'));
     chartRingFiber.getZr().on('click', event => handleImpactRingCenterClick(chartRingFiber, 'fiber', event));
     chartRingPower.getZr().on('click', event => handleImpactRingCenterClick(chartRingPower, 'power', event));
     chartRingEnvironment.getZr().on('click', event => handleImpactRingCenterClick(chartRingEnvironment, 'environment', event));
-    if (chartHistogram) chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket', 'cable_break'));
+    if (chartHistogram) chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket', 'cable_break', 'count'));
     if (chartBranchCompanyCount) chartBranchCompanyCount.on('click', params => handleBranchCompanyChartClick(params, 'province'));
     if (chartBranchCompanyDuration) chartBranchCompanyDuration.on('click', params => handleBranchCompanyChartClick(params, 'province'));
     if (chartBranchCompanyBoxplot) chartBranchCompanyBoxplot.on('click', params => handleBranchCompanyChartClick(params, 'province'));
@@ -203,6 +203,9 @@ document.addEventListener("DOMContentLoaded", function() {
     let activeFilterExtraValue = null;
     let activeFilterLabel = null;
     let activeFilterScope = null;
+    let activeFilterMetricType = null;
+    let activeFilterMetricValue = null;
+    let currentFaultDetailsSummary = null;
     let activeBranchCompanyFilterField = null;
     let activeBranchCompanyFilterValue = null;
     let activeBranchCompanyFilterExtraField = null;
@@ -863,6 +866,8 @@ document.addEventListener("DOMContentLoaded", function() {
     function renderKPIs(kpis, prevKpis, type) {
         let repeatEl = document.getElementById('kpi-repeat-faults');
         if (repeatEl) repeatEl.textContent = formatCardCountValue(kpis.repeat_faults_count);
+        const repeatMetric = document.getElementById('card-repeat-faults');
+        if (repeatMetric) repeatMetric.dataset.filterMetricValue = String(kpis.repeat_faults_count || 0);
         if (repeatEl) renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, true);
         
         const periodStrMap = { 'year': '上年', 'half': '上半年', 'quarter': '上季度', 'month': '上月', 'week': '上周' };
@@ -1352,8 +1357,17 @@ document.addEventListener("DOMContentLoaded", function() {
         trendEl.innerHTML = buildTrendArrow(currentValue, previousValue, integer);
     }
 
-    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue, filterLabel, valueId, filterExtraField, filterExtraValue, infoTitle, infoLabel, displayValueOverride, detailScope = null) {
+    function inferMetricType(unit, title) {
+        if (String(title || '').includes('P50') || String(title || '').includes('P90')) return 'percentile';
+        if (unit === '%') return 'rate';
+        if (isCountUnit(unit)) return 'count';
+        if (String(title || '').includes('平均')) return 'average';
+        return 'duration';
+    }
+
+    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue, filterLabel, valueId, filterExtraField, filterExtraValue, infoTitle, infoLabel, displayValueOverride, detailScope = null, metricType = null) {
         const countUnit = isCountUnit(unit);
+        const effectiveMetricType = metricType || inferMetricType(unit, title);
         const arrow = buildTrendArrow(value, prevValue, countUnit);
         const displayValue = displayValueOverride !== undefined
             ? displayValueOverride
@@ -1364,7 +1378,7 @@ document.addEventListener("DOMContentLoaded", function() {
             : "";
         const filterClass = filterField ? " statistics-drill-metric" : "";
         const filterAttrs = filterField
-            ? ` data-filter-field="${filterField}" data-filter-value="${filterValue}"${filterExtraField ? ` data-filter-extra-field="${filterExtraField}" data-filter-extra-value="${filterExtraValue}"` : ""}${detailScope ? ` data-detail-scope="${detailScope}"` : ""} data-filter-label="${filterLabel || title}"`
+            ? ` data-filter-field="${filterField}" data-filter-value="${filterValue}"${filterExtraField ? ` data-filter-extra-field="${filterExtraField}" data-filter-extra-value="${filterExtraValue}"` : ""}${detailScope ? ` data-detail-scope="${detailScope}"` : ""} data-filter-label="${filterLabel || title}" data-filter-metric-type="${effectiveMetricType}" data-filter-metric-value="${value}"`
             : "";
         const valueIdAttr = valueId ? ` id="${valueId}"` : "";
         return `
@@ -1401,7 +1415,8 @@ document.addEventListener("DOMContentLoaded", function() {
             const itemDisplayValue = item && item.displayValue !== undefined ? item.displayValue : undefined;
             const itemUnit = item && item.unit !== undefined ? item.unit : unit;
             const itemDetailScope = item && item.detailScope !== undefined ? item.detailScope : detailScope;
-            groupHtml += buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel, itemDisplayValue, itemDetailScope);
+            const itemMetricType = item && item.metricType !== undefined ? item.metricType : null;
+            groupHtml += buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel, itemDisplayValue, itemDetailScope, itemMetricType);
         });
         groupHtml += `</div>`;
         if (groupTitle) {
@@ -1453,6 +1468,8 @@ document.addEventListener("DOMContentLoaded", function() {
         overview = overview || {};
         prevOverview = prevOverview || {};
         totalEl.textContent = formatCardCountValue(overview.total_count || 0);
+        const totalMetric = totalEl.closest('.statistics-drill-metric');
+        if (totalMetric) totalMetric.dataset.filterMetricValue = String(overview.total_count || 0);
 
         renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, true);
 
@@ -3014,6 +3031,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!response.ok) throw new Error('Network response error');
             const data = await response.json();
             currentAllDetails = data.results || [];
+            currentFaultDetailsSummary = data.summary || null;
             renderDetailsTable();
         } catch (error) {
             console.error('Fetch details error:', error);
@@ -3041,6 +3059,40 @@ document.addEventListener("DOMContentLoaded", function() {
         if (field === 'is_repeat') return `重复故障=${value === true || value === 'true' ? '是' : '否'}`;
         if (field === 'impact_level') return `故障等级=${impactLevelLabels[value] || value}`;
         return `${field}=${value}`;
+    }
+
+    function buildFaultMetricParityExplanation(summary) {
+        if (!summary || activeFilterScope !== 'cable_break' || !activeFilterMetricType) return '';
+        const expected = Number(activeFilterMetricValue || 0);
+        const count = Number(summary.count || 0);
+        const totalDuration = Number(summary.total_duration || 0);
+        const averageDuration = Number(summary.average_duration || 0);
+        const scopeTotal = Number(summary.scope_total_count || 0);
+        const expectedText = formatCardMetricValue(expected);
+        const parityLabel = (actual, tolerance = 0.01) => (
+            Math.abs(Number(actual) - expected) <= tolerance
+                ? '<span class="badge bg-success text-white ms-1">口径核对一致</span>'
+                : '<span class="badge bg-danger text-white ms-1">口径核对不一致</span>'
+        );
+
+        if (activeFilterMetricType === 'count') {
+            return `指标为起数，明细当期行数应与指标一致：指标 <strong>${expectedText}</strong> 起，明细 <strong>${count}</strong> 起。${parityLabel(count, 0)}`;
+        }
+        if (activeFilterMetricType === 'duration') {
+            return `指标为累计历时，明细行数表示涉及故障起数：指标 <strong>${expectedText}</strong> 小时，明细 <strong>${count}</strong> 起，累计 <strong>${totalDuration.toFixed(2)}</strong> 小时。${parityLabel(totalDuration)}`;
+        }
+        if (activeFilterMetricType === 'average') {
+            return `指标为平均历时：明细 <strong>${count}</strong> 起，累计 <strong>${totalDuration.toFixed(2)}</strong> 小时，累计历时 ÷ 明细起数 = <strong>${averageDuration.toFixed(2)}</strong> 小时；指标为 <strong>${expectedText}</strong> 小时。${parityLabel(averageDuration)}`;
+        }
+        if (activeFilterMetricType === 'rate') {
+            const rate = scopeTotal > 0 ? count * 100 / scopeTotal : 0;
+            return `指标为超时率：超时故障起数 ÷ 光缆中断总起数 = <strong>${count} ÷ ${scopeTotal} = ${rate.toFixed(1)}%</strong>；指标为 <strong>${expectedText}%</strong>。${parityLabel(rate, 0.05)}`;
+        }
+        if (activeFilterMetricType === 'percentile') {
+            const direction = activeFilterField === 'duration_max' ? '不大于' : '不小于';
+            return `分位值是历时阈值，不是故障起数：指标阈值 <strong>${expectedText}</strong> 小时，下钻展示历时${direction}该阈值的 <strong>${count}</strong> 起故障。`;
+        }
+        return '';
     }
 
     function updateFaultFilterBadgeAndSummary(filteredDetails) {
@@ -3107,11 +3159,20 @@ document.addEventListener("DOMContentLoaded", function() {
             badgeFilter.style.display = 'inline-block';
             btnClearFilter.style.display = 'inline-block';
             const inPeriodDetails = filteredDetails.filter(item => item.in_period !== false);
-            const totalDuration = inPeriodDetails.reduce((sum, item) => sum + Number(item.duration || 0), 0);
-            const averageDuration = inPeriodDetails.length > 0 ? totalDuration / inPeriodDetails.length : 0;
-            const longCount = inPeriodDetails.filter(item => item.is_long).length;
-            const repeatCount = inPeriodDetails.filter(item => item.is_repeat).length;
-            summaryDiv.innerHTML = `<div><i class="mdi mdi-filter-outline me-1"></i> <strong>当期过滤条件：${conditionsText}</strong> 的局部统计：共发生故障 <strong class="text-primary">${inPeriodDetails.length}</strong> 次，累计时长 <strong class="text-primary">${totalDuration.toFixed(2)}</strong> 小时，平均故障时长 <strong class="text-primary">${averageDuration.toFixed(2)}</strong> 小时。其中长时故障（≥6h） <strong class="text-warning text-dark">${longCount}</strong> 条，涉及历史重复故障 <strong class="text-purple">${repeatCount}</strong> 条。</div>`;
+            const localTotalDuration = inPeriodDetails.reduce((sum, item) => sum + Number(item.duration || 0), 0);
+            const hasLegendExclusions = excludedCategories.resource_type.size > 0 || excludedCategories.province.size > 0 || excludedCategories.reason.size > 0;
+            const summary = currentFaultDetailsSummary && !hasLegendExclusions
+                ? currentFaultDetailsSummary
+                : {
+                    count: inPeriodDetails.length,
+                    scope_total_count: inPeriodDetails.length,
+                    total_duration: localTotalDuration,
+                    average_duration: inPeriodDetails.length > 0 ? localTotalDuration / inPeriodDetails.length : 0,
+                    long_count: inPeriodDetails.filter(item => item.is_long).length,
+                    repeat_count: inPeriodDetails.filter(item => item.is_repeat).length,
+                };
+            const metricExplanation = buildFaultMetricParityExplanation(summary);
+            summaryDiv.innerHTML = `<div><i class="mdi mdi-filter-outline me-1"></i> <strong>当期过滤条件：${conditionsText}</strong></div>${metricExplanation ? `<div class="mt-1">${metricExplanation}</div>` : ''}<div class="mt-1 text-muted">明细汇总：${summary.count} 起，累计 ${Number(summary.total_duration || 0).toFixed(2)} 小时，平均 ${Number(summary.average_duration || 0).toFixed(2)} 小时；其中长时故障 ${summary.long_count} 起，重复故障 ${summary.repeat_count} 起。</div>`;
             summaryDiv.classList.remove('d-none');
         } else {
             badgeFilter.style.display = 'none';
@@ -3379,7 +3440,7 @@ document.addEventListener("DOMContentLoaded", function() {
         drillDownImpactRing(faultGroup);
     }
 
-    function handleChartClick(params, fieldName, detailScope = null) {
+    function handleChartClick(params, fieldName, detailScope = null, metricType = 'count') {
         if (!params.name) return;
         activeFilterField = fieldName;
         activeFilterValue = params.name;
@@ -3387,6 +3448,10 @@ document.addEventListener("DOMContentLoaded", function() {
         activeFilterExtraValue = null;
         activeFilterLabel = null;
         activeFilterScope = detailScope;
+        activeFilterMetricType = metricType;
+        activeFilterMetricValue = metricType === 'duration'
+            ? Number(params.data && params.data._duration !== undefined ? params.data._duration : params.value)
+            : Number(params.data && params.data._count !== undefined ? params.data._count : params.value);
         if (activeFilterScope === 'cable_break') clearFaultLegendExclusions();
         
         const timeRadio = document.getElementById('detail-sort-time');
@@ -3414,6 +3479,10 @@ document.addEventListener("DOMContentLoaded", function() {
             : null;
         activeFilterLabel = metric.dataset.filterLabel || metric.dataset.filterValue;
         activeFilterScope = metric.dataset.detailScope || null;
+        activeFilterMetricType = metric.dataset.filterMetricType || null;
+        activeFilterMetricValue = metric.dataset.filterMetricValue !== undefined
+            ? Number(metric.dataset.filterMetricValue)
+            : null;
         if (activeFilterScope === 'cable_break') clearFaultLegendExclusions();
 
         const timeRadio = document.getElementById('detail-sort-time');
@@ -3478,6 +3547,9 @@ document.addEventListener("DOMContentLoaded", function() {
         activeFilterExtraValue = null;
         activeFilterLabel = null;
         activeFilterScope = null;
+        activeFilterMetricType = null;
+        activeFilterMetricValue = null;
+        currentFaultDetailsSummary = null;
         
         clearFaultLegendExclusions();
         

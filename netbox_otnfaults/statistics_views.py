@@ -2031,7 +2031,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
 
         # 统计图表维度
         resource_stats = {}
-        province_stats = _build_physical_province_chart_stats(global_cable_break_faults, now)
+        province_stats = _build_physical_province_chart_stats(faults, now)
         reason_stats = {}
 
         for fault in faults:
@@ -2675,11 +2675,15 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
             except (TypeError, ValueError):
                 return None
 
-        def apply_detail_filters(queryset: QuerySet) -> QuerySet:
+        def apply_cable_break_scope(queryset: QuerySet) -> QuerySet:
             if detail_scope == 'cable_break':
                 queryset = queryset.filter(fault_category=FaultCategoryChoices.FIBER_BREAK)
                 queryset = queryset.filter(is_suspended=False)
                 queryset = queryset.exclude(fault_status=FaultStatusChoices.SUSPENDED)
+            return queryset
+
+        def apply_detail_filters(queryset: QuerySet) -> QuerySet:
+            queryset = apply_cable_break_scope(queryset)
             if impact_level:
                 impact_filters: dict[str, Q] = {
                     'total': Q_CLASS_TOTAL,
@@ -2783,6 +2787,11 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 queryset = queryset.filter(province__name=province)
             return queryset
 
+        cable_break_scope_total = (
+            apply_cable_break_scope(qs).count()
+            if detail_scope == 'cable_break'
+            else 0
+        )
         qs = apply_detail_filters(qs)
         ordering = request.GET.get('ordering', '-fault_occurrence_time')
         if ordering.replace('-', '') in ['fault_occurrence_time', 'duration']:
@@ -2806,6 +2815,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                     fault for fault in current_faults
                     if _branch_province_for_fault(fault) == normalized_province
                 ]
+        kpi_repeat_ids: set[int] = set()
         ui_repeat_ids: set[int] = set()
         matched_preceding_faults: list[OtnFault] = []
         if current_faults:
@@ -2821,8 +2831,9 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 ).select_related(
                     'province', 'interruption_location_a', 'handling_unit'
                 ).prefetch_related('interruption_location')
-                preceding_qs = _apply_physical_province_filter(preceding_qs, selected_provinces)
-                preceding_qs = apply_detail_filters(_annotate_class_i_business_impact(preceding_qs))
+                if detail_scope != 'cable_break':
+                    preceding_qs = _apply_physical_province_filter(preceding_qs, selected_provinces)
+                    preceding_qs = apply_detail_filters(_annotate_class_i_business_impact(preceding_qs))
                 preceding_faults = list(preceding_qs)
                 if scope == 'branch_company':
                     preceding_faults = [fault for fault in preceding_faults if _is_branch_company_fault(fault)]
@@ -2837,15 +2848,33 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                     preceding_faults,
                     preceding_faults=preceding_faults,
                 )
+                kpi_repeat_ids = repeat_result.kpi_repeat_ids
                 ui_repeat_ids = repeat_result.ui_repeat_ids
                 matched_preceding_faults = repeat_result.matched_preceding_faults
                 if detail_scope == 'cable_break':
                     matched_preceding_faults = []
+        repeat_filter_ids = kpi_repeat_ids if detail_scope == 'cable_break' else ui_repeat_ids
         if is_repeat == 'true':
-            current_faults = [fault for fault in current_faults if fault.id in ui_repeat_ids]
+            current_faults = [fault for fault in current_faults if fault.id in repeat_filter_ids]
         elif is_repeat == 'false':
-            current_faults = [fault for fault in current_faults if fault.id not in ui_repeat_ids]
+            current_faults = [fault for fault in current_faults if fault.id not in repeat_filter_ids]
             matched_preceding_faults = []
+
+        detail_durations = [_duration_hours_for_fault(fault, now) for fault in current_faults]
+        detail_total_duration = sum(detail_durations)
+        detail_average_duration = (
+            detail_total_duration / len(current_faults)
+            if current_faults
+            else 0.0
+        )
+        detail_summary = {
+            'count': len(current_faults),
+            'scope_total_count': cable_break_scope_total,
+            'total_duration': round(detail_total_duration, 2),
+            'average_duration': round(detail_average_duration, 2),
+            'long_count': sum(duration >= 6.0 for duration in detail_durations),
+            'repeat_count': sum(fault.id in repeat_filter_ids for fault in current_faults),
+        }
 
         results = []
         for fault in current_faults:
@@ -2899,7 +2928,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 'in_period': False,
             })
 
-        return JsonResponse({'results': results})
+        return JsonResponse({'results': results, 'summary': detail_summary})
 
 
 class FaultRepeatsAPI(PermissionRequiredMixin, View):

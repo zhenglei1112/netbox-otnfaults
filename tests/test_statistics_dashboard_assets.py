@@ -27,7 +27,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
         self.assertIn("statistics_dashboard.css' %}?v=33", template)
-        self.assertIn("statistics_dashboard.js' %}?v=40", template)
+        self.assertIn("statistics_dashboard.js' %}?v=41", template)
 
     def test_statistics_dashboard_css_covers_light_and_dark_theme_surfaces(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -133,7 +133,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn("physicalProvinceFilter.addEventListener('change', () => {", script)
         self.assertIn("if (activeTab && activeTab.id === 'tab-physical-btn') loadData();", script)
 
-    def test_statistics_data_api_filters_physical_payload_but_keeps_province_chart_global(self) -> None:
+    def test_statistics_data_api_filters_physical_payload_and_province_chart_together(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")
 
         self.assertIn("def _parse_selected_provinces(request: HttpRequest) -> list[str]:", source)
@@ -141,7 +141,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn("filtered_current_qs = _apply_physical_province_filter(all_current_qs, selected_provinces)", source)
         self.assertIn("faults = list(filtered_current_qs)", source)
         self.assertIn("global_cable_break_faults = list(get_cable_break_base_queryset(start_date, end_date))", source)
-        self.assertIn("province_stats = _build_physical_province_chart_stats(global_cable_break_faults, now)", source)
+        self.assertIn("province_stats = _build_physical_province_chart_stats(faults, now)", source)
         physical_daily_source = source.split("physical_daily_faults = list(", 1)[1].split("physical_daily_stats =", 1)[0]
         self.assertIn("_apply_physical_province_filter(", physical_daily_source)
         self.assertIn("physical_duration_boxplot_faults = list(_apply_physical_province_filter(", source)

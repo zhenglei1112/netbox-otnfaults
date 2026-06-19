@@ -1701,7 +1701,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             "cause_group = request.GET.get('cause_group')",
             "interruption_reason='construction'",
             "is_repeat = request.GET.get('is_repeat')",
-            "current_faults = [fault for fault in current_faults if fault.id in ui_repeat_ids]",
+            "current_faults = [fault for fault in current_faults if fault.id in repeat_filter_ids]",
         ]:
             self.assertIn(expected, details_source)
 
@@ -1892,7 +1892,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("handleMetricFilterClick(metric);", source)
         self.assertIn("function handleMetricFilterClick(metric)", source)
         self.assertIn("function normalizeFilterValue(fieldName, value)", source)
-        self.assertIn("chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket', 'cable_break'));", source)
+        self.assertIn("chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket', 'cable_break', 'count'));", source)
         self.assertIn("let activeFilterExtraField = null;", source)
         self.assertIn("let activeFilterExtraValue = null;", source)
         self.assertIn("else if (activeFilterField === 'duration_max') { filterName = '历时指标'; filterValueDisp = `<=${formatCardMetricValue(activeFilterValue)}小时`; }", source)
@@ -2677,5 +2677,60 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("queryset = queryset.exclude(fault_status=FaultStatusChoices.SUSPENDED)", details_source)
         self.assertIn("if reason == '未填/未知':", details_source)
         self.assertIn("if detail_scope == 'cable_break':\n                    matched_preceding_faults = []", details_source)
+
+    def test_all_cable_break_metrics_explain_and_match_detail_aggregation(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        script = JS_PATH.read_text(encoding="utf-8")
+        views_source = VIEWS_PATH.read_text(encoding="utf-8")
+        details_source = views_source.split(
+            "class FaultStatisticsDetailsAPI", 1
+        )[1].split(
+            "class FaultRepeatsAPI", 1
+        )[0]
+
+        self.assertIn(
+            "chartResource.on('click', params => handleChartClick(params, 'resource_type', 'cable_break', currentMetricResource));",
+            script,
+        )
+        self.assertIn(
+            "chartProvince.on('click', params => handleChartClick(params, 'province', 'cable_break', currentMetricProvince));",
+            script,
+        )
+        self.assertIn(
+            "chartReason.on('click', params => handleChartClick(params, 'reason', 'cable_break', currentMetricReason));",
+            script,
+        )
+        self.assertIn(
+            "province_stats = _build_physical_province_chart_stats(faults, now)",
+            views_source,
+        )
+
+        self.assertIn("kpi_repeat_ids: set[int] = set()", details_source)
+        self.assertIn("if detail_scope != 'cable_break':", details_source)
+        self.assertIn("preceding_qs = apply_detail_filters(_annotate_class_i_business_impact(preceding_qs))", details_source)
+        self.assertIn(
+            "repeat_filter_ids = kpi_repeat_ids if detail_scope == 'cable_break' else ui_repeat_ids",
+            details_source,
+        )
+        self.assertIn("detail_summary = {", details_source)
+        self.assertIn("'scope_total_count': cable_break_scope_total", details_source)
+        self.assertIn("'total_duration': round(detail_total_duration, 2)", details_source)
+        self.assertIn("'average_duration': round(detail_average_duration, 2)", details_source)
+        self.assertIn("return JsonResponse({'results': results, 'summary': detail_summary})", details_source)
+
+        self.assertIn("let activeFilterMetricType = null;", script)
+        self.assertIn("let activeFilterMetricValue = null;", script)
+        self.assertIn("let currentFaultDetailsSummary = null;", script)
+        self.assertIn('data-filter-metric-type="${effectiveMetricType}"', script)
+        self.assertIn('data-filter-metric-value="${value}"', script)
+        self.assertRegex(template, r'id="card-repeat-faults"[^>]+data-filter-metric-type="count"')
+        self.assertIn("function buildFaultMetricParityExplanation(summary)", script)
+        self.assertIn("指标为起数，明细当期行数应与指标一致", script)
+        self.assertIn("指标为累计历时，明细行数表示涉及故障起数", script)
+        self.assertIn("累计历时 ÷ 明细起数", script)
+        self.assertIn("超时故障起数 ÷ 光缆中断总起数", script)
+        self.assertIn("分位值是历时阈值，不是故障起数", script)
+        self.assertIn("口径核对一致", script)
+        self.assertIn("口径核对不一致", script)
 if __name__ == "__main__":
     unittest.main()
