@@ -2649,6 +2649,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
         }
 
         impact_level = request.GET.get('impact_level')
+        fault_group = request.GET.get('fault_group')
         category = request.GET.get('category')
         resource_type = request.GET.get('resource_type')
         source_group = request.GET.get('source_group')
@@ -2686,6 +2687,15 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 }
                 if impact_level in impact_filters:
                     queryset = queryset.filter(impact_filters[impact_level])
+            if fault_group == 'fiber':
+                queryset = queryset.filter(fault_category=FaultCategoryChoices.FIBER_BREAK)
+            elif fault_group == 'power':
+                queryset = queryset.filter(fault_category=FaultCategoryChoices.POWER_FAULT)
+            elif fault_group == 'environment':
+                queryset = queryset.filter(fault_category__in=[
+                    FaultCategoryChoices.AC_FAULT,
+                    FaultCategoryChoices.DEVICE_FAULT,
+                ])
             if category == 'overall_total':
                 queryset = queryset.exclude(fault_category__in=OVERALL_EXCLUDED_TOTAL_CATEGORIES)
             elif category:

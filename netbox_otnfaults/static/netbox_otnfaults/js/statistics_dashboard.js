@@ -150,6 +150,12 @@ document.addEventListener("DOMContentLoaded", function() {
     chartResource.on('click', params => handleChartClick(params, 'resource_type'));
     chartProvince.on('click', params => handleChartClick(params, 'province'));
     chartReason.on('click', params => handleChartClick(params, 'reason'));
+    chartRingFiber.on('click', params => handleImpactRingSectorClick(params, 'fiber'));
+    chartRingPower.on('click', params => handleImpactRingSectorClick(params, 'power'));
+    chartRingEnvironment.on('click', params => handleImpactRingSectorClick(params, 'environment'));
+    chartRingFiber.getZr().on('click', event => handleImpactRingCenterClick(chartRingFiber, 'fiber', event));
+    chartRingPower.getZr().on('click', event => handleImpactRingCenterClick(chartRingPower, 'power', event));
+    chartRingEnvironment.getZr().on('click', event => handleImpactRingCenterClick(chartRingEnvironment, 'environment', event));
     if (chartHistogram) chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket'));
     if (chartBranchCompanyCount) chartBranchCompanyCount.on('click', params => handleBranchCompanyChartClick(params, 'province'));
     if (chartBranchCompanyDuration) chartBranchCompanyDuration.on('click', params => handleBranchCompanyChartClick(params, 'province'));
@@ -3025,6 +3031,7 @@ document.addEventListener("DOMContentLoaded", function() {
             else if (activeFilterField === 'duration_min') { filterName = '历时指标'; filterValueDisp = `>=${formatCardMetricValue(activeFilterValue)}小时`; }
             else if (activeFilterField === 'duration_histogram_bucket') filterName = '故障历时频数';
             else if (activeFilterField === 'category') filterName = '分类';
+            else if (activeFilterField === 'fault_group') filterName = '故障类型';
             else if (activeFilterField === 'occurrence_period') filterName = '发生时段';
             else if (activeFilterField === 'cause_group') filterName = '成因';
             else if (activeFilterField === 'is_valid_duration') { filterName = '特殊标签'; filterValueDisp = '有效平均'; }
@@ -3274,6 +3281,58 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // ---------------- 下钻事件处理 ----------------
+    const impactRingLevelValues = {
+        'I类': 'class_i',
+        'II类': 'class_ii',
+        'III类': 'class_iii',
+        '挂起': 'class_v'
+    };
+    const impactRingGroupLabels = {
+        fiber: '光缆中断',
+        power: '供电故障',
+        environment: '空调与设备故障'
+    };
+
+    function drillDownImpactRing(faultGroup, impactLevel = null, label = null) {
+        activeFilterField = 'fault_group';
+        activeFilterValue = faultGroup;
+        activeFilterExtraField = impactLevel ? 'impact_level' : null;
+        activeFilterExtraValue = impactLevel;
+        activeFilterLabel = label || impactRingGroupLabels[faultGroup] || faultGroup;
+
+        const timeRadio = document.getElementById('detail-sort-time');
+        if (timeRadio) timeRadio.checked = true;
+
+        const tbl = document.getElementById('details-tbody');
+        if (tbl) tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        loadFaultDetails();
+    }
+
+    function handleImpactRingSectorClick(params, faultGroup) {
+        if (!params || params.componentType !== 'series' || params.seriesType !== 'pie') return;
+        const impactLevel = impactRingLevelValues[params.name];
+        if (!impactLevel) return;
+        const groupLabel = impactRingGroupLabels[faultGroup] || faultGroup;
+        drillDownImpactRing(faultGroup, impactLevel, `${groupLabel} / ${params.name}`);
+    }
+
+    function handleImpactRingCenterClick(chart, faultGroup, event) {
+        if (!chart || !event) return;
+        const eventX = Number(event.offsetX ?? event.zrX);
+        const eventY = Number(event.offsetY ?? event.zrY);
+        if (!Number.isFinite(eventX) || !Number.isFinite(eventY)) return;
+
+        const width = chart.getWidth();
+        const height = chart.getHeight();
+        const centerX = width * 0.5;
+        const centerY = height * 0.42;
+        const innerRadius = Math.min(width, height) * 0.5 * 0.48;
+        const distanceSquared = ((eventX - centerX) ** 2) + ((eventY - centerY) ** 2);
+        if (distanceSquared >= innerRadius ** 2) return;
+
+        drillDownImpactRing(faultGroup);
+    }
+
     function handleChartClick(params, fieldName) {
         if (!params.name) return;
         activeFilterField = fieldName;

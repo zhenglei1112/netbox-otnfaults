@@ -102,5 +102,31 @@ class StatisticsImpactLevelTestCase(unittest.TestCase):
         self.assertIn("chartRingEnvironment", js_source)
         self.assertIn("renderRingCharts", js_source)
 
+    def test_ring_charts_support_sector_and_center_drill_down(self) -> None:
+        js_source = _read(DASHBOARD_JS_PATH)
+        views_source = _read(STATISTICS_VIEWS_PATH)
+
+        self.assertIn("function handleImpactRingSectorClick(params, faultGroup)", js_source)
+        self.assertIn("function handleImpactRingCenterClick(chart, faultGroup, event)", js_source)
+        self.assertIn("chartRingFiber.on('click', params => handleImpactRingSectorClick(params, 'fiber'));", js_source)
+        self.assertIn("chartRingPower.on('click', params => handleImpactRingSectorClick(params, 'power'));", js_source)
+        self.assertIn("chartRingEnvironment.on('click', params => handleImpactRingSectorClick(params, 'environment'));", js_source)
+        self.assertIn("handleImpactRingCenterClick(chartRingFiber, 'fiber', event)", js_source)
+        self.assertIn("handleImpactRingCenterClick(chartRingPower, 'power', event)", js_source)
+        self.assertIn("handleImpactRingCenterClick(chartRingEnvironment, 'environment', event)", js_source)
+        self.assertIn("'I类': 'class_i'", js_source)
+        self.assertIn("'II类': 'class_ii'", js_source)
+        self.assertIn("'III类': 'class_iii'", js_source)
+        self.assertIn("'挂起': 'class_v'", js_source)
+        self.assertIn("activeFilterField = 'fault_group';", js_source)
+        self.assertIn("activeFilterExtraField = impactLevel ? 'impact_level' : null;", js_source)
+
+        self.assertIn("fault_group = request.GET.get('fault_group')", views_source)
+        self.assertIn("if fault_group == 'fiber':", views_source)
+        self.assertIn("elif fault_group == 'power':", views_source)
+        self.assertIn("elif fault_group == 'environment':", views_source)
+        self.assertIn("FaultCategoryChoices.AC_FAULT,", views_source)
+        self.assertIn("FaultCategoryChoices.DEVICE_FAULT,", views_source)
+
 if __name__ == "__main__":
     unittest.main()
