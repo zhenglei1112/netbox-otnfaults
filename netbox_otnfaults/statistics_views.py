@@ -2615,7 +2615,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
 
 class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
     """
-    故障明细分页与过滤接口。
+    故障明细过滤接口。
     """
     permission_required = 'netbox_otnfaults.view_otnfault'
 
@@ -2732,33 +2732,40 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
         else:
             qs = qs.order_by('-fault_occurrence_time')
 
-        total_count = qs.count()
-        page = int(request.GET.get('page', 1))
-        per_page = int(request.GET.get('per_page', 25))
-        
-        start_index = (page - 1) * per_page
-        end_index = page * per_page
-        
-        page_faults = list(qs[start_index:end_index])
-
-        ui_repeat_ids = set()
-        if page_faults:
-            fiber_faults = [f for f in page_faults if f.is_fiber_fault]
+        current_faults = list(qs)
+        ui_repeat_ids: set[int] = set()
+        matched_preceding_faults: list[OtnFault] = []
+        if current_faults:
+            fiber_faults = [fault for fault in current_faults if fault.is_fiber_fault]
             if fiber_faults:
                 min_t = min(f.fault_occurrence_time for f in fiber_faults)
-                max_t = max(f.fault_occurrence_time for f in fiber_faults)
-                past_qs = OtnFault.objects.filter(
+                preceding_qs = OtnFault.objects.filter(
                     fault_occurrence_time__gte=min_t - timedelta(days=60),
-                    fault_occurrence_time__lt=max_t + timedelta(days=60),
+                    fault_occurrence_time__lt=start_date,
                     fault_category__in=[FaultCategoryChoices.FIBER_BREAK, 
                                         FaultCategoryChoices.FIBER_DEGRADATION, 
                                         FaultCategoryChoices.FIBER_JITTER]
-                ).select_related('interruption_location_a').prefetch_related('interruption_location')
-                repeat_result = detect_repeat_faults(page_faults, list(past_qs))
+                ).select_related(
+                    'province', 'interruption_location_a', 'handling_unit'
+                ).prefetch_related('interruption_location')
+                preceding_qs = _apply_physical_province_filter(preceding_qs, selected_provinces)
+                if scope == 'branch_company':
+                    preceding_qs = preceding_qs.filter(
+                        province__name__in=BRANCH_PROVINCE_NAMES
+                    ).exclude(handling_unit__name__in=EXCLUDED_HANDLING_UNITS)
+                if province:
+                    preceding_qs = preceding_qs.filter(province__name=province)
+                preceding_faults = list(_annotate_class_i_business_impact(preceding_qs))
+                repeat_result = detect_repeat_faults(
+                    current_faults,
+                    preceding_faults,
+                    preceding_faults=preceding_faults,
+                )
                 ui_repeat_ids = repeat_result.ui_repeat_ids
+                matched_preceding_faults = repeat_result.matched_preceding_faults
 
         results = []
-        for fault in page_faults:
+        for fault in current_faults:
             occ_time = fault.fault_occurrence_time
             end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
             duration_hours = (end_t - occ_time).total_seconds() / 3600.0
@@ -2784,19 +2791,32 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 'in_period': True
             })
 
-        num_pages = math.ceil(total_count / per_page) if per_page > 0 else 1
-        
-        return JsonResponse({
-            'results': results,
-            'pagination': {
-                'page': page,
-                'per_page': per_page,
-                'total': total_count,
-                'start': start_index + 1 if total_count > 0 else 0,
-                'end': min(end_index, total_count),
-                'pages': num_pages
-            }
-        })
+        for fault in matched_preceding_faults:
+            occ_time = fault.fault_occurrence_time
+            end_t = fault.fault_recovery_time if fault.fault_recovery_time else now
+            duration_hours = (end_t - occ_time).total_seconds() / 3600.0
+            z_site_names = [site.name for site in fault.interruption_location.all()]
+            results.append({
+                'id': fault.id,
+                'fault_number': fault.fault_number,
+                'fault_occurrence_time': _format_local_datetime(occ_time),
+                'fault_recovery_time': _format_local_datetime(fault.fault_recovery_time) if fault.fault_recovery_time else '未恢复',
+                'duration': round(duration_hours, 2),
+                'category': fault.get_fault_category_display(),
+                'impact_level': _get_impact_level_display(fault, getattr(fault, 'has_class_i_business_impact', False)),
+                'resource_type': fault.get_resource_type_display() if fault.resource_type else '未填写',
+                'source_group': _source_group_for_fault(fault),
+                'province': fault.province.name if fault.province else '未知',
+                'reason': fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知',
+                'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
+                'site_z': ', '.join(z_site_names),
+                'is_repeat': True,
+                'is_long': duration_hours >= 6.0,
+                'url': fault.get_absolute_url(),
+                'in_period': False,
+            })
+
+        return JsonResponse({'results': results})
 
 
 class FaultRepeatsAPI(PermissionRequiredMixin, View):
@@ -2868,7 +2888,7 @@ class FaultRepeatsAPI(PermissionRequiredMixin, View):
 
 class ServiceStatisticsDetailsAPI(PermissionRequiredMixin, View):
     """
-    业务受影响明细分页接口。
+    业务受影响明细接口。
     """
     permission_required = 'netbox_otnfaults.view_otnfaultimpact'
     
@@ -2924,14 +2944,7 @@ class ServiceStatisticsDetailsAPI(PermissionRequiredMixin, View):
         else:
             impacts_qs = impacts_qs.order_by('-service_interruption_time')
             
-        total_count = impacts_qs.count()
-        page = int(request.GET.get('page', 1))
-        per_page = int(request.GET.get('per_page', 25))
-        
-        start_index = (page - 1) * per_page
-        end_index = page * per_page
-        
-        page_impacts = list(impacts_qs[start_index:end_index])
+        page_impacts = list(impacts_qs)
         
         results = []
         for imp in page_impacts:
@@ -2967,16 +2980,4 @@ class ServiceStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 'fault_url': imp.otn_fault.get_absolute_url() if imp.otn_fault else '',
             })
             
-        num_pages = math.ceil(total_count / per_page) if per_page > 0 else 1
-        
-        return JsonResponse({
-            'results': results,
-            'pagination': {
-                'page': page,
-                'per_page': per_page,
-                'total': total_count,
-                'start': start_index + 1 if total_count > 0 else 0,
-                'end': min(end_index, total_count),
-                'pages': num_pages
-            }
-        })
+        return JsonResponse({'results': results})

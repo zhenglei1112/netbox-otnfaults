@@ -405,6 +405,8 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("if is_valid_duration == 'true':", details_source)
         self.assertIn("Coalesce(F('fault_recovery_time'), now) - F('fault_occurrence_time')", details_source)
         self.assertIn("duration__gt=timedelta(minutes=30)", details_source)
+        self.assertIn("currentBranchCompanyDetails = data.results || [];", JS_PATH.read_text(encoding="utf-8"))
+        self.assertIn("filteredDetails = sortDetailRows(filteredDetails, sortMode);", JS_PATH.read_text(encoding="utf-8"))
 
     def test_css_defines_branch_company_chart_layout(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")

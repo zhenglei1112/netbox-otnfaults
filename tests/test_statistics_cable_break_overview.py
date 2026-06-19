@@ -1572,12 +1572,28 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id="btn-clear-service-detail-filter"', template)
         self.assertIn('id="btn-clear-circuit-service-detail-filter"', template)
 
-        self.assertIn("'results': results,", views_source)
+        self.assertIn("return JsonResponse({'results': results})", views_source)
         self.assertIn("'service_key': svc_key", views_source)
         self.assertIn("'impact_url': imp.get_absolute_url()", views_source)
         self.assertIn("'fault_url': imp.otn_fault.get_absolute_url() if imp.otn_fault else ''", views_source)
 
-        self.assertIn("let servicePage = 1;", source)
+        for element_id in [
+            "fault-pagination-list",
+            "service-pagination-list",
+            "circuit-pagination-list",
+            "branch-pagination-list",
+            "fault-per-page-dropdown",
+            "service-per-page-dropdown",
+            "circuit-per-page-dropdown",
+            "branch-per-page-dropdown",
+        ]:
+            self.assertNotIn(f'id="{element_id}"', template)
+
+        self.assertNotIn("function renderPagination(", source)
+        self.assertNotIn("let faultPage = 1;", source)
+        self.assertNotIn("let branchPage = 1;", source)
+        self.assertNotIn("let servicePage = 1;", source)
+        self.assertNotIn("let circuitPage = 1;", source)
         self.assertIn("let activeServiceDetailFilterKey = null;", source)
         self.assertIn("'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter'", source)
         self.assertIn("'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter'", source)
@@ -1593,6 +1609,49 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("'裸纤业务': ServiceTypeChoices.BARE_FIBER", views_source)
         self.assertIn("'电路业务': ServiceTypeChoices.CIRCUIT", views_source)
         self.assertIn("service_type = service_type_aliases.get(service_type, service_type)", views_source)
+
+    def test_statistics_detail_apis_return_unpaged_complete_results(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        fault_details_source = source.split(
+            "class FaultStatisticsDetailsAPI",
+            1,
+        )[1].split(
+            "class FaultRepeatsAPI",
+            1,
+        )[0]
+        service_details_source = source.split(
+            "class ServiceStatisticsDetailsAPI",
+            1,
+        )[1]
+
+        self.assertNotIn("page = int(request.GET.get('page', 1))", fault_details_source)
+        self.assertNotIn("per_page = int(request.GET.get('per_page', 25))", fault_details_source)
+        self.assertNotIn("page_faults = list(qs[start_index:end_index])", fault_details_source)
+        self.assertNotIn("'pagination': {", fault_details_source)
+        self.assertIn("current_faults = list(qs)", fault_details_source)
+        self.assertIn("preceding_faults=preceding_faults", fault_details_source)
+        self.assertIn(
+            "matched_preceding_faults = repeat_result.matched_preceding_faults",
+            fault_details_source,
+        )
+        self.assertIn("'in_period': False", fault_details_source)
+
+        self.assertNotIn("page = int(request.GET.get('page', 1))", service_details_source)
+        self.assertNotIn("per_page = int(request.GET.get('per_page', 25))", service_details_source)
+        self.assertNotIn("impacts_qs[start_index:end_index]", service_details_source)
+        self.assertNotIn("'pagination': {", service_details_source)
+        self.assertIn("page_impacts = list(impacts_qs)", service_details_source)
+
+    def test_statistics_details_restore_complete_local_repeat_sorting(self) -> None:
+        source = JS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("currentAllDetails = data.results || [];", source)
+        self.assertIn("currentBranchCompanyDetails = data.results || [];", source)
+        self.assertIn("renderDetailsTable();", source)
+        self.assertIn("renderBranchCompanyDetailsTable();", source)
+        self.assertIn("filteredDetails = sortDetailRows(filteredDetails, sortMode);", source)
+        self.assertIn(".filter(item => item.in_period !== false)", source)
+        self.assertIn("groups.sort((g1, g2) =>", source)
 
     def test_reason_pie_uses_doughnut_with_metrics_in_expanded_legend(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")

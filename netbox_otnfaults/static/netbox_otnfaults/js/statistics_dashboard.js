@@ -741,91 +741,11 @@ document.addEventListener("DOMContentLoaded", function() {
         physicalProvinceFilterGroup.classList.toggle('d-none', activeTabId !== 'tab-physical-btn');
     }
 
-    // ---------------- 分页与详情请求状态变量 ----------------
-    let faultPage = 1;
-    let faultPerPage = 25;
+    // ---------------- 详情请求状态变量 ----------------
     let faultOrdering = '-fault_occurrence_time';
-    let faultTotal = 0;
-
-    let branchPage = 1;
-    let branchPerPage = 25;
     let branchOrdering = '-fault_occurrence_time';
-    let branchTotal = 0;
-
-    let servicePage = 1;
-    let servicePerPage = 25;
     let serviceOrdering = '-service_interruption_time';
-    let serviceTotal = 0;
-
-    let circuitPage = 1;
-    let circuitPerPage = 25;
     let circuitOrdering = '-service_interruption_time';
-    let circuitTotal = 0;
-
-    // 通用分页渲染器
-    function renderPagination(listId, infoId, dropdownId, pagination, onPageChange, onPerPageChange) {
-        const listEl = document.getElementById(listId);
-        const infoEl = document.getElementById(infoId);
-        const dropdownBtn = document.getElementById(dropdownId);
-        if (!listEl || !infoEl || !dropdownBtn) return;
-
-        const page = pagination.page || 1;
-        const perPage = pagination.per_page || 25;
-        const total = pagination.total || 0;
-        const totalPages = pagination.pages || 1;
-        const start = pagination.start || 0;
-        const end = pagination.end || 0;
-
-        infoEl.textContent = `显示 ${start}-${end} 共 ${total}`;
-        dropdownBtn.textContent = `每页 ${perPage} 条`;
-
-        const optionClass = dropdownId.replace('-dropdown', '-option');
-        document.querySelectorAll(`.${optionClass}`).forEach(option => {
-            option.onclick = (e) => {
-                e.preventDefault();
-                const val = parseInt(option.dataset.value, 10);
-                onPerPageChange(val);
-            };
-        });
-
-        let html = '';
-        const prevDisabled = page === 1 ? 'disabled' : '';
-        html += `<li class="page-item ${prevDisabled}"><a class="page-link" href="#" data-page="${page - 1}">&lsaquo;</a></li>`;
-
-        const range = 2;
-        const pages = [];
-        for (let i = 1; i <= totalPages; i++) {
-            if (i === 1 || i === totalPages || (i >= page - range && i <= page + range)) {
-                pages.push(i);
-            } else if (pages[pages.length - 1] !== '...') {
-                pages.push('...');
-            }
-        }
-
-        pages.forEach(p => {
-            if (p === '...') {
-                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-            } else {
-                const activeClass = p === page ? 'active' : '';
-                html += `<li class="page-item ${activeClass}"><a class="page-link" href="#" data-page="${p}">${p}</a></li>`;
-            }
-        });
-
-        const nextDisabled = page === totalPages ? 'disabled' : '';
-        html += `<li class="page-item ${nextDisabled}"><a class="page-link" href="#" data-page="${page + 1}">&rsaquo;</a></li>`;
-
-        listEl.innerHTML = html;
-
-        listEl.querySelectorAll('a.page-link').forEach(link => {
-            link.onclick = (e) => {
-                e.preventDefault();
-                const p = parseInt(link.dataset.page, 10);
-                if (p >= 1 && p <= totalPages && p !== page) {
-                    onPageChange(p);
-                }
-            };
-        });
-    }
 
     // 弹窗拉取重复故障
     async function showFaultRepeatsModal(faultId) {
@@ -2562,7 +2482,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (tbl) {
             tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-        renderBranchCompanyDetailsTable();
+        loadBranchDetails();
     }
 
     function renderBranchCompanyOverview(branchData, prevBranchData = currentPrevBranchCompanyData) {
@@ -3006,16 +2926,18 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function sortDetailRows(details, sortMode) {
+        const parseTime = (str) => new Date(str.replace(/-/g, '/'));
         if (sortMode === 'time') {
-            return details.filter(item => item.in_period !== false);
+            return details
+                .filter(item => item.in_period !== false)
+                .sort((a, b) => parseTime(b.fault_occurrence_time) - parseTime(a.fault_occurrence_time));
         }
         if (sortMode !== 'repeat') {
             return details;
         }
 
-        const parseTime = (str) => new Date(str.replace(/-/g, '/'));
         const itemsForSort = [...details];
-        itemsForSort.sort((a, b) => parseTime(a.fault_occurrence_time) - parseTime(b.fault_occurrence_time));
+        itemsForSort.sort((a, b) => parseTime(b.fault_occurrence_time) - parseTime(a.fault_occurrence_time));
 
         const isRepeatMatch = (a, b) => {
             if (a.site_a !== b.site_a) return false;
@@ -3047,13 +2969,15 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
 
+        groups.forEach(group => {
+            group.sort((a, b) => parseTime(b.fault_occurrence_time) - parseTime(a.fault_occurrence_time));
+        });
         groups.sort((g1, g2) => parseTime(g2[0].fault_occurrence_time) - parseTime(g1[0].fault_occurrence_time));
         return groups.flat();
     }
 
     async function loadFaultDetails() {
-        const selectedDateParts = inputDate.value.split('-').map(Number);
-        let url = `${window.STATISTICS_DETAILS_API}?${buildTimeParams()}&page=${faultPage}&per_page=${faultPerPage}&ordering=${faultOrdering}`;
+        let url = `${window.STATISTICS_DETAILS_API}?${buildTimeParams()}&ordering=${faultOrdering}`;
         url += buildPhysicalProvinceParams();
 
         if (activeFilterField && activeFilterValue !== null) {
@@ -3085,28 +3009,15 @@ document.addEventListener("DOMContentLoaded", function() {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response error');
             const data = await response.json();
-            const results = data.results || [];
-            const pagination = data.pagination || {};
-            faultTotal = pagination.total || 0;
-
-            renderDetailsTableHtml(results);
-            renderPagination('fault-pagination-list', 'fault-pagination-info', 'fault-per-page-dropdown', pagination, (page) => {
-                faultPage = page;
-                loadFaultDetails();
-            }, (perPage) => {
-                faultPerPage = perPage;
-                faultPage = 1;
-                loadFaultDetails();
-            });
-
-            updateFaultFilterBadgeAndSummary(pagination);
+            currentAllDetails = data.results || [];
+            renderDetailsTable();
         } catch (error) {
             console.error('Fetch details error:', error);
             tbody.innerHTML = '<tr><td colspan="10" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         }
     }
 
-    function updateFaultFilterBadgeAndSummary(pagination) {
+    function updateFaultFilterBadgeAndSummary(filteredDetails) {
         let activeConditions = [];
         if (excludedCategories.resource_type.size > 0) {
             activeConditions.push(`排除光缆属性[${Array.from(excludedCategories.resource_type).join(', ')}]`);
@@ -3159,7 +3070,12 @@ document.addEventListener("DOMContentLoaded", function() {
             badgeFilter.className = 'badge bg-primary text-white ms-2';
             badgeFilter.style.display = 'inline-block';
             btnClearFilter.style.display = 'inline-block';
-            summaryDiv.innerHTML = `<div><i class="mdi mdi-filter-outline me-1"></i> <strong>当期过滤条件：${conditionsText}</strong> 的过滤结果：共查询到 <strong class="text-primary">${pagination.total}</strong> 条故障记录。</div>`;
+            const inPeriodDetails = filteredDetails.filter(item => item.in_period !== false);
+            const totalDuration = inPeriodDetails.reduce((sum, item) => sum + Number(item.duration || 0), 0);
+            const averageDuration = inPeriodDetails.length > 0 ? totalDuration / inPeriodDetails.length : 0;
+            const longCount = inPeriodDetails.filter(item => item.is_long).length;
+            const repeatCount = inPeriodDetails.filter(item => item.is_repeat).length;
+            summaryDiv.innerHTML = `<div><i class="mdi mdi-filter-outline me-1"></i> <strong>当期过滤条件：${conditionsText}</strong> 的局部统计：共发生故障 <strong class="text-primary">${inPeriodDetails.length}</strong> 次，累计时长 <strong class="text-primary">${totalDuration.toFixed(2)}</strong> 小时，平均故障时长 <strong class="text-primary">${averageDuration.toFixed(2)}</strong> 小时。其中长时故障（≥6h） <strong class="text-warning text-dark">${longCount}</strong> 条，涉及历史重复故障 <strong class="text-purple">${repeatCount}</strong> 条。</div>`;
             summaryDiv.classList.remove('d-none');
         } else {
             badgeFilter.style.display = 'none';
@@ -3220,10 +3136,21 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function renderDetailsTable() {
+        let filteredDetails = currentAllDetails.slice();
+        if (excludedCategories.resource_type.size > 0) {
+            filteredDetails = filteredDetails.filter(item => !excludedCategories.resource_type.has(item.resource_type));
+        }
+        if (excludedCategories.province.size > 0) {
+            filteredDetails = filteredDetails.filter(item => !excludedCategories.province.has(item.province));
+        }
+        if (excludedCategories.reason.size > 0) {
+            filteredDetails = filteredDetails.filter(item => !excludedCategories.reason.has(item.reason));
+        }
         const sortMode = document.querySelector('input[name="detailSortMode"]:checked')?.value || 'time';
-        faultOrdering = sortMode === 'time' ? '-fault_occurrence_time' : '-fault_occurrence_time';
-        faultPage = 1;
-        loadFaultDetails();
+        assignRepeatGroupColors(filteredDetails);
+        filteredDetails = sortDetailRows(filteredDetails, sortMode);
+        updateFaultFilterBadgeAndSummary(filteredDetails);
+        renderDetailsTableHtml(filteredDetails);
     }
 
     function renderDetailRows(details, emptyText) {
@@ -3262,8 +3189,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     async function loadBranchDetails() {
-        const selectedDateParts = inputDate.value.split('-').map(Number);
-        let url = `${window.STATISTICS_DETAILS_API}?${buildTimeParams()}&page=${branchPage}&per_page=${branchPerPage}&ordering=${branchOrdering}&scope=branch_company`;
+        let url = `${window.STATISTICS_DETAILS_API}?${buildTimeParams()}&ordering=${branchOrdering}&scope=branch_company`;
 
         if (activeBranchCompanyFilterField && activeBranchCompanyFilterValue !== null) {
             url += `&${activeBranchCompanyFilterField}=${encodeURIComponent(activeBranchCompanyFilterValue)}`;
@@ -3279,28 +3205,15 @@ document.addEventListener("DOMContentLoaded", function() {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response error');
             const data = await response.json();
-            const results = data.results || [];
-            const pagination = data.pagination || {};
-            branchTotal = pagination.total || 0;
-
-            renderBranchDetailsTableHtml(results);
-            renderPagination('branch-pagination-list', 'branch-pagination-info', 'branch-per-page-dropdown', pagination, (page) => {
-                branchPage = page;
-                loadBranchDetails();
-            }, (perPage) => {
-                branchPerPage = perPage;
-                branchPage = 1;
-                loadBranchDetails();
-            });
-
-            updateBranchFilterBadgeAndSummary(pagination);
+            currentBranchCompanyDetails = data.results || [];
+            renderBranchCompanyDetailsTable();
         } catch (error) {
             console.error('Fetch branch details error:', error);
             tbody.innerHTML = '<tr><td colspan="11" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         }
     }
 
-    function updateBranchFilterBadgeAndSummary(pagination) {
+    function updateBranchFilterBadgeAndSummary(filteredDetails) {
         let activeConditions = [];
         const badge = document.getElementById('branch-company-drill-down-filter-badge');
         const clearButton = document.getElementById('branch-company-btn-clear-filter');
@@ -3327,7 +3240,12 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             if (clearButton) clearButton.style.display = 'inline-block';
             if (summaryDiv) {
-                summaryDiv.innerHTML = `<div><i class="mdi mdi-filter-outline me-1"></i> <strong>当前过滤条件：${conditionsText}</strong> 的过滤结果：共查询到 <strong class="text-primary">${pagination.total}</strong> 条故障记录。</div>`;
+                const inPeriodDetails = filteredDetails.filter(item => item.in_period !== false);
+                const totalDuration = inPeriodDetails.reduce((sum, item) => sum + Number(item.duration || 0), 0);
+                const averageDuration = inPeriodDetails.length > 0 ? totalDuration / inPeriodDetails.length : 0;
+                const longCount = inPeriodDetails.filter(item => item.is_long).length;
+                const repeatCount = inPeriodDetails.filter(item => item.is_repeat).length;
+                summaryDiv.innerHTML = `<div><i class="mdi mdi-filter-outline me-1"></i> <strong>当前过滤条件：${conditionsText}</strong> 的局部统计：共发生故障 <strong class="text-primary">${inPeriodDetails.length}</strong> 次，累计时长 <strong class="text-primary">${totalDuration.toFixed(2)}</strong> 小时，平均故障时长 <strong class="text-primary">${averageDuration.toFixed(2)}</strong> 小时。其中长时故障（≥6h） <strong class="text-warning text-dark">${longCount}</strong> 条，涉及历史重复故障 <strong class="text-purple">${repeatCount}</strong> 条。</div>`;
                 summaryDiv.classList.remove('d-none');
             }
         } else {
@@ -3351,10 +3269,12 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function renderBranchCompanyDetailsTable() {
+        let filteredDetails = currentBranchCompanyDetails.slice();
         const sortMode = document.querySelector('input[name="branchCompanyDetailSortMode"]:checked')?.value || 'time';
-        branchOrdering = sortMode === 'time' ? '-fault_occurrence_time' : '-fault_occurrence_time';
-        branchPage = 1;
-        loadBranchDetails();
+        assignRepeatGroupColors(filteredDetails);
+        filteredDetails = sortDetailRows(filteredDetails, sortMode);
+        updateBranchFilterBadgeAndSummary(filteredDetails);
+        renderBranchDetailsTableHtml(filteredDetails);
     }
 
     function formatPieSliceLabel(params) {
@@ -3388,7 +3308,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (tbl) {
             tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-        renderDetailsTable();
+        loadFaultDetails();
     }
 
     function handleMetricFilterClick(metric) {
@@ -3412,7 +3332,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (tbl) {
             tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-        renderDetailsTable();
+        loadFaultDetails();
     }
 
     function handleBranchCompanyChartClick(params, fieldName) {
@@ -3431,7 +3351,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (tbl) {
             tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-        renderBranchCompanyDetailsTable();
+        loadBranchDetails();
     }
 
     function handleBranchCompanyMetricFilterClick(metric) {
@@ -3454,7 +3374,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (tbl) {
             tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-        renderBranchCompanyDetailsTable();
+        loadBranchDetails();
     }
 
     // ---------------- 清除过滤 ----------------
@@ -3472,7 +3392,7 @@ document.addEventListener("DOMContentLoaded", function() {
         chartResource.dispatchAction({ type: 'legendAllSelect' });
         chartReason.dispatchAction({ type: 'legendAllSelect' });
         
-        renderDetailsTable();
+        loadFaultDetails();
     });
 
     const btnClearBranchCompanyFilter = document.getElementById('branch-company-btn-clear-filter');
@@ -3483,7 +3403,7 @@ document.addEventListener("DOMContentLoaded", function() {
             activeBranchCompanyFilterExtraField = null;
             activeBranchCompanyFilterExtraValue = null;
             activeBranchCompanyFilterLabel = null;
-            renderBranchCompanyDetailsTable();
+            loadBranchDetails();
         });
     }
 
@@ -3535,10 +3455,8 @@ document.addEventListener("DOMContentLoaded", function() {
             renderBareFiberServiceCards();
             renderServiceCards(getServicesByType(services, '电路业务'), 'circuit-service-cards-container', '电路业务');
 
-            servicePage = 1;
-            circuitPage = 1;
-            loadServiceDetails('裸纤业务', servicePage, servicePerPage, serviceOrdering, 'service-pagination-list', 'service-pagination-info', 'service-per-page-dropdown', 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
-            loadServiceDetails('电路业务', circuitPage, circuitPerPage, circuitOrdering, 'circuit-pagination-list', 'circuit-pagination-info', 'circuit-per-page-dropdown', 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
+            loadServiceDetails('裸纤业务', serviceOrdering, 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
+            loadServiceDetails('电路业务', circuitOrdering, 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
 
             serviceDataLoaded = true;
         } catch (error) {
@@ -4091,9 +4009,8 @@ document.addEventListener("DOMContentLoaded", function() {
         return serviceType === '裸纤业务' ? 'bare_fiber' : 'circuit';
     }
 
-    async function loadServiceDetails(serviceType, page, perPage, ordering, listId, infoId, dropdownId, tbodyId, badgeId, clearButtonId) {
-        const selectedDateParts = inputDate.value.split('-').map(Number);
-        let url = `${window.SERVICE_STATISTICS_DETAILS_API}?${buildTimeParams()}&service_type=${encodeURIComponent(getServiceTypeValue(serviceType))}&page=${page}&per_page=${perPage}&ordering=${ordering}`;
+    async function loadServiceDetails(serviceType, ordering, tbodyId, badgeId, clearButtonId) {
+        let url = `${window.SERVICE_STATISTICS_DETAILS_API}?${buildTimeParams()}&service_type=${encodeURIComponent(getServiceTypeValue(serviceType))}&ordering=${ordering}`;
 
         if (activeServiceDetailFilterKey && activeServiceDetailFilterType === serviceType) {
             url += `&service_key=${encodeURIComponent(activeServiceDetailFilterKey)}`;
@@ -4107,32 +4024,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!response.ok) throw new Error('Network response error');
             const data = await response.json();
             const results = data.results || [];
-            const pagination = data.pagination || {};
-
-            if (serviceType === '裸纤业务') {
-                serviceTotal = pagination.total;
-            } else {
-                circuitTotal = pagination.total;
-            }
-
             renderServiceDetailsTableHtml(results, serviceType, tbodyId, badgeId, clearButtonId);
-            renderPagination(listId, infoId, dropdownId, pagination, (newPage) => {
-                if (serviceType === '裸纤业务') {
-                    servicePage = newPage;
-                } else {
-                    circuitPage = newPage;
-                }
-                loadServiceDetails(serviceType, newPage, perPage, ordering, listId, infoId, dropdownId, tbodyId, badgeId, clearButtonId);
-            }, (newPerPage) => {
-                if (serviceType === '裸纤业务') {
-                    servicePerPage = newPerPage;
-                    servicePage = 1;
-                } else {
-                    circuitPerPage = newPerPage;
-                    circuitPage = 1;
-                }
-                loadServiceDetails(serviceType, 1, newPerPage, ordering, listId, infoId, dropdownId, tbodyId, badgeId, clearButtonId);
-            });
         } catch (error) {
             console.error(`Fetch ${serviceType} details error:`, error);
             tbody.innerHTML = '<tr><td colspan="8" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
@@ -4163,11 +4055,9 @@ document.addEventListener("DOMContentLoaded", function() {
                 activeServiceDetailFilterName = null;
                 activeServiceDetailFilterType = null;
                 if (serviceType === '裸纤业务') {
-                    servicePage = 1;
-                    loadServiceDetails('裸纤业务', servicePage, servicePerPage, serviceOrdering, 'service-pagination-list', 'service-pagination-info', 'service-per-page-dropdown', 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
+                    loadServiceDetails('裸纤业务', serviceOrdering, 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
                 } else {
-                    circuitPage = 1;
-                    loadServiceDetails('电路业务', circuitPage, circuitPerPage, circuitOrdering, 'circuit-pagination-list', 'circuit-pagination-info', 'circuit-per-page-dropdown', 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
+                    loadServiceDetails('电路业务', circuitOrdering, 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
                 }
             };
         }
@@ -4205,13 +4095,11 @@ document.addEventListener("DOMContentLoaded", function() {
         activeServiceDetailFilterType = serviceType;
 
         if (serviceType === '裸纤业务') {
-            servicePage = 1;
-            loadServiceDetails('裸纤业务', servicePage, servicePerPage, serviceOrdering, 'service-pagination-list', 'service-pagination-info', 'service-per-page-dropdown', 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
+            loadServiceDetails('裸纤业务', serviceOrdering, 'service-details-tbody', 'service-detail-filter-badge', 'btn-clear-service-detail-filter');
             const tbody = document.getElementById('service-details-tbody');
             if (tbody) tbody.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else {
-            circuitPage = 1;
-            loadServiceDetails('电路业务', circuitPage, circuitPerPage, circuitOrdering, 'circuit-pagination-list', 'circuit-pagination-info', 'circuit-per-page-dropdown', 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
+            loadServiceDetails('电路业务', circuitOrdering, 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
             const tbody = document.getElementById('circuit-service-details-tbody');
             if (tbody) tbody.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
