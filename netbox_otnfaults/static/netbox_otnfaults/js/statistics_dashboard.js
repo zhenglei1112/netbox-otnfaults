@@ -41,6 +41,25 @@ document.addEventListener("DOMContentLoaded", function() {
     const statisticsPage = document.querySelector('.page-statistics');
     const btnStatisticsFullscreen = document.getElementById('statistics-fullscreen-btn');
     
+    function showGlobalLoading() {
+        const loading = document.getElementById('statistics-global-loading');
+        if (loading) {
+            loading.classList.remove('d-none');
+            // 触发重绘
+            void loading.offsetWidth;
+            loading.style.opacity = '1';
+        }
+    }
+
+    function hideGlobalLoading() {
+        const loading = document.getElementById('statistics-global-loading');
+        if (loading) {
+            loading.style.opacity = '0';
+            setTimeout(() => {
+                loading.classList.add('d-none');
+            }, 150);
+        }
+    }
 
     const metricReasonInputs = Array.from(document.querySelectorAll('input[name="metricReason"]'));
     const metricResourceInputs = Array.from(document.querySelectorAll('input[name="metricResource"]'));
@@ -816,6 +835,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ---------------- 获取物理故障数据 ----------------
     async function loadData() {
+        showGlobalLoading();
         const selectedDateParts = inputDate.value.split('-').map(Number);
         let url = `${window.STATISTICS_DATA_API}?${buildTimeParams()}&calendar_year=${selectedDateParts[0]}&calendar_month=${selectedDateParts[1]}`;
         url += buildPhysicalProvinceParams();
@@ -859,6 +879,8 @@ document.addEventListener("DOMContentLoaded", function() {
         } catch (error) {
             console.error('Fetch error:', error);
             document.getElementById('details-tbody').innerHTML = '<tr><td colspan="10" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
+        } finally {
+            hideGlobalLoading();
         }
     }
 
@@ -3024,7 +3046,7 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
         const tbody = document.getElementById('details-tbody');
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4">加载中...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>';
 
         try {
             const response = await fetch(url);
@@ -3296,7 +3318,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const tbody = document.getElementById('branch-company-details-tbody');
-        tbody.innerHTML = '<tr><td colspan="11" class="text-center py-4">加载中...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>';
 
         try {
             const response = await fetch(url);
@@ -3591,6 +3613,7 @@ document.addEventListener("DOMContentLoaded", function() {
             setServiceDetailsLoading('circuit-service-details-tbody');
         }
 
+        showGlobalLoading();
         const selectedDateParts = inputDate.value.split('-').map(Number);
         let url = `${window.SERVICE_STATISTICS_DATA_API}?${buildTimeParams()}&calendar_year=${selectedDateParts[0]}&calendar_month=${selectedDateParts[1]}`;
         if (includeAllBareFiber) url += '&include_all_bare_fiber=1';
@@ -3620,6 +3643,7 @@ document.addEventListener("DOMContentLoaded", function() {
             loadServiceDetails('电路业务', circuitOrdering, 'circuit-service-details-tbody', 'circuit-service-detail-filter-badge', 'btn-clear-circuit-service-detail-filter');
 
             serviceDataLoaded = true;
+            hideGlobalLoading();
         } catch (error) {
             if (requestSequence !== serviceDataRequestSequence) return;
             console.error('Service data fetch error:', error);
@@ -3629,13 +3653,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 setServiceDetailsError('service-details-tbody');
                 setServiceDetailsError('circuit-service-details-tbody');
             }
+            hideGlobalLoading();
         }
     }
 
     function setServiceCardsLoading(containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
-        container.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="mdi mdi-loading mdi-spin me-1"></i> 数据加载中...</div>';
+        container.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.8rem; display: inline-block;"></i></div>';
     }
 
     function setServiceCardsError(containerId) {
@@ -3647,7 +3672,7 @@ document.addEventListener("DOMContentLoaded", function() {
     function setServiceDetailsLoading(tbodyId) {
         const tbody = document.getElementById(tbodyId);
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">数据加载中...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>';
     }
 
     function setServiceDetailsError(tbodyId) {
@@ -4178,7 +4203,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const tbody = document.getElementById(tbodyId);
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">加载中...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>';
 
         try {
             const response = await fetch(url);

@@ -3362,3 +3362,25 @@ body.modal-open {
         grid-template-columns: minmax(0, 1fr) !important;
     }
 }
+
+/* 全局加载遮罩 */
+.statistics-global-loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(244, 246, 250, 0.6); /* 适配亮色主题背景 */
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(3px); /* 现代毛玻璃效果 */
+    transition: opacity 0.15s ease-in-out;
+    opacity: 0;
+}
+
+[data-bs-theme="dark"] .statistics-global-loading {
+    background-color: rgba(21, 25, 34, 0.6); /* 适配暗色主题背景 */
+}
+
