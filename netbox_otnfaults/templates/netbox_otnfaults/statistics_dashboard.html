@@ -236,6 +236,76 @@
                     </div>
                 </section>
 
+                  <!-- 裸纤业务中断情况 -->
+                <section class="statistics-barefiber-overview">
+                    <div class="statistics-cable-break-heading-row mb-3">
+                        <h3 class="statistics-cable-break-heading mb-0">
+                            <span>裸纤业务中断情况</span>
+                        </h3>
+                    </div>
+                    <div class="statistics-barefiber-grid mb-3" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem;">
+                        <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
+                            <div class="statistics-strip-card-body">
+                                <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                    <div class="statistics-drill-metric text-center">
+                                        <div class="d-flex align-items-baseline justify-content-center">
+                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="barefiber-total-count">--</span>
+                                            <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">次</span>
+                                        </div>
+                                        <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">总起数</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="statistics-strip-card-footer">总起数</div>
+                        </div>
+
+                        <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
+                            <div class="statistics-strip-card-body">
+                                <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                    <div class="statistics-drill-metric text-center">
+                                        <div class="d-flex align-items-baseline justify-content-center">
+                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="barefiber-distinct-count">--</span>
+                                            <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">次</span>
+                                        </div>
+                                        <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">去除同源起数</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="statistics-strip-card-footer">去除同源起数</div>
+                        </div>
+
+                        <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
+                            <div class="statistics-strip-card-body">
+                                <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                    <div class="statistics-drill-metric text-center">
+                                        <div class="d-flex align-items-baseline justify-content-center">
+                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="barefiber-total-duration">--</span>
+                                            <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">小时</span>
+                                        </div>
+                                        <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">总历时</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="statistics-strip-card-footer">总历时</div>
+                        </div>
+
+                        <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
+                            <div class="statistics-strip-card-body">
+                                <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                    <div class="statistics-drill-metric text-center">
+                                        <div class="d-flex align-items-baseline justify-content-center">
+                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="barefiber-distinct-duration">--</span>
+                                            <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">小时</span>
+                                        </div>
+                                        <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">去除同源历时</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="statistics-strip-card-footer">去除同源历时</div>
+                        </div>
+                    </div>
+                </section>
+  
                 <!-- 故障和异常事件（按影响程度划分等级） -->
                 <section class="statistics-impact-level-overview mb-4">
                     <div class="statistics-cable-break-heading-row mb-3">
@@ -350,75 +420,6 @@
                     </div>
                 </section>
 
-                <!-- 裸纤业务中断情况 -->
-                <section class="statistics-barefiber-overview">
-                    <div class="statistics-cable-break-heading-row mb-3">
-                        <h3 class="statistics-cable-break-heading mb-0">
-                            <span>裸纤业务中断情况</span>
-                        </h3>
-                    </div>
-                    <div class="statistics-barefiber-grid mb-3" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem;">
-                        <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
-                            <div class="statistics-strip-card-body">
-                                <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
-                                    <div class="statistics-drill-metric text-center">
-                                        <div class="d-flex align-items-baseline justify-content-center">
-                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="barefiber-total-count">--</span>
-                                            <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">次</span>
-                                        </div>
-                                        <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">总起数</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">总起数</div>
-                        </div>
-
-                        <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
-                            <div class="statistics-strip-card-body">
-                                <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
-                                    <div class="statistics-drill-metric text-center">
-                                        <div class="d-flex align-items-baseline justify-content-center">
-                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="barefiber-distinct-count">--</span>
-                                            <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">次</span>
-                                        </div>
-                                        <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">去除同源起数</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">去除同源起数</div>
-                        </div>
-
-                        <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
-                            <div class="statistics-strip-card-body">
-                                <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
-                                    <div class="statistics-drill-metric text-center">
-                                        <div class="d-flex align-items-baseline justify-content-center">
-                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="barefiber-total-duration">--</span>
-                                            <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">小时</span>
-                                        </div>
-                                        <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">总历时</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">总历时</div>
-                        </div>
-
-                        <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card">
-                            <div class="statistics-strip-card-body">
-                                <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
-                                    <div class="statistics-drill-metric text-center">
-                                        <div class="d-flex align-items-baseline justify-content-center">
-                                            <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="barefiber-distinct-duration">--</span>
-                                            <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">小时</span>
-                                        </div>
-                                        <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">去除同源历时</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="statistics-strip-card-footer">去除同源历时</div>
-                        </div>
-                    </div>
-                </section>
 
                 <!-- 光缆中断 -->
                 <section class="statistics-cable-break-overview mb-4">
