@@ -1,3 +1,10 @@
+## 2026-06-23 割接状态为申请中时隐藏三组信息
+- [x] 修改 `cutovertask.html`，用 `{% if object.status != 'applying' %}` 包裹详情页“实施时间线”、“考核与闭环”、“整改信息”三张卡片使其在申请中状态下隐藏。
+- [x] 修改 `cutovertask_edit.html`，为这三组面板加上对应的 id 并在 JavaScript 脚本中增加 `initStatusSectionToggle`。
+- [x] 监听编辑页状态框 `#id_status` 的 change 事件，当状态为申请中时，前端以 `display: none` 动态隐藏，状态为其他时动态浮现。
+- [x] 补齐 `cutovertask_edit.html` 编辑页中“资源信息”标题旁的“（由线路主管补充）”旁注，以与详情页保持对齐一致。
+- [x] 扩展 `test_cutover_status_auto_set.py` 静态代码断言，验证所有模板修改及 JS 注入，并测试 OK。
+
 ## 2026-06-23 修复割接保存时 property 'url' 报错
 - [x] 移除割接保存视图中对 HttpResponseRedirect ['Location'] 追加参数的侵入式重定向修改。
 - [x] 在 `CutoverTaskEditView.post()` 中，当状态自动流转为待实施时，改用 Django Session `request.session['cutover_auto_set_pending'] = True` 传递一次性弹窗标记。

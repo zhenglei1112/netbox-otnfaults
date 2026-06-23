@@ -154,7 +154,7 @@
 
 
 <div class="field-group my-5">
-  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">资源信息</h2></div>
+  <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">资源信息 <small class="text-muted" style="font-size: 0.6em; font-weight: normal; margin-left: 10px;">（由线路主管补充）</small></h2></div>
   <div class="row">
     {% render_field form.resource_type %}
     {% render_field form.cable_route %}
@@ -167,7 +167,7 @@
 
 
 
-<div class="field-group my-5">
+<div class="field-group my-5" id="group_implementation_timeline">
   <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">实施时间线</h2></div>
   <div class="row">
     {% render_field form.started_at %}
@@ -176,7 +176,7 @@
   </div>
 </div>
 
-<div class="field-group my-5">
+<div class="field-group my-5" id="group_assessment_closure">
   <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">考核与闭环</h2></div>
   {{ form.customer_approval_detail.as_hidden }}
   <div class="row">
@@ -187,7 +187,7 @@
   </div>
 </div>
 
-<div class="field-group my-5">
+<div class="field-group my-5" id="group_rectification_info">
   <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">整改信息</h2></div>
   <div class="row">
     {% render_field form.rectification_status %}
@@ -845,6 +845,30 @@
         }
     }
 
+    function initStatusSectionToggle() {
+        const statusSelect = document.getElementById('id_status');
+        const timelineGroup = document.getElementById('group_implementation_timeline');
+        const closureGroup = document.getElementById('group_assessment_closure');
+        const rectificationGroup = document.getElementById('group_rectification_info');
+
+        if (!statusSelect) return;
+
+        function toggleSections() {
+            const currentStatus = statusSelect.value;
+            const displayStyle = (currentStatus === 'applying') ? 'none' : 'block';
+            
+            if (timelineGroup) timelineGroup.style.display = displayStyle;
+            if (closureGroup) closureGroup.style.display = displayStyle;
+            if (rectificationGroup) rectificationGroup.style.display = displayStyle;
+        }
+
+        // 监听变化事件
+        statusSelect.addEventListener('change', toggleSections);
+
+        // 页面初始化时执行一次判定
+        toggleSections();
+    }
+
     if (document.readyState === 'complete') {
         setTimeout(initMapPicker, 200);
         setTimeout(initPathShortcuts, 200);
@@ -852,6 +876,7 @@
         setTimeout(initManagementUnitAutoFill, 200);
         setTimeout(initManagerLogic, 200);
         setTimeout(initPlannedCutoverTimeDefaultToZero, 400);
+        setTimeout(initStatusSectionToggle, 200);
     } else {
         window.addEventListener('load', function() {
             setTimeout(initMapPicker, 200);
@@ -860,6 +885,7 @@
             setTimeout(initManagementUnitAutoFill, 200);
             setTimeout(initManagerLogic, 200);
             setTimeout(initPlannedCutoverTimeDefaultToZero, 400);
+            setTimeout(initStatusSectionToggle, 200);
         });
     }
 })();

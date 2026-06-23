@@ -47,6 +47,22 @@ class CutoverStatusAutoSetTestCase(unittest.TestCase):
         self.assertIn("countdownTimer = setInterval(function() {", template_source)
         self.assertIn("show_auto_set_pending", template_source)
 
+    def test_cutover_task_applying_hides_sections(self) -> None:
+        """测试在 status=='applying' (申请中) 时隐藏时间线、闭环、整改三组信息"""
+        # 1. 验证详情页中的 Django 状态判断包裹
+        template_source = DETAIL_TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn("object.status != 'applying'", template_source)
+        
+        # 2. 验证编辑页中的组 id 与 js 逻辑注入
+        edit_template_file = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults" / "cutovertask_edit.html"
+        edit_template_source = edit_template_file.read_text(encoding="utf-8")
+        
+        self.assertIn('id="group_implementation_timeline"', edit_template_source)
+        self.assertIn('id="group_assessment_closure"', edit_template_source)
+        self.assertIn('id="group_rectification_info"', edit_template_source)
+        self.assertIn("function initStatusSectionToggle()", edit_template_source)
+        self.assertIn("currentStatus === 'applying'", edit_template_source)
+
 
 if __name__ == "__main__":
     unittest.main()

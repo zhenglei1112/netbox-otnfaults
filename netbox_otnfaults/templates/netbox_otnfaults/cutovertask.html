@@ -223,6 +223,7 @@
     <div class="modal-backdrop fade show" id="generatePlannedTimeBackdrop" style="display: none;"></div>
 
     
+    {% if object.status != 'applying' %}
     <div class="card">
       <h5 class="card-header">实施时间线</h5>
       <table class="table table-hover attr-table">
@@ -277,6 +278,7 @@
         <tr><th scope="row">整改完成情况描述</th><td>{{ object.rectification_completion_description|linebreaksbr|default:"—" }}</td></tr>
       </table>
     </div>
+    {% endif %}
   </div>
 
   <div class="col col-md-6">
