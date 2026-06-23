@@ -420,13 +420,18 @@ class CutoverImpactFilterSet(NetBoxModelFilterSet):
         label='业务中断时间（结束）'
     )
 
+    my_pending_coordination = django_filters.NumberFilter(
+        method='filter_my_pending_coordination',
+        label='我的待协调割接影响业务',
+    )
+
     class Meta:
         model = CutoverImpact
         fields = (
             'cutover_task', 'service_type', 'bare_fiber_service', 'circuit_service',
             'circuit_business_category', 'circuit_service_group',
             'business_impact', 'service_interruption_time_after', 'service_interruption_time_before',
-            'service_recovery_time',
+            'service_recovery_time', 'coordination_status', 'my_pending_coordination',
         )
 
     def search(self, queryset, name, value):
@@ -439,6 +444,14 @@ class CutoverImpactFilterSet(NetBoxModelFilterSet):
             | Q(circuit_service__special_line_name__icontains=value)
             | Q(comments__icontains=value)
         )
+
+    def filter_my_pending_coordination(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(
+            Q(coordination_status__in=['pending', 'unapproved']),
+            Q(bare_fiber_service__business_manager_id=value) | Q(circuit_service__business_manager_id=value)
+        ).distinct()
 
 
 from dcim.models import Site

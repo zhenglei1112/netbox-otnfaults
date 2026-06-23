@@ -1,0 +1,73 @@
+<style>
+  .otn-pending-coordination {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 12px;
+    text-align: center;
+  }
+  .otn-pending-coordination-icon {
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+    color: #fd7e14;
+  }
+  .otn-pending-coordination-count {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--nbx-body-color, #212529);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .otn-pending-coordination-count.zero {
+    color: #6c757d;
+  }
+  .otn-pending-coordination-label {
+    font-size: .8rem;
+    color: #6c757d;
+  }
+  .otn-pending-coordination a {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .otn-pending-coordination a:hover .otn-pending-coordination-count {
+    color: #0d6efd;
+  }
+  .otn-pending-coordination a:hover .otn-pending-coordination-icon {
+    color: #0d6efd;
+    transform: scale(1.1);
+    transition: all .2s ease;
+  }
+  .otn-pending-coordination .no-task {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #6c757d;
+  }
+  .otn-pending-coordination .no-task .otn-pending-coordination-icon {
+    color: #198754;
+  }
+</style>
+
+<div class="otn-pending-coordination">
+  {% if pending_count > 0 %}
+    <a href="{{ review_url }}" title="点击查看待协调割接影响业务列表">
+      <span class="otn-pending-coordination-icon">
+        <i class="mdi mdi-clock-alert-outline"></i>
+      </span>
+      <span class="otn-pending-coordination-count">{{ pending_count }}</span>
+      <span class="otn-pending-coordination-label">待协调割接</span>
+    </a>
+  {% else %}
+    <div class="no-task">
+      <span class="otn-pending-coordination-icon">
+        <i class="mdi mdi-clock-check-outline"></i>
+      </span>
+      <span class="otn-pending-coordination-count zero">0</span>
+      <span class="otn-pending-coordination-label">暂无待协调割接</span>
+    </div>
+  {% endif %}
+</div>

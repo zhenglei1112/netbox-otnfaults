@@ -8,7 +8,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from extras.dashboard.widgets import DashboardWidget, register_widget
-from .models import OtnFault, FaultCategoryChoices, CutoverTask, CutoverStatusChoices
+from .models import OtnFault, FaultCategoryChoices, CutoverTask, CutoverStatusChoices, CutoverImpact
 
 
 # --- 故障分类 → CSS 颜色映射 ---
@@ -395,3 +395,44 @@ class OtnTodayTomorrowCutoverWidget(DashboardWidget):
         except Exception as e:
             error_trace = traceback.format_exc()
             return f'<div class="alert alert-danger"><pre style="font-size:11px;white-space:pre-wrap">{error_trace}</pre></div>'
+
+
+@register_widget
+class OtnPendingCoordinationWidget(DashboardWidget):
+    """待协调割接小组件：显示当前用户作为裸纤或电路业务主管的待协调或未批准割接影响业务数"""
+    default_title = "待协调割接"
+    description = "显示当前登录用户作为业务主管、协调状态为待协调或未批准的割接影响业务数量。"
+    width = 2
+    height = 2
+
+    def render(self, request) -> str:
+        try:
+            from django.urls import reverse
+            from django.db.models import Q
+
+            if not request.user.is_authenticated:
+                pending_count = 0
+            else:
+                pending_count = CutoverImpact.objects.restrict(request.user, 'view').filter(
+                    Q(coordination_status__in=['pending', 'unapproved']),
+                    Q(bare_fiber_service__business_manager=request.user) |
+                    Q(circuit_service__business_manager=request.user)
+                ).distinct().count()
+
+            review_url = (
+                reverse('plugins:netbox_otnfaults:cutoverimpact_list')
+                + f'?my_pending_coordination={request.user.pk}'
+            )
+
+            return render_to_string(
+                'netbox_otnfaults/inc/dashboard_pending_coordination_widget.html',
+                {
+                    'pending_count': pending_count,
+                    'review_url': review_url,
+                },
+                request=request,
+            )
+        except Exception as e:
+            error_trace = traceback.format_exc()
+            return f'<div class="alert alert-danger"><pre style="font-size:11px;white-space:pre-wrap">{error_trace}</pre></div>'
+
