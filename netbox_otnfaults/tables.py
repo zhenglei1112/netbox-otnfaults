@@ -1142,24 +1142,16 @@ class CircuitServiceTable(NetBoxTable):
 
     def render_is_external_business(self, value, record):
         if record.is_external_business:
-            return format_html('<span class=\"badge bg-success text-white\">\u662f</span>')
-        return format_html('<span class=\"badge bg-secondary text-white\">\u5426</span>')
-
-    def value_is_external_business(self, value: bool | None, record: CircuitService) -> str:
-        return '\u662f' if record.is_external_business else '\u5426'
-
-    def render_is_external_business(self, value, record):
-        if record.is_external_business:
-            return format_html('<span class="badge bg-success text-white">?</span>')
-        return format_html('<span class="badge bg-secondary text-white">?</span>')
+            return format_html('<span class="badge bg-success text-white">{}</span>', '是')
+        return format_html('<span class="badge bg-secondary text-white">{}</span>', '否')
 
     def value_is_external_business(self, value: bool | None, record: CircuitService) -> str:
         return '是' if record.is_external_business else '否'
 
     def render_ring_protection(self, value, record):
         if record.ring_protection:
-            return format_html('<span class="badge bg-success text-white">是</span>')
-        return format_html('<span class="badge bg-secondary text-white">否</span>')
+            return format_html('<span class="badge bg-success text-white">{}</span>', '是')
+        return format_html('<span class="badge bg-secondary text-white">{}</span>', '否')
 
     def value_ring_protection(self, value: bool | None, record: CircuitService) -> str:
         return '是' if record.ring_protection else '否'
