@@ -96,3 +96,9 @@ package-lock.json
 
 # Antigravity
 .antigravity/
+netbox_otnfaults.egg-info/dependency_links.txt
+netbox_otnfaults.egg-info/not-zip-safe
+netbox_otnfaults.egg-info/PKG-INFO
+netbox_otnfaults.egg-info/requires.txt
+netbox_otnfaults.egg-info/SOURCES.txt
+netbox_otnfaults.egg-info/top_level.txt
