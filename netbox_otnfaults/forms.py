@@ -2103,13 +2103,17 @@ class CutoverImpactForm(NetBoxModelForm):
         if cutover_task_id:
             try:
                 cutover = CutoverTask.objects.get(pk=cutover_task_id)
+                self.initial['cutover_task'] = cutover.pk
                 self.fields['cutover_task'].initial = cutover.pk
                 if cutover.planned_cutover_time:
+                    self.initial['service_interruption_time'] = cutover.planned_cutover_time
                     self.fields['service_interruption_time'].initial = cutover.planned_cutover_time
                 if cutover.interruption_location_a_id:
+                    self.initial['service_site_a'] = cutover.interruption_location_a_id
                     self.fields['service_site_a'].initial = cutover.interruption_location_a_id
                 z_site_ids = list(cutover.interruption_location.values_list('pk', flat=True))
                 if z_site_ids:
+                    self.initial['service_site_z'] = z_site_ids
                     self.fields['service_site_z'].initial = z_site_ids
             except (CutoverTask.DoesNotExist, ValueError):
                 pass

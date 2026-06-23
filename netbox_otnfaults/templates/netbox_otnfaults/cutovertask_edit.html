@@ -581,7 +581,116 @@
         }
     }
 
+    function initManagerLogic() {
+        const provinceSelect = document.querySelector('select[name="province"]');
+        const lineSupervisorSelect = document.querySelector('select[name="line_supervisor"]');
+        
+        if (!provinceSelect || !lineSupervisorSelect) return;
+        
+        const provinceTS = provinceSelect.tomselect;
+        const lineSupervisorTS = lineSupervisorSelect.tomselect;
+        
+        if (!provinceTS || !lineSupervisorTS) {
+            setTimeout(initManagerLogic, 100);
+            return;
+        }
 
+        // 线路主管分工地图 (Key 为省份简称或关键字，Value 为主管姓名)
+        const MANAGER_MAP = {
+            '甘肃': '冯鑫源', '宁夏': '冯鑫源', '青海': '冯鑫源', '新疆': '冯鑫源', '山东': '冯鑫源', '陕西': '冯鑫源', '内蒙古': '冯鑫源', '浙江': '冯鑫源', '四川': '冯鑫源', '江西': '冯鑫源',
+            '广东': '姜川', '湖南': '姜川', '福建': '姜川', '重庆': '姜川', '贵州': '姜川', '云南': '姜川', '海南': '姜川',
+            '北京': '李立彬', '天津': '李立彬', '河北': '李立彬', '河南': '李立彬', '山西': '李立彬', '广西': '李立彬',
+            '湖北': '孙振伟', '安徽': '孙振伟', '江苏': '孙振伟', '上海': '孙振伟',
+            '黑龙江': '李小涛', '吉林': '李小涛', '辽宁': '李小涛'
+        };
+
+        provinceTS.on('change', function(value) {
+            if (!value) return;
+            
+            // 安全获取选中省份的显示文本 (兼容 Netbox AJAX 传入项 and 静态项)
+            let provinceText = '';
+            const opt = provinceTS.options[value];
+            if (opt) {
+                provinceText = opt.display || opt.name || opt.text || opt.label || '';
+            }
+            if (!provinceText) {
+                const itemNode = provinceTS.getItem(value);
+                if (itemNode) {
+                    provinceText = itemNode.textContent || itemNode.innerText || '';
+                }
+            }
+            if (!provinceText && provinceSelect.selectedIndex >= 0) {
+                const selectedOption = provinceSelect.options[provinceSelect.selectedIndex];
+                if (selectedOption) provinceText = selectedOption.text || '';
+            }
+            
+            provinceText = provinceText.trim();
+            console.log('[ManagerLogic] 省份变更: "' + provinceText + '", Value:', value);
+            if (!provinceText) return;
+
+            // 匹配分工
+            let managerName = null;
+            for (const key in MANAGER_MAP) {
+                if (provinceText.includes(key)) {
+                    managerName = MANAGER_MAP[key];
+                    break;
+                }
+            }
+
+            if (managerName) {
+                console.log('[ManagerLogic] 匹配到主管分工:', managerName);
+                
+                const searchAndSetUser = (queryUrl) => {
+                    fetch(queryUrl, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                        return res.json();
+                    })
+                    .then(data => {
+                        let targetUser = null;
+                        if (data.results && data.results.length > 0) {
+                            targetUser = data.results.find(u => 
+                                (u.display && u.display.includes(managerName)) || 
+                                (u.username && u.username.includes(managerName))
+                            ) || data.results[0]; // 退化选择第一个
+                        }
+                        
+                        if (targetUser) {
+                            console.log('[ManagerLogic] API 查找到主管:', targetUser.display || targetUser.username, 'ID:', targetUser.id);
+                            const userIdStr = targetUser.id.toString();
+                            const userName = targetUser.display || targetUser.username;
+                            
+                            lineSupervisorTS.addOption({
+                                value: userIdStr,
+                                id: userIdStr,
+                                text: userName,
+                                label: userName,
+                                name: userName,
+                                display: userName
+                            });
+                            
+                            lineSupervisorTS.setValue(userIdStr);
+                            lineSupervisorTS.addItem(userIdStr);
+                        } else if (queryUrl.includes('?q=')) {
+                            console.warn('[ManagerLogic] q 搜索失败，尝试全量查找...');
+                            searchAndSetUser('/api/users/users/?limit=100');
+                        } else {
+                            console.warn('[ManagerLogic] 未在系统中找到名为', managerName, '的用户');
+                        }
+                    })
+                    .catch(e => console.error('[ManagerLogic] 自动匹配主管 API 异常:', e));
+                };
+
+                searchAndSetUser(`/api/users/users/?q=${encodeURIComponent(managerName)}`);
+            }
+        });
+    }
 
     function initPlannedCutoverTimeDefaultToZero() {
         const mainTimeInput = document.getElementById('id_planned_cutover_time');
@@ -604,6 +713,7 @@
         setTimeout(initPathShortcuts, 200);
         setTimeout(initPlannedTimes, 200);
         setTimeout(initManagementUnitAutoFill, 200);
+        setTimeout(initManagerLogic, 200);
         setTimeout(initPlannedCutoverTimeDefaultToZero, 400);
     } else {
         window.addEventListener('load', function() {
@@ -611,6 +721,7 @@
             setTimeout(initPathShortcuts, 200);
             setTimeout(initPlannedTimes, 200);
             setTimeout(initManagementUnitAutoFill, 200);
+            setTimeout(initManagerLogic, 200);
             setTimeout(initPlannedCutoverTimeDefaultToZero, 400);
         });
     }
