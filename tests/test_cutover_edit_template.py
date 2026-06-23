@@ -80,6 +80,25 @@ class CutoverEditTemplateTestCase(unittest.TestCase):
         self.assertIn("headquarters", template)
         self.assertIn("nameInput.value = '';", template)
 
+    def test_timeout_reason_toggle_logic(self) -> None:
+        template = CUTOVER_EDIT_TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn("initTimeoutReasonToggle", template)
+        self.assertIn("id_is_timeout", template)
+        self.assertIn("id_timeout_reason", template)
+        self.assertIn("isTimeoutSelect.value === 'yes'", template)
+        self.assertIn("timeoutReasonRow.style.display = 'flex'", template)
+        self.assertIn("timeoutReasonRow.style.display = 'none'", template)
+
+    def test_rectification_fields_toggle_logic(self) -> None:
+        template = CUTOVER_EDIT_TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn("initRectificationFieldsToggle", template)
+        self.assertIn("id_rectification_status", template)
+        self.assertIn("id_rectification_measures", template)
+        self.assertIn("statusSelect.value === 'required'", template)
+        self.assertIn("row.style.display = displayStyle", template)
+
 
 if __name__ == "__main__":
     unittest.main()

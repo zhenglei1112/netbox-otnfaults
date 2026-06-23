@@ -869,6 +869,106 @@
         toggleSections();
     }
 
+    function initTimeoutReasonToggle() {
+        const isTimeoutSelect = document.getElementById('id_is_timeout');
+        const timeoutReasonInput = document.getElementById('id_timeout_reason');
+        
+        if (!isTimeoutSelect || !timeoutReasonInput) return;
+        
+        const timeoutReasonRow = timeoutReasonInput.closest('.row');
+        if (!timeoutReasonRow) return;
+        
+        function toggleReason() {
+            if (isTimeoutSelect.value === 'yes') {
+                timeoutReasonRow.style.display = 'flex';
+            } else {
+                timeoutReasonRow.style.display = 'none';
+            }
+        }
+        
+        // 监听原生 change 事件
+        isTimeoutSelect.addEventListener('change', toggleReason);
+        
+        // 监听 TomSelect change 事件（如果存在）
+        const ts = isTimeoutSelect.tomselect;
+        if (ts) {
+            ts.on('change', toggleReason);
+        } else {
+            let checkCount = 0;
+            const checkTS = setInterval(() => {
+                checkCount++;
+                if (isTimeoutSelect.tomselect) {
+                    isTimeoutSelect.tomselect.on('change', toggleReason);
+                    clearInterval(checkTS);
+                }
+                if (checkCount > 20) {
+                    clearInterval(checkTS);
+                }
+            }, 100);
+        }
+        
+        // 初始化时执行一次判定
+        toggleReason();
+    }
+
+    function initRectificationFieldsToggle() {
+        const statusSelect = document.getElementById('id_rectification_status');
+        if (!statusSelect) return;
+        
+        const fieldIds = [
+            'id_rectification_measures',
+            'id_rectification_description',
+            'id_rectification_subject',
+            'id_rectification_progress',
+            'id_planned_completion_time',
+            'id_actual_completion_time',
+            'id_rectification_completion_description',
+            'id_re_cutover'
+        ];
+        
+        const fieldRows = [];
+        fieldIds.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                const row = input.closest('.row');
+                if (row) {
+                    fieldRows.push(row);
+                }
+            }
+        });
+        
+        function toggleFields() {
+            const displayStyle = (statusSelect.value === 'required') ? 'flex' : 'none';
+            fieldRows.forEach(row => {
+                row.style.display = displayStyle;
+            });
+        }
+        
+        // 监听原生 change 事件
+        statusSelect.addEventListener('change', toggleFields);
+        
+        // 监听 TomSelect change 事件（如果存在）
+        const ts = statusSelect.tomselect;
+        if (ts) {
+            ts.on('change', toggleFields);
+        } else {
+            let checkCount = 0;
+            const checkTS = setInterval(() => {
+                checkCount++;
+                if (statusSelect.tomselect) {
+                    statusSelect.tomselect.on('change', toggleFields);
+                    clearInterval(checkTS);
+                }
+                if (checkCount > 20) {
+                    clearInterval(checkTS);
+                }
+            }, 100);
+        }
+        
+        // 初始化时执行一次判定
+        toggleFields();
+    }
+
     if (document.readyState === 'complete') {
         setTimeout(initMapPicker, 200);
         setTimeout(initPathShortcuts, 200);
@@ -877,6 +977,8 @@
         setTimeout(initManagerLogic, 200);
         setTimeout(initPlannedCutoverTimeDefaultToZero, 400);
         setTimeout(initStatusSectionToggle, 200);
+        setTimeout(initTimeoutReasonToggle, 200);
+        setTimeout(initRectificationFieldsToggle, 200);
     } else {
         window.addEventListener('load', function() {
             setTimeout(initMapPicker, 200);
@@ -886,6 +988,8 @@
             setTimeout(initManagerLogic, 200);
             setTimeout(initPlannedCutoverTimeDefaultToZero, 400);
             setTimeout(initStatusSectionToggle, 200);
+            setTimeout(initTimeoutReasonToggle, 200);
+            setTimeout(initRectificationFieldsToggle, 200);
         });
     }
 })();
