@@ -107,7 +107,12 @@
         <form method="post" action="{% url 'plugins:netbox_otnfaults:cutovertask_generate_planned_time' object.pk %}" id="generate-planned-time-form" class="m-0">
           {% csrf_token %}
           <button type="button" class="btn btn-ghost-primary btn-sm" onclick="showGeneratePlannedTimeModal()">
-            <i class="mdi mdi-plus"></i> 生成新的割接时间
+            <i class="mdi mdi-plus"></i>
+            {% if object.planned_cutover_times %}
+              设置一个新的割接时间
+            {% else %}
+              设置割接时间
+            {% endif %}
           </button>
         </form>
       </div>
@@ -276,7 +281,7 @@
 
   <div class="col col-md-6">
     <div class="card">
-      <h5 class="card-header">资源信息</h5>
+      <h5 class="card-header">资源信息 <small class="text-muted" style="font-size: 0.8em; font-weight: normal; margin-left: 10px;">（由线路主管补充）</small></h5>
       <table class="table table-hover attr-table">
         <tr><th scope="row">光纤来源</th><td>{{ object.get_resource_type_display|default:"—" }}</td></tr>
         <tr><th scope="row">光缆路由属性</th><td>{{ object.get_cable_route_display|default:"—" }}</td></tr>

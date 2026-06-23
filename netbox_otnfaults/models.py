@@ -271,11 +271,13 @@ class CutoverTypeChoices(ChoiceSet):
 class CutoverCoordinationStatusChoices(ChoiceSet):
     key = 'CutoverImpact.coordination_status'
 
+    PENDING = 'pending'
     APPROVED = 'approved'
     UNAPPROVED = 'unapproved'
     FORCED = 'forced'
 
     CHOICES = [
+        (PENDING, '待协调', 'blue'),
         (APPROVED, '已批准', 'green'),
         (UNAPPROVED, '未批准', 'red'),
         (FORCED, '强制割接', 'orange'),
@@ -599,7 +601,8 @@ class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
         max_length=20,
         choices=CutoverTimeoutStatusChoices,
         default=CutoverTimeoutStatusChoices.PENDING,
-        verbose_name='割接是否超时'
+        verbose_name='割接是否超时',
+        blank=True
     )
     timeout_reason = models.TextField(blank=True, verbose_name='超时原因')
     cutover_result = models.CharField(
@@ -1068,9 +1071,7 @@ class OtnFault(NetBoxModel, ImageAttachmentsMixin):
         to='dcim.Region',
         on_delete=models.PROTECT,
         related_name='otn_faults',
-        verbose_name='省份',
-        blank=True,
-        null=True
+        verbose_name='省份'
     )
     
     # 2) 紧急程度，为选择型字段，分为高、中、低，按照颜色显示，高为红色，中为橙色，低为黄色，默认值为低，必填
@@ -1918,10 +1919,13 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
         max_length=20,
         choices=BusinessImpactChoices,
         default=BusinessImpactChoices.INTERRUPTED,
-        verbose_name='业务影响'
+        verbose_name='业务影响',
+        blank=True
     )
     service_interruption_time = models.DateTimeField(
-        verbose_name='业务故障时间'
+        verbose_name='业务故障时间',
+        blank=True,
+        null=True
     )
     service_recovery_time = models.DateTimeField(
         null=True,
@@ -2782,11 +2786,14 @@ class CutoverImpact(NetBoxModel, ImageAttachmentsMixin):
     business_impact = models.CharField(
         max_length=20,
         choices=BusinessImpactChoices,
-        default=BusinessImpactChoices.INTERRUPTED,
-        verbose_name='业务影响'
+        default='',
+        verbose_name='业务影响',
+        blank=True
     )
     service_interruption_time = models.DateTimeField(
-        verbose_name='业务中断时间'
+        verbose_name='业务中断时间',
+        blank=True,
+        null=True
     )
     service_recovery_time = models.DateTimeField(
         null=True,
@@ -2796,7 +2803,7 @@ class CutoverImpact(NetBoxModel, ImageAttachmentsMixin):
     coordination_status = models.CharField(
         max_length=32,
         choices=CutoverCoordinationStatusChoices,
-        default=CutoverCoordinationStatusChoices.UNAPPROVED,
+        default=CutoverCoordinationStatusChoices.PENDING,
         verbose_name='协调状态'
     )
 

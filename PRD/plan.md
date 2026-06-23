@@ -1,61 +1,59 @@
-# 今明割接任务小组件需求与技术方案
+# 故障模型省份必填与割接超时/影响非必填及协调状态修改方案
 
 ## 1. 需求背景
-割接管理是 OTN 故障管理系统中的核心环节。为了让用户在仪表盘首页即可直观获取当前（今日）和下一自然日（明日）即将进行的割接任务，需要开发一个全新的 Dashboard 小组件（今明割接任务）。
-当且仅当割接任务的“线路主管”为当前登录用户时，在列表中进行重点高亮显示，以便相关主管快速定位自身责任范围内的割接。
+根据业务需要，为了规范数据的完整性，并优化用户的填写体验，现需对以下字段的约束及布局进行调整：
+1. 在故障（`OtnFault`）模型中，省份字段（`province`）必须成为必填字段，避免出现未归属省份的物理故障。
+2. 在割接任务（`CutoverTask`）模型中，割接是否超时字段（`is_timeout`）不需要强制必填，改为非必填字段。
+3. 在割接影响业务（`CutoverImpact`）模型中：
+   - 将“业务影响”（`business_impact`）和“业务故障时间”（`service_interruption_time`）都设置为非必填。
+   - 对“协调状态”（`coordination_status`）字段，增加 **“待协调”**（`pending`）选项并将其作为默认值。
+   - 在割接影响业务的编辑表单中，将“协调状态”字段由“影响时间”组移入“业务信息”组。
+4. 在割接时间重新生成时，联动清除状态的逻辑改为将协调状态重置为最新的默认值 **“待协调”**（`pending`）。
 
-## 2. 功能要求
-1. **今明割接过滤**：自动获取本地时区的今日和明日日期，只展示此时间段内的割接任务。
-2. **列表分栏/分组**：将今日与明日割接分别进行分组展示，无割接任务时显示友好的占位说明（如“今日无割接计划”）。
-3. **关键信息透显**：列表中显示割接计划时间（显示小时和分钟，如 14:30）、省份、具体地点、割接编号以及割接类型。
-4. **状态及类型彩色标签**：使用系统中配置好的割接状态与类型色彩对标签进行染色渲染。
-5. **当前用户主管任务高亮**：
-   - 逻辑：割接任务的 `line_supervisor`（线路主管）为当前 `request.user`。
-   - 视觉效果：
-     - 在普通模式下，应用淡黄色背景底色（`bg-warning-subtle` 或 `#fffbeb`），左侧竖向指示条加宽并变为金黄色（`#eab308`）。
-     - 在深色模式下（通过 NetBox 的 `html[data-bs-theme="dark"]` 适配），显示为暗金黄色背景，保持优秀的色彩对比度。
-     - 在主管的名字前或卡片中添加特殊的“⭐ 我主管”或徽章标志。
-6. **可跳转交互**：列表项整体可点击，并跳转到割接详情页。
+## 2. 字段修改逻辑
 
-## 3. 技术实现方案
+### 2.1 故障模型 (OtnFault)
+- **目标字段**：`province` (省份)
+- **修改位置**：`netbox_otnfaults/models.py` 中的 `OtnFault` 类。
+- **修改详情**：
+  将 `province = models.ForeignKey(..., blank=True, null=True)` 的 `blank=True, null=True` 移除。
+- **表单配合**：`netbox_otnfaults/forms.py` 中的 `OtnFaultForm.province` 字段需将 `required=False` 修改为 `required=True`。
 
-### 3.1 模型字段引用
-在 `CutoverTask` 模型中，我们将查询并引用以下字段：
-- `planned_cutover_time`: 计划割接时间（`DateTimeField`）
-- `line_supervisor`: 线路主管（外键，指向用户模型）
-- `cutover_no`: 割接编号（`CharField`）
-- `cutover_type`: 割接类型（使用 `CutoverTypeChoices` 颜色及显示名称）
-- `cutover_location`: 割接具体地点（`TextField`）
-- `status`: 状态（使用 `CutoverStatusChoices` 颜色及显示名称）
-- `province`: 省份（外键，指向 `dcim.Region`）
+### 2.2 割接模型 (CutoverTask)
+- **目标字段**：`is_timeout` (割接是否超时)
+- **修改位置**：`netbox_otnfaults/models.py` 中的 `CutoverTask` 类。
+- **修改详情**：
+  将 `is_timeout` 字段添加 `blank=True` 选项。
 
-### 3.2 后端逻辑设计 (`netbox_otnfaults/dashboard.py`)
-定义 `OtnTodayTomorrowCutoverWidget` 类并注册：
-```python
-@register_widget
-class OtnTodayTomorrowCutoverWidget(DashboardWidget):
-    default_title = "今明割接任务"
-    description = "展示今日与明日的计划割接，当前用户为主管的任务高亮显示。"
-    width = 4
-    height = 4
+### 2.3 割接影响业务模型 (CutoverImpact)
+- **目标字段**：`business_impact` (业务影响) 与 `service_interruption_time` (业务故障时间)
+- **修改位置**：`netbox_otnfaults/models.py` 中的 `CutoverImpact` 类。
+- **修改详情**：
+  - 将 `business_impact` 字段添加 `blank=True` 选项。
+  - 将 `service_interruption_time` 字段添加 `blank=True, null=True` 属性。
+- **目标字段**：`coordination_status` (协调状态)
+- **修改位置**：
+  - `netbox_otnfaults/models.py` 中的 `CutoverCoordinationStatusChoices` 选择类增加 `PENDING = 'pending'`（文案：'待协调'，颜色：'blue'），并放在 CHOICES 列表的首位。
+  - `CutoverImpact.coordination_status` 字段的 `default` 设为 `CutoverCoordinationStatusChoices.PENDING`。
+- **表单布局修改**：
+  - 在 `forms.py` 的 `CutoverImpactForm` 表单的 `fieldsets` 中，将 `'coordination_status'` 从 `'影响时间'` 的 FieldSet 移入 `'业务信息'` 的 FieldSet。
+- **关联逻辑修改**：
+  - 在 `views.py` 中重新生成割接时间时，将 impacts 列表状态更新中的 `coordination_status` 设为 `CutoverCoordinationStatusChoices.PENDING`。
 
-    def render(self, request) -> str:
-        # 获取本地时间
-        # 计算 today 和 tomorrow 的 date
-        # 查询并过滤 CutoverTask 列表
-        # 对今天和明天割接进行分组
-        # 针对每一项判定 is_my_task
-        # 渲染渲染模板 'netbox_otnfaults/inc/dashboard_today_tomorrow_cutover_widget.html'
-```
+## 3. 数据库迁移
+更新 Django 迁移文件 `netbox_otnfaults/migrations/0088_alter_otnfault_province_and_more.py`：
+- 依赖迁移：`0087_statistics_query_indexes`
+- 修改操作：
+  - `AlterField` on `OtnFault.province` (`null=False`)
+  - `AlterField` on `CutoverTask.is_timeout` (`blank=True`)
+  - `AlterField` on `CutoverImpact.business_impact` (`blank=True`)
+  - `AlterField` on `CutoverImpact.service_interruption_time` (`null=True`)
+  - `AlterField` on `CutoverImpact.coordination_status` (更新 choices 并在数据库层面变更默认值)
 
-### 3.3 前端样式设计 (`netbox_otnfaults/templates/netbox_otnfaults/inc/dashboard_today_tomorrow_cutover_widget.html`)
-- 列表式布局，使用 Flex 弹性盒，外边框加圆角。
-- 单条割接的悬浮及交互效果。
-- 区分线路主管是否为当前用户的 CSS 高亮样式（分别适配亮色/暗色主题）。
-- 当日无割接时显示简洁优雅的文字占位。
-
-## 4. 验收标准
-1. 小组件可在 Netbox 首页的配置面板中选择并添加到仪表盘中。
-2. 过滤得到且仅显示今天和明天的割接任务（按计划割接时间判断）。
-3. 若某割接任务的主管（`line_supervisor`）与当前登录用户一致，该行割接会有显著的亮色或深色黄色背景高亮，且带有一颗“我主管”的醒目标签。
-4. 点击列表中任一任务均能正常跳转至该割接详情页面。
+## 4. 实施步骤
+1. 提请用户审核本方案；
+2. 审核通过后，修改 `models.py` 字段定义；
+3. 修改 `forms.py` 表单字段约束及布局；
+4. 修改 `views.py` 关联的默认值更新逻辑；
+5. 编写并更新 `0088_alter_otnfault_province_and_more.py` 迁移文件；
+6. 运行全部单元测试进行校验。

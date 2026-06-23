@@ -1478,7 +1478,7 @@ class CutoverTaskGeneratePlannedTimeView(PermissionRequiredMixin, View):
         if not task.planned_cutover_times or task.planned_cutover_times[-1] != new_time:
             task.planned_cutover_times.append(new_time)
             task.save(update_fields=['planned_cutover_time', 'planned_cutover_times', 'last_updated'])
-            task.impacts.all().update(coordination_status=CutoverCoordinationStatusChoices.UNAPPROVED)
+            task.impacts.all().update(coordination_status=CutoverCoordinationStatusChoices.PENDING)
             messages.success(request, '已生成新的割接时间，并重置所有影响业务协调状态。')
         else:
             messages.info(request, '当前主计划时间已经是最新时间记录。')

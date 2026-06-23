@@ -58,7 +58,7 @@ class OtnFaultForm(NetBoxModelForm):
     )
     province = DynamicModelChoiceField(
         queryset=Region.objects.all(),
-        required=False,
+        required=True,
         label='省份'
     )
     line_manager = DynamicModelChoiceField(
@@ -2066,8 +2066,8 @@ class CutoverImpactForm(NetBoxModelForm):
 
     fieldsets = (
         FieldSet('cutover_task', name='割接任务'),
-        FieldSet('service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z', 'circuit_business_category', 'circuit_service_group', 'circuit_special_line_name', 'circuit_service', name='业务信息'),
-        FieldSet('business_impact', 'service_interruption_time', 'service_recovery_time', 'coordination_status', name='影响时间'),
+        FieldSet('service_type', 'bare_fiber_service', 'service_site_a', 'service_site_z', 'circuit_business_category', 'circuit_service_group', 'circuit_special_line_name', 'circuit_service', 'coordination_status', name='业务信息'),
+        FieldSet('business_impact', 'service_interruption_time', 'service_recovery_time', name='实际影响时间'),
         FieldSet('comments', 'tags', name='其他'),
     )
 
@@ -2105,9 +2105,7 @@ class CutoverImpactForm(NetBoxModelForm):
                 cutover = CutoverTask.objects.get(pk=cutover_task_id)
                 self.initial['cutover_task'] = cutover.pk
                 self.fields['cutover_task'].initial = cutover.pk
-                if cutover.planned_cutover_time:
-                    self.initial['service_interruption_time'] = cutover.planned_cutover_time
-                    self.fields['service_interruption_time'].initial = cutover.planned_cutover_time
+
                 if cutover.interruption_location_a_id:
                     self.initial['service_site_a'] = cutover.interruption_location_a_id
                     self.fields['service_site_a'].initial = cutover.interruption_location_a_id

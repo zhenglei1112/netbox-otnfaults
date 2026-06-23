@@ -1,3 +1,14 @@
+## 2026-06-23 故障模型省份必填与割接超时/影响非必填及协调状态修改
+- [x] 修改 `OtnFault.province` 模型字段，移除 `blank=True, null=True` 使其在数据库和表单中为必填。
+- [x] 修改 `OtnFaultForm.province` 字段声明，将 `required=False` 改为 `required=True`。
+- [x] 修改 `CutoverTask.is_timeout` 模型字段，添加 `blank=True` 允许在表单中非必填。
+- [x] 修改 `CutoverImpact` 的 `business_impact` 和 `service_interruption_time` 为非必填。
+- [x] 扩展 `CutoverCoordinationStatusChoices` 选项，增加 `pending`（待协调）选项，并设为 `CutoverImpact.coordination_status` 的默认值。
+- [x] 调整 `CutoverImpactForm` 表单，将 `coordination_status` 字段移入“业务信息”组。
+- [x] 调整 `views.py`，在重新生成割接时间时，将关联业务状态重置为“待协调”（`pending`）。
+- [x] 更新数据库迁移文件 `0088_alter_otnfault_province_and_more.py`，包含上述所有字段变更操作。
+- [x] 运行全部单元测试以确保修改不影响现有逻辑。
+
 ## 2026-06-19 修复 III 类故障卡片下钻
 - [x] 增加回归测试，锁定 III 类卡片注册统一下钻点击类。
 - [x] 补齐 III 类卡片点击事件入口，不修改等级统计和过滤口径。
