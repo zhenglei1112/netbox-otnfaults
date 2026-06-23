@@ -1635,7 +1635,71 @@ class CutoverImpactEditView(generic.ObjectEditView):
     form = CutoverImpactForm
     template_name = 'netbox_otnfaults/cutoverimpact_edit.html'
 
+    def post(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        
+        # 1. 解析割接任务
+        cutover_task_id = request.POST.get('cutover_task')
+        cutover_task = None
+        if cutover_task_id:
+            try:
+                cutover_task = CutoverTask.objects.get(pk=cutover_task_id)
+            except (CutoverTask.DoesNotExist, ValueError):
+                pass
+        
+        # 2. 解析受影响业务及业务主管
+        service_type = request.POST.get('service_type')
+        business_manager = None
+        if service_type == 'bare_fiber':
+            bare_fiber_service_id = request.POST.get('bare_fiber_service')
+            if bare_fiber_service_id:
+                try:
+                    business_manager = BareFiberService.objects.get(pk=bare_fiber_service_id).business_manager
+                except (BareFiberService.DoesNotExist, ValueError):
+                    pass
+        elif service_type == 'circuit':
+            circuit_service_id = request.POST.get('circuit_special_line_name') or request.POST.get('circuit_service')
+            if circuit_service_id:
+                try:
+                    business_manager = CircuitService.objects.get(pk=circuit_service_id).business_manager
+                except (CircuitService.DoesNotExist, ValueError):
+                    pass
+        
+        # 如果是编辑已有对象，且 POST 数据中没有对应字段，则回退使用数据库现有字段做兜底
+        if obj.pk:
+            if not cutover_task:
+                cutover_task = obj.cutover_task
+            if not business_manager:
+                if obj.service_type == 'bare_fiber' and obj.bare_fiber_service:
+                    business_manager = obj.bare_fiber_service.business_manager
+                elif obj.service_type == 'circuit' and obj.circuit_service:
+                    business_manager = obj.circuit_service.business_manager
+        
+        line_supervisor = cutover_task.line_supervisor if cutover_task else None
 
+        # 3. 校验权限
+        is_authorized = False
+        if request.user.is_superuser:
+            is_authorized = True
+        if line_supervisor and line_supervisor == request.user:
+            is_authorized = True
+        if business_manager and business_manager == request.user:
+            is_authorized = True
+            
+        if not is_authorized:
+            # 实例化表单回填数据，并将权限不足错误加入表单中
+            form = self.form(data=request.POST, files=request.FILES, instance=obj)
+            form.add_error(None, "你不是当前割接/业务的线路（业务）主管，无法修改业务状态。")
+            return render(request, self.template_name, {
+                'model': self.queryset.model,
+                'object': obj,
+                'form': form,
+                'return_url': self.get_return_url(request, obj),
+                'show_permission_denied_modal': True,
+                **(self.get_extra_context(request, obj) or {}),
+            })
+            
+        return super().post(request, *args, **kwargs)
 
     def alter_object(self, obj, request, args, kwargs):
         if not obj.pk:
