@@ -395,4 +395,110 @@
     });
   }
 })();</script>
+
+<!-- 自动更新割接状态的提示模态框 -->
+<style>
+  #cutoverStatusNoticeBackdrop {
+    background-color: #808080;
+    opacity: 0.5;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1040;
+    width: 100vw;
+    height: 100vh;
+  }
+  .cutover-status-notice-dialog {
+    width: min(500px, calc(100vw - 2rem));
+    max-width: 500px;
+  }
+  .cutover-status-notice-btn {
+    width: 120px;
+  }
+</style>
+
+<div class="modal fade" id="cutoverStatusNoticeModal" tabindex="-1" aria-labelledby="cutoverStatusNoticeModalLabel" aria-hidden="true" style="display: none;">
+  <div class="modal-dialog modal-dialog-centered cutover-status-notice-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="cutoverStatusNoticeModalLabel">系统提示</h5>
+        <button type="button" class="btn-close" onclick="hideCutoverStatusNoticeModal()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-center mb-0">
+          <i class="mdi mdi-checkbox-marked-circle-outline text-success me-3" style="font-size: 2rem;"></i>
+          <span style="font-size: 1.05rem; font-weight: 500;">所有影响业务均已批准（含强制割接），本次割接状态已被自动设置为待实施</span>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-secondary cutover-status-notice-btn" id="cutoverStatusNoticeCloseBtn" onclick="hideCutoverStatusNoticeModal()">
+          关闭 (3s)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop fade show" id="cutoverStatusNoticeBackdrop" style="display: none;"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  const modalEl = document.getElementById('cutoverStatusNoticeModal');
+  const backdropEl = document.getElementById('cutoverStatusNoticeBackdrop');
+  const closeBtn = document.getElementById('cutoverStatusNoticeCloseBtn');
+
+  if (!modalEl || !backdropEl || !closeBtn) return;
+
+  window.showCutoverStatusNoticeModal = function() {
+    modalEl.classList.add('show');
+    modalEl.style.display = 'block';
+    modalEl.setAttribute('aria-hidden', 'false');
+    backdropEl.style.display = 'block';
+    document.body.classList.add('modal-open');
+
+    let timeLeft = 3;
+    closeBtn.textContent = `关闭 (${timeLeft}s)`;
+
+    const countdownTimer = setInterval(function() {
+      timeLeft--;
+      if (timeLeft <= 0) {
+        clearInterval(countdownTimer);
+        window.hideCutoverStatusNoticeModal();
+      } else {
+        closeBtn.textContent = `关闭 (${timeLeft}s)`;
+      }
+    }, 1000);
+
+    modalEl.dataset.timerId = countdownTimer;
+  };
+
+  window.hideCutoverStatusNoticeModal = function() {
+    if (modalEl.dataset.timerId) {
+      clearInterval(parseInt(modalEl.dataset.timerId));
+      modalEl.removeAttribute('data-timer-id');
+    }
+    modalEl.classList.remove('show');
+    modalEl.style.display = 'none';
+    modalEl.setAttribute('aria-hidden', 'true');
+    backdropEl.style.display = 'none';
+    document.body.classList.remove('modal-open');
+  };
+
+  modalEl.addEventListener('click', function(event) {
+    if (event.target === modalEl) {
+      window.hideCutoverStatusNoticeModal();
+    }
+  });
+
+  // 通过 Django Context 的 show_auto_set_pending 变量来控制弹窗触发
+  {% if show_auto_set_pending %}
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.showCutoverStatusNoticeModal);
+  } else {
+    window.showCutoverStatusNoticeModal();
+  }
+  {% endif %}
+})();
+</script>
 {% endblock %}

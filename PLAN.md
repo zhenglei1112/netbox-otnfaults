@@ -1,3 +1,10 @@
+## 2026-06-23 修复割接保存时 property 'url' 报错
+- [x] 移除割接保存视图中对 HttpResponseRedirect ['Location'] 追加参数的侵入式重定向修改。
+- [x] 在 `CutoverTaskEditView.post()` 中，当状态自动流转为待实施时，改用 Django Session `request.session['cutover_auto_set_pending'] = True` 传递一次性弹窗标记。
+- [x] 在 `CutoverTaskView.get_extra_context()` 中通过 `request.session.pop` 获取该标记并传给模板 Context。
+- [x] 修改 `cutovertask.html`，移除 URLSearchParams 相关的 JS 读取和清理逻辑，改为直接通过 `{% if show_auto_set_pending %}` 渲染 JS 来弹窗。
+- [x] 修改单元测试 `test_cutover_status_auto_set.py` 断言，使静态断言全部顺利通过。
+
 ## 2026-06-23 故障模型省份必填与割接超时/影响非必填及协调状态修改
 - [x] 修改 `OtnFault.province` 模型字段，移除 `blank=True, null=True` 使其在数据库和表单中为必填。
 - [x] 修改 `OtnFaultForm.province` 字段声明，将 `required=False` 改为 `required=True`。
@@ -2494,3 +2501,10 @@
 - [x] 增加源码级回归测试，锁定 `次/千公里` 通过文字 padding 向下移动到柱状图区上方。
 - [x] 调整 `statistics_dashboard.js` 中计数轴单位的 `nameTextStyle.padding` 为 48px，使其低于折线零线并落在右侧两个单位标识之间。
 - [x] 运行子公司统计定向测试和 JS 语法检查。
+
+
+## 2026-06-23 自动割接状态与提示 (更正为割接模型)
+- [x] 后端：在 CutoverTask.save() 中实现当影响业务全部为已批准或强制割接时，自动将关联割接状态变更为‘待实施’
+- [x] 后端：在 CutoverTaskEditView.post() 中判断割接状态是否因本次保存而转为‘待实施’，并发送 show_cutover_status_modal 标记 message
+- [x] 前端：在 cutovertask.html 详情页模板底部追加 Modal 对话框和 JS 定时器逻辑，实现3秒自动关闭和倒计时
+- [x] 验证：在浏览器或后台中测试状态流转及倒计时关闭提示弹窗交互。

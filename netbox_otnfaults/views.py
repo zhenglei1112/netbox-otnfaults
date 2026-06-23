@@ -1446,11 +1446,13 @@ class CutoverTaskView(generic.ObjectView):
         per_page = int(request.GET.get('impact-per_page', request.GET.get('impact_per_page', 25)))
         RequestConfig(request, paginate={'per_page': per_page}).configure(impacts_table)
 
+        show_auto_set_pending = request.session.pop('cutover_auto_set_pending', False)
+
         return {
             'impacts_table': impacts_table,
             'impacts_count': all_impacts.count(),
             'generated_fault': instance.generated_faults.order_by('-created').first(),
-
+            'show_auto_set_pending': show_auto_set_pending,
         }
 
 
@@ -1562,7 +1564,20 @@ class CutoverTaskEditView(generic.ObjectEditView):
     form = CutoverTaskForm
     template_name = 'netbox_otnfaults/cutovertask_edit.html'
 
+    def post(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        old_status = None
+        if obj.pk:
+            old_status = obj.status
 
+        response = super().post(request, *args, **kwargs)
+
+        if obj.pk:
+            obj.refresh_from_db()
+            new_status = obj.status
+            if old_status != 'pending_implementation' and new_status == 'pending_implementation':
+                request.session['cutover_auto_set_pending'] = True
+        return response
 
     def alter_object(self, obj, request, args, kwargs):
         if not obj.pk and not getattr(obj, 'registrant_id', None):
