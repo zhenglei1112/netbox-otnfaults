@@ -1,0 +1,254 @@
+<style>
+  .otn-cutovers-widget {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 8px 4px;
+  }
+  .otn-cutover-day-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .otn-cutover-day-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--nbx-body-color, #495057);
+    border-bottom: 1px dashed var(--nbx-border-color, #dee2e6);
+    padding-bottom: 6px;
+    margin-bottom: 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .otn-cutover-day-title .badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #ffffff !important;
+  }
+  .otn-cutover-card {
+    display: block;
+    text-decoration: none;
+    color: var(--nbx-body-color, #212529) !important;
+    background-color: var(--nbx-card-bg, #ffffff);
+    border: 1px solid var(--nbx-border-color, #dee2e6);
+    border-radius: 6px;
+    padding: 10px 12px;
+    transition: all 0.2s ease-in-out;
+    position: relative;
+    overflow: hidden;
+  }
+  .otn-cutover-card:hover {
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+    border-color: var(--nbx-primary, #0d6efd);
+  }
+  /* 割接左侧颜色竖线条 */
+  .otn-cutover-card {
+    border-left-width: 4px !important;
+  }
+  .border-left-fiber { border-left-color: #0d6efd !important; }
+  .border-left-power { border-left-color: #fd7e14 !important; }
+  .border-left-room { border-left-color: #198754 !important; }
+  
+  /* 当前用户主管高亮样式 */
+  .otn-cutover-card.my-supervised-task {
+    background-color: #fffdf5 !important;
+    border-color: #ffe082 !important;
+    border-left: 5px solid #ffb300 !important;
+    box-shadow: 0 2px 5px rgba(255, 179, 0, 0.1);
+  }
+  html[data-bs-theme="dark"] .otn-cutover-card.my-supervised-task {
+    background-color: rgba(255, 179, 0, 0.06) !important;
+    border-color: rgba(255, 179, 0, 0.3) !important;
+    border-left: 5px solid #ffb300 !important;
+    box-shadow: 0 2px 5px rgba(255, 179, 0, 0.05);
+  }
+  .otn-cutover-card.my-supervised-task:hover {
+    border-color: #ffb300 !important;
+    box-shadow: 0 4px 10px rgba(255, 179, 0, 0.2);
+  }
+  
+  .otn-cutover-row-1 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .otn-cutover-time {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--nbx-body-color, #212529);
+  }
+  .otn-cutover-card.my-supervised-task .otn-cutover-time {
+    color: #b7791f;
+  }
+  html[data-bs-theme="dark"] .otn-cutover-card.my-supervised-task .otn-cutover-time {
+    color: #fbd38d;
+  }
+  .otn-cutover-badges {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .otn-cutover-badges .badge {
+    color: #ffffff !important;
+  }
+  .otn-cutover-row-2 {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--nbx-body-color, #495057);
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .otn-cutover-row-3 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: #6c757d;
+  }
+  .otn-cutover-no-text {
+    font-family: var(--font-monospace, monospace);
+    font-weight: 500;
+  }
+  .otn-cutover-manager-badge {
+    background-color: #ffe082;
+    color: #5d4037;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  html[data-bs-theme="dark"] .otn-cutover-manager-badge {
+    background-color: rgba(255, 179, 0, 0.2);
+    color: #ffe082;
+  }
+  .otn-cutover-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 8px;
+    border: 1px dashed var(--nbx-border-color, #dee2e6);
+    border-radius: 6px;
+    color: #6c757d;
+    background-color: rgba(0, 0, 0, 0.01);
+  }
+  html[data-bs-theme="dark"] .otn-cutover-empty-state {
+    background-color: rgba(255, 255, 255, 0.01);
+  }
+  .otn-cutover-empty-icon {
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+    color: #adb5bd;
+  }
+  .otn-cutover-empty-text {
+    font-size: 0.72rem;
+    font-style: italic;
+  }
+</style>
+
+<div class="otn-cutovers-widget">
+  <!-- 今日割接段 -->
+  <div class="otn-cutover-day-group">
+    <div class="otn-cutover-day-title">
+      <span>今日割接 ({{ today|date:"Y-m-d" }})</span>
+      <span class="badge bg-secondary rounded-pill">{{ today_cutovers|length }}</span>
+    </div>
+    
+    {% if today_cutovers %}
+      {% for cutover in today_cutovers %}
+        <a class="otn-cutover-card border-left-{{ cutover.cutover_type }} {% if cutover.is_my_task %}my-supervised-task{% endif %}" 
+           href="{{ cutover.url }}" 
+           title="点击查看割接详情">
+          <div class="otn-cutover-row-1">
+            <span class="otn-cutover-time">
+              <i class="mdi mdi-clock-outline me-1"></i>{{ cutover.planned_time|date:"H:i" }}
+            </span>
+            <div class="otn-cutover-badges">
+              <span class="badge bg-{{ cutover.cutover_type_color }}">{{ cutover.cutover_type_display }}</span>
+              <span class="badge bg-{{ cutover.status_color }}">{{ cutover.status_display }}</span>
+            </div>
+          </div>
+          
+          <div class="otn-cutover-row-2" title="{{ cutover.province }} - {{ cutover.location }}">
+            {% if cutover.province %}<strong>[{{ cutover.province }}]</strong> {% endif %}{{ cutover.location }}
+          </div>
+          
+          <div class="otn-cutover-row-3">
+            <span class="otn-cutover-no-text">{{ cutover.cutover_no }}</span>
+            <span>
+              {% if cutover.is_my_task %}
+                <span class="otn-cutover-manager-badge">
+                  <i class="mdi mdi-star"></i>我主管
+                </span>
+              {% else %}
+                <i class="mdi mdi-account-outline me-1"></i>{% if cutover.line_supervisor %}{{ cutover.line_supervisor }}{% else %}无主管{% endif %}
+              {% endif %}
+            </span>
+          </div>
+        </a>
+      {% endfor %}
+    {% else %}
+      <div class="otn-cutover-empty-state">
+        <i class="mdi mdi-calendar-blank-outline otn-cutover-empty-icon"></i>
+        <span class="otn-cutover-empty-text">今日无计划割接任务</span>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- 明日割接段 -->
+  <div class="otn-cutover-day-group">
+    <div class="otn-cutover-day-title">
+      <span>明日割接 ({{ tomorrow|date:"Y-m-d" }})</span>
+      <span class="badge bg-secondary rounded-pill">{{ tomorrow_cutovers|length }}</span>
+    </div>
+    
+    {% if tomorrow_cutovers %}
+      {% for cutover in tomorrow_cutovers %}
+        <a class="otn-cutover-card border-left-{{ cutover.cutover_type }} {% if cutover.is_my_task %}my-supervised-task{% endif %}" 
+           href="{{ cutover.url }}" 
+           title="点击查看割接详情">
+          <div class="otn-cutover-row-1">
+            <span class="otn-cutover-time">
+              <i class="mdi mdi-clock-outline me-1"></i>{{ cutover.planned_time|date:"H:i" }}
+            </span>
+            <div class="otn-cutover-badges">
+              <span class="badge bg-{{ cutover.cutover_type_color }}">{{ cutover.cutover_type_display }}</span>
+              <span class="badge bg-{{ cutover.status_color }}">{{ cutover.status_display }}</span>
+            </div>
+          </div>
+          
+          <div class="otn-cutover-row-2" title="{{ cutover.province }} - {{ cutover.location }}">
+            {% if cutover.province %}<strong>[{{ cutover.province }}]</strong> {% endif %}{{ cutover.location }}
+          </div>
+          
+          <div class="otn-cutover-row-3">
+            <span class="otn-cutover-no-text">{{ cutover.cutover_no }}</span>
+            <span>
+              {% if cutover.is_my_task %}
+                <span class="otn-cutover-manager-badge">
+                  <i class="mdi mdi-star"></i>我主管
+                </span>
+              {% else %}
+                <i class="mdi mdi-account-outline me-1"></i>{% if cutover.line_supervisor %}{{ cutover.line_supervisor }}{% else %}无主管{% endif %}
+              {% endif %}
+            </span>
+          </div>
+        </a>
+      {% endfor %}
+    {% else %}
+      <div class="otn-cutover-empty-state">
+        <i class="mdi mdi-calendar-blank-outline otn-cutover-empty-icon"></i>
+        <span class="otn-cutover-empty-text">明日无计划割接任务</span>
+      </div>
+    {% endif %}
+  </div>
+</div>

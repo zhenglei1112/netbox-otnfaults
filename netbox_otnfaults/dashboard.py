@@ -1,4 +1,4 @@
-﻿import json
+import json
 import traceback
 import calendar
 from datetime import date, timedelta
@@ -315,6 +315,80 @@ class OtnFaultsPendingReviewWidget(DashboardWidget):
                 {
                     'pending_count': pending_count,
                     'review_url': review_url,
+                },
+                request=request,
+            )
+        except Exception as e:
+            error_trace = traceback.format_exc()
+            return f'<div class="alert alert-danger"><pre style="font-size:11px;white-space:pre-wrap">{error_trace}</pre></div>'
+
+
+@register_widget
+class OtnTodayTomorrowCutoverWidget(DashboardWidget):
+    """今明割接任务小组件：直观展示今日和明日的割接任务，由当前用户作为线路主管的任务将高亮显示。"""
+    default_title = "今明割接任务"
+    description = "展示今日与明日的计划割接任务，由当前用户负责主管的任务将在列表中高亮显示。"
+    width = 4
+    height = 4
+
+    def render(self, request) -> str:
+        try:
+            # 获取本地时间与今天、明天日期
+            now = timezone.localtime()
+            today = now.date()
+            tomorrow = today + timedelta(days=1)
+
+            # 查询这两天计划的割接任务，并使用 restrict 限制权限
+            cutovers = (
+                CutoverTask.objects.restrict(request.user, 'view')
+                .select_related('province', 'line_supervisor')
+                .filter(
+                    planned_cutover_time__date__in=[today, tomorrow]
+                )
+                .order_by('planned_cutover_time')
+            )
+
+            # 按今日/明日归类
+            today_cutovers: list[dict[str, object]] = []
+            tomorrow_cutovers: list[dict[str, object]] = []
+
+            for cutover in cutovers:
+                cutover_local_time = timezone.localtime(cutover.planned_cutover_time)
+                cutover_date = cutover_local_time.date()
+
+                # 校验主管是否为当前登录用户
+                is_my_task = False
+                if request.user.is_authenticated and cutover.line_supervisor_id == request.user.pk:
+                    is_my_task = True
+
+                cutover_data = {
+                    'cutover_no': cutover.cutover_no,
+                    'planned_time': cutover_local_time,
+                    'cutover_type': cutover.cutover_type,
+                    'cutover_type_display': cutover.get_cutover_type_display(),
+                    'cutover_type_color': cutover.get_cutover_type_color() or 'secondary',
+                    'province': cutover.province,
+                    'location': cutover.cutover_location,
+                    'status': cutover.status,
+                    'status_display': cutover.get_status_display(),
+                    'status_color': cutover.get_status_color() or 'secondary',
+                    'line_supervisor': cutover.line_supervisor,
+                    'is_my_task': is_my_task,
+                    'url': cutover.get_absolute_url(),
+                }
+
+                if cutover_date == today:
+                    today_cutovers.append(cutover_data)
+                elif cutover_date == tomorrow:
+                    tomorrow_cutovers.append(cutover_data)
+
+            return render_to_string(
+                'netbox_otnfaults/inc/dashboard_today_tomorrow_cutover_widget.html',
+                {
+                    'today_cutovers': today_cutovers,
+                    'tomorrow_cutovers': tomorrow_cutovers,
+                    'today': today,
+                    'tomorrow': tomorrow,
                 },
                 request=request,
             )
