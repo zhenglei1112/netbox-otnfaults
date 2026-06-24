@@ -341,7 +341,8 @@ class OtnTodayTomorrowCutoverWidget(DashboardWidget):
             # 查询这两天计划的割接任务，并使用 restrict 限制权限
             cutovers = (
                 CutoverTask.objects.restrict(request.user, 'view')
-                .select_related('province', 'line_supervisor')
+                .select_related('province', 'line_supervisor', 'interruption_location_a')
+                .prefetch_related('interruption_location')
                 .filter(
                     planned_cutover_time__date__in=[today, tomorrow]
                 )
@@ -361,6 +362,11 @@ class OtnTodayTomorrowCutoverWidget(DashboardWidget):
                 if request.user.is_authenticated and cutover.line_supervisor_id == request.user.pk:
                     is_my_task = True
 
+                # 提取 A端 与 Z端 站点信息
+                site_a_name = cutover.interruption_location_a.name if cutover.interruption_location_a else '无'
+                site_z_names = [site.name for site in cutover.interruption_location.all()]
+                site_z_display = ', '.join(site_z_names) if site_z_names else '无'
+
                 cutover_data = {
                     'cutover_no': cutover.cutover_no,
                     'planned_time': cutover_local_time,
@@ -375,6 +381,8 @@ class OtnTodayTomorrowCutoverWidget(DashboardWidget):
                     'line_supervisor': cutover.line_supervisor,
                     'is_my_task': is_my_task,
                     'url': cutover.get_absolute_url(),
+                    'site_a': site_a_name,
+                    'site_z': site_z_display,
                 }
 
                 if cutover_date == today:
