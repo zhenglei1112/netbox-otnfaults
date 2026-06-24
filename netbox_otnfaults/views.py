@@ -473,61 +473,34 @@ class OtnFaultEditView(generic.ObjectEditView):
         
         # 1. 检查是不是超级用户
         if not request.user.is_superuser:
-            # 获取提交的值
-            new_manager_reviewed = 'manager_reviewed' in request.POST
-            new_noc_reviewed = 'noc_reviewed' in request.POST
-            
-            # 初始化权限判定
-            has_manager_reviewed_error = False
-            has_noc_reviewed_error = False
+            # 拷贝一份 post 数据使其可变，用以修正非主管用户由于 disabled 属性未提交字段时的数据丢失，
+            # 或者是强行将其越权提交重置为数据库中的原有值，从而不限制其对其他常规字段的正常保存。
+            post_data = request.POST.copy()
             
             if obj.pk:
                 # 编辑已有故障
-                orig_manager_reviewed = obj.manager_reviewed
-                orig_noc_reviewed = obj.noc_reviewed
-                
-                # 校验线路主管复核变更
-                if new_manager_reviewed != orig_manager_reviewed:
-                    if obj.line_manager != request.user:
-                        has_manager_reviewed_error = True
+                # 1.1 校验线路主管复核修改权
+                if obj.line_manager != request.user:
+                    if obj.manager_reviewed:
+                        post_data['manager_reviewed'] = 'on'
+                    else:
+                        post_data.pop('manager_reviewed', None)
                         
-                # 校验网管人员复核变更
-                if new_noc_reviewed != orig_noc_reviewed:
-                    orig_ops_managers = list(obj.operations_manager.all())
-                    if request.user not in orig_ops_managers:
-                        has_noc_reviewed_error = True
+                # 1.2 校验网管人员复核修改权
+                orig_ops_managers = list(obj.operations_manager.all())
+                if request.user not in orig_ops_managers:
+                    if obj.noc_reviewed:
+                        post_data['noc_reviewed'] = 'on'
+                    else:
+                        post_data.pop('noc_reviewed', None)
             else:
-                # 新建故障
-                if new_manager_reviewed:
-                    has_manager_reviewed_error = True
-                if new_noc_reviewed:
-                    has_noc_reviewed_error = True
-                    
-            if has_manager_reviewed_error or has_noc_reviewed_error:
-                # 权限不足，进行拦截
-                # 实例化表单回填数据
-                form = self.form(data=request.POST, files=request.FILES, instance=obj)
+                # 新建故障时，任何人皆不能勾选复核，强行将其剥除
+                post_data.pop('manager_reviewed', None)
+                post_data.pop('noc_reviewed', None)
                 
-                if has_manager_reviewed_error:
-                    form.add_error('manager_reviewed', '只有当前故障的线路主管才可以进行复核操作。')
-                if has_noc_reviewed_error:
-                    form.add_error('noc_reviewed', '只有当前故障的运维主管才可以进行复核操作。')
-                    
-                # 渲染错误页面并弹出前端的模态框错误提示
-                return render(
-                    request,
-                    self.template_name,
-                    {
-                        'model': self.queryset.model,
-                        'object': obj,
-                        'form': form,
-                        'return_url': self.get_return_url(request, obj),
-                        'show_permission_denied_modal': True,
-                        'permission_denied_message': '由于权限不足，复核操作已被拦截。' if has_manager_reviewed_error and has_noc_reviewed_error else ('只有当前故障的线路主管才可以进行复核操作。' if has_manager_reviewed_error else '只有当前故障的运维主管才可以进行复核操作。'),
-                        **self.get_extra_context(request, obj),
-                    },
-                )
-                
+            # 将重写后的数据覆盖写回 request.POST
+            request.POST = post_data
+            
         return super().post(request, *args, **kwargs)
 
 class OtnFaultDeleteView(generic.ObjectDeleteView):
