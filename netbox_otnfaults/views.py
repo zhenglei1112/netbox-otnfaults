@@ -468,6 +468,68 @@ class OtnFaultEditView(generic.ObjectEditView):
             },
         )
 
+    def post(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        
+        # 1. 检查是不是超级用户
+        if not request.user.is_superuser:
+            # 获取提交的值
+            new_manager_reviewed = 'manager_reviewed' in request.POST
+            new_noc_reviewed = 'noc_reviewed' in request.POST
+            
+            # 初始化权限判定
+            has_manager_reviewed_error = False
+            has_noc_reviewed_error = False
+            
+            if obj.pk:
+                # 编辑已有故障
+                orig_manager_reviewed = obj.manager_reviewed
+                orig_noc_reviewed = obj.noc_reviewed
+                
+                # 校验线路主管复核变更
+                if new_manager_reviewed != orig_manager_reviewed:
+                    if obj.line_manager != request.user:
+                        has_manager_reviewed_error = True
+                        
+                # 校验网管人员复核变更
+                if new_noc_reviewed != orig_noc_reviewed:
+                    orig_ops_managers = list(obj.operations_manager.all())
+                    if request.user not in orig_ops_managers:
+                        has_noc_reviewed_error = True
+            else:
+                # 新建故障
+                if new_manager_reviewed:
+                    has_manager_reviewed_error = True
+                if new_noc_reviewed:
+                    has_noc_reviewed_error = True
+                    
+            if has_manager_reviewed_error or has_noc_reviewed_error:
+                # 权限不足，进行拦截
+                # 实例化表单回填数据
+                form = self.form(data=request.POST, files=request.FILES, instance=obj)
+                
+                if has_manager_reviewed_error:
+                    form.add_error('manager_reviewed', '只有当前故障的线路主管才可以进行复核操作。')
+                if has_noc_reviewed_error:
+                    form.add_error('noc_reviewed', '只有当前故障的运维主管才可以进行复核操作。')
+                    
+                # 渲染错误页面并弹出前端的模态框错误提示
+                return render(
+                    request,
+                    self.template_name,
+                    {
+                        'model': self.queryset.model,
+                        'object': obj,
+                        'form': form,
+                        'return_url': self.get_return_url(request, obj),
+                        'show_permission_denied_modal': True,
+                        'permission_denied_message': '由于权限不足，复核操作已被拦截。' if has_manager_reviewed_error and has_noc_reviewed_error else ('只有当前故障的线路主管才可以进行复核操作。' if has_manager_reviewed_error else '只有当前故障的运维主管才可以进行复核操作。'),
+                        **self.get_extra_context(request, obj),
+                    },
+                )
+                
+        return super().post(request, *args, **kwargs)
+
 class OtnFaultDeleteView(generic.ObjectDeleteView):
     """OTN故障删除视图"""
     queryset = OtnFault.objects.all()

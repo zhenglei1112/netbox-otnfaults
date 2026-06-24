@@ -796,8 +796,47 @@
         applyOperationsManagerDefaults(initialCategoryValue, { preserveExisting: true });
     }
 
-    // 故障复核逻辑：自动填入操作人与当前时间
+    // 权限错误警告 Modal 展现函数
+    function showPermissionErrorModal(message) {
+        const modalEl = document.getElementById('permissionErrorModal');
+        const msgEl = document.getElementById('permissionErrorModalMessage');
+        if (msgEl) msgEl.textContent = message;
+
+        if (window.bootstrap && window.bootstrap.Modal) {
+            const modal = new window.bootstrap.Modal(modalEl);
+            modal.show();
+        } else {
+            // 回退方案：如果 Bootstrap 未加载，使用手动 DOM 控制
+            const backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop fade show';
+            backdrop.style.opacity = '0.5';
+            document.body.appendChild(backdrop);
+            
+            modalEl.style.display = 'block';
+            modalEl.classList.add('show');
+            modalEl.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+            
+            const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"]');
+            const handler = function() {
+                modalEl.classList.remove('show');
+                modalEl.style.display = 'none';
+                modalEl.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('modal-open');
+                backdrop.remove();
+                closeButtons.forEach(btn => btn.removeEventListener('click', handler));
+            };
+            closeButtons.forEach(btn => btn.addEventListener('click', handler));
+        }
+    }
+
+    // 故障复核逻辑：自动填入操作人与当前时间，并添加权限判定
     function initReviewLogic() {
+        const currentUserId = "{{ request.user.id|default:'' }}";
+        const isSuperUser = {% if request.user.is_superuser %}true{% else %}false{% endif %};
+        const faultLineManagerId = "{{ form.instance.line_manager.id|default:'' }}";
+        const faultOpsManagerIds = [{% for u in form.instance.operations_manager.all %}"{{ u.id }}",{% endfor %}];
+
         const currentUser = "{{ request.user.first_name }}{{ request.user.last_name }}" || "{{ request.user.username }}";
         const ongoingImpactCountAttr = 'data-ongoing-impact-count';
         const ongoingImpactWarningAttr = 'data-ongoing-impact-warning';
@@ -808,6 +847,25 @@
             const timeEl = document.getElementById(timeId);
             
             if (checkEl && nameEl && timeEl) {
+                // 在 click 阶段拦截权限
+                checkEl.addEventListener('click', function(e) {
+                    if (!isSuperUser) {
+                        if (checkId === 'id_manager_reviewed') {
+                            if (currentUserId !== faultLineManagerId) {
+                                e.preventDefault();
+                                showPermissionErrorModal('只有当前故障的线路主管才可以进行复核操作。');
+                                return;
+                            }
+                        } else if (checkId === 'id_noc_reviewed') {
+                            if (!faultOpsManagerIds.includes(currentUserId)) {
+                                e.preventDefault();
+                                showPermissionErrorModal('只有当前故障的运维主管才可以进行复核操作。');
+                                return;
+                            }
+                        }
+                    }
+                });
+
                 checkEl.addEventListener('change', function() {
                     if (this.checked) {
                         const ongoingImpactCount = Number(checkEl.getAttribute(ongoingImpactCountAttr) || '0');
@@ -837,6 +895,13 @@
         
         setupReviewerSync('id_manager_reviewed', 'id_manager_reviewer', 'id_manager_review_time');
         setupReviewerSync('id_noc_reviewed', 'id_noc_reviewer', 'id_noc_review_time');
+
+        // 检测后端返回的拦截状态并自动弹窗提示
+        const showBackendError = {% if show_permission_denied_modal %}true{% else %}false{% endif %};
+        const backendErrorMessage = "{{ permission_denied_message|escapejs }}";
+        if (showBackendError && backendErrorMessage) {
+            showPermissionErrorModal(backendErrorMessage);
+        }
     }
 
     function initErrorFieldFocus() {
@@ -1030,6 +1095,32 @@
     }
 })();
 </script>
+
+<!-- 权限错误模态窗口 -->
+<div class="modal fade" id="permissionErrorModal" tabindex="-1" aria-labelledby="permissionErrorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white py-2">
+                <h5 class="modal-title" id="permissionErrorModalLabel">
+                    <i class="mdi mdi-alert-circle-outline me-1"></i>权限错误
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex align-items-center">
+                    <span class="text-danger me-3" style="font-size: 2.2rem;">
+                        <i class="mdi mdi-shield-alert-outline"></i>
+                    </span>
+                    <p class="mb-0 text-secondary" id="permissionErrorModalMessage" style="font-size: 1rem; line-height: 1.5;"></p>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top-0 py-2">
+                <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">确定</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% include 'netbox_otnfaults/inc/flatpickr_zh.html' %}
 {% include 'netbox_otnfaults/inc/duration_calc.html' %}
 {% endblock %}
