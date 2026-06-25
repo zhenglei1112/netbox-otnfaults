@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netbox-otnfaults"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
-  { name="OTN Faults Team", email="otnfaults@example.com" },
+  { name="zhenglei", email="zl@zhhao.net" },
 ]
 
 description = "OTN Network Fault Registration plugin for Netbox"
@@ -37,10 +37,10 @@ classifiers = [
 dev = ["check-manifest", "ruff", "pytest", "pytest-django"]
 
 [project.urls]
-"Homepage" = "https://github.com/your-org/netbox-otnfaults"
-"Bug Tracker" = "https://github.com/your-org/netbox-otnfaults/issues"
-"Documentation" = "https://github.com/your-org/netbox-otnfaults/wiki"
-"Changelog" = "https://github.com/your-org/netbox-otnfaults/blob/main/CHANGELOG.md"
+"Homepage" = "https://github.com/zhenglei1112/netbox-otnfaults"
+"Bug Tracker" = "https://github.com/zhenglei1112/netbox-otnfaults/issues"
+"Documentation" = "https://github.com/zhenglei1112/netbox-otnfaults/wiki"
+"Changelog" = "https://github.com/zhenglei1112/netbox-otnfaults/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
 packages = [

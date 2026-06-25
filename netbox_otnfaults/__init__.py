@@ -4,10 +4,10 @@ class OtnFaultsConfig(PluginConfig):
     name = 'netbox_otnfaults'
     verbose_name = '故障管理'
     description = '网络故障登记系统'
-    version = '0.1.0'
+    version = '0.1.1'
     base_url = 'otnfaults'
-    author = 'OTN Faults Team'
-    author_email = 'otnfaults@example.com'
+    author = 'zhenglei'
+    author_email = 'zl@zhhao.net'
     required_settings = []
     # 全局加载的CSS文件（所有页面都会引入）
     css = ['netbox_otnfaults/css/duration_bar.css']
