@@ -4202,8 +4202,9 @@ document.addEventListener("DOMContentLoaded", function() {
             url += `&service_key=${encodeURIComponent(activeServiceDetailFilterKey)}`;
         }
 
+        const colspan = tbodyId === 'service-details-tbody' ? 11 : 8;
         const tbody = document.getElementById(tbodyId);
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>`;
 
         try {
             const response = await fetch(url);
@@ -4213,7 +4214,7 @@ document.addEventListener("DOMContentLoaded", function() {
             renderServiceDetailsTableHtml(results, serviceType, tbodyId, badgeId, clearButtonId);
         } catch (error) {
             console.error(`Fetch ${serviceType} details error:`, error);
-            tbody.innerHTML = '<tr><td colspan="8" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>`;
         }
     }
 
@@ -4248,8 +4249,9 @@ document.addEventListener("DOMContentLoaded", function() {
             };
         }
 
+        const colspan = tbodyId === 'service-details-tbody' ? 11 : 8;
         if (results.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">当前条件下无可展示的业务故障明细</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center py-4 text-muted">当前条件下无可展示的业务故障明细</td></tr>`;
             return;
         }
 
@@ -4261,16 +4263,33 @@ document.addEventListener("DOMContentLoaded", function() {
             const impactLink = item.impact_url
                 ? `<a href="${escapeHtml(item.impact_url)}" target="_blank">查看</a>`
                 : '-';
-            return `<tr>
-                <td>${faultLink}</td>
-                <td>${escapeHtml(item.service_name || '-')}</td>
-                <td>${escapeHtml(item.service_interruption_time || '-')}</td>
-                <td>${escapeHtml(item.service_recovery_time || '-')}</td>
-                <td><strong class="${item.is_long ? 'text-danger' : ''}">${escapeHtml(item.duration || 0)}</strong></td>
-                <td>${escapeHtml(item.fault_category || '-')}</td>
-                <td>${impactLink}</td>
-                <td>${badges}</td>
-            </tr>`;
+            
+            if (serviceType === '裸纤业务') {
+                return `<tr>
+                    <td>${faultLink}</td>
+                    <td>${escapeHtml(item.service_name || '-')}</td>
+                    <td>${escapeHtml(item.fault_province || '-')}</td>
+                    <td>${escapeHtml(item.fault_category || '-')}</td>
+                    <td>${escapeHtml(item.fault_reason_level1 || '-')}</td>
+                    <td>${escapeHtml(item.fault_reason_level2 || '-')}</td>
+                    <td>${escapeHtml(item.service_interruption_time || '-')}</td>
+                    <td>${escapeHtml(item.service_recovery_time || '-')}</td>
+                    <td><strong class="${item.is_long ? 'text-danger' : ''}">${escapeHtml(item.duration || 0)}</strong></td>
+                    <td>${impactLink}</td>
+                    <td>${badges}</td>
+                </tr>`;
+            } else {
+                return `<tr>
+                    <td>${faultLink}</td>
+                    <td>${escapeHtml(item.service_name || '-')}</td>
+                    <td>${escapeHtml(item.service_interruption_time || '-')}</td>
+                    <td>${escapeHtml(item.service_recovery_time || '-')}</td>
+                    <td><strong class="${item.is_long ? 'text-danger' : ''}">${escapeHtml(item.duration || 0)}</strong></td>
+                    <td>${escapeHtml(item.fault_category || '-')}</td>
+                    <td>${impactLink}</td>
+                    <td>${badges}</td>
+                </tr>`;
+            }
         }).join('');
     }
 

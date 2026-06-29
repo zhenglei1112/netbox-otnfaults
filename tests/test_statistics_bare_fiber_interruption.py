@@ -57,6 +57,35 @@ class StatisticsBareFiberInterruptionTestCase(unittest.TestCase):
         self.assertIn("renderBareFiberInterruption(data.bare_fiber_interruption, data.prev_bare_fiber_interruption);", source)
         self.assertIn("renderBareFiberInterruption(currentBareFiberInterruption, currentPrevBareFiberInterruption || {});", source)
 
+    def test_bare_fiber_fault_detail_columns(self) -> None:
+        import re
+        source_views = VIEWS_PATH.read_text(encoding="utf-8")
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        source_js = JS_PATH.read_text(encoding="utf-8")
+
+        # 校验后端 API 查询及返回字段
+        self.assertIn("'otn_fault__province'", source_views)
+        self.assertIn("'fault_province':", source_views)
+        self.assertIn("'fault_reason_level1':", source_views)
+        self.assertIn("'fault_reason_level2':", source_views)
+
+        # 校验模板表头和 colspan，且“分类”必须在“故障省份”之后，且在“一级原因”之前
+        self.assertIn("<th>故障省份</th>", template)
+        self.assertIn("<th>一级原因</th>", template)
+        self.assertIn("<th>二级原因</th>", template)
+        self.assertIn('<td colspan="11" class="text-center text-muted py-4">数据加载中...</td>', template)
+        self.assertTrue(re.search(r"<th>故障省份</th>\s*<th>分类</th>\s*<th>一级原因</th>\s*<th>二级原因</th>", template))
+
+        # 校验 JS 渲染
+        self.assertIn("tbodyId === 'service-details-tbody' ? 11 : 8", source_js)
+        self.assertIn("item.fault_province", source_js)
+        self.assertIn("item.fault_reason_level1", source_js)
+        self.assertIn("item.fault_reason_level2", source_js)
+        
+        # 校验渲染时的列顺序
+        js_row_pattern = r"<td>\$\{escapeHtml\(item\.fault_province\s*\|\|\s*'-'\)\}<\/td>\s*<td>\$\{escapeHtml\(item\.fault_category\s*\|\|\s*'-'\)\}<\/td>\s*<td>\$\{escapeHtml\(item\.fault_reason_level1\s*\|\|\s*'-'\)\}<\/td>\s*<td>\$\{escapeHtml\(item\.fault_reason_level2\s*\|\|\s*'-'\)\}<\/td>"
+        self.assertTrue(re.search(js_row_pattern, source_js))
+
 
 if __name__ == "__main__":
     unittest.main()

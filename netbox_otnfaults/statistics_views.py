@@ -3014,7 +3014,7 @@ class ServiceStatisticsDetailsAPI(PermissionRequiredMixin, View):
         now = timezone.localtime()
         
         impacts_qs = OtnFaultImpact.objects.select_related(
-            'otn_fault', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
+            'otn_fault', 'otn_fault__province', 'bare_fiber_service', 'bare_fiber_service__tenant_group', 'circuit_service'
         ).filter(
             service_interruption_time__gte=start_date,
             service_interruption_time__lt=end_date
@@ -3087,6 +3087,9 @@ class ServiceStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 'service_key': svc_key,
                 'service_name': svc_name,
                 'service_type': svc_type_label,
+                'fault_province': imp.otn_fault.province.name if imp.otn_fault and imp.otn_fault.province else '',
+                'fault_reason_level1': imp.otn_fault.get_interruption_reason_display() if imp.otn_fault and imp.otn_fault.interruption_reason else '',
+                'fault_reason_level2': imp.otn_fault.get_interruption_reason_detail_display() if imp.otn_fault and imp.otn_fault.interruption_reason_detail else '',
                 'fault_number': imp.otn_fault.fault_number if imp.otn_fault else '',
                 'fault_category': imp.otn_fault.get_fault_category_display() if imp.otn_fault else '未知',
                 'service_interruption_time': _format_local_datetime(svc_start),
