@@ -225,6 +225,74 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleFields();
         });
     }
+
+    // 直接故障选择变动时，自动填充时间与站点
+    const faultSelect = document.getElementById('id_otn_fault');
+    const serviceInterruptionInput = document.getElementById('id_service_interruption_time');
+    const serviceRecoveryInput = document.getElementById('id_service_recovery_time');
+
+    function setDateFieldValue(element, isoString) {
+        if (!element || !isoString) return;
+        const date = new Date(isoString);
+        if (isNaN(date.getTime())) return;
+
+        if (element._flatpickr) {
+            element._flatpickr.setDate(date, true);
+        } else {
+            const pad = (num) => String(num).padStart(2, '0');
+            const year = date.getFullYear();
+            const month = pad(date.getMonth() + 1);
+            const day = pad(date.getDate());
+            const hours = pad(date.getHours());
+            const minutes = pad(date.getMinutes());
+            const seconds = pad(date.getSeconds());
+            element.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    if (faultSelect) {
+        faultSelect.addEventListener('change', function() {
+            const faultId = faultSelect.value;
+            if (!faultId) return;
+
+            const isEditMode = {% if object.pk %}true{% else %}false{% endif %};
+
+            if (!isEditMode) {
+                // 新增模式下，直接重定向页面，并附带 otn_fault 参数，由后端完全重新预置渲染
+                // 这样彻底避免了前端 TomSelect 异步初始化的时序和刷新问题，100% 准确且无延迟
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('otn_fault', faultId);
+                window.location.href = currentUrl.toString();
+                return;
+            }
+
+            // 编辑模式下，仅在时间为空时，异步获取故障并填充时间，已有的站点数据通常在编辑时保持不变
+            const isInterruptionEmpty = !serviceInterruptionInput || !serviceInterruptionInput.value.trim();
+            const isRecoveryEmpty = !serviceRecoveryInput || !serviceRecoveryInput.value.trim();
+
+            if (isInterruptionEmpty || isRecoveryEmpty) {
+                fetch(`/api/plugins/otnfaults/faults/${faultId}/`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('获取故障详情失败');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (isInterruptionEmpty && data.fault_occurrence_time && serviceInterruptionInput) {
+                            setDateFieldValue(serviceInterruptionInput, data.fault_occurrence_time);
+                        }
+                        if (isRecoveryEmpty && data.fault_recovery_time && serviceRecoveryInput) {
+                            setDateFieldValue(serviceRecoveryInput, data.fault_recovery_time);
+                        }
+                    })
+                    .catch(err => {
+                        console.error('获取故障详情失败:', err);
+                    });
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

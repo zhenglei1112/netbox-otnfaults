@@ -539,6 +539,24 @@ class OtnFaultImpactForm(NetBoxModelForm):
         if cleaned_data is None:
             cleaned_data = getattr(self, 'cleaned_data', None) or {}
             
+        # 自动填充时间与站点：如果直接故障已被选择，但业务时间/站点为空，则使用直接故障的对应数据
+        otn_fault = cleaned_data.get('otn_fault')
+        if otn_fault:
+            if not cleaned_data.get('service_interruption_time') and otn_fault.fault_occurrence_time:
+                cleaned_data['service_interruption_time'] = otn_fault.fault_occurrence_time
+                if self.instance:
+                    self.instance.service_interruption_time = otn_fault.fault_occurrence_time
+            if not cleaned_data.get('service_recovery_time') and otn_fault.fault_recovery_time:
+                cleaned_data['service_recovery_time'] = otn_fault.fault_recovery_time
+                if self.instance:
+                    self.instance.service_recovery_time = otn_fault.fault_recovery_time
+            if not cleaned_data.get('service_site_a') and otn_fault.interruption_location_a:
+                cleaned_data['service_site_a'] = otn_fault.interruption_location_a
+                if self.instance:
+                    self.instance.service_site_a = otn_fault.interruption_location_a
+            if not cleaned_data.get('service_site_z') and otn_fault.interruption_location.exists():
+                cleaned_data['service_site_z'] = list(otn_fault.interruption_location.all())
+
         if cleaned_data.get('service_type') != ServiceTypeChoices.CIRCUIT:
             return cleaned_data
 

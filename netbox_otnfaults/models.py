@@ -1988,6 +1988,15 @@ class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
     def clean(self):
         super().clean()
         
+        # 如果选择了直接故障，且业务故障时间、恢复时间或业务站点A为空，使用故障的对应数据填充
+        if hasattr(self, 'otn_fault') and self.otn_fault:
+            if not self.service_interruption_time and self.otn_fault.fault_occurrence_time:
+                self.service_interruption_time = self.otn_fault.fault_occurrence_time
+            if not self.service_recovery_time and self.otn_fault.fault_recovery_time:
+                self.service_recovery_time = self.otn_fault.fault_recovery_time
+            if not self.service_site_a and self.otn_fault.interruption_location_a:
+                self.service_site_a = self.otn_fault.interruption_location_a
+        
         if self.service_type == ServiceTypeChoices.BARE_FIBER and not self.bare_fiber_service:
             raise ValidationError({'bare_fiber_service': '选择裸纤业务类型时必须指定具体的裸纤业务。'})
             
