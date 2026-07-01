@@ -838,8 +838,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ---------------- 获取物理故障数据 ----------------
     async function loadData() {
-        // renderOverallOtherSummary(data.other_overview, data.prev_other_overview);
-        // renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview);
         showGlobalLoading();
         const selectedDateParts = inputDate.value.split('-').map(Number);
         let url = `${window.STATISTICS_DATA_API}?${buildTimeParams()}&calendar_year=${selectedDateParts[0]}&calendar_month=${selectedDateParts[1]}`;
@@ -1363,7 +1361,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function applyTrendValueColor(metricEl, currentValue, previousValue) {
         // 所有的卡片主指标不再根据环比更改颜色，均使用默认颜色
-        // metricEl.classList.remove('text-danger', 'text-success', 'text-dark', 'text-indigo', 'text-primary', 'text-purple');
         return;
     }
 

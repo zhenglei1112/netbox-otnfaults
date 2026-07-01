@@ -1570,6 +1570,7 @@ def _compute_comparison_period_data(
     # 2. 故障影响等级统计
     qs_all = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
     qs_period = qs_all.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
+    unfiltered_all_faults = list(qs_period)
     filtered_qs = _apply_physical_province_filter(qs_period, selected_provinces)
     all_faults = list(filtered_qs)
     annotated_qs = _annotate_class_i_business_impact(filtered_qs)
@@ -1693,7 +1694,7 @@ def _compute_comparison_period_data(
     # 6. 子公司统计
     unfiltered_open_suspended_faults_count = qs_all.filter(_suspended_fault_q()).exclude(fault_status=FaultStatusChoices.CLOSED).count()
     branch_company_stats = _build_branch_company_statistics(
-        all_faults,
+        unfiltered_all_faults,
         global_cable_break_faults,
         unfiltered_open_suspended_faults_count,
         start_date,
@@ -1969,12 +1970,14 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         provinces_str = ",".join(sorted(selected_provinces))
         provinces_hash = hashlib.md5(provinces_str.encode('utf-8')).hexdigest() if provinces_str else "all"
         
-        cache_key = f"otnfaults:stats:v{cache_version}:fault-summary:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{provinces_hash}:{calendar_year}:{calendar_month}"
+        cache_key = f"otnfaults:stats:v{cache_version}:fault-summary:v2:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{provinces_hash}:{calendar_year}:{calendar_month}"
         
         if is_ended:
             cached_data = cache.get(cache_key)
             if cached_data is not None:
-                return JsonResponse(cached_data)
+                # 检查缓存数据中是否包含同比核心字段，防止老格式缓存导致同比缺失
+                if 'yoy_kpis' in cached_data:
+                    return JsonResponse(cached_data)
 
         # 统一计算环比周期和同比周期数据，以极大精简并复用逻辑
         prev_data = {}
