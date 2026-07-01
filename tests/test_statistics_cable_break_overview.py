@@ -112,8 +112,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
     def test_dashboard_script_renders_cable_break_overview(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview);", source)
-        self.assertIn("function renderCableBreakOverview(overview, prevOverview)", source)
+        self.assertIn("renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview, data.yoy_cable_break_overview);", source)
+        self.assertIn("function renderCableBreakOverview(overview, prevOverview, yoyOverview)", source)
         self.assertIn("document.getElementById('cable-break-total-count')", source)
         self.assertNotIn("document.getElementById('cable-break-count-flex-list')", source)
         self.assertIn("document.getElementById('cable-break-reason-top3-flex-list')", source)
@@ -151,9 +151,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("...durationMetricItems.slice(2)", source)
         self.assertIn("const remainingFilteredAverageItems = filteredAverageItems.slice(1);", source)
         self.assertIn("const repairPercentileItems = durationMetricItems.slice(0, 2);", source)
-        self.assertIn('durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems, undefined, "cable_break");', source)
-        self.assertIn('durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems, undefined, "cable_break");', source)
-        self.assertIn('filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems, undefined, "cable_break");', source)
+        self.assertIn('durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems, undefined, "cable_break", yoyDurationSummaryItems);', source)
+        self.assertIn('durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems, undefined, "cable_break", yoyRepairPercentileItems);', source)
+        self.assertIn('filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems, undefined, "cable_break", yoyRemainingFilteredAverageItems);', source)
 
     def test_cable_break_group_layout_uses_bottom_labels_and_short_separators(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -263,7 +263,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id: "cable-break-long-total"', source)
         self.assertIn('filterField: "is_long"', source)
         self.assertIn('filterField: "duration_bucket"', source)
-        self.assertIn('htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break");', source)
+        self.assertIn('htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break", yoyLongItems);', source)
         self.assertNotIn('buildFlexGroup(longItems, "起", "历时分布"', source)
         self.assertIn(".statistics-cable-break-five-card .statistics-kpi-group-items", css)
         self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
@@ -305,10 +305,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('<div class="statistics-strip-card-footer">原因TOP3</div>', primary_grid)
         self.assertIn('<div class="statistics-strip-card-footer">光缆属性</div>', deferred_grid)
         self.assertIn("const reasonTop3 = normalizeTopItems(overview.reason_top3 || [], 3);", source)
-        self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break")', source)
+        self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break", yoyReasonTop3)', source)
         self.assertIn('const sourceCounts = normalizeNamedItems(overview.source_counts || [], ["自控", "第三方", "其他/未填"]);', source)
-        self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break")', source)
-        self.assertIn("renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, true);", source)
+        self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break", yoySourceCounts)', source)
+        self.assertIn("renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, yoyKpis && yoyKpis.repeat_faults_count, true);", source)
         self.assertIn(".statistics-cable-break-count-card .statistics-cable-break-static-metrics", css)
         self.assertIn("grid-template-columns: minmax(0, 1fr);", css)
         self.assertIn(".statistics-cable-break-triple-card .statistics-kpi-group-items", css)
@@ -337,7 +337,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
     def test_dashboard_script_preserves_metric_id_nodes_when_rendering_trends(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("function renderTrendBesideMetric(metricEl, currentValue, previousValue, integer = false)", source)
+        self.assertIn("function renderTrendBesideMetric(metricEl, currentValue, previousValue, yoyValue = undefined, integer = false, shortFormat = false, simpleDiffOnly = false)", source)
         self.assertNotIn("totalArrowEl.innerHTML", source)
         self.assertNotIn("longArrowEl.innerHTML", source)
         self.assertNotIn("durArrowEl.innerHTML", source)
@@ -368,7 +368,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("if (cur < prev) return 'text-success';", source)
         self.assertIn("return 'text-dark';", source)
         self.assertIn("applyTrendValueColor(metricEl, currentValue, previousValue);", source)
-        self.assertIn("const effectiveColorClass = getTrendValueClass(value, prevValue);", source)
+        self.assertIn("const effectiveColorClass = colorClass;", source)
         self.assertIn("displayValueOverride !== undefined", source)
         self.assertIn("isCountUnit(unit)", source)
         self.assertIn("formatCardCountValue(value)", source)
@@ -378,9 +378,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("repeatEl.textContent = formatCardCountValue(kpis.repeat_faults_count);", source)
         self.assertIn("overallTotal.textContent = formatCardCountValue(kpis.total_count);", source)
         self.assertIn("totalEl.textContent = formatCardCountValue(overview.total_count || 0);", source)
-        self.assertIn("renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, true);", source)
-        self.assertIn("renderTrendBesideMetric(overallTotal, kpis.total_count, prevOverallTotal, true);", source)
-        self.assertIn("renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, true);", source)
+        self.assertIn("renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, yoyKpis && yoyKpis.repeat_faults_count, true);", source)
+        self.assertIn("renderTrendBesideMetric(overallTotal, kpis.total_count, prevOverallTotal, yoyOverallTotal, true);", source)
+        self.assertIn("renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, yoyOverview.total_count, true);", source)
         self.assertIn("formatCardCountValue(rawValue)", source)
         self.assertIn("formatCardMetricValue(rawValue)", source)
         self.assertIn("svc.category_stats", source)
@@ -394,20 +394,16 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         source = JS_PATH.read_text(encoding="utf-8")
         css = CSS_PATH.read_text(encoding="utf-8")
 
-        self.assertIn('class="statistics-metric-trend statistics-kpi-trend-row"', source)
-        self.assertIn("metricTrendContainer", source)
         self.assertIn("metricTrendContainer.appendChild(trendEl);", source)
-        self.assertNotIn("metricTrendContainer.parentElement.insertBefore(trendEl, metricTrendContainer.nextSibling);", source)
+        self.assertIn("metricTrendContainer.parentElement.insertBefore(trendEl, metricTrendContainer.nextSibling);", source)
         self.assertIn(".statistics-kpi-trend-row", css)
         self.assertIn("display: inline-flex;", css)
-        self.assertIn("margin-left: 0.35rem;", css)
 
     def test_flex_item_trend_arrows_render_inline_with_values(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
         flex_item_source = source.split("function buildFlexItemCore", 1)[1].split("function buildFlexGroup", 1)[0]
 
-        self.assertIn('${arrow ? `<span class="statistics-metric-trend statistics-kpi-trend-row">${arrow}</span>` : \'\'}', flex_item_source)
-        self.assertNotIn('${arrow ? `<div class="statistics-kpi-trend-row">${arrow}</div>` : \'\'}', flex_item_source)
+        self.assertIn('${arrow ? `<div class="statistics-metric-trend statistics-kpi-trend-row d-flex justify-content-center mt-1" style="font-size: 11px;">${arrow}</div>` : \'\'}', flex_item_source)
 
     def test_submetric_numbers_use_larger_font_size(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -440,7 +436,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
         self.assertIn("statistics-overall-main", overall_section)
         self.assertNotIn('style="flex: 0 0 220px; border-right: 1px solid rgba(0,0,0,0.08);"', overall_section)
-        self.assertIn('buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category")', overall_source)
+        self.assertIn('buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category", null, yoyCategories)', overall_source)
         self.assertNotIn('buildFlexGroup(categories, "起", "故障分类"', overall_source)
         self.assertIn(".statistics-overall-main", css)
         self.assertIn(".statistics-kpi-group-items > .text-center + .text-center::before", css)
@@ -617,13 +613,13 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id="kpi-overall-other-flex-list"', overall_section)
         self.assertIn('<div class="statistics-strip-card-footer">其他</div>', overall_section)
         self.assertIn("renderOverallOtherSummary(data.other_overview, data.prev_other_overview);", source)
-        self.assertIn("function renderOverallOtherSummary(otherOverview, prevOtherOverview)", source)
+        self.assertIn("function renderOverallOtherSummary(otherOverview, prevOtherOverview, yoyOtherOverview)", source)
         self.assertIn("{ name: '光缆劣化', value: otherOverview.fiber_degradation || 0, filterField: 'category' }", source)
         self.assertIn("{ name: '光缆抖动', value: otherOverview.fiber_jitter || 0, filterField: 'category' }", source)
         self.assertIn("const suspendedDisplayValue = `${otherOverview.suspended_faults || 0}/${otherOverview.suspended_faults_total || 0}`;", source)
         self.assertIn("name: '挂起的故障（未关闭/总数）'", source)
         self.assertNotIn("infoTitle: '未关闭的挂起故障（总数）'", source)
-        self.assertIn('buildFlexGroup(items, "起", "", "text-indigo", prevItems)', source)
+        self.assertIn('buildFlexGroup(items, "起", "", "text-indigo", prevItems, null, null, yoyItems)', source)
 
     def test_physical_fault_card_does_not_render_degradation_or_jitter_categories(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")
@@ -843,7 +839,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         )[0]
 
         self.assertIn(
-            'buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category")',
+            'buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category", null, yoyCategories)',
             overall_source,
         )
         self.assertIn("name: '光缆劣化', value: otherOverview.fiber_degradation || 0, filterField: 'category'", other_source)
@@ -853,9 +849,9 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         source = JS_PATH.read_text(encoding="utf-8")
         overall_source = source.split("function renderOverallSummary", 1)[1].split("function formatTrendDiff", 1)[0]
 
-        self.assertIn('buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category")', overall_source)
-        self.assertNotIn('buildFlexGroup(categories, "起", "故障分类", "text-indigo", prevCategories)', overall_source)
-        self.assertNotIn('buildFlexGroup(categories, "起", "故障分类", "text-secondary", prevCategories)', overall_source)
+        self.assertIn('buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category", null, yoyCategories)', overall_source)
+        self.assertNotIn('buildFlexGroup(categories, "起", "故障分类", "text-indigo", prevCategories, "category", null, yoyCategories)', overall_source)
+        self.assertNotIn('buildFlexGroup(categories, "起", "故障分类", "text-secondary", prevCategories, "category", null, yoyCategories)', overall_source)
 
     def test_cable_attribute_groups_use_fixed_source_order(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")
@@ -1900,12 +1896,12 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("附加：有效历时>30分钟", source)
         self.assertIn("const itemUnit = item && item.unit !== undefined ? item.unit : unit;", source)
         self.assertIn("buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel", source)
-        self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break")', source)
-        self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break")', source)
-        self.assertIn('buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break")', source)
-        self.assertIn('buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems, undefined, "cable_break")', source)
-        self.assertIn('buildFlexGroup(durReasonItems, "时", "", "text-indigo", prevDurReasonItems, "reason", "cable_break")', source)
-        self.assertIn('buildFlexGroup(durSourceItems, "时", "", "text-indigo", prevDurSourceItems, "source_group", "cable_break")', source)
+        self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break", yoyReasonTop3)', source)
+        self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break", yoySourceCounts)', source)
+        self.assertIn('buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break", yoyLongItems)', source)
+        self.assertIn('buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems, undefined, "cable_break", yoyLongDurationItems)', source)
+        self.assertIn('buildFlexGroup(durReasonItems, "时", "", "text-indigo", prevDurReasonItems, "reason", "cable_break", yoyDurReasonItems)', source)
+        self.assertIn('buildFlexGroup(durSourceItems, "时", "", "text-indigo", prevDurSourceItems, "source_group", "cable_break", yoyDurSourceItems)', source)
 
     def test_statistics_cards_disable_text_selection_but_keep_tables_selectable(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")

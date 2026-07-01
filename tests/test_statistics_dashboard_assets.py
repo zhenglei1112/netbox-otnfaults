@@ -149,21 +149,21 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
 
     def test_statistics_data_api_filters_previous_physical_comparison_by_selected_provinces(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")
-        previous_source = source.split("if prev_start_date and prev_end_date:", 1)[1].split("display_end_date_str", 1)[0]
-        previous_branch_company_call = previous_source.split(
-            "prev_branch_company_stats = _build_branch_company_statistics(",
+        func_source = source.split("def _compute_comparison_period_data(", 1)[1].split("\n\n\ndef ", 1)[0]
+        branch_company_call = func_source.split(
+            "branch_company_stats = _build_branch_company_statistics(",
             1,
         )[1].split(")", 1)[0]
 
-        self.assertIn("prev_unfiltered_all_faults = list(prev_all_qs)", previous_source)
+        self.assertIn("all_faults = list(filtered_qs)", func_source)
         self.assertIn(
-            "prev_all_faults = list(_apply_physical_province_filter(prev_all_qs, selected_provinces))",
-            previous_source,
+            "filtered_qs = _apply_physical_province_filter(qs_period, selected_provinces)",
+            func_source,
         )
-        self.assertIn("prev_overall_faults = [", previous_source)
-        self.assertIn("prev_other_overview = _build_other_fault_summary(", previous_source)
-        self.assertIn("prev_unfiltered_all_faults,", previous_branch_company_call)
-        self.assertNotIn("prev_all_faults,", previous_branch_company_call)
+        self.assertIn("overall_faults = [", func_source)
+        self.assertIn("other_overview = _build_other_fault_summary(", func_source)
+        self.assertIn("all_faults,", branch_company_call)
+        self.assertNotIn("overall_faults,", branch_company_call)
 
     def test_statistics_dashboard_js_uses_theme_aware_chart_options(self) -> None:
         script = JS_PATH.read_text(encoding="utf-8")

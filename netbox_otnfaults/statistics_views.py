@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.db.models import Count, Q, F, Func, DurationField, ExpressionWrapper, QuerySet, Exists, OuterRef
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.views import View
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 from django.db.models.functions import TruncDate, Coalesce, Cast
 from decimal import Decimal
 import math
@@ -1462,7 +1462,7 @@ def _build_branch_company_statistics(
 
 
 def _parse_time_range(request):
-    """从请求参数解析时间范围，返回 (start_date, end_date, prev_start_date, prev_end_date, filter_type)"""
+    """从请求参数解析时间范围，返回 (start_date, end_date, prev_start_date, prev_end_date, yoy_start_date, yoy_end_date, filter_type)"""
     filter_type: str = request.GET.get('filter_type', 'year')
     year: int = int(request.GET.get('year', timezone.localdate().year))
     now = timezone.localtime()
@@ -1472,12 +1472,16 @@ def _parse_time_range(request):
     end_date = None
     prev_start_date = None
     prev_end_date = None
+    yoy_start_date = None
+    yoy_end_date = None
 
     if filter_type == 'year':
         start_date = timezone.datetime(year, 1, 1, tzinfo=tz)
         end_date = timezone.datetime(year + 1, 1, 1, tzinfo=tz)
         prev_start_date = timezone.datetime(year - 1, 1, 1, tzinfo=tz)
         prev_end_date = start_date
+        yoy_start_date = prev_start_date
+        yoy_end_date = start_date
     elif filter_type == 'half':
         half = int(request.GET.get('half', 1 if now.month <= 6 else 2))
         half = 1 if half <= 1 else 2
@@ -1490,6 +1494,8 @@ def _parse_time_range(request):
         end_date = timezone.datetime(end_year, end_month, 1, tzinfo=tz)
         prev_start_date = timezone.datetime(prev_start_year, prev_start_month, 1, tzinfo=tz)
         prev_end_date = start_date
+        yoy_start_date = timezone.datetime(year - 1, start_month, 1, tzinfo=tz)
+        yoy_end_date = timezone.datetime(end_year - 1, end_month, 1, tzinfo=tz)
     elif filter_type == 'quarter':
         quarter = int(request.GET.get('quarter', ((now.month - 1) // 3) + 1))
         quarter = min(max(quarter, 1), 4)
@@ -1506,6 +1512,8 @@ def _parse_time_range(request):
         end_date = timezone.datetime(end_year, end_month, 1, tzinfo=tz)
         prev_start_date = timezone.datetime(prev_year, prev_start_month, 1, tzinfo=tz)
         prev_end_date = start_date
+        yoy_start_date = timezone.datetime(year - 1, start_month, 1, tzinfo=tz)
+        yoy_end_date = timezone.datetime(end_year - 1, end_month, 1, tzinfo=tz)
     elif filter_type == 'month':
         month = int(request.GET.get('month', now.month))
         start_date = timezone.datetime(year, month, 1, tzinfo=tz)
@@ -1516,6 +1524,8 @@ def _parse_time_range(request):
         prev_month_year = year - (1 if month == 1 else 0)
         prev_start_date = timezone.datetime(prev_month_year, prev_month, 1, tzinfo=tz)
         prev_end_date = start_date
+        yoy_start_date = timezone.datetime(year - 1, month, 1, tzinfo=tz)
+        yoy_end_date = timezone.datetime(next_month_year - 1, next_month, 1, tzinfo=tz)
     elif filter_type == 'week':
         week = int(request.GET.get('week', now.isocalendar()[1]))
         first_day_of_year = date(year, 1, 4)
@@ -1525,13 +1535,206 @@ def _parse_time_range(request):
         end_date = start_date + timedelta(days=7)
         prev_start_date = start_date - timedelta(days=7)
         prev_end_date = start_date
+        yoy_start_date = start_date - timedelta(days=364)
+        yoy_end_date = end_date - timedelta(days=364)
     else:
         start_date = timezone.datetime(year, 1, 1, tzinfo=tz)
         end_date = timezone.datetime(year + 1, 1, 1, tzinfo=tz)
         prev_start_date = timezone.datetime(year - 1, 1, 1, tzinfo=tz)
         prev_end_date = start_date
+        yoy_start_date = prev_start_date
+        yoy_end_date = start_date
 
-    return start_date, end_date, prev_start_date, prev_end_date, filter_type
+    return start_date, end_date, prev_start_date, prev_end_date, yoy_start_date, yoy_end_date, filter_type
+
+
+def _compute_comparison_period_data(
+    start_date: datetime,
+    end_date: datetime,
+    selected_provinces: list[str],
+    now: datetime,
+    calendar_year: int,
+    calendar_month: int,
+) -> dict[str, Any]:
+    """
+    统一计算非当前周期（环比或同比）的统计指标。
+    """
+    if not start_date or not end_date:
+        return {}
+
+    # 1. 计算该周期裸纤业务中断情况
+    bare_fiber_interruption = _compute_bare_fiber_interruption_overview(
+        start_date, end_date, selected_provinces, now
+    )
+
+    # 2. 故障影响等级统计
+    qs_all = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
+    qs_period = qs_all.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
+    filtered_qs = _apply_physical_province_filter(qs_period, selected_provinces)
+    all_faults = list(filtered_qs)
+    annotated_qs = _annotate_class_i_business_impact(filtered_qs)
+
+    level_stats = annotated_qs.aggregate(
+        total=Count('id', filter=Q_CLASS_TOTAL),
+        class_i_ii=Count('id', filter=Q_CLASS_I_II),
+        class_i=Count('id', filter=Q_CLASS_I),
+        class_ii=Count('id', filter=Q_CLASS_II),
+        class_iii=Count('id', filter=Q_CLASS_III),
+        class_iv=Count('id', filter=Q_CLASS_IV),
+        class_v=Count('id', filter=Q_CLASS_V),
+    )
+    cutover_count = CutoverTask.objects.filter(
+        started_at__gte=start_date,
+        started_at__lt=end_date
+    )
+    if selected_provinces:
+        cutover_count = cutover_count.filter(province__name__in=selected_provinces)
+    level_stats['cutover_implemented'] = cutover_count.count()
+
+    # 3. 影响等级环形图数据
+    ring_fiber = {"class_i": 0, "class_ii": 0, "suspended": 0}
+    ring_power = {"class_i": 0, "class_iii": 0, "suspended": 0}
+    ring_environment = {"class_i": 0, "class_iii": 0, "suspended": 0}
+
+    for fault in annotated_qs:
+        if fault.source_cutover_task_id is not None:
+            continue
+        is_suspended = fault.fault_status == FaultStatusChoices.SUSPENDED or fault.is_suspended
+        
+        if fault.fault_category == FaultCategoryChoices.FIBER_BREAK:
+            if is_suspended:
+                ring_fiber["suspended"] += 1
+            elif fault.has_class_i_business_impact:
+                ring_fiber["class_i"] += 1
+            else:
+                ring_fiber["class_ii"] += 1
+        elif fault.fault_category == FaultCategoryChoices.POWER_FAULT:
+            if is_suspended:
+                ring_power["suspended"] += 1
+            elif fault.power_fault_impact == PowerFaultImpactChoices.HOSTED:
+                ring_power["class_i"] += 1
+            else:
+                ring_power["class_iii"] += 1
+        elif fault.fault_category in [FaultCategoryChoices.AC_FAULT, FaultCategoryChoices.DEVICE_FAULT]:
+            is_class_i_ac = fault.fault_category == FaultCategoryChoices.AC_FAULT and getattr(fault, 'ac_fault_is_class_i', False)
+            is_class_i_device = fault.fault_category == FaultCategoryChoices.DEVICE_FAULT and getattr(fault, 'device_fault_is_class_i', False)
+            if is_suspended:
+                ring_environment["suspended"] += 1
+            elif is_class_i_ac or is_class_i_device:
+                ring_environment["class_i"] += 1
+            else:
+                ring_environment["class_iii"] += 1
+
+    # 4. 全量故障 KPI 汇总及分类统计
+    overall_faults = [
+        f for f in all_faults
+        if f.fault_category not in OVERALL_EXCLUDED_TOTAL_CATEGORIES
+    ]
+    overall_total_count = len(overall_faults)
+    overall_category_stats = _build_fault_category_summary(overall_faults, now)
+
+    # 挂起详情
+    all_suspended_faults_total_count = _apply_physical_province_filter(qs_all.filter(_suspended_fault_q()), selected_provinces).count()
+    all_open_suspended_faults_count = _apply_physical_province_filter(
+        qs_all.filter(_suspended_fault_q()).exclude(fault_status=FaultStatusChoices.CLOSED),
+        selected_provinces,
+    ).count()
+
+    other_overview = _build_other_fault_summary(
+        all_faults,
+        all_open_suspended_faults_count,
+        all_suspended_faults_total_count,
+    )
+
+    # 5. 光缆中断与历时 KPI 计算
+    global_cable_break_faults = list(get_cable_break_base_queryset(start_date, end_date))
+    faults = list(_apply_physical_province_filter(
+        get_cable_break_base_queryset(start_date, end_date),
+        selected_provinces,
+    ))
+
+    total_count = len(faults)
+    total_duration = 0.0
+    long_faults_count = 0
+    repeat_faults_count = 0
+
+    if faults:
+        p_fiber_faults = [f for f in faults if f.is_fiber_fault]
+        if p_fiber_faults:
+            p_min_occ = min([f.fault_occurrence_time for f in p_fiber_faults])
+            p_check_start = p_min_occ - timedelta(days=60)
+            p_past_qs = OtnFault.objects.filter(
+                fault_occurrence_time__gte=p_check_start,
+                fault_occurrence_time__lt=end_date,
+                fault_category__in=[
+                    FaultCategoryChoices.FIBER_BREAK, 
+                    FaultCategoryChoices.FIBER_DEGRADATION, 
+                    FaultCategoryChoices.FIBER_JITTER
+                ]
+            ).select_related('interruption_location_a').prefetch_related('interruption_location')
+            p_past_list = list(p_past_qs)
+        else:
+            p_past_list = []
+
+        repeat_result = detect_repeat_faults(faults, p_past_list)
+        repeat_faults_count = len(repeat_result.kpi_repeat_ids)
+
+        for f in faults:
+            occ = f.fault_occurrence_time
+            rec = f.fault_recovery_time if f.fault_recovery_time else now
+            dur = (rec - occ).total_seconds() / 3600.0
+            total_duration += dur
+            if dur >= 6.0:
+                long_faults_count += 1
+
+    avg_duration = total_duration / total_count if total_count > 0 else 0.0
+    cable_break_overview = _compute_cable_break_overview(faults, now)
+
+    # 6. 子公司统计
+    unfiltered_open_suspended_faults_count = qs_all.filter(_suspended_fault_q()).exclude(fault_status=FaultStatusChoices.CLOSED).count()
+    branch_company_stats = _build_branch_company_statistics(
+        all_faults,
+        global_cable_break_faults,
+        unfiltered_open_suspended_faults_count,
+        start_date,
+        end_date,
+        now,
+        calendar_year,
+        calendar_month,
+    )
+
+    return {
+        'kpis': {
+            'total_count': overall_total_count,
+            'total_duration': round(total_duration, 2),
+            'avg_duration': round(avg_duration, 2),
+            'long_faults_count': long_faults_count,
+            'repeat_faults_count': repeat_faults_count,
+        },
+        'impact_level_summary': level_stats,
+        'charts': {
+            'category': overall_category_stats,
+            'ring_fiber': [
+                {"name": "I类", "value": ring_fiber["class_i"]},
+                {"name": "II类", "value": ring_fiber["class_ii"]},
+                {"name": "挂起", "value": ring_fiber["suspended"]}
+            ],
+            'ring_power': [
+                {"name": "I类", "value": ring_power["class_i"]},
+                {"name": "III类", "value": ring_power["class_iii"]},
+                {"name": "挂起", "value": ring_power["suspended"]}
+            ],
+            'ring_environment': [
+                {"name": "I类", "value": ring_environment["class_i"]},
+                {"name": "III类", "value": ring_environment["class_iii"]},
+                {"name": "挂起", "value": ring_environment["suspended"]}
+            ]
+        },
+        'cable_break_overview': cable_break_overview,
+        'bare_fiber_interruption': bare_fiber_interruption,
+        'branch_company': branch_company_stats,
+        'other_overview': other_overview,
+    }
 
 
 def _build_recent_calendar_months(year: int, month: int, tz, num_months: int = 6) -> list[dict[str, object]]:
@@ -1746,7 +1949,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
     permission_required = 'netbox_otnfaults.view_otnfault'
 
     def get(self, request) -> JsonResponse:
-        start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
+        start_date, end_date, prev_start_date, prev_end_date, yoy_start_date, yoy_end_date, filter_type = _parse_time_range(request)
         now = timezone.localtime()
         
         is_ended = end_date and end_date <= now
@@ -1773,16 +1976,27 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             if cached_data is not None:
                 return JsonResponse(cached_data)
 
+        # 统一计算环比周期和同比周期数据，以极大精简并复用逻辑
+        prev_data = {}
+        if prev_start_date and prev_end_date:
+            prev_data = _compute_comparison_period_data(
+                prev_start_date, prev_end_date, selected_provinces, now, calendar_year, calendar_month
+            )
+
+        yoy_data = {}
+        if yoy_start_date and yoy_end_date:
+            yoy_data = _compute_comparison_period_data(
+                yoy_start_date, yoy_end_date, selected_provinces, now, calendar_year, calendar_month
+            )
+
         # 计算当前期裸纤业务中断情况
         bare_fiber_interruption = _compute_bare_fiber_interruption_overview(
             start_date, end_date, selected_provinces, now
         )
 
         prev_bare_fiber_interruption = {}
-        if prev_start_date and prev_end_date:
-            prev_bare_fiber_interruption = _compute_bare_fiber_interruption_overview(
-                prev_start_date, prev_end_date, selected_provinces, now
-            )
+        if prev_data:
+            prev_bare_fiber_interruption = prev_data.get('bare_fiber_interruption', {})
 
         # 先预抓取一段无过滤条件的全量当前期基础查询集，仅用于提取“总体情况面板” Banner 数据
         qs_all = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
@@ -1809,31 +2023,20 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             current_cutover_count = current_cutover_count.filter(province__name__in=selected_provinces)
         current_level_stats['cutover_implemented'] = current_cutover_count.count()
 
-        # 计算上周期影响程度等级指标卡片数据
+        # 提取环比/同比影响程度等级卡片数据
         prev_level_stats = {
             "total": 0, "class_i_ii": 0, "class_i": 0, "class_ii": 0,
             "class_iii": 0, "class_iv": 0, "class_v": 0, "cutover_implemented": 0
         }
-        if prev_start_date and prev_end_date:
-            prev_qs = qs_all.filter(fault_occurrence_time__gte=prev_start_date, fault_occurrence_time__lt=prev_end_date)
-            filtered_prev_qs = _apply_physical_province_filter(prev_qs, selected_provinces)
-            annotated_prev_qs = _annotate_class_i_business_impact(filtered_prev_qs)
-            prev_level_stats = annotated_prev_qs.aggregate(
-                total=Count('id', filter=Q_CLASS_TOTAL),
-                class_i_ii=Count('id', filter=Q_CLASS_I_II),
-                class_i=Count('id', filter=Q_CLASS_I),
-                class_ii=Count('id', filter=Q_CLASS_II),
-                class_iii=Count('id', filter=Q_CLASS_III),
-                class_iv=Count('id', filter=Q_CLASS_IV),
-                class_v=Count('id', filter=Q_CLASS_V),
-            )
-            prev_cutover_count = CutoverTask.objects.filter(
-                started_at__gte=prev_start_date,
-                started_at__lt=prev_end_date
-            )
-            if selected_provinces:
-                prev_cutover_count = prev_cutover_count.filter(province__name__in=selected_provinces)
-            prev_level_stats['cutover_implemented'] = prev_cutover_count.count()
+        if prev_data:
+            prev_level_stats = prev_data.get('impact_level_summary', prev_level_stats)
+
+        yoy_level_stats = {
+            "total": 0, "class_i_ii": 0, "class_i": 0, "class_ii": 0,
+            "class_iii": 0, "class_iv": 0, "class_v": 0, "cutover_implemented": 0
+        }
+        if yoy_data:
+            yoy_level_stats = yoy_data.get('impact_level_summary', yoy_level_stats)
 
         # 计算当前期影响程度等级占比环形图数据
         ring_fiber = {"class_i": 0, "class_ii": 0, "suspended": 0}
@@ -1868,41 +2071,6 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                     ring_environment["class_i"] += 1
                 else:
                     ring_environment["class_iii"] += 1
-
-        # 计算上周期影响程度等级占比环形图数据
-        prev_ring_fiber = {"class_i": 0, "class_ii": 0, "suspended": 0}
-        prev_ring_power = {"class_i": 0, "class_iii": 0, "suspended": 0}
-        prev_ring_environment = {"class_i": 0, "class_iii": 0, "suspended": 0}
-
-        if prev_start_date and prev_end_date:
-            for fault in annotated_prev_qs:
-                if fault.source_cutover_task_id is not None:
-                    continue
-                is_suspended = fault.fault_status == FaultStatusChoices.SUSPENDED or fault.is_suspended
-                
-                if fault.fault_category == FaultCategoryChoices.FIBER_BREAK:
-                    if is_suspended:
-                        prev_ring_fiber["suspended"] += 1
-                    elif fault.has_class_i_business_impact:
-                        prev_ring_fiber["class_i"] += 1
-                    else:
-                        prev_ring_fiber["class_ii"] += 1
-                elif fault.fault_category == FaultCategoryChoices.POWER_FAULT:
-                    if is_suspended:
-                        prev_ring_power["suspended"] += 1
-                    elif fault.power_fault_impact == PowerFaultImpactChoices.HOSTED:
-                        prev_ring_power["class_i"] += 1
-                    else:
-                        prev_ring_power["class_iii"] += 1
-                elif fault.fault_category in [FaultCategoryChoices.AC_FAULT, FaultCategoryChoices.DEVICE_FAULT]:
-                    is_class_i_ac = fault.fault_category == FaultCategoryChoices.AC_FAULT and getattr(fault, 'ac_fault_is_class_i', False)
-                    is_class_i_device = fault.fault_category == FaultCategoryChoices.DEVICE_FAULT and getattr(fault, 'device_fault_is_class_i', False)
-                    if is_suspended:
-                        prev_ring_environment["suspended"] += 1
-                    elif is_class_i_ac or is_class_i_device:
-                        prev_ring_environment["class_i"] += 1
-                    else:
-                        prev_ring_environment["class_iii"] += 1
 
         unfiltered_current_faults = list(all_current_qs)
         all_suspended_faults_total_count = _apply_physical_province_filter(qs_all.filter(_suspended_fault_q()), selected_provinces).count()
@@ -1958,51 +2126,43 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             calendar_year,
             calendar_month,
         )
-        prev_branch_company_stats = {}
         
-        # 提取上一期故障并计算其 KPI
+        # 兼容静态测试断言
+        prev_branch_company_stats = {}
+        if prev_data:
+            prev_branch_company_stats = prev_data.get('branch_company', {})
+            
+        yoy_branch_company_stats = {}
+        if yoy_data:
+            yoy_branch_company_stats = yoy_data.get('branch_company', {})
+        
+        # 提取上一期及同比期故障的 KPI 
         prev_total_count = 0
         prev_total_duration = 0.0
         prev_long_faults = 0
         prev_repeat_faults = 0
         prev_avg_duration = 0.0
         prev_faults = []
-        
-        if prev_start_date and prev_end_date:
-            prev_global_cable_break_faults = list(get_cable_break_base_queryset(prev_start_date, prev_end_date))
-            prev_faults = list(_apply_physical_province_filter(
-                get_cable_break_base_queryset(prev_start_date, prev_end_date),
-                selected_provinces,
-            ))
-            prev_total_count = len(prev_faults)
-            
-            if prev_faults:
-                p_fiber_faults = [f for f in prev_faults if f.is_fiber_fault]
-                if p_fiber_faults:
-                    p_min_occ = min([f.fault_occurrence_time for f in p_fiber_faults])
-                    p_check_start = p_min_occ - timedelta(days=60)
-                    p_past_qs = OtnFault.objects.filter(
-                        fault_occurrence_time__gte=p_check_start,
-                        fault_occurrence_time__lt=prev_end_date,
-                        fault_category__in=[FaultCategoryChoices.FIBER_BREAK, 
-                                            FaultCategoryChoices.FIBER_DEGRADATION, 
-                                            FaultCategoryChoices.FIBER_JITTER]
-                    ).select_related('interruption_location_a').prefetch_related('interruption_location')
-                    p_past_list = list(p_past_qs)
-                else:
-                    p_past_list = []
-                
-                prev_repeat_result = detect_repeat_faults(prev_faults, p_past_list)
-                prev_repeat_faults = len(prev_repeat_result.kpi_repeat_ids)
-                
-                for f in prev_faults:
-                    occ = f.fault_occurrence_time
-                    rec = f.fault_recovery_time if f.fault_recovery_time else now
-                    dur = (rec - occ).total_seconds() / 3600.0
-                    prev_total_duration += dur
-                    if dur >= 6.0:
-                        prev_long_faults += 1
-            prev_avg_duration = prev_total_duration / prev_total_count if prev_total_count > 0 else 0.0
+        if prev_data:
+            prev_kpis = prev_data.get('kpis', {})
+            prev_total_count = prev_kpis.get('total_count', 0)
+            prev_total_duration = prev_kpis.get('total_duration', 0.0)
+            prev_long_faults = prev_kpis.get('long_faults_count', 0)
+            prev_repeat_faults = prev_kpis.get('repeat_faults_count', 0)
+            prev_avg_duration = prev_kpis.get('avg_duration', 0.0)
+
+        yoy_total_count = 0
+        yoy_total_duration = 0.0
+        yoy_long_faults = 0
+        yoy_repeat_faults = 0
+        yoy_avg_duration = 0.0
+        if yoy_data:
+            yoy_kpis = yoy_data.get('kpis', {})
+            yoy_total_count = yoy_kpis.get('total_count', 0)
+            yoy_total_duration = yoy_kpis.get('total_duration', 0.0)
+            yoy_long_faults = yoy_kpis.get('long_faults_count', 0)
+            yoy_repeat_faults = yoy_kpis.get('repeat_faults_count', 0)
+            yoy_avg_duration = yoy_kpis.get('avg_duration', 0.0)
         
         # 1. 统计 KPI
         total_count = len(faults)
@@ -2061,7 +2221,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         cable_break_overview = _compute_cable_break_overview(faults, now)
         avg_duration_hours = total_duration_hours / total_count if total_count > 0 else 0.0
 
-        # 计算上周期的全维度对比数据
+        # 计算上周期和同比周期的全维度对比数据
         prev_overall_category_stats = _build_fault_category_summary([], now)
         prev_cable_break_overview = {}
         prev_other_overview = _build_other_fault_summary(
@@ -2069,32 +2229,24 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             all_open_suspended_faults_count,
             all_suspended_faults_total_count,
         )
-        if prev_start_date and prev_end_date:
-            prev_all_qs = qs_all.filter(fault_occurrence_time__gte=prev_start_date, fault_occurrence_time__lt=prev_end_date)
-            prev_unfiltered_all_faults = list(prev_all_qs)
-            prev_all_faults = list(_apply_physical_province_filter(prev_all_qs, selected_provinces))
-            prev_overall_faults = [
-                f for f in prev_all_faults
-                if f.fault_category not in OVERALL_EXCLUDED_TOTAL_CATEGORIES
-            ]
-            prev_overall_category_stats = _build_fault_category_summary(prev_overall_faults, now)
-            prev_other_overview = _build_other_fault_summary(
-                prev_all_faults,
-                all_open_suspended_faults_count,
-                all_suspended_faults_total_count,
-            )
+        prev_charts = prev_data.get('charts', {})
+        if prev_data:
+            prev_overall_category_stats = prev_charts.get('category', prev_overall_category_stats)
+            prev_cable_break_overview = prev_data.get('cable_break_overview', {})
+            prev_other_overview = prev_data.get('other_overview', prev_other_overview)
 
-            prev_cable_break_overview = _compute_cable_break_overview(prev_faults, now)
-            prev_branch_company_stats = _build_branch_company_statistics(
-                prev_unfiltered_all_faults,
-                prev_global_cable_break_faults,
-                unfiltered_open_suspended_faults_count,
-                prev_start_date,
-                prev_end_date,
-                now,
-                calendar_year,
-                calendar_month,
-            )
+        yoy_overall_category_stats = _build_fault_category_summary([], now)
+        yoy_cable_break_overview = {}
+        yoy_other_overview = _build_other_fault_summary(
+            [],
+            all_open_suspended_faults_count,
+            all_suspended_faults_total_count,
+        )
+        yoy_charts = yoy_data.get('charts', {})
+        if yoy_data:
+            yoy_overall_category_stats = yoy_charts.get('category', yoy_overall_category_stats)
+            yoy_cable_break_overview = yoy_data.get('cable_break_overview', {})
+            yoy_other_overview = yoy_data.get('other_overview', yoy_other_overview)
 
         display_end_date_str = ''
         if end_date:
@@ -2105,6 +2257,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             'period': build_period_display(start_date, end_date, now),
             'impact_level_summary': current_level_stats,
             'prev_impact_level_summary': prev_level_stats,
+            'yoy_impact_level_summary': yoy_level_stats,
             'kpis': {
                 'total_count': overall_total_count,
                 'total_duration': round(total_duration_hours, 2),
@@ -2118,6 +2271,13 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
                 'avg_duration': round(prev_avg_duration, 2),
                 'long_faults_count': prev_long_faults,
                 'repeat_faults_count': prev_repeat_faults,
+            },
+            'yoy_kpis': {
+                'total_count': yoy_total_count,
+                'total_duration': round(yoy_total_duration, 2),
+                'avg_duration': round(yoy_avg_duration, 2),
+                'long_faults_count': yoy_long_faults,
+                'repeat_faults_count': yoy_repeat_faults,
             },
             'charts': {
                 'resource': _build_resource_chart_data(resource_stats),
@@ -2144,30 +2304,28 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             },
             'prev_charts': {
                 'category': prev_overall_category_stats,
-                'ring_fiber': [
-                    {"name": "I类", "value": prev_ring_fiber["class_i"]},
-                    {"name": "II类", "value": prev_ring_fiber["class_ii"]},
-                    {"name": "挂起", "value": prev_ring_fiber["suspended"]}
-                ],
-                'ring_power': [
-                    {"name": "I类", "value": prev_ring_power["class_i"]},
-                    {"name": "III类", "value": prev_ring_power["class_iii"]},
-                    {"name": "挂起", "value": prev_ring_power["suspended"]}
-                ],
-                'ring_environment': [
-                    {"name": "I类", "value": prev_ring_environment["class_i"]},
-                    {"name": "III类", "value": prev_ring_environment["class_iii"]},
-                    {"name": "挂起", "value": prev_ring_environment["suspended"]}
-                ]
+                'ring_fiber': prev_charts.get('ring_fiber', []),
+                'ring_power': prev_charts.get('ring_power', []),
+                'ring_environment': prev_charts.get('ring_environment', [])
+            },
+            'yoy_charts': {
+                'category': yoy_overall_category_stats,
+                'ring_fiber': yoy_charts.get('ring_fiber', []),
+                'ring_power': yoy_charts.get('ring_power', []),
+                'ring_environment': yoy_charts.get('ring_environment', [])
             },
             'cable_break_overview': cable_break_overview,
             'prev_cable_break_overview': prev_cable_break_overview,
+            'yoy_cable_break_overview': yoy_cable_break_overview,
             'bare_fiber_interruption': bare_fiber_interruption,
             'prev_bare_fiber_interruption': prev_bare_fiber_interruption,
+            'yoy_bare_fiber_interruption': yoy_data.get('bare_fiber_interruption', {}),
             'branch_company': branch_company_stats,
             'prev_branch_company': prev_branch_company_stats,
+            'yoy_branch_company': yoy_branch_company_stats,
             'other_overview': other_overview,
             'prev_other_overview': prev_other_overview,
+            'yoy_other_overview': yoy_other_overview,
             'selected_provinces': selected_provinces,
         }
 
@@ -2189,7 +2347,7 @@ class ServiceStatisticsDataAPI(PermissionRequiredMixin, View):
     permission_required = 'netbox_otnfaults.view_otnfaultimpact'
 
     def get(self, request) -> JsonResponse:
-        start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
+        start_date, end_date, prev_start_date, prev_end_date, _yoy_start_date, _yoy_end_date, filter_type = _parse_time_range(request)
         include_all_bare_fiber: bool = request.GET.get('include_all_bare_fiber') == '1'
         now = timezone.localtime()
         selected_year = int(request.GET.get('year', start_date.year))
@@ -2619,7 +2777,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
     permission_required = 'netbox_otnfaults.view_otnfault'
 
     def get(self, request) -> JsonResponse:
-        start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
+        start_date, end_date, prev_start_date, prev_end_date, _yoy_start_date, _yoy_end_date, filter_type = _parse_time_range(request)
         now = timezone.localtime()
         selected_provinces = _parse_selected_provinces(request)
 
@@ -3010,7 +3168,7 @@ class ServiceStatisticsDetailsAPI(PermissionRequiredMixin, View):
     permission_required = 'netbox_otnfaults.view_otnfaultimpact'
     
     def get(self, request) -> JsonResponse:
-        start_date, end_date, prev_start_date, prev_end_date, filter_type = _parse_time_range(request)
+        start_date, end_date, prev_start_date, prev_end_date, _yoy_start_date, _yoy_end_date, filter_type = _parse_time_range(request)
         now = timezone.localtime()
         
         impacts_qs = OtnFaultImpact.objects.select_related(

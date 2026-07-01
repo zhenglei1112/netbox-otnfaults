@@ -210,10 +210,13 @@ document.addEventListener("DOMContentLoaded", function() {
     let currentChartsData = null;
     let currentCableBreakOverview = null;
     let currentPrevCableBreakOverview = null;
+    let currentYoyCableBreakOverview = null;
     let currentBareFiberInterruption = null;
     let currentPrevBareFiberInterruption = null;
+    let currentYoyBareFiberInterruption = null;
     let currentBranchCompanyData = null;
     let currentPrevBranchCompanyData = null;
+    let currentYoyBranchCompanyData = null;
     let currentBranchCompanyDetails = [];
     let branchCompanyProvinceSet = new Set();
     let activeFilterField = null; // 'resource_type', 'province', 'reason'
@@ -359,10 +362,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function refreshChartsForTheme() {
         if (currentCableBreakOverview) {
-            renderCableBreakOverview(currentCableBreakOverview, currentPrevCableBreakOverview || {});
+            renderCableBreakOverview(currentCableBreakOverview, currentPrevCableBreakOverview || {}, currentYoyCableBreakOverview || {});
         }
         if (currentBareFiberInterruption) {
-            renderBareFiberInterruption(currentBareFiberInterruption, currentPrevBareFiberInterruption || {});
+            renderBareFiberInterruption(currentBareFiberInterruption, currentPrevBareFiberInterruption || {}, currentYoyBareFiberInterruption || {});
         }
         if (currentChartsData) {
             renderCharts(currentChartsData);
@@ -371,7 +374,7 @@ document.addEventListener("DOMContentLoaded", function() {
             renderPhysicalDurationBoxplot(currentChartsData.physical_duration_boxplot, selFilterType.value);
         }
         if (currentBranchCompanyData) {
-            renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData);
+            renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData, currentYoyBranchCompanyData);
         }
     }
 
@@ -835,6 +838,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ---------------- 获取物理故障数据 ----------------
     async function loadData() {
+        // renderOverallOtherSummary(data.other_overview, data.prev_other_overview);
+        // renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview);
         showGlobalLoading();
         const selectedDateParts = inputDate.value.split('-').map(Number);
         let url = `${window.STATISTICS_DATA_API}?${buildTimeParams()}&calendar_year=${selectedDateParts[0]}&calendar_month=${selectedDateParts[1]}`;
@@ -853,25 +858,28 @@ document.addEventListener("DOMContentLoaded", function() {
                 document.getElementById('period-display').innerHTML = '';
             }
 
-            renderKPIs(data.kpis, data.prev_kpis, selFilterType.value);
-            renderImpactLevelOverview(data.impact_level_summary, data.prev_impact_level_summary, selFilterType.value);
-            renderOverallSummary(data.kpis, data.charts, data.prev_charts);
-            renderOverallOtherSummary(data.other_overview, data.prev_other_overview);
+            renderKPIs(data.kpis, data.prev_kpis, data.yoy_kpis, selFilterType.value);
+            renderImpactLevelOverview(data.impact_level_summary, data.prev_impact_level_summary, data.yoy_impact_level_summary, selFilterType.value);
+            renderOverallSummary(data.kpis, data.charts, data.prev_charts, data.yoy_charts);
+            renderOverallOtherSummary(data.other_overview, data.prev_other_overview, data.yoy_other_overview);
             renderOverallDailyFaultChart(data.charts && data.charts.physical_daily);
             renderPhysicalDurationBoxplot(data.charts && data.charts.physical_duration_boxplot, selFilterType.value);
             currentCableBreakOverview = data.cable_break_overview || null;
             currentPrevCableBreakOverview = data.prev_cable_break_overview || null;
+            currentYoyCableBreakOverview = data.yoy_cable_break_overview || null;
             currentBareFiberInterruption = data.bare_fiber_interruption || null;
             currentPrevBareFiberInterruption = data.prev_bare_fiber_interruption || null;
+            currentYoyBareFiberInterruption = data.yoy_bare_fiber_interruption || null;
             currentChartsData = data.charts || null;
             currentBranchCompanyData = data.branch_company || null;
             currentPrevBranchCompanyData = data.prev_branch_company || null;
+            currentYoyBranchCompanyData = data.yoy_branch_company || null;
             branchCompanyProvinceSet = new Set(((currentBranchCompanyData && currentBranchCompanyData.provinces) || []).map(normalizeBranchCompanyProvince));
-            renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview);
-            renderBranchCompanySection(data.branch_company, data.prev_branch_company);
+            renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview, data.yoy_cable_break_overview);
+            renderBranchCompanySection(data.branch_company, data.prev_branch_company, data.yoy_branch_company);
             renderCharts(data.charts);
             renderRingCharts(data.charts);
-            renderBareFiberInterruption(data.bare_fiber_interruption, data.prev_bare_fiber_interruption);
+            renderBareFiberInterruption(data.bare_fiber_interruption, data.prev_bare_fiber_interruption, data.yoy_bare_fiber_interruption);
 
             // 异步加载明细分页
             loadFaultDetails();
@@ -885,12 +893,12 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // ---------------- 渲染部分 ----------------
-    function renderKPIs(kpis, prevKpis, type) {
+    function renderKPIs(kpis, prevKpis, yoyKpis, type) {
         let repeatEl = document.getElementById('kpi-repeat-faults');
         if (repeatEl) repeatEl.textContent = formatCardCountValue(kpis.repeat_faults_count);
         const repeatMetric = document.getElementById('card-repeat-faults');
         if (repeatMetric) repeatMetric.dataset.filterMetricValue = String(kpis.repeat_faults_count || 0);
-        if (repeatEl) renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, true);
+        if (repeatEl) renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, yoyKpis && yoyKpis.repeat_faults_count, true);
         
         const periodStrMap = { 'year': '上年', 'half': '上半年', 'quarter': '上季度', 'month': '上月', 'week': '上周' };
         const label = periodStrMap[type] || '上期';
@@ -933,9 +941,10 @@ document.addEventListener("DOMContentLoaded", function() {
         
     }
 
-    function renderImpactLevelOverview(summary, prevSummary, type) {
+    function renderImpactLevelOverview(summary, prevSummary, yoySummary, type) {
         summary = summary || {};
         prevSummary = prevSummary || {};
+        yoySummary = yoySummary || {};
 
         const fields = [
             { id: 'kpi-level-total', key: 'total' },
@@ -953,18 +962,15 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!el) return;
             const currentVal = summary[field.key] !== undefined ? summary[field.key] : 0;
             const prevVal = prevSummary[field.key];
+            const yoyVal = yoySummary[field.key];
             
             el.textContent = formatCardCountValue(currentVal);
-            if (prevVal !== undefined) {
-                renderTrendBesideMetric(el, currentVal, prevVal, true);
-            } else {
-                const trendEl = el.parentElement.parentElement.querySelector('.statistics-metric-trend');
-                if (trendEl) trendEl.innerHTML = '';
-            }
+            renderTrendBesideMetric(el, currentVal, prevVal, yoyVal, true, true, true);
         });
     }
 
-    function renderOverallSummary(kpis, chartsData, prevChartsData) {
+    function renderOverallSummary(kpis, chartsData, prevChartsData, yoyChartsData) {
+        // renderOverallSummary(data.kpis, data.charts);
         const overallTotal = document.getElementById('kpi-overall-total');
         const categoriesList = document.getElementById('kpi-overall-categories-flex-list');
         if (!overallTotal || !categoriesList) return;
@@ -980,20 +986,28 @@ document.addEventListener("DOMContentLoaded", function() {
         const prevOverallTotal = prevCategories.length > 0
             ? prevCategories.reduce((sum, c) => sum + (c.value || 0), 0)
             : undefined;
-        renderTrendBesideMetric(overallTotal, kpis.total_count, prevOverallTotal, true);
 
-        let htmlContent = buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category");
+        const yoyCategories = (yoyChartsData && yoyChartsData.category) || [];
+        const yoyOverallTotal = yoyCategories.length > 0
+            ? yoyCategories.reduce((sum, c) => sum + (c.value || 0), 0)
+            : undefined;
+
+        renderTrendBesideMetric(overallTotal, kpis.total_count, prevOverallTotal, yoyOverallTotal, true);
+
+        let htmlContent = buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category", null, yoyCategories);
         categoriesList.innerHTML = htmlContent;
     }
 
-    function renderOverallOtherSummary(otherOverview, prevOtherOverview) {
+    function renderOverallOtherSummary(otherOverview, prevOtherOverview, yoyOtherOverview) {
         const otherList = document.getElementById('kpi-overall-other-flex-list');
         if (!otherList) return;
 
         otherOverview = otherOverview || {};
         prevOtherOverview = prevOtherOverview || {};
+        yoyOtherOverview = yoyOtherOverview || {};
         const suspendedDisplayValue = `${otherOverview.suspended_faults || 0}/${otherOverview.suspended_faults_total || 0}`;
         const prevSuspendedDisplayValue = `${prevOtherOverview.suspended_faults || 0}/${prevOtherOverview.suspended_faults_total || 0}`;
+        const yoySuspendedDisplayValue = `${yoyOtherOverview.suspended_faults || 0}/${yoyOtherOverview.suspended_faults_total || 0}`;
 
         const items = [
             { name: '光缆劣化', value: otherOverview.fiber_degradation || 0, filterField: 'category' },
@@ -1009,8 +1023,13 @@ document.addEventListener("DOMContentLoaded", function() {
             { name: '光缆抖动', value: prevOtherOverview.fiber_jitter || 0 },
             { name: '挂起的故障（未关闭/总数）', value: prevOtherOverview.suspended_faults || 0, displayValue: prevSuspendedDisplayValue },
         ];
+        const yoyItems = [
+            { name: '光缆劣化', value: yoyOtherOverview.fiber_degradation || 0 },
+            { name: '光缆抖动', value: yoyOtherOverview.fiber_jitter || 0 },
+            { name: '挂起的故障（未关闭/总数）', value: yoyOtherOverview.suspended_faults || 0, displayValue: yoySuspendedDisplayValue },
+        ];
 
-        otherList.innerHTML = buildFlexGroup(items, "起", "", "text-indigo", prevItems);
+        otherList.innerHTML = buildFlexGroup(items, "起", "", "text-indigo", prevItems, null, null, yoyItems);
     }
 
     function parsePhysicalDailyLabelDate(value) {
@@ -1308,6 +1327,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const diff = cur - prev;
         return integer ? String(Math.round(diff)) : diff.toFixed(1);
     }
+    // ${symbol}${formatTrendDiff(cur, prev, integer)}
 
     function formatCardMetricValue(value) {
         const number = Number(value);
@@ -1342,41 +1362,121 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function applyTrendValueColor(metricEl, currentValue, previousValue) {
-        if (!metricEl) return;
-        const trendValueClass = getTrendValueClass(currentValue, previousValue);
-        metricEl.classList.remove('text-danger', 'text-success', 'text-dark', 'text-indigo', 'text-primary', 'text-purple');
-        if (trendValueClass) {
-            metricEl.classList.add(trendValueClass);
-        }
+        // 所有的卡片主指标不再根据环比更改颜色，均使用默认颜色
+        // metricEl.classList.remove('text-danger', 'text-success', 'text-dark', 'text-indigo', 'text-primary', 'text-purple');
+        return;
     }
 
     function buildTrendArrow(currentVal, prevVal, integer = false) {
-        if (prevVal === undefined || prevVal === null) return '';
-        const cur = parseFloat(currentVal);
-        const prev = parseFloat(prevVal);
-        if (isNaN(cur) || isNaN(prev) || cur === prev) return '';
-        const symbol = cur > prev ? '+' : '';
-        const diffText = `${symbol}${formatTrendDiff(cur, prev, integer)}`;
-        if (cur > prev) {
-            return `<span class="statistics-trend-diff text-danger">${diffText}</span>`;
-        } else {
-            return `<span class="statistics-trend-diff text-success">${diffText}</span>`;
-        }
+        return buildComparisonTrendHtml(currentVal, prevVal, undefined, integer, false);
     }
 
-    function renderTrendBesideMetric(metricEl, currentValue, previousValue, integer = false) {
+    function buildComparisonTrendHtml(currentVal, prevVal, yoyVal, integer = false, shortFormat = false, unit = "", simpleDiffOnly = false) {
+        if (simpleDiffOnly) {
+            if (prevVal === undefined || prevVal === null) return "";
+            const cur = parseFloat(currentVal);
+            const prev = parseFloat(prevVal);
+            if (isNaN(cur) || isNaN(prev)) return "";
+            const diff = formatTrendDiff(cur, prev, integer);
+            if (cur > prev) {
+                return `<span class="statistics-trend-diff text-danger">+${diff}</span>`;
+            } else if (cur < prev) {
+                return `<span class="statistics-trend-diff text-success">${diff}</span>`;
+            } else {
+                return "";
+            }
+        }
+        const cur = parseFloat(currentVal);
+        const filterType = document.getElementById('id_filter_type')?.value || selFilterType?.value || 'year';
+
+        function getTrendItem(val, compareVal, label) {
+            if (compareVal === undefined || compareVal === null) {
+                return `<span class="text-muted">${label} --</span>`;
+            }
+            const prev = parseFloat(compareVal);
+            if (isNaN(cur) || isNaN(prev)) {
+                return `<span class="text-muted">${label} --</span>`;
+            }
+            
+            const rawDiff = cur - prev;
+            const diff = formatTrendDiff(cur, prev, integer);
+            
+            let pctStr = "";
+            if (prev > 0) {
+                const pct = (rawDiff / prev) * 100;
+                const sign = pct > 0 ? "+" : "";
+                pctStr = `${sign}${pct.toFixed(1)}%`;
+            } else if (prev === 0) {
+                if (cur > 0) {
+                    pctStr = "+100.0%";
+                } else if (cur < 0) {
+                    pctStr = "-100.0%";
+                } else {
+                    pctStr = "0.0%";
+                }
+            } else {
+                const pct = (rawDiff / Math.abs(prev)) * 100;
+                const sign = pct > 0 ? "+" : "";
+                pctStr = `${sign}${pct.toFixed(1)}%`;
+            }
+            
+            const unitSuffix = unit ? unit : "";
+            
+            if (cur > prev) {
+                return `<span class="statistics-trend-diff text-danger">${label} ${pctStr}</span>`;
+            } else if (cur < prev) {
+                return `<span class="statistics-trend-diff text-success">${label} ${pctStr}</span>`;
+            } else {
+                return `<span class="statistics-trend-diff text-muted">${label} 0.0%</span>`;
+            }
+        }
+
+        if (filterType === 'year') {
+            return `<span class="statistics-trend-inline">${getTrendItem(currentVal, prevVal, "较去年")}</span>`;
+        }
+
+        const prevLabel = "环比";
+        const yoyLabel = "同比";
+
+        const prevHtml = getTrendItem(currentVal, prevVal, prevLabel);
+        const yoyHtml = getTrendItem(currentVal, yoyVal, yoyLabel);
+
+        return `<span class="statistics-trend-inline d-flex justify-content-center flex-row gap-3">${prevHtml}${yoyHtml}</span>`;
+    }
+
+    // function renderTrendBesideMetric(metricEl, currentValue, previousValue, integer = false)
+    function renderTrendBesideMetric(metricEl, currentValue, previousValue, yoyValue = undefined, integer = false, shortFormat = false, simpleDiffOnly = false) {
         if (!metricEl) return;
         applyTrendValueColor(metricEl, currentValue, previousValue);
         const metricTrendContainer = metricEl.parentElement;
         if (!metricTrendContainer || !metricTrendContainer.parentElement) return;
 
+        const isBareFiber = String(metricEl.id || '').includes('barefiber');
+        const isInline = isBareFiber || simpleDiffOnly;
+
         let trendEl = metricTrendContainer.parentElement.querySelector('.statistics-metric-trend');
         if (!trendEl) {
-            trendEl = document.createElement('span');
-            trendEl.className = 'statistics-metric-trend statistics-kpi-trend-row';
-            metricTrendContainer.appendChild(trendEl);
+            if (isInline) {
+                // 行内展示（裸纤卡片或故障等级彩卡），挂在指标行内右侧，作为 span
+                trendEl = document.createElement('span');
+                trendEl.className = 'statistics-metric-trend statistics-kpi-trend-row';
+                metricTrendContainer.appendChild(trendEl);
+            } else {
+                // 其他卡片，独立成行，作为 div 挂在指标下方
+                trendEl = document.createElement('div');
+                trendEl.className = 'statistics-metric-trend statistics-kpi-trend-row d-flex justify-content-center mt-1';
+                metricTrendContainer.parentElement.insertBefore(trendEl, metricTrendContainer.nextSibling);
+            }
         }
-        trendEl.innerHTML = buildTrendArrow(currentValue, previousValue, integer);
+        let unit = "";
+        if (metricTrendContainer) {
+            const unitEl = metricTrendContainer.querySelector('.statistics-overall-kpi-unit');
+            if (unitEl) {
+                unit = unitEl.textContent.trim();
+            }
+        }
+        const effectiveShortFormat = isInline ? true : shortFormat;
+        trendEl.innerHTML = buildComparisonTrendHtml(currentValue, previousValue, yoyValue, integer, effectiveShortFormat, unit, simpleDiffOnly);
     }
 
     function inferMetricType(unit, title) {
@@ -1387,14 +1487,14 @@ document.addEventListener("DOMContentLoaded", function() {
         return 'duration';
     }
 
-    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue, filterLabel, valueId, filterExtraField, filterExtraValue, infoTitle, infoLabel, displayValueOverride, detailScope = null, metricType = null) {
+    function buildFlexItemCore(value, unit, title, colorClass = "text-primary", prevValue, filterField, filterValue, filterLabel, valueId, filterExtraField, filterExtraValue, infoTitle, infoLabel, displayValueOverride, detailScope = null, metricType = null, yoyValue = undefined, shortFormat = false) {
         const countUnit = isCountUnit(unit);
         const effectiveMetricType = metricType || inferMetricType(unit, title);
-        const arrow = buildTrendArrow(value, prevValue, countUnit);
+        const arrow = buildComparisonTrendHtml(value, prevValue, yoyValue, countUnit, false, unit);
         const displayValue = displayValueOverride !== undefined
             ? displayValueOverride
             : (isCountUnit(unit) ? formatCardCountValue(value) : formatCardMetricValue(value));
-        const effectiveColorClass = getTrendValueClass(value, prevValue);
+        const effectiveColorClass = colorClass;
         const infoHtml = infoTitle
             ? `<span class="statistics-info-button statistics-inline-info" title="${infoTitle}" aria-label="${infoLabel || title + '说明'}"><i class="mdi mdi-information-outline" aria-hidden="true"></i></span>`
             : "";
@@ -1405,20 +1505,34 @@ document.addEventListener("DOMContentLoaded", function() {
         const valueIdAttr = valueId ? ` id="${valueId}"` : "";
         return `
             <div class="text-center${filterClass}"${filterAttrs}>
-                <div class="statistics-overall-kpi-value fs-3 fw-bold ${effectiveColorClass} lh-1"${valueIdAttr}>${displayValue}<span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span>${arrow ? `<span class="statistics-metric-trend statistics-kpi-trend-row">${arrow}</span>` : ''}</div>
+                <div class="statistics-overall-kpi-value fs-3 fw-bold ${effectiveColorClass} lh-1"${valueIdAttr}>${displayValue}<span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal" style="font-size: 13px;">${unit}</span></div>
+                ${arrow ? `<div class="statistics-metric-trend statistics-kpi-trend-row d-flex justify-content-center mt-1" style="font-size: 11px;">${arrow}</div>` : ''}
                 <div class="statistics-overall-kpi-label text-muted mt-1" style="font-size: 12px;">${title}${infoHtml}</div>
             </div>
         `;
     }
 
-    function buildFlexGroup(items, unit, groupTitle, colorClass, prevItems, filterField, detailScope = null) {
+    /*
+    buildFlexGroup(categories, "起", "", "text-indigo", prevCategories, "category")
+    buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break")
+    buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break")
+    htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break");
+    htmlLongDuration += buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems, undefined, "cable_break");
+    durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems, undefined, "cable_break");
+    durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems, undefined, "cable_break");
+    filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems, undefined, "cable_break");
+    renderTrendBesideMetric(repeatEl, kpis.repeat_faults_count, prevKpis && prevKpis.repeat_faults_count, true);
+    */
+    function buildFlexGroup(items, unit, groupTitle, colorClass, prevItems, filterField, detailScope = null, yoyItems = null) {
         if (!items || items.length === 0) return "";
         const compactClass = items.length >= 4 ? " statistics-kpi-group--compact" : "";
+        const useShortFormat = items.length >= 4;
         let groupHtml = `<div class="statistics-kpi-group${compactClass}">`;
         groupHtml += `<div class="statistics-kpi-group-items">`;
         items.forEach((item) => {
             let val = (item && item.value !== undefined) ? item.value : item;
             let name = (item && (item.name !== undefined || item.title !== undefined)) ? (item.name || item.title) : item;
+            
             // 按名称在上周期数据中查找对应值
             let prevVal = undefined;
             if (prevItems && prevItems.length > 0) {
@@ -1426,6 +1540,15 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (match) prevVal = match.value;
             }
             if (item && item.prevValue !== undefined) prevVal = item.prevValue;
+
+            // 按名称在同比周期数据中查找对应值
+            let yoyVal = undefined;
+            if (yoyItems && yoyItems.length > 0) {
+                const match = yoyItems.find(y => (y.name || y.title) === name);
+                if (match) yoyVal = match.value;
+            }
+            if (item && item.yoyValue !== undefined) yoyVal = item.yoyValue;
+
             const itemFilterField = item && item.filterField !== undefined ? item.filterField : filterField;
             const itemFilterValue = item && item.filterValue !== undefined ? item.filterValue : name;
             const itemFilterLabel = item && item.filterLabel !== undefined ? item.filterLabel : name;
@@ -1438,7 +1561,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const itemUnit = item && item.unit !== undefined ? item.unit : unit;
             const itemDetailScope = item && item.detailScope !== undefined ? item.detailScope : detailScope;
             const itemMetricType = item && item.metricType !== undefined ? item.metricType : null;
-            groupHtml += buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel, itemDisplayValue, itemDetailScope, itemMetricType);
+            groupHtml += buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel, itemDisplayValue, itemDetailScope, itemMetricType, yoyVal, useShortFormat);
         });
         groupHtml += `</div>`;
         if (groupTitle) {
@@ -1483,36 +1606,42 @@ document.addEventListener("DOMContentLoaded", function() {
         return html;
     }
 
-    function renderCableBreakOverview(overview, prevOverview) {
+    function renderCableBreakOverview(overview, prevOverview, yoyOverview) {
         const totalEl = document.getElementById('cable-break-total-count');
         if (!totalEl) return;
 
         overview = overview || {};
         prevOverview = prevOverview || {};
+        yoyOverview = yoyOverview || {};
         totalEl.textContent = formatCardCountValue(overview.total_count || 0);
         const totalMetric = totalEl.closest('.statistics-drill-metric');
         if (totalMetric) totalMetric.dataset.filterMetricValue = String(overview.total_count || 0);
 
-        renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, true);
+        renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, yoyOverview.total_count, true);
 
         // 卡片1-3: 中断起数、原因TOP3、光缆属性
         const prevReasonTop3 = prevOverview.reason_top3 || [];
         const prevSourceCounts = prevOverview.source_counts || [];
+        const yoyReasonTop3 = yoyOverview.reason_top3 || [];
+        const yoySourceCounts = yoyOverview.source_counts || [];
+
         const reasonTop3 = normalizeTopItems(overview.reason_top3 || [], 3);
         const reasonList = document.getElementById('cable-break-reason-top3-flex-list');
-        if (reasonList) reasonList.innerHTML = buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break");
+        if (reasonList) reasonList.innerHTML = buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break", yoyReasonTop3);
 
         const sourceCounts = normalizeNamedItems(overview.source_counts || [], ["自控", "第三方", "其他/未填"]);
         const sourceList = document.getElementById('cable-break-source-flex-list');
-        if (sourceList) sourceList.innerHTML = buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break");
+        if (sourceList) sourceList.innerHTML = buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break", yoySourceCounts);
 
         // 卡片2: 长时中断起数
         let htmlLong = "";
         const buckets = overview.long_duration_buckets || {};
         const prevBuckets = prevOverview.long_duration_buckets || {};
+        const yoyBuckets = yoyOverview.long_duration_buckets || {};
         const orderedBuckets = ['6-8小时', '8-10小时', '10-12小时', '12小时以上'];
         let longTotal = 0;
         let prevLongTotal = 0;
+        let yoyLongTotal = 0;
         let longItems = orderedBuckets.map(b => {
             let count = buckets[b] || 0;
             longTotal += count;
@@ -1521,6 +1650,11 @@ document.addEventListener("DOMContentLoaded", function() {
         let prevLongItems = orderedBuckets.map(b => {
             let count = prevBuckets[b] || 0;
             prevLongTotal += count;
+            return { value: count, name: b };
+        });
+        let yoyLongItems = orderedBuckets.map(b => {
+            let count = yoyBuckets[b] || 0;
+            yoyLongTotal += count;
             return { value: count, name: b };
         });
         longItems = [
@@ -1544,7 +1678,11 @@ document.addEventListener("DOMContentLoaded", function() {
             {name: "起数", value: prevLongTotal},
             ...prevLongItems,
         ];
-        htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break");
+        yoyLongItems = [
+            {name: "起数", value: yoyLongTotal},
+            ...yoyLongItems,
+        ];
+        htmlLong += buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break", yoyLongItems);
         
         const longList = document.getElementById('cable-break-long-flex-list');
         if (longList) longList.innerHTML = htmlLong;
@@ -1553,14 +1691,20 @@ document.addEventListener("DOMContentLoaded", function() {
         let htmlLongDuration = "";
         const longDurationBuckets = overview.long_duration_bucket_durations || {};
         const prevLongDurationBuckets = prevOverview.long_duration_bucket_durations || {};
+        const yoyLongDurationBuckets = yoyOverview.long_duration_bucket_durations || {};
         let longDurationTotal = Number(overview.long_duration_total || 0);
         let prevLongDurationTotal = Number(prevOverview.long_duration_total || 0);
+        let yoyLongDurationTotal = Number(yoyOverview.long_duration_total || 0);
         let longDurationItems = orderedBuckets.map(b => {
             const duration = Number(longDurationBuckets[b] || 0);
             return { value: duration, name: b };
         });
         let prevLongDurationItems = orderedBuckets.map(b => {
             const duration = Number(prevLongDurationBuckets[b] || 0);
+            return { value: duration, name: b };
+        });
+        let yoyLongDurationItems = orderedBuckets.map(b => {
+            const duration = Number(yoyLongDurationBuckets[b] || 0);
             return { value: duration, name: b };
         });
         longDurationItems = [
@@ -1584,7 +1728,11 @@ document.addEventListener("DOMContentLoaded", function() {
             {name: "总历时", value: prevLongDurationTotal},
             ...prevLongDurationItems,
         ];
-        htmlLongDuration += buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems, undefined, "cable_break");
+        yoyLongDurationItems = [
+            {name: "总历时", value: yoyLongDurationTotal},
+            ...yoyLongDurationItems,
+        ];
+        htmlLongDuration += buildFlexGroup(longDurationItems, "时", "", "text-indigo", prevLongDurationItems, undefined, "cable_break", yoyLongDurationItems);
         
         const longDurationList = document.getElementById('cable-break-long-duration-flex-list');
         if (longDurationList) longDurationList.innerHTML = htmlLongDuration;
@@ -1592,8 +1740,13 @@ document.addEventListener("DOMContentLoaded", function() {
         // 中断历时、原因TOP3、光缆属性
         const prevDurReasonTop3 = prevOverview.reason_duration_top3 || [];
         const prevDurSourceCounts = prevOverview.source_duration_counts || [];
+        const yoyDurReasonTop3 = yoyOverview.reason_duration_top3 || [];
+        const yoyDurSourceCounts = yoyOverview.source_duration_counts || [];
+        
         const currentDuration = Number(overview.total_duration || 0);
         const prevDuration = Number(prevOverview.total_duration || 0);
+        const yoyDuration = Number(yoyOverview.total_duration || 0);
+        
         const durationTotalList = document.getElementById('cable-break-duration-total-list');
 
         const durReasonItems = normalizeTopItems((overview.reason_duration_top3 || []).map(i => ({
@@ -1601,9 +1754,11 @@ document.addEventListener("DOMContentLoaded", function() {
             value: Number(i.value || 0),
         })), 3);
         const prevDurReasonItems = prevDurReasonTop3.map(i => ({...i, value: Number(i.value || 0)}));
+        const yoyDurReasonItems = yoyDurReasonTop3.map(i => ({...i, value: Number(i.value || 0)}));
+        
         const durationReasonList = document.getElementById('cable-break-duration-reason-flex-list');
         if (durationReasonList) {
-            durationReasonList.innerHTML = buildFlexGroup(durReasonItems, "时", "", "text-indigo", prevDurReasonItems, "reason", "cable_break");
+            durationReasonList.innerHTML = buildFlexGroup(durReasonItems, "时", "", "text-indigo", prevDurReasonItems, "reason", "cable_break", yoyDurReasonItems);
         }
 
         const durSourceItems = normalizeNamedItems((overview.source_duration_counts || []).map(i => ({
@@ -1611,13 +1766,16 @@ document.addEventListener("DOMContentLoaded", function() {
             value: Number(i.value || 0),
         })), ["自控", "第三方", "其他/未填"]);
         const prevDurSourceItems = prevDurSourceCounts.map(i => ({...i, value: Number(i.value || 0)}));
+        const yoyDurSourceItems = yoyDurSourceCounts.map(i => ({...i, value: Number(i.value || 0)}));
+        
         const durationSourceList = document.getElementById('cable-break-duration-source-flex-list');
         if (durationSourceList) {
-            durationSourceList.innerHTML = buildFlexGroup(durSourceItems, "时", "", "text-indigo", prevDurSourceItems, "source_group", "cable_break");
+            durationSourceList.innerHTML = buildFlexGroup(durSourceItems, "时", "", "text-indigo", prevDurSourceItems, "source_group", "cable_break", yoyDurSourceItems);
         }
 
         // 平均历时
         const prevMetrics = prevOverview.avg_metrics || {};
+        const yoyMetrics = yoyOverview.avg_metrics || {};
         const durationMetricsList = document.getElementById('cable-break-duration-metrics-flex-list');
         const filteredAverageList = document.getElementById('cable-break-filtered-average-flex-list');
         if (overview.avg_metrics) {
@@ -1720,9 +1878,25 @@ document.addEventListener("DOMContentLoaded", function() {
                     id: "cable-break-noncons-avg",
                 },
             ];
+            
             const prevOverallAverageItems = overallAverageItems.map(item => ({name: item.name, value: item.prevValue}));
             const prevDurationMetricItems = durationMetricItems.map(item => ({name: item.name, value: item.prevValue}));
             const prevFilteredAverageItems = filteredAverageItems.map(item => ({name: item.name, value: item.prevValue}));
+            
+            const yoyOverallAverageItems = overallAverageItems.map(item => ({name: item.name, value: yoyMetrics.overall_avg}));
+            const yoyDurationMetricItems = [
+                { name: "P50修复时长", value: Number(yoyMetrics.p50_repair_duration || 0) },
+                { name: "P90修复时长", value: Number(yoyMetrics.p90_repair_duration || 0) },
+                { name: "超时率", value: Number(yoyMetrics.timeout_rate || 0) }
+            ];
+            const yoyFilteredAverageItems = [
+                { name: "有效平均", value: Number(yoyMetrics.valid_avg || 0) },
+                { name: "日间平均", value: Number(yoyMetrics.daytime_avg || 0) },
+                { name: "夜间平均", value: Number(yoyMetrics.nighttime_avg || 0) },
+                { name: "施工类", value: Number(yoyMetrics.construction_avg || 0) },
+                { name: "非施工类", value: Number(yoyMetrics.non_construction_avg || 0) },
+            ];
+
             const durationSummaryItems = [
                 {
                     name: "总历时",
@@ -1739,18 +1913,29 @@ document.addEventListener("DOMContentLoaded", function() {
                 ...durationMetricItems.slice(2),
             ];
             const prevDurationSummaryItems = durationSummaryItems.map(item => ({name: item.name, value: item.prevValue}));
+            const yoyDurationSummaryItems = [
+                { name: "总历时", value: yoyDuration },
+                ...yoyOverallAverageItems,
+                ...yoyFilteredAverageItems.slice(0, 1),
+                ...yoyDurationMetricItems.slice(2),
+            ];
+
             const remainingFilteredAverageItems = filteredAverageItems.slice(1);
             const prevRemainingFilteredAverageItems = prevFilteredAverageItems.slice(1);
+            const yoyRemainingFilteredAverageItems = yoyFilteredAverageItems.slice(1);
+
             const repairPercentileItems = durationMetricItems.slice(0, 2);
             const prevRepairPercentileItems = prevDurationMetricItems.slice(0, 2);
+            const yoyRepairPercentileItems = yoyDurationMetricItems.slice(0, 2);
+
             if (durationTotalList) {
-                durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems, undefined, "cable_break");
+                durationTotalList.innerHTML = buildFlexGroup(durationSummaryItems, "", "", "text-indigo", prevDurationSummaryItems, undefined, "cable_break", yoyDurationSummaryItems);
             }
             if (durationMetricsList) {
-                durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems, undefined, "cable_break");
+                durationMetricsList.innerHTML = buildFlexGroup(repairPercentileItems, "", "", "text-indigo", prevRepairPercentileItems, undefined, "cable_break", yoyRepairPercentileItems);
             }
             if (filteredAverageList) {
-                filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems, undefined, "cable_break");
+                filteredAverageList.innerHTML = buildFlexGroup(remainingFilteredAverageItems, "时", "", "text-indigo", prevRemainingFilteredAverageItems, undefined, "cable_break", yoyRemainingFilteredAverageItems);
             }
         }
         
@@ -1810,9 +1995,10 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    function renderBareFiberInterruption(overview, prevOverview, idPrefix = 'barefiber') {
+    function renderBareFiberInterruption(overview, prevOverview, yoyOverview, idPrefix = 'barefiber') {
         overview = overview || {};
         prevOverview = prevOverview || {};
+        yoyOverview = yoyOverview || {};
 
         const totalCountEl = document.getElementById(`${idPrefix}-total-count`);
         const distinctCountEl = document.getElementById(`${idPrefix}-distinct-count`);
@@ -1821,19 +2007,19 @@ document.addEventListener("DOMContentLoaded", function() {
 
         if (totalCountEl) {
             totalCountEl.textContent = formatCardCountValue(overview.total_count);
-            renderTrendBesideMetric(totalCountEl, overview.total_count, prevOverview.total_count, true);
+            renderTrendBesideMetric(totalCountEl, overview.total_count, prevOverview.total_count, yoyOverview.total_count, true, true);
         }
         if (distinctCountEl) {
             distinctCountEl.textContent = formatCardCountValue(overview.distinct_count);
-            renderTrendBesideMetric(distinctCountEl, overview.distinct_count, prevOverview.distinct_count, true);
+            renderTrendBesideMetric(distinctCountEl, overview.distinct_count, prevOverview.distinct_count, yoyOverview.distinct_count, true, true);
         }
         if (totalDurationEl) {
             totalDurationEl.textContent = formatCardMetricValue(overview.total_duration);
-            renderTrendBesideMetric(totalDurationEl, overview.total_duration, prevOverview.total_duration, false);
+            renderTrendBesideMetric(totalDurationEl, overview.total_duration, prevOverview.total_duration, yoyOverview.total_duration, false, true);
         }
         if (distinctDurationEl) {
             distinctDurationEl.textContent = formatCardMetricValue(overview.distinct_duration);
-            renderTrendBesideMetric(distinctDurationEl, overview.distinct_duration, prevOverview.distinct_duration, false);
+            renderTrendBesideMetric(distinctDurationEl, overview.distinct_duration, prevOverview.distinct_duration, yoyOverview.distinct_duration, false, true);
         }
     }
 
@@ -2114,10 +2300,10 @@ document.addEventListener("DOMContentLoaded", function() {
             .replace('市', '');
     }
 
-    function renderBranchCompanySection(branchData, prevBranchData = currentPrevBranchCompanyData) {
+    function renderBranchCompanySection(branchData, prevBranchData = currentPrevBranchCompanyData, yoyBranchData = currentYoyBranchCompanyData) {
         if (!branchData) return;
         renderBranchCompanyPerformanceCards(branchData.performance_cards || []);
-        renderBranchCompanyOverview(branchData, prevBranchData);
+        renderBranchCompanyOverview(branchData, prevBranchData, yoyBranchData);
         renderBranchCompanyBarCharts(branchData);
         renderBranchCompanyBoxplot(branchData);
         renderBranchCompanyValidDurationChart(branchData);
@@ -2541,17 +2727,23 @@ document.addEventListener("DOMContentLoaded", function() {
         loadBranchDetails();
     }
 
-    function renderBranchCompanyOverview(branchData, prevBranchData = currentPrevBranchCompanyData) {
+    function renderBranchCompanyOverview(branchData, prevBranchData = currentPrevBranchCompanyData, yoyBranchData = currentYoyBranchCompanyData) {
         const overview = branchData.overview || {};
         const bareFiber = branchData.bare_fiber_interruption || {};
         const cableBreak = branchData.cable_break_overview || {};
+        
         const prevOverview = (prevBranchData && prevBranchData.overview) || {};
         const prevBareFiber = (prevBranchData && prevBranchData.bare_fiber_interruption) || {};
         const prevCableBreak = (prevBranchData && prevBranchData.cable_break_overview) || {};
+
+        const yoyOverview = (yoyBranchData && yoyBranchData.overview) || {};
+        const yoyBareFiber = (yoyBranchData && yoyBranchData.bare_fiber_interruption) || {};
+        const yoyCableBreak = (yoyBranchData && yoyBranchData.cable_break_overview) || {};
+
         const totalEl = document.getElementById('branch-company-overall-total');
         if (totalEl) totalEl.textContent = formatCardCountValue(overview.total_count || 0);
-        renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, true);
-        renderBareFiberInterruption(bareFiber, prevBareFiber, 'branch-barefiber');
+        renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, yoyOverview.total_count, true);
+        renderBareFiberInterruption(bareFiber, prevBareFiber, yoyBareFiber, 'branch-barefiber');
 
         const categoryEl = document.getElementById('branch-company-overall-categories-flex-list');
         if (categoryEl) {
@@ -2563,13 +2755,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 filterValue: item.name,
                 filterLabel: item.name,
             }));
-            categoryEl.innerHTML = buildFlexGroup(categories, '起', '', 'text-indigo', prevOverview.categories || []);
+            categoryEl.innerHTML = buildFlexGroup(categories, '起', '', 'text-indigo', prevOverview.categories || [], null, null, yoyOverview.categories || []);
         }
 
         const otherEl = document.getElementById('branch-company-overall-other-flex-list');
         if (otherEl) {
             const other = overview.other || {};
             const prevOther = prevOverview.other || {};
+            const yoyOther = yoyOverview.other || {};
             const otherItems = [
                 { id: 'branch-company-fiber-degradation', name: '光缆劣化', value: other.fiber_degradation || 0, filterField: 'category', filterValue: '光缆劣化', filterLabel: '光缆劣化' },
                 { id: 'branch-company-fiber-jitter', name: '光缆抖动', value: other.fiber_jitter || 0, filterField: 'category', filterValue: '光缆抖动', filterLabel: '光缆抖动' },
@@ -2580,12 +2773,17 @@ document.addEventListener("DOMContentLoaded", function() {
                 { name: '光缆抖动', value: prevOther.fiber_jitter || 0 },
                 { name: '挂起', value: prevOther.suspended_faults || 0 },
             ];
-            otherEl.innerHTML = buildFlexGroup(otherItems, '起', '', 'text-indigo', prevOtherItems);
+            const yoyOtherItems = [
+                { name: '光缆劣化', value: yoyOther.fiber_degradation || 0 },
+                { name: '光缆抖动', value: yoyOther.fiber_jitter || 0 },
+                { name: '挂起', value: yoyOther.suspended_faults || 0 },
+            ];
+            otherEl.innerHTML = buildFlexGroup(otherItems, '起', '', 'text-indigo', prevOtherItems, null, null, yoyOtherItems);
         }
 
         const cableBreakTotalEl = document.getElementById('branch-company-cable-break-total-count');
         if (cableBreakTotalEl) cableBreakTotalEl.textContent = formatCardCountValue(cableBreak.total_count || 0);
-        renderTrendBesideMetric(cableBreakTotalEl, cableBreak.total_count || 0, prevCableBreak.total_count, true);
+        renderTrendBesideMetric(cableBreakTotalEl, cableBreak.total_count || 0, prevCableBreak.total_count, yoyCableBreak.total_count, true);
 
         const reasonEl = document.getElementById('branch-company-cable-break-reason-top3-flex-list');
         if (reasonEl) {
@@ -2594,25 +2792,28 @@ document.addEventListener("DOMContentLoaded", function() {
                 filterField: 'reason',
                 filterValue: item.name,
                 filterLabel: item.name,
-            })), '起', '', 'text-indigo', prevCableBreak.reason_top3 || []);
+            })), '起', '', 'text-indigo', prevCableBreak.reason_top3 || [], null, null, yoyCableBreak.reason_top3 || []);
         }
 
         const durationEl = document.getElementById('branch-company-cable-break-duration-total-list');
         if (durationEl) {
             const metrics = cableBreak.avg_metrics || {};
             const prevMetrics = prevCableBreak.avg_metrics || {};
+            const yoyMetrics = yoyCableBreak.avg_metrics || {};
             const durationItems = [
-                { id: 'branch-company-total-duration', name: '总历时', value: cableBreak.total_duration || 0, prevValue: prevCableBreak.total_duration, unit: '小时', filterField: 'category', filterValue: '光缆中断', filterLabel: '中断历时' },
-                { id: 'branch-company-overall-avg', name: '全口径平均', value: metrics.overall_avg || 0, prevValue: prevMetrics.overall_avg, unit: '小时', filterField: 'category', filterValue: '光缆中断', filterLabel: '全口径平均' },
-                { id: 'branch-company-valid-avg', name: '有效平均', value: metrics.valid_avg || 0, prevValue: prevMetrics.valid_avg, unit: '小时', filterField: 'is_valid_duration', filterValue: 'true', filterLabel: '有效平均' },
-                { id: 'branch-company-timeout-rate', name: '超时率', value: metrics.timeout_rate || 0, prevValue: prevMetrics.timeout_rate, unit: '%', filterField: 'duration_min', filterValue: '4', filterLabel: '超时率' },
+                { id: 'branch-company-total-duration', name: '总历时', value: cableBreak.total_duration || 0, prevValue: prevCableBreak.total_duration, yoyValue: yoyCableBreak.total_duration, unit: '小时', filterField: 'category', filterValue: '光缆中断', filterLabel: '中断历时' },
+                { id: 'branch-company-overall-avg', name: '全口径平均', value: metrics.overall_avg || 0, prevValue: prevMetrics.overall_avg, yoyValue: yoyMetrics.overall_avg, unit: '小时', filterField: 'category', filterValue: '光缆中断', filterLabel: '全口径平均' },
+                { id: 'branch-company-valid-avg', name: '有效平均', value: metrics.valid_avg || 0, prevValue: prevMetrics.valid_avg, yoyValue: yoyMetrics.valid_avg, unit: '小时', filterField: 'is_valid_duration', filterValue: 'true', filterLabel: '有效平均' },
+                { id: 'branch-company-timeout-rate', name: '超时率', value: metrics.timeout_rate || 0, prevValue: prevMetrics.timeout_rate, yoyValue: yoyMetrics.timeout_rate, unit: '%', filterField: 'duration_min', filterValue: '4', filterLabel: '超时率' },
             ];
-            durationEl.innerHTML = buildFlexGroup(durationItems, '', '', 'text-indigo');
+            const prevDurationItems = durationItems.map(item => ({ name: item.name, value: item.prevValue }));
+            const yoyDurationItems = durationItems.map(item => ({ name: item.name, value: item.yoyValue }));
+            durationEl.innerHTML = buildFlexGroup(durationItems, '', '', 'text-indigo', prevDurationItems, undefined, undefined, yoyDurationItems);
         }
 
         const repeatEl = document.getElementById('branch-company-kpi-repeat-faults');
         if (repeatEl) repeatEl.textContent = formatCardCountValue(cableBreak.repeat_faults_count || 0);
-        renderTrendBesideMetric(repeatEl, cableBreak.repeat_faults_count || 0, prevCableBreak.repeat_faults_count, true);
+        renderTrendBesideMetric(repeatEl, cableBreak.repeat_faults_count || 0, prevCableBreak.repeat_faults_count, yoyCableBreak.repeat_faults_count, true);
     }
 
     function getSortedBranchBars(data, metric) {

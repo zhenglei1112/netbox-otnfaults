@@ -49,13 +49,13 @@ class StatisticsBareFiberInterruptionTestCase(unittest.TestCase):
 
         self.assertIn("let currentBareFiberInterruption = null;", source)
         self.assertIn("let currentPrevBareFiberInterruption = null;", source)
-        self.assertIn("function renderBareFiberInterruption(overview, prevOverview, idPrefix = 'barefiber')", source)
+        self.assertIn("function renderBareFiberInterruption(overview, prevOverview, yoyOverview, idPrefix = 'barefiber')", source)
         self.assertIn("document.getElementById(`${idPrefix}-total-count`)", source)
         self.assertIn("document.getElementById(`${idPrefix}-distinct-count`)", source)
         self.assertIn("document.getElementById(`${idPrefix}-total-duration`)", source)
         self.assertIn("document.getElementById(`${idPrefix}-distinct-duration`)", source)
-        self.assertIn("renderBareFiberInterruption(data.bare_fiber_interruption, data.prev_bare_fiber_interruption);", source)
-        self.assertIn("renderBareFiberInterruption(currentBareFiberInterruption, currentPrevBareFiberInterruption || {});", source)
+        self.assertIn("renderBareFiberInterruption(data.bare_fiber_interruption, data.prev_bare_fiber_interruption, data.yoy_bare_fiber_interruption);", source)
+        self.assertIn("renderBareFiberInterruption(currentBareFiberInterruption, currentPrevBareFiberInterruption || {}, currentYoyBareFiberInterruption || {});", source)
 
     def test_bare_fiber_fault_detail_columns(self) -> None:
         import re

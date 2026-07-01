@@ -294,7 +294,7 @@ class StatisticsCableBreakMapView(PermissionRequiredMixin, View):
             map_data_url = f"{map_data_url}?{urlencode(query_params)}"
 
         is_embedded_map = request.GET.get('modal') == 'true'
-        start_date, end_date, _prev_start_date, _prev_end_date, filter_type = _parse_time_range(request)
+        start_date, end_date, _prev_start_date, _prev_end_date, _yoy_start_date, _yoy_end_date, filter_type = _parse_time_range(request)
         now = timezone.localtime()
 
         return render(request, 'netbox_otnfaults/unified_map.html', {
@@ -330,7 +330,7 @@ class StatisticsCableBreakMapDataAPI(PermissionRequiredMixin, View):
     permission_required = 'netbox_otnfaults.view_otnfault'
 
     def get(self, request):
-        start_date, end_date, _prev_start_date, _prev_end_date, _filter_type = _parse_time_range(request)
+        start_date, end_date, _prev_start_date, _prev_end_date, _yoy_start_date, _yoy_end_date, _filter_type = _parse_time_range(request)
         now = timezone.localtime()
         selected_provinces = _parse_selected_provinces(request)
         base_qs = _apply_physical_province_filter(

@@ -411,13 +411,13 @@ body.modal-open {
 
 .statistics-strip-card-body {
     flex: 1 1 auto;
-    min-height: 6.4rem;
+    min-height: 7.4rem;
     padding: 0;
     background: var(--statistics-surface);
 }
 
 .statistics-strip-card-metrics {
-    min-height: 6.4rem;
+    min-height: 7.4rem;
 }
 
 .statistics-strip-card-footer {
@@ -3382,5 +3382,18 @@ body.modal-open {
 
 [data-bs-theme="dark"] .statistics-global-loading {
     background-color: rgba(21, 25, 34, 0.6); /* 适配暗色主题背景 */
+}
+
+.statistics-barefiber-card .statistics-strip-card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.statistics-barefiber-card .statistics-strip-card-metrics {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
 }
 
