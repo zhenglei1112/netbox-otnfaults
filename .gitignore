@@ -13,6 +13,9 @@ test_failures.txt
 test_output.log
 tests_statistics_result*.log
 .tmp_test_artifacts/pycache_*/
+*_err.txt
+err_*.txt
+test_err.txt
 
 # Other
 图像.md
