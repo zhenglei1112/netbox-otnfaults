@@ -116,15 +116,9 @@
                         {% endfor %}
                     </select>
                 </div>
-                <button type="button" id="statistics-metric-help-btn" class="btn btn-outline-info"
-                    data-bs-toggle="modal" data-bs-target="#statisticsMetricHelpModal">
-                    <i class="mdi mdi-information-outline me-1" aria-hidden="true"></i>指标说明
-                </button>
+
                 <div class="d-flex align-items-center statistics-period-control-group">
-                    <button type="button" id="btn-prev-period" class="btn btn-outline-secondary btn-icon" title="上一周期"
-                        aria-label="上一周期">
-                        <i class="mdi mdi-chevron-left"></i>
-                    </button>
+
                     <select id="filterType" class="form-select statistics-period-type-select">
                         <option value="year" {% if default_filter_type == 'year' %}selected{% endif %}>按年</option>
                         <option value="half" {% if default_filter_type == 'half' %}selected{% endif %}>按半年</option>
@@ -133,6 +127,10 @@
                         <option value="week" {% if default_filter_type == 'week' %}selected{% endif %}>按周</option>
                     </select>
 
+                     <button type="button" id="btn-prev-period" class="btn btn-outline-secondary btn-icon" title="上一周期"
+                        aria-label="上一周期">
+                        <i class="mdi mdi-chevron-left"></i>
+                    </button>
                     <input type="date" id="filterDate" class="form-control" style="width: auto;"
                         value="{{ default_date }}">
                     <button type="button" id="btn-next-period" class="btn btn-outline-secondary btn-icon" title="下一周期"
@@ -140,6 +138,11 @@
                         <i class="mdi mdi-chevron-right"></i>
                     </button>
                 </div>
+                <button type="button" id="statistics-metric-help-btn" class="btn btn-outline-info btn-icon"
+                    data-bs-toggle="modal" data-bs-target="#statisticsMetricHelpModal" title="指标说明"
+                    aria-label="指标说明">
+                    <i class="mdi mdi-information-outline" aria-hidden="true"></i>
+                </button>
                 <button type="button" id="statistics-fullscreen-btn"
                     class="btn btn-outline-secondary btn-icon statistics-fullscreen-toggle" title="最大化故障统计页面"
                     aria-label="最大化故障统计页面" aria-pressed="false">
@@ -1288,6 +1291,32 @@
                                 <li>年度累计按所选年份统计 SLA、中断时长和中断起数；SLA 先合并重叠不可用时段，再按“(年度小时数 - 不可用小时数) / 年度小时数”得到可用率，SLA 按两位小数向下截取展示。</li>
                                 <li>运行月历按所选年份逐月展示故障数与故障时长；运行月历的 SLA 单元格只显示数字，不显示百分号。</li>
                                 <li>中断日历默认展示近三个月（子公司绩效考核卡片默认展示近六个月），可展开查看所选年份截至当前月份的业务中断次数。</li>
+                            </ul>
+                        </div>
+                    </section>
+                    <section class="statistics-metric-help-card">
+                        <h6 class="statistics-metric-help-card-title">子公司绩效与扣分规则</h6>
+                        <div class="statistics-metric-help-card-body">
+                            <ul class="mb-0">
+                                <li><strong>考核评分（100分制）：</strong>总分 100 分，按以下指标进行扣分计算，各扣分项均设有上限：
+                                    <ul>
+                                        <li><strong>频次扣分：</strong>千公里频次 * 1.8，扣分上限为 30.0 分。</li>
+                                        <li><strong>历时扣分：</strong>千公里历时 * 0.4，扣分上限为 25.0 分。</li>
+                                        <li><strong>有效平均扣分：</strong>有效平均历时超出 4.0 小时的部分 * 3.0，扣分上限为 15.0 分。</li>
+                                        <li><strong>长时/超时/未恢复扣分：</strong>长时故障数 * 2.0 + 超时故障数 * 2.0 + 未恢复故障数 * 3.0，累计扣分上限为 15.0 分。</li>
+                                        <li><strong>重复扣分：</strong>重复故障起数 * 2.0，扣分上限为 10.0 分。</li>
+                                        <li><strong>趋势扣分：</strong>目前未启用，上限为 5.0 分。</li>
+                                    </ul>
+                                </li>
+                                <li><strong>千公里归一化：</strong>对故障频次和故障历时按子公司维护的光缆千公里数进行折算。计算公式为：<code>原始值 * 1000 / 光缆公里数</code>。</li>
+                                <li><strong>计入责任口径规则：</strong>
+                                    <ul>
+                                        <li><strong>仅全量计入（weight=0.0）：</strong>自然灾害或计划报备故障，不计入责任考核评分。</li>
+                                        <li><strong>降权计入（weight=0.5）：</strong>租赁资源、第三方施工或交通事故故障，按 50% 权重折算计入责任考核评分。</li>
+                                        <li><strong>责任计入（weight=1.0）：</strong>其他非降权/免责故障，按 100% 权重全量计入责任考核评分。</li>
+                                    </ul>
+                                </li>
+                                <li><strong>评级标准：</strong>根据绩效得分划分为四个等级：优秀（得分 &ge; 90）、良好（80 &le; 得分 &lt; 90）、关注（70 &le; 得分 &lt; 80）、待整改（得分 &lt; 70）。</li>
                             </ul>
                         </div>
                     </section>
