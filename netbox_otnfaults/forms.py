@@ -1981,11 +1981,14 @@ class CutoverTaskFilterForm(NetBoxModelFilterSetForm):
     re_cutover = DynamicModelChoiceField(queryset=CutoverTask.objects.all(), required=False, label='再次割接')
     planned_cutover_time_after = forms.DateTimeField(required=False, label='计划割接时间（开始）', widget=DateTimePicker())
     planned_cutover_time_before = forms.DateTimeField(required=False, label='计划割接时间（结束）', widget=DateTimePicker())
+    started_at_after = forms.DateTimeField(required=False, label='实际开始时间（开始）', widget=DateTimePicker())
+    started_at_before = forms.DateTimeField(required=False, label='实际开始时间（结束）', widget=DateTimePicker())
 
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
         FieldSet('cutover_no', 'status', 'cutover_type', 'province', 'management_unit', 'is_timeout', 'cutover_result', 'registrant', 'line_supervisor', 'interruption_location_a', 're_cutover', name='割接信息'),
         FieldSet('planned_cutover_time_after', 'planned_cutover_time_before', name='计划时间'),
+        FieldSet('started_at_after', 'started_at_before', name='实际开始时间'),
     )
 
 

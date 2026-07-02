@@ -444,25 +444,29 @@ document.addEventListener("DOMContentLoaded", function() {
     if (cardCutover) {
         cardCutover.addEventListener('click', function(e) {
             e.preventDefault();
-            let url = '/plugins/netbox-otnfaults/cutovers/';
+            let url = '/plugins/otnfaults/cutovers/';
+            const params = [];
             const type = selFilterType.value;
             const dateVal = inputDate.value;
             const period = buildLocalPeriodForDate(type, dateVal);
             if (period && period.start) {
-                url += `?planned_cutover_time_after=${period.start}T00:00:00`;
+                params.push(`started_at_after=${period.start}T00:00:00`);
                 if (period.end && period.end !== '当前') {
-                    url += `&planned_cutover_time_before=${period.end}T23:59:59`;
+                    params.push(`started_at_before=${period.end}T23:59:59`);
                 } else {
                     const today = new Date();
                     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                    url += `&planned_cutover_time_before=${todayStr}T23:59:59`;
+                    params.push(`started_at_before=${todayStr}T23:59:59`);
                 }
             }
             const provinces = getSelectedPhysicalProvinces();
             if (provinces.length > 0) {
                 provinces.forEach(p => {
-                    url += `&province=${encodeURIComponent(p)}`;
+                    params.push(`province=${encodeURIComponent(p)}`);
                 });
+            }
+            if (params.length > 0) {
+                url += '?' + params.join('&');
             }
             window.open(url, '_blank');
         });

@@ -335,6 +335,12 @@ class CutoverTaskFilterSet(NetBoxModelFilterSet):
     planned_cutover_time_before = django_filters.DateTimeFilter(
         field_name='planned_cutover_time', lookup_expr='lte'
     )
+    started_at_after = django_filters.DateTimeFilter(
+        field_name='started_at', lookup_expr='gte'
+    )
+    started_at_before = django_filters.DateTimeFilter(
+        field_name='started_at', lookup_expr='lte'
+    )
 
     class Meta:
         model = CutoverTask
