@@ -451,13 +451,8 @@ document.addEventListener("DOMContentLoaded", function() {
             const period = buildLocalPeriodForDate(type, dateVal);
             if (period && period.start) {
                 params.push(`started_at_after=${period.start}T00:00:00`);
-                if (period.end && period.end !== '当前') {
-                    params.push(`started_at_before=${period.end}T23:59:59`);
-                } else {
-                    const today = new Date();
-                    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                    params.push(`started_at_before=${todayStr}T23:59:59`);
-                }
+                const limitEnd = (period.end && period.end !== '当前') ? period.end : period.actualEnd;
+                params.push(`started_at_before=${limitEnd}T23:59:59`);
             }
             const provinces = getSelectedPhysicalProvinces();
             if (provinces.length > 0) {
@@ -673,6 +668,7 @@ document.addEventListener("DOMContentLoaded", function() {
         return {
             start: formatInputDate(start),
             end: todayLocal >= start && todayLocal <= end ? '当前' : formatInputDate(end),
+            actualEnd: formatInputDate(end),
             is_future: start > todayLocal,
         };
     }

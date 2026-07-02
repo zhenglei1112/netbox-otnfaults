@@ -2,6 +2,27 @@ from django.db.models import Q
 import django_filters
 from netbox.filtersets import NetBoxModelFilterSet
 from netbox_contract.models import ServiceProvider, Contract
+from dcim.models import Region
+
+class RegionMultipleChoiceFilter(django_filters.ModelMultipleChoiceFilter):
+    """
+    自定义省份过滤器，兼容 ID、slug 和中文 name 过滤
+    """
+    def filter(self, qs, value):
+        if not value:
+            raw_values = self.parent.request.GET.getlist(self.field_name) if self.parent and self.parent.request else []
+            if raw_values:
+                q_expr = Q()
+                for val in raw_values:
+                    if not val:
+                        continue
+                    if val.isdigit() or len(val) >= 32 or '-' in val:
+                        q_expr |= Q(**{f"{self.field_name}__id": val})
+                    else:
+                        q_expr |= Q(**{f"{self.field_name}__name": val}) | Q(**{f"{self.field_name}__slug": val})
+                if q_expr:
+                    return qs.filter(q_expr).distinct()
+        return super().filter(qs, value)
 
 from .models import (
     BareFiberService,
@@ -22,6 +43,11 @@ from .models import (
 
 
 class OtnFaultFilterSet(NetBoxModelFilterSet):
+    province = RegionMultipleChoiceFilter(
+        field_name='province',
+        queryset=Region.objects.all(),
+        label='省份'
+    )
     fault_occurrence_time_after = django_filters.DateTimeFilter(
         field_name='fault_occurrence_time', lookup_expr='gte'
     )
@@ -329,6 +355,11 @@ class BareFiberServiceFilterSet(NetBoxModelFilterSet):
 
 class CutoverTaskFilterSet(NetBoxModelFilterSet):
     """割接管理过滤器"""
+    province = RegionMultipleChoiceFilter(
+        field_name='province',
+        queryset=Region.objects.all(),
+        label='省份'
+    )
     planned_cutover_time_after = django_filters.DateTimeFilter(
         field_name='planned_cutover_time', lookup_expr='gte'
     )
