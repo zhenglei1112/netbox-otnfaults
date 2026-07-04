@@ -25,7 +25,7 @@ class MapStylePreferenceSourceTestCase(unittest.TestCase):
         self.assertTrue(SERVICE_PATH.exists(), f"Missing file: {SERVICE_PATH}")
         service_source = SERVICE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("class OtnMapPreference(NetBoxModel):", models_source)
+        self.assertIn("class OtnMapPreference(OtnBaseModel):", models_source)
         self.assertIn("related_name='otn_map_preferences'", models_source)
         self.assertIn("style_config = models.JSONField(", models_source)
         self.assertIn("schema_version = models.PositiveSmallIntegerField(default=1)", models_source)

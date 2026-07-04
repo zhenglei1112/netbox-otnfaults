@@ -36,7 +36,7 @@ class HeavyDutySourceCodeTestCase(unittest.TestCase):
     def test_model_definition(self) -> None:
         source = _read(MODELS_PATH)
         heavy_duty_source = _class_block(source, "HeavyDuty")
-        self.assertIn("class HeavyDuty(NetBoxModel):", heavy_duty_source)
+        self.assertIn("class HeavyDuty(OtnBaseModel):", heavy_duty_source)
         self.assertIn("name = models.CharField(", heavy_duty_source)
         self.assertIn("start_time = models.DateTimeField(", heavy_duty_source)
         self.assertIn("end_time = models.DateTimeField(", heavy_duty_source)

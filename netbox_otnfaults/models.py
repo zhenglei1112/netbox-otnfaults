@@ -1,5 +1,6 @@
 from django.db import models
 from typing import Any
+import datetime
 
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
@@ -446,7 +447,24 @@ class RecoveryModeChoices(ChoiceSet):
     ]
 
 
-class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
+class OtnBaseModel(NetBoxModel):
+    """
+    统一的模型基类，确保所有 DateTimeField 在保存前转为 UTC，
+    以消除 NetBox 审计日志中时间字段的误报变更差异。
+    """
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        for field in self._meta.fields:
+            if isinstance(field, models.DateTimeField):
+                val = getattr(self, field.name)
+                if isinstance(val, datetime.datetime) and timezone.is_aware(val):
+                    setattr(self, field.name, val.astimezone(datetime.timezone.utc))
+        super().save(*args, **kwargs)
+
+
+class CutoverTask(OtnBaseModel, ImageAttachmentsMixin):
     cutover_no = models.CharField(
         max_length=50,
         unique=True,
@@ -774,7 +792,7 @@ class CutoverTask(NetBoxModel, ImageAttachmentsMixin):
                     raise
 
 
-class OtnFault(NetBoxModel, ImageAttachmentsMixin):
+class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
     fault_number = models.CharField(
         max_length=20,
         unique=True,
@@ -1875,7 +1893,7 @@ class BusinessImpactChoices(ChoiceSet):
     ]
 
 
-class OtnFaultImpact(NetBoxModel, ImageAttachmentsMixin):
+class OtnFaultImpact(OtnBaseModel, ImageAttachmentsMixin):
     otn_fault = models.ForeignKey(
         to=OtnFault,
         on_delete=models.CASCADE,
@@ -2133,7 +2151,7 @@ class PathGroupSiteRoleChoices(ChoiceSet):
     ]
 
 
-class OtnPathGroup(NetBoxModel):
+class OtnPathGroup(OtnBaseModel):
     """路径组模型，用于对光缆路径进行分组管理"""
     name = models.CharField(
         max_length=100,
@@ -2186,7 +2204,7 @@ class OtnPathGroup(NetBoxModel):
         return reverse('plugins:netbox_otnfaults:otnpathgroup', args=[self.pk])
 
 
-class OtnPathGroupSite(NetBoxModel):
+class OtnPathGroupSite(OtnBaseModel):
     """路径组与站点的中间关系模型，包含站点角色和排序"""
     path_group = models.ForeignKey(
         to=OtnPathGroup,
@@ -2251,7 +2269,7 @@ class CableTypeChoices(ChoiceSet):
     ]
 
 
-class OtnPath(NetBoxModel):
+class OtnPath(OtnBaseModel):
     name = models.CharField(
         max_length=100,
         verbose_name='名称'
@@ -2308,7 +2326,7 @@ class OtnPath(NetBoxModel):
         return CableTypeChoices.colors.get(self.cable_type)
 
 
-class OtnMapPreference(NetBoxModel):
+class OtnMapPreference(OtnBaseModel):
     """Per-user style preferences for unified map modes."""
 
     user = models.ForeignKey(
@@ -2348,7 +2366,7 @@ class OtnMapPreference(NetBoxModel):
         return reverse('plugins:netbox_otnfaults:otnfault_map_globe')
 
 
-class BareFiberService(NetBoxModel):
+class BareFiberService(OtnBaseModel):
     """裸纤业务模型"""
     name = models.CharField(
         max_length=200,
@@ -2537,7 +2555,7 @@ class SLALevelChoices(ChoiceSet):
     ]
 
 
-class CircuitService(NetBoxModel):
+class CircuitService(OtnBaseModel):
     """?????????"""
     EXTRA_FIELD_DEFINITIONS: tuple[tuple[str, str], ...] = (
         ('request_number', '需求单号'),
@@ -2751,7 +2769,7 @@ class CircuitService(NetBoxModel):
         ]
 
 
-class CutoverImpact(NetBoxModel, ImageAttachmentsMixin):
+class CutoverImpact(OtnBaseModel, ImageAttachmentsMixin):
     """割接影响业务模型 — 记录割接任务关联的受影响裸纤/电路业务"""
     cutover_task = models.ForeignKey(
         to='CutoverTask',
@@ -2986,7 +3004,7 @@ class HeavyDutyTypeChoices(ChoiceSet):
     ]
 
 
-class HeavyDuty(NetBoxModel):
+class HeavyDuty(OtnBaseModel):
     """重要保障信息模型"""
     name = models.CharField(
         max_length=200,

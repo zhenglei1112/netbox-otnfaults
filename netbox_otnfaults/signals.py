@@ -24,3 +24,5 @@ for model in [OtnFault, OtnFaultImpact, BareFiberService, CircuitService]:
 # 注册 m2m_changed 信号以监听 Z 端站点关联的变化
 m2m_changed.connect(increment_stats_version, sender=OtnFault.interruption_location.through)
 m2m_changed.connect(increment_stats_version, sender=OtnFaultImpact.service_site_z.through)
+
+

@@ -12,7 +12,7 @@ class CutoverStatusAutoSetTestCase(unittest.TestCase):
         """测试 models.py 中 CutoverTask.save() 是否包含当影响业务全部已批准或强制割接时自动流转为待实施状态的逻辑"""
         models_source = MODELS_FILE.read_text(encoding="utf-8")
         
-        self.assertIn("class CutoverTask(NetBoxModel, ImageAttachmentsMixin):", models_source)
+        self.assertIn("class CutoverTask(OtnBaseModel, ImageAttachmentsMixin):", models_source)
         self.assertIn("def save(self, *args: Any, **kwargs: Any) -> None:", models_source)
         
         # 验证条件检测和状态设置

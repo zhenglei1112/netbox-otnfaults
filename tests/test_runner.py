@@ -4,6 +4,7 @@ import sys
 from test_heavy_duty import HeavyDutySourceCodeTestCase
 from test_statistics_impact_level import StatisticsImpactLevelTestCase
 from test_statistics_bare_fiber_interruption import StatisticsBareFiberInterruptionTestCase
+from test_datetime_utc_save import DateTimeUTCSaveTestCase
 
 if __name__ == '__main__':
     loader = unittest.TestLoader()
@@ -11,7 +12,9 @@ if __name__ == '__main__':
         loader.loadTestsFromTestCase(HeavyDutySourceCodeTestCase),
         loader.loadTestsFromTestCase(StatisticsImpactLevelTestCase),
         loader.loadTestsFromTestCase(StatisticsBareFiberInterruptionTestCase),
+        loader.loadTestsFromTestCase(DateTimeUTCSaveTestCase),
     ))
+
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
     

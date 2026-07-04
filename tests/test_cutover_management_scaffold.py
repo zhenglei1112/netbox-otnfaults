@@ -30,7 +30,7 @@ def test_cutover_task_model_defines_core_fields_and_helpers() -> None:
     assert "'各子公司'" not in cutover_management_choices
     assert "class CutoverTimeoutStatusChoices(ChoiceSet):" in source
     assert "class CutoverResultChoices(ChoiceSet):" in source
-    assert "class CutoverTask(NetBoxModel, ImageAttachmentsMixin):" in source
+    assert "class CutoverTask(OtnBaseModel, ImageAttachmentsMixin):" in source
     assert "cutover_no = models.CharField" in source
     assert "registered_at = models.DateTimeField" in source
     assert "registrant = models.ForeignKey" in source
@@ -40,7 +40,7 @@ def test_cutover_task_model_defines_core_fields_and_helpers() -> None:
     assert "interruption_location = models.ManyToManyField" in source
     assert "cutover_longitude = models.DecimalField" in source
     assert "cutover_latitude = models.DecimalField" in source
-    cutover_task_model = source.split("class CutoverTask(NetBoxModel, ImageAttachmentsMixin):", 1)[1].split("class CutoverImpact", 1)[0]
+    cutover_task_model = source.split("class CutoverTask(OtnBaseModel, ImageAttachmentsMixin):", 1)[1].split("class CutoverImpact", 1)[0]
     assert "customer_approval_result" not in cutover_task_model
     assert "CutoverApprovalResultChoices" not in source
     assert "maintenance_unit" not in cutover_task_model
@@ -502,7 +502,7 @@ def test_cutover_impact_model_and_migration_are_defined() -> None:
     models = read_source("netbox_otnfaults/models.py")
     migration = read_source("netbox_otnfaults/migrations/0071_cutoverimpact.py")
 
-    assert "class CutoverImpact(NetBoxModel, ImageAttachmentsMixin):" in models
+    assert "class CutoverImpact(OtnBaseModel, ImageAttachmentsMixin):" in models
     assert "cutover_task = models.ForeignKey" in models
     assert "related_name='impacts'" in models
     assert "related_name='cutover_impacts'" in models
