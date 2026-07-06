@@ -1,3 +1,9 @@
+## 2026-07-06 修复故障合同无查阅权限时保存失败
+- [x] 定位故障编辑表单中合同字段的权限过滤与 ModelChoiceField 校验链路。
+- [x] 增加回归测试，覆盖当前实例合同不在字段 queryset 时仍可保留保存的场景。
+- [x] 在 OtnFaultForm 合同字段清洗中仅允许当前实例原合同通过校验，不放宽动态下拉 API 可见范围。
+- [x] 运行定向测试与 Python 编译检查。
+
 ## 2026-06-23 割接状态为申请中时隐藏三组信息
 - [x] 修改 `cutovertask.html`，用 `{% if object.status != 'applying' %}` 包裹详情页“实施时间线”、“考核与闭环”、“整改信息”三张卡片使其在申请中状态下隐藏。
 - [x] 修改 `cutovertask_edit.html`，为这三组面板加上对应的 id 并在 JavaScript 脚本中增加 `initStatusSectionToggle`。

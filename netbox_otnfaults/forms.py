@@ -36,6 +36,22 @@ CIRCUIT_SERVICE_EXTRA_FIELD_FIELD_NAMES = tuple(
     for key, _label in CircuitService.EXTRA_FIELD_DEFINITIONS
 )
 
+class CurrentContractDynamicModelChoiceField(DynamicModelChoiceField):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.current_contract_id: int | None = None
+
+    def to_python(self, value: Any) -> Any:
+        try:
+            return super().to_python(value)
+        except ValidationError:
+            current_contract_id = self.current_contract_id
+            if current_contract_id and str(value) == str(current_contract_id):
+                contract = Contract.objects.filter(pk=current_contract_id).first()
+                if contract is not None:
+                    return contract
+            raise
+
 class OtnFaultForm(NetBoxModelForm):
     duty_officer = DynamicModelChoiceField(
         queryset=get_user_model().objects.all(),
@@ -76,7 +92,7 @@ class OtnFaultForm(NetBoxModelForm):
         required=False,
         label='代维方/租赁方'
     )
-    contract = DynamicModelChoiceField(
+    contract = CurrentContractDynamicModelChoiceField(
         queryset=Contract.objects.all(),
         required=False,
         label='代维/租赁合同',
@@ -225,6 +241,7 @@ class OtnFaultForm(NetBoxModelForm):
             self.fields['handling_unit'].widget.attrs['data-url'] = '/api/plugins/contracts/serviceproviders/'
         if 'contract' in self.fields:
             self.fields['contract'].widget.attrs['data-url'] = '/api/plugins/contracts/contracts/'
+            self._include_current_contract_for_validation()
         self.fields['tags'].help_text = '若故障涉及88系统，需勾选对应标签。'
         ongoing_bare_fiber_impact_count = self._get_ongoing_impact_count(ServiceTypeChoices.BARE_FIBER)
         ongoing_circuit_impact_count = self._get_ongoing_impact_count(ServiceTypeChoices.CIRCUIT)
@@ -266,6 +283,16 @@ class OtnFaultForm(NetBoxModelForm):
             field_order = list(self.fields.keys())
             field_order.insert(0, 'fault_number_display')
             self.order_fields(field_order)
+
+    def _include_current_contract_for_validation(self) -> None:
+        contract_id = getattr(self.instance, 'contract_id', None)
+        if not contract_id:
+            return
+
+        self.fields['contract'].current_contract_id = contract_id
+        queryset = self.fields['contract'].queryset
+        current_contract = Contract.objects.filter(pk=contract_id)
+        self.fields['contract'].queryset = queryset | current_contract
 
     def _get_ongoing_impact_count(self, service_type: str) -> int:
         if not self.instance.pk:
@@ -2368,4 +2395,3 @@ class HeavyDutyBulkEditForm(NetBoxModelBulkEditForm):
     nullable_fields = (
         'comments', 'sites', 'circuit_services', 'bare_fiber_services'
     )
-
