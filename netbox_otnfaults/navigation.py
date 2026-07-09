@@ -3,7 +3,24 @@ from netbox.plugins import PluginMenu, PluginMenuItem, PluginMenuButton
 menu = PluginMenu(
     label='故障与割接',
     groups=(
-        ('故障', (
+        ('运行态势', (
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:dashboard',
+                link_text='态势大屏',
+                permissions=['netbox_otnfaults.view_otnfault'],
+            ),
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:otnfault_map_globe',
+                link_text='一张图',
+                permissions=['netbox_otnfaults.view_otnfault'],
+            ),
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:statistics',
+                link_text='故障统计',
+                permissions=['netbox_otnfaults.view_otnfault'],
+            ),
+        )),
+        ('故障处置', (
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:otnfault_list',
                 link_text='故障登记',
@@ -30,31 +47,11 @@ menu = PluginMenu(
                     ),
                 )
             ),
-            PluginMenuItem(
-                link='plugins:netbox_otnfaults:statistics',
-                link_text='故障统计',
-                permissions=['netbox_otnfaults.view_otnfault'],
-            ),
         )),
-        ('重要保障', (
-            PluginMenuItem(
-                link='plugins:netbox_otnfaults:heavyduty_list',
-                link_text='重要保障',
-                permissions=['netbox_otnfaults.view_heavyduty'],
-                buttons=(
-                    PluginMenuButton(
-                        link='plugins:netbox_otnfaults:heavyduty_add',
-                        title='添加',
-                        icon_class='mdi mdi-plus-thick',
-                        permissions=['netbox_otnfaults.add_heavyduty'],
-                    ),
-                )
-            ),
-        )),
-        ('割接', (
+        ('割接管理', (
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:cutovertask_list',
-                link_text='割接管理',
+                link_text='割接任务',
                 permissions=['netbox_otnfaults.view_cutovertask'],
                 buttons=(
                     PluginMenuButton(
@@ -79,20 +76,22 @@ menu = PluginMenu(
                 )
             ),
         )),
-        ('业务', (
+        ('保障任务', (
             PluginMenuItem(
-                link='plugins:netbox_otnfaults:barefiberservice_list',
-                link_text='裸纤业务',
-                permissions=['netbox_otnfaults.view_barefiberservice'],
+                link='plugins:netbox_otnfaults:heavyduty_list',
+                link_text='重要保障',
+                permissions=['netbox_otnfaults.view_heavyduty'],
                 buttons=(
                     PluginMenuButton(
-                        link='plugins:netbox_otnfaults:barefiberservice_add',
+                        link='plugins:netbox_otnfaults:heavyduty_add',
                         title='添加',
                         icon_class='mdi mdi-plus-thick',
-                        permissions=['netbox_otnfaults.add_barefiberservice'],
+                        permissions=['netbox_otnfaults.add_heavyduty'],
                     ),
                 )
             ),
+        )),
+        ('业务资源', (
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:circuitservice_list',
                 link_text='电路业务',
@@ -106,8 +105,21 @@ menu = PluginMenu(
                     ),
                 )
             ),
+            PluginMenuItem(
+                link='plugins:netbox_otnfaults:barefiberservice_list',
+                link_text='裸纤业务',
+                permissions=['netbox_otnfaults.view_barefiberservice'],
+                buttons=(
+                    PluginMenuButton(
+                        link='plugins:netbox_otnfaults:barefiberservice_add',
+                        title='添加',
+                        icon_class='mdi mdi-plus-thick',
+                        permissions=['netbox_otnfaults.add_barefiberservice'],
+                    ),
+                )
+            ),
         )),
-        ('路径', (
+        ('网络资源', (
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:otnpathgroup_list',
                 link_text='路径组',
@@ -123,7 +135,7 @@ menu = PluginMenu(
             ),
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:otnpath_list',
-                link_text='路径管理',
+                link_text='光缆路径',
                 permissions=['netbox_otnfaults.view_otnpath'],
                 buttons=(
                     PluginMenuButton(
@@ -134,22 +146,10 @@ menu = PluginMenu(
                     ),
                 )
             ),
-        )),
-        ('地图', (
-            PluginMenuItem(
-                link='plugins:netbox_otnfaults:otnfault_map_globe',
-                link_text='一张图',
-                permissions=['netbox_otnfaults.view_otnfault'],
-            ),
             PluginMenuItem(
                 link='plugins:netbox_otnfaults:route_editor',
                 link_text='线路设计器',
                 permissions=['netbox_otnfaults.view_otnpath'],
-            ),
-            PluginMenuItem(
-                link='plugins:netbox_otnfaults:dashboard',
-                link_text='态势大屏',
-                permissions=['netbox_otnfaults.view_otnfault'],
             ),
         )),
     ),
