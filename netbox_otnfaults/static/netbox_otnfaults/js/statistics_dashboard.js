@@ -2500,7 +2500,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         const labelIndex = monthLabels.indexOf(label);
                         const count = countValues[labelIndex] || 0;
                         const duration = durationValues[labelIndex] || 0;
-                        return `${label}<br/>故障数：${formatCardMetricValue(count)}${countAxisUnit}<br/>故障时长：${formatCardMetricValue(duration)}${durationUnit}`;
+                        return `${label}<br/>故障起数：${formatCardMetricValue(count)}${countAxisUnit}<br/>故障时长：${formatCardMetricValue(duration)}${durationUnit}`;
                     }
                 }, buildTooltipTheme(theme)),
                 xAxis: {
@@ -2591,7 +2591,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         areaStyle: { color: '#cbd5e1', opacity: 0.08 }
                     },
                     {
-                        name: '故障数',
+                        name: '故障起数',
                         type: 'bar',
                         yAxisIndex: 0,
                         data: countValues,
@@ -2871,7 +2871,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (typeof tooltipFormatter === 'function') {
                         return tooltipFormatter(p, raw);
                     }
-                    return `${p.marker || ''}${p.name}<br/>故障数: ${raw._count || 0} 起<br/>故障历时: ${formatCardMetricValue(raw._duration || 0)} 小时<br/>光缆长度: ${formatCardMetricValue(raw._pathLength || 0)} 公里`;
+                    return `${p.marker || ''}${p.name}<br/>故障起数: ${raw._count || 0} 起<br/>故障历时: ${formatCardMetricValue(raw._duration || 0)} 小时<br/>光缆长度: ${formatCardMetricValue(raw._pathLength || 0)} 公里`;
                 }
             },
             grid: buildBranchCompanyGrid(),
@@ -2912,7 +2912,7 @@ document.addEventListener("DOMContentLoaded", function() {
             chartBranchCompanyCount,
             branchData.province_bars || [],
             countMetric,
-            countMetric === 'count' ? '故障数' : '千公里故障数',
+            countMetric === 'count' ? '故障起数' : '千公里故障起数',
             countMetric === 'count' ? '起' : '起/千公里'
         );
         renderBranchBarChart(
