@@ -86,7 +86,7 @@ class DashboardCalendarWidgetTestCase(unittest.TestCase):
         template_source = CALENDAR_TEMPLATE_PATH.read_text(encoding="utf-8")
 
         self.assertIn(".otn-cal-outside-month .otn-cal-day", template_source)
-        self.assertIn("color: #adb5bd;", template_source)
+        self.assertIn("color: var(--bs-body-color); opacity: 0.4;", template_source)
         self.assertIn("{% if not cell.is_current_month %}otn-cal-outside-month{% endif %}", template_source)
 
     def test_calendar_widget_marks_2026_public_holidays_and_makeup_workdays(self) -> None:

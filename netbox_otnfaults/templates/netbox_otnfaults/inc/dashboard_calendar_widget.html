@@ -1,9 +1,9 @@
 <style>
   .otn-cal { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  .otn-cal th { font-size: .7rem; color: #6c757d; text-align: center; padding: 2px 0; font-weight: 500; }
+  .otn-cal th { font-size: .7rem; color: var(--bs-secondary-color); text-align: center; padding: 2px 0; font-weight: 500; }
   .otn-cal td { text-align: center; vertical-align: top; padding: 1px; height: 44px; position: relative; }
   .otn-cal-day {
-    font-size: .72rem; color: var(--nbx-body-color, #495057); font-weight: 500;
+    font-size: .72rem; color: var(--bs-body-color); font-weight: 500;
     height: 18px; line-height: 18px; margin-bottom: 2px; text-align: center;
   }
   .otn-cal-today-badge {
@@ -41,13 +41,13 @@
     border-radius: 4px;
   }
   .otn-cal-cell-link:hover { color: inherit; text-decoration: none; }
-  .otn-cal-outside-month .otn-cal-day { color: #adb5bd; }
+  .otn-cal-outside-month .otn-cal-day { color: var(--bs-body-color); opacity: 0.4; }
   .otn-cal-empty { background: transparent; }
   .otn-cal td:hover { background: rgba(13,110,253,.06); border-radius: 4px; }
   .otn-cal-hdr { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 4px; }
-  .otn-cal-hdr span { font-size: .85rem; font-weight: 600; color: var(--nbx-body-color, #212529); }
+  .otn-cal-hdr span { font-size: .85rem; font-weight: 600; color: var(--bs-body-color); }
   .otn-cal-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; justify-content: center; }
-  .otn-cal-legend-item { display: flex; align-items: center; gap: 3px; font-size: .65rem; color: #6c757d; }
+  .otn-cal-legend-item { display: flex; align-items: center; gap: 3px; font-size: .65rem; color: var(--bs-secondary-color); }
   .otn-cal-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   /* 周末列高亮 */
   .otn-cal th.otn-weekend { color: #dc3545; }

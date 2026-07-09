@@ -1,9 +1,9 @@
 <style>
   .otn-cutover-cal { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  .otn-cutover-cal th { font-size: .68rem; color: #6c757d; text-align: center; padding: 2px 0; font-weight: 500; }
+  .otn-cutover-cal th { font-size: .68rem; color: var(--bs-secondary-color); text-align: center; padding: 2px 0; font-weight: 500; }
   .otn-cutover-cal td { text-align: center; vertical-align: top; padding: 1px; height: 66px; position: relative; }
   .otn-cutover-cal-day {
-    font-size: .7rem; color: var(--nbx-body-color, #495057); font-weight: 500;
+    font-size: .7rem; color: var(--bs-body-color); font-weight: 500;
     height: 16px; line-height: 16px; margin-bottom: 1px; text-align: center;
   }
   .otn-cutover-cal-today-badge {
@@ -28,10 +28,10 @@
     border-radius: 4px;
   }
   .otn-cutover-cal-cell-link:hover { color: inherit; text-decoration: none; background: rgba(13,110,253,.06); }
-  .otn-cutover-cal-outside-month .otn-cutover-cal-day { color: #adb5bd; }
+  .otn-cutover-cal-outside-month .otn-cutover-cal-day { color: var(--bs-body-color); opacity: 0.4; }
   .otn-cutover-cal-empty { background: transparent; }
   .otn-cutover-cal-hdr { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 4px; }
-  .otn-cutover-cal-hdr span { font-size: .85rem; font-weight: 600; color: var(--nbx-body-color, #212529); }
+  .otn-cutover-cal-hdr span { font-size: .85rem; font-weight: 600; color: var(--bs-body-color); }
   .otn-cutover-cal-items { display: flex; flex-direction: column; gap: 1px; padding: 0 1px; }
   .otn-cutover-cal-item {
     display: block;
@@ -40,7 +40,7 @@
     border-left: 2px solid #6c757d;
     border-radius: 2px;
     background: rgba(108,117,125,.08);
-    color: var(--nbx-body-color, #212529);
+    color: var(--bs-body-color);
     font-size: .56rem;
     line-height: 11px;
     text-align: left;
@@ -49,11 +49,11 @@
   .otn-cutover-cal-item--applying { border-left-color: #0d6efd; background: rgba(13,110,253,.08); }
   .otn-cutover-cal-item--pending_implementation { border-left-color: #fd7e14; background: rgba(253,126,20,.1); }
   .otn-cutover-cal-item--completed { border-left-color: #198754; background: rgba(25,135,84,.08); }
-  .otn-cutover-cal-item--cancelled { border-left-color: #6c757d; background: rgba(108,117,125,.08); color: #6c757d; }
+  .otn-cutover-cal-item--cancelled { border-left-color: #6c757d; background: rgba(108,117,125,.08); color: var(--bs-secondary-color); opacity: 0.6; }
   .otn-cutover-cal-line { display: flex; min-width: 0; overflow: hidden; white-space: nowrap; }
   .otn-cutover-cal-line--meta { align-items: center; justify-content: space-between; gap: 2px; }
   .otn-cutover-cal-line--location { display: block; text-overflow: ellipsis; }
-  .otn-cutover-cal-line--impact { color: #6c757d; }
+  .otn-cutover-cal-line--impact { color: var(--bs-secondary-color); }
   .otn-cutover-cal-time { font-weight: 700; flex-shrink: 0; }
   .otn-cutover-cal-province { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: right; }
   .otn-cutover-cal-more {
@@ -65,13 +65,13 @@
   }
   .otn-cutover-cal-weekend { color: #dc3545; }
   .otn-cutover-cal-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; justify-content: center; }
-  .otn-cutover-cal-legend-item { display: flex; align-items: center; gap: 3px; font-size: .62rem; color: #6c757d; }
+  .otn-cutover-cal-legend-item { display: flex; align-items: center; gap: 3px; font-size: .62rem; color: var(--bs-secondary-color); }
   .otn-cutover-cal-legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; background: #6c757d; }
   .otn-cutover-cal-legend-dot--applying { background: #0d6efd; }
   .otn-cutover-cal-legend-dot--pending_implementation { background: #fd7e14; }
   .otn-cutover-cal-legend-dot--completed { background: #198754; }
   .otn-cutover-cal-legend-dot--cancelled { background: #6c757d; }
-  .otn-cutover-cal-empty-month { margin-top: 4px; color: #6c757d; font-size: .65rem; text-align: center; }
+  .otn-cutover-cal-empty-month { margin-top: 4px; color: var(--bs-secondary-color); font-size: .65rem; text-align: center; }
 </style>
 
 <div class="otn-cutover-cal-hdr">
