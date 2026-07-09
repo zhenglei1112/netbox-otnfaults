@@ -208,6 +208,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     let currentAllDetails = []; // 保存后端返回的全部详情数据
     let currentChartsData = null;
+    let currentPrevChartsData = null;
+    let currentYoyChartsData = null;
     let currentCableBreakOverview = null;
     let currentPrevCableBreakOverview = null;
     let currentYoyCableBreakOverview = null;
@@ -217,6 +219,15 @@ document.addEventListener("DOMContentLoaded", function() {
     let currentBranchCompanyData = null;
     let currentPrevBranchCompanyData = null;
     let currentYoyBranchCompanyData = null;
+    let currentKPIs = null;
+    let currentPrevKPIs = null;
+    let currentYoyKPIs = null;
+    let currentImpactLevelSummary = null;
+    let currentPrevImpactLevelSummary = null;
+    let currentYoyImpactLevelSummary = null;
+    let currentOtherOverview = null;
+    let currentPrevOtherOverview = null;
+    let currentYoyOtherOverview = null;
     let currentBranchCompanyDetails = [];
     let branchCompanyProvinceSet = new Set();
     let activeFilterField = null; // 'resource_type', 'province', 'reason'
@@ -266,6 +277,36 @@ document.addEventListener("DOMContentLoaded", function() {
                 : cableBreakMetricsToggle.dataset.collapsedLabel;
         });
     }
+
+    function reRenderAllMetrics() {
+        if (currentKPIs) {
+            renderKPIs(currentKPIs, currentPrevKPIs, currentYoyKPIs, selFilterType.value);
+            renderOverallSummary(currentKPIs, currentChartsData, currentPrevChartsData, currentYoyChartsData);
+        }
+        if (currentImpactLevelSummary) {
+            renderImpactLevelOverview(currentImpactLevelSummary, currentPrevImpactLevelSummary, currentYoyImpactLevelSummary, selFilterType.value);
+        }
+        if (currentOtherOverview) {
+            renderOverallOtherSummary(currentOtherOverview, currentPrevOtherOverview, currentYoyOtherOverview);
+        }
+        if (currentCableBreakOverview) {
+            renderCableBreakOverview(currentCableBreakOverview, currentPrevCableBreakOverview, currentYoyCableBreakOverview);
+        }
+        if (currentBareFiberInterruption) {
+            renderBareFiberInterruption(currentBareFiberInterruption, currentPrevBareFiberInterruption, currentYoyBareFiberInterruption);
+        }
+        if (currentBranchCompanyData) {
+            renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData, currentYoyBranchCompanyData);
+        }
+    }
+
+    const toggleYoy = document.getElementById('statistics-yoy-toggle');
+    if (toggleYoy) {
+        toggleYoy.addEventListener('change', () => {
+            reRenderAllMetrics();
+        });
+    }
+
     // ---------------- DOM 元素 ----------------
     const selFilterType = document.getElementById('filterType');
     const inputDate = document.getElementById('filterDate');
@@ -862,6 +903,17 @@ document.addEventListener("DOMContentLoaded", function() {
             renderOverallOtherSummary(data.other_overview, data.prev_other_overview, data.yoy_other_overview);
             renderOverallDailyFaultChart(data.charts && data.charts.physical_daily);
             renderPhysicalDurationBoxplot(data.charts && data.charts.physical_duration_boxplot, selFilterType.value);
+            currentKPIs = data.kpis || null;
+            currentPrevKPIs = data.prev_kpis || null;
+            currentYoyKPIs = data.yoy_kpis || null;
+            currentImpactLevelSummary = data.impact_level_summary || null;
+            currentPrevImpactLevelSummary = data.prev_impact_level_summary || null;
+            currentYoyImpactLevelSummary = data.yoy_impact_level_summary || null;
+            currentOtherOverview = data.other_overview || null;
+            currentPrevOtherOverview = data.prev_other_overview || null;
+            currentYoyOtherOverview = data.yoy_other_overview || null;
+            currentPrevChartsData = data.prev_charts || null;
+            currentYoyChartsData = data.yoy_charts || null;
             currentCableBreakOverview = data.cable_break_overview || null;
             currentPrevCableBreakOverview = data.prev_cable_break_overview || null;
             currentYoyCableBreakOverview = data.yoy_cable_break_overview || null;
@@ -1428,7 +1480,12 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
 
+        const showYoy = document.getElementById('statistics-yoy-toggle')?.checked || false;
+
         if (filterType === 'year') {
+            if (!showYoy) {
+                return "";
+            }
             return `<span class="statistics-trend-inline">${getTrendItem(currentVal, prevVal, "较去年")}</span>`;
         }
 
@@ -1436,6 +1493,11 @@ document.addEventListener("DOMContentLoaded", function() {
         const yoyLabel = "同比";
 
         const prevHtml = getTrendItem(currentVal, prevVal, prevLabel);
+
+        if (!showYoy) {
+            return `<span class="statistics-trend-inline">${prevHtml}</span>`;
+        }
+
         const yoyHtml = getTrendItem(currentVal, yoyVal, yoyLabel);
 
         return `<span class="statistics-trend-inline d-flex justify-content-center flex-row gap-3">${prevHtml}${yoyHtml}</span>`;
