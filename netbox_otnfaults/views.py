@@ -361,7 +361,24 @@ class OtnFaultView(generic.ObjectView):
     def get_extra_context(self, request, instance):
         impacts = (instance.impacts.all() | instance.secondary_impacts.all()).distinct()
         table = OtnFaultImpactSummaryTable(impacts, prefix='impact-')
-        RequestConfig(request, paginate={'per_page': 25}).configure(table)
+        
+        # 获取 per_page，支持 25/50/100/250/500，默认 25
+        per_page = request.GET.get('per_page', 25)
+        try:
+            per_page = int(per_page)
+        except ValueError:
+            per_page = 25
+
+        # 影响业务分页
+        impacts_page = request.GET.get('impacts_page', 1)
+        try:
+            impacts_page = int(impacts_page)
+        except ValueError:
+            impacts_page = 1
+
+        RequestConfig(request).configure(table)
+        table.paginate(page=impacts_page, per_page=per_page)
+
         if not (instance.interruption_reason == 'cable_rectification' and instance.interruption_reason_detail == 'planned_reporting'):
             table.exclude = ('coordination_status',)
 
@@ -419,7 +436,16 @@ class OtnFaultView(generic.ObjectView):
         for col in ('pk', 'id', 'actions', 'duty_officer', 'progress'):
             if col in site_faults_table.columns:
                 site_faults_table.columns.hide(col)
-        RequestConfig(request, paginate={'per_page': 25}).configure(site_faults_table)
+        
+        # 站点历史故障分页
+        site_page = request.GET.get('site_page', 1)
+        try:
+            site_page = int(site_page)
+        except ValueError:
+            site_page = 1
+
+        RequestConfig(request).configure(site_faults_table)
+        site_faults_table.paginate(page=site_page, per_page=per_page)
 
         return {
             'impacts_table': table,
@@ -428,6 +454,7 @@ class OtnFaultView(generic.ObjectView):
             'site_fault_count': site_fault_count,
             'site_total_hours': site_total_hours,
             'site_avg_hours': site_avg_hours,
+            'per_page': per_page,
         }
 
 class OtnFaultEditView(generic.ObjectEditView):
@@ -1478,8 +1505,23 @@ class CutoverTaskView(generic.ObjectView):
         all_impacts = instance.impacts.all().distinct()
 
         impacts_table = CutoverImpactSummaryTable(all_impacts, prefix='impact-')
-        per_page = int(request.GET.get('impact-per_page', request.GET.get('impact_per_page', 25)))
-        RequestConfig(request, paginate={'per_page': per_page}).configure(impacts_table)
+        
+        # 获取 per_page，支持全局 per_page 或原有的 impact-per_page
+        per_page = request.GET.get('per_page', request.GET.get('impact-per_page', 25))
+        try:
+            per_page = int(per_page)
+        except ValueError:
+            per_page = 25
+
+        # 影响业务分页页码，支持 page 或原有的 impact-page
+        impacts_page = request.GET.get('page', request.GET.get('impact-page', 1))
+        try:
+            impacts_page = int(impacts_page)
+        except ValueError:
+            impacts_page = 1
+
+        RequestConfig(request).configure(impacts_table)
+        impacts_table.paginate(page=impacts_page, per_page=per_page)
 
         show_auto_set_pending = request.session.pop('cutover_auto_set_pending', False)
 
@@ -1488,6 +1530,7 @@ class CutoverTaskView(generic.ObjectView):
             'impacts_count': all_impacts.count(),
             'generated_fault': instance.generated_faults.order_by('-created').first(),
             'show_auto_set_pending': show_auto_set_pending,
+            'per_page': per_page,
         }
 
 

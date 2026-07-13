@@ -5,6 +5,8 @@ from test_heavy_duty import HeavyDutySourceCodeTestCase
 from test_statistics_impact_level import StatisticsImpactLevelTestCase
 from test_statistics_bare_fiber_interruption import StatisticsBareFiberInterruptionTestCase
 from test_datetime_utc_save import DateTimeUTCSaveTestCase
+from test_otnfault_detail_pagination import OtnFaultDetailPaginationTestCase
+from test_cutover_detail_pagination import CutoverTaskDetailPaginationTestCase
 
 if __name__ == '__main__':
     loader = unittest.TestLoader()
@@ -13,6 +15,8 @@ if __name__ == '__main__':
         loader.loadTestsFromTestCase(StatisticsImpactLevelTestCase),
         loader.loadTestsFromTestCase(StatisticsBareFiberInterruptionTestCase),
         loader.loadTestsFromTestCase(DateTimeUTCSaveTestCase),
+        loader.loadTestsFromTestCase(OtnFaultDetailPaginationTestCase),
+        loader.loadTestsFromTestCase(CutoverTaskDetailPaginationTestCase),
     ))
 
     runner = unittest.TextTestRunner(verbosity=2)
