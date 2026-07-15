@@ -359,73 +359,72 @@ const FaultModePlugin = {
     this.flowAnimator = new DeckGLFlowAnimator(map);
   },
 
+  _createColoredIconPromise(svgContent, bgColor, innerSize = 64, fullSize = 64) {
+    return new Promise((resolve, reject) => {
+      // 提取SVG内部内容
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
+      const svgElement = svgDoc.documentElement;
+
+      // 获取SVG内部的所有子元素
+      let innerContent = '';
+      Array.from(svgElement.children).forEach(child => {
+        innerContent += child.outerHTML;
+      });
+
+      // 构建彩色SVG（圆形底色 + 白色图标内容）
+      const fullSVG = `
+        <svg width="${innerSize}" height="${innerSize}" viewBox="0 0 32 32" 
+             xmlns="http://www.w3.org/2000/svg">
+          <!-- 圆形底色 - 状态颜色 -->
+          <circle cx="16" cy="16" r="9" fill="${bgColor}"/>
+          <!-- 白色描边 -->
+          <circle cx="16" cy="16" r="9" 
+                  stroke="white" stroke-width="1.5" fill="none"/>
+          <!-- 图标内容 - 白色 -->
+          <g>
+            ${innerContent}
+          </g>
+        </svg>
+      `;
+
+      // SVG → Blob → Image → Canvas → ImageData
+      const img = new Image();
+      const blob = new Blob([fullSVG], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      img.onload = () => {
+        // 1. 创建缓存静态图标画布
+        const staticCanvas = document.createElement('canvas');
+        staticCanvas.width = innerSize;
+        staticCanvas.height = innerSize;
+        const staticCtx = staticCanvas.getContext('2d');
+        staticCtx.drawImage(img, 0, 0, innerSize, innerSize);
+
+        // 2. 创建带边界的安全画布（供Map引擎首次使用）
+        const canvas = document.createElement('canvas');
+        canvas.width = fullSize;
+        canvas.height = fullSize;
+        const ctx = canvas.getContext('2d');
+        const offset = (fullSize - innerSize) / 2;
+        ctx.drawImage(staticCanvas, 0, 0, innerSize, innerSize, offset, offset, innerSize, innerSize);
+
+        const imageData = ctx.getImageData(0, 0, fullSize, fullSize);
+        URL.revokeObjectURL(url);  // 立即清理 blob URI
+        resolve({ imageData, staticCanvas, bgColor, innerSize, fullSize, offset });
+      };
+
+      img.onerror = (err) => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load SVG: ' + err));
+      };
+
+      img.src = url;
+    });
+  },
+
   _loadFaultIcons(callback) {
     const map = this.map;
-
-    // SVG转Canvas Image（彩色图标，非SDF）
-    const createColoredIcon = (svgContent, bgColor, innerSize = 64, fullSize = 64) => {
-      return new Promise((resolve, reject) => {
-        // 提取SVG内部内容
-        const parser = new DOMParser();
-        const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
-        const svgElement = svgDoc.documentElement;
-
-        // 获取SVG内部的所有子元素
-        let innerContent = '';
-        Array.from(svgElement.children).forEach(child => {
-          innerContent += child.outerHTML;
-        });
-
-        // 构建彩色SVG（圆形底色 + 白色图标内容）
-        const fullSVG = `
-          <svg width="${innerSize}" height="${innerSize}" viewBox="0 0 32 32" 
-               xmlns="http://www.w3.org/2000/svg">
-            <!-- 圆形底色 - 状态颜色 -->
-            <circle cx="16" cy="16" r="9" fill="${bgColor}"/>
-            <!-- 白色描边 -->
-            <circle cx="16" cy="16" r="9" 
-                    stroke="white" stroke-width="1.5" fill="none"/>
-            <!-- 图标内容 - 白色 -->
-            <g>
-              ${innerContent}
-            </g>
-          </svg>
-        `;
-
-        // SVG → Blob → Image → Canvas → ImageData
-        const img = new Image();
-        const blob = new Blob([fullSVG], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-
-        img.onload = () => {
-          // 1. 创建缓存静态图标画布
-          const staticCanvas = document.createElement('canvas');
-          staticCanvas.width = innerSize;
-          staticCanvas.height = innerSize;
-          const staticCtx = staticCanvas.getContext('2d');
-          staticCtx.drawImage(img, 0, 0, innerSize, innerSize);
-
-          // 2. 创建带边界的安全画布（供Map引擎首次使用）
-          const canvas = document.createElement('canvas');
-          canvas.width = fullSize;
-          canvas.height = fullSize;
-          const ctx = canvas.getContext('2d');
-          const offset = (fullSize - innerSize) / 2;
-          ctx.drawImage(staticCanvas, 0, 0, innerSize, innerSize, offset, offset, innerSize, innerSize);
-
-          const imageData = ctx.getImageData(0, 0, fullSize, fullSize);
-          URL.revokeObjectURL(url);  // 立即清理 blob URI
-          resolve({ imageData, staticCanvas, bgColor, innerSize, fullSize, offset });
-        };
-
-        img.onerror = (err) => {
-          URL.revokeObjectURL(url);
-          reject(new Error('Failed to load SVG: ' + err));
-        };
-
-        img.src = url;
-      });
-    };
 
     // 加载所有彩色图标（Canvas模式）
     const loadAllIcons = async () => {
@@ -456,7 +455,7 @@ const FaultModePlugin = {
 
       // 默认图标
       promises.push(
-        createColoredIcon(FAULT_SVG_ICONS.other, statusColors['processing'])
+        this._createColoredIconPromise(FAULT_SVG_ICONS.other, statusColors['processing'])
           .then(result => {
             if (!map.hasImage('fault-marker')) {
               map.addImage('fault-marker', result.imageData, { pixelRatio: 2 });
@@ -470,7 +469,7 @@ const FaultModePlugin = {
           const iconName = `fault-marker-${category}-${status}`;
 
           promises.push(
-            createColoredIcon(FAULT_SVG_ICONS[category], color)
+            this._createColoredIconPromise(FAULT_SVG_ICONS[category], color)
               .then(result => {
                 if (!map.hasImage(iconName)) {
                   map.addImage(iconName, result.imageData, { pixelRatio: 2 });
@@ -491,7 +490,7 @@ const FaultModePlugin = {
       Object.entries(cutoverStatusColors).forEach(([status, color]) => {
         const iconName = `cutover-marker-${status}`;
         promises.push(
-          createColoredIcon(FAULT_SVG_ICONS.cutover || FAULT_SVG_ICONS.other, color)
+          this._createColoredIconPromise(FAULT_SVG_ICONS.cutover || FAULT_SVG_ICONS.other, color)
             .then(result => {
               if (!map.hasImage(iconName)) {
                 map.addImage(iconName, result.imageData, { pixelRatio: 2 });
@@ -690,6 +689,70 @@ const FaultModePlugin = {
     // 只在缩放结束时切换图层显示,不重新过滤数据
     map.on("zoomend", () => {
       this._updateLayerVisibility();
+    });
+
+    // 动态图片丢失/缺失监听（用于底图切换、白天/夜晚模式切换时的自定义图标自动注册）
+    map.on("styleimagemissing", (e) => {
+      const id = e.id;
+
+      // 1. 处理割接卡片图标 (同步生成)
+      if (id.startsWith("cutover-card-")) {
+        const matches = id.match(/^cutover-card-(\d+)-(.*)$/);
+        if (matches) {
+          const cutoverId = matches[1];
+          const statusKey = matches[2];
+          
+          // 从本地缓存数据中查找该割接配置，若找不到则退化到默认配置
+          const item = (this.cutoverData || []).find(c => String(c.id) === String(cutoverId)) || {
+            id: cutoverId,
+            status_key: statusKey
+          };
+
+          try {
+            const canvasData = this._createCutoverCardIcon(item);
+            if (!map.hasImage(id)) {
+              map.addImage(id, canvasData, { pixelRatio: 2 });
+            }
+          } catch (err) {
+            console.error("[FaultMode] Failed to dynamically generate cutover card icon:", err);
+          }
+        }
+      }
+
+      // 2. 处理故障点标记图标 (异步生成)
+      if (id === "fault-marker" || id.startsWith("fault-marker-")) {
+        let category = "other";
+        let status = "processing";
+
+        if (id.startsWith("fault-marker-")) {
+          const matches = id.match(/^fault-marker-(.*)-(.*)$/);
+          if (matches) {
+            category = matches[1];
+            status = matches[2];
+          }
+        }
+
+        const statusColors = {
+          'processing': '#dc3545',
+          'temporary_recovery': '#0d6efd',
+          'suspended': '#ffc107',
+          'closed': '#198754'
+        };
+        const color = statusColors[status] || statusColors['processing'];
+        const svgContent = (window.FAULT_SVG_ICONS && window.FAULT_SVG_ICONS[category]) || 
+                           (window.FAULT_SVG_ICONS && window.FAULT_SVG_ICONS.other) || 
+                           '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="4" fill="white"/></svg>';
+
+        this._createColoredIconPromise(svgContent, color)
+          .then(result => {
+            if (!map.hasImage(id)) {
+              map.addImage(id, result.imageData, { pixelRatio: 2 });
+            }
+          })
+          .catch(err => {
+            console.error("[FaultMode] Failed to dynamically generate fault icon:", id, err);
+          });
+      }
     });
   },
 
