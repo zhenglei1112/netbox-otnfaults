@@ -16,8 +16,14 @@ class CutoverStatusAutoSetTestCase(unittest.TestCase):
         self.assertIn("def save(self, *args: Any, **kwargs: Any) -> None:", models_source)
         
         # 验证条件检测和状态设置
+        self.assertIn(
+            "original_status = type(self).objects.filter(pk=self.pk).values_list('status', flat=True).first()",
+            models_source,
+        )
         self.assertIn("impacts = self.impacts.all()", models_source)
-        self.assertIn("if impacts.exists() and not impacts.exclude(coordination_status__in=['approved', 'forced']).exists():", models_source)
+        self.assertIn("original_status == CutoverStatusChoices.APPLYING", models_source)
+        self.assertIn("self.status == CutoverStatusChoices.APPLYING", models_source)
+        self.assertIn("not impacts.exclude(coordination_status__in=['approved', 'forced']).exists()", models_source)
         self.assertIn("self.status = CutoverStatusChoices.PENDING_IMPLEMENTATION", models_source)
 
     def test_cutover_task_edit_view_sends_show_modal_message(self) -> None:

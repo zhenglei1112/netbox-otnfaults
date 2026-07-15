@@ -751,8 +751,14 @@ class CutoverTask(OtnBaseModel, ImageAttachmentsMixin):
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         if self.pk:
+            original_status = type(self).objects.filter(pk=self.pk).values_list('status', flat=True).first()
             impacts = self.impacts.all()
-            if impacts.exists() and not impacts.exclude(coordination_status__in=['approved', 'forced']).exists():
+            if (
+                original_status == CutoverStatusChoices.APPLYING
+                and self.status == CutoverStatusChoices.APPLYING
+                and impacts.exists()
+                and not impacts.exclude(coordination_status__in=['approved', 'forced']).exists()
+            ):
                 self.status = CutoverStatusChoices.PENDING_IMPLEMENTATION
 
         if self.cutover_no:
