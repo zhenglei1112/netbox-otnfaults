@@ -1,3 +1,9 @@
+## 2026-07-24 统一割接模型与故障模型的地图位置估算逻辑
+- [x] 重构 `services/fault_coordinates.py` 提取通用坐标解析服务（支持 OtnFault、CutoverTask 与通用 A/Z 站点）。
+- [x] 修改 `LocationMapView`（`views.py`），新增 `cutover` 参数处理并调用统一坐标解析器。
+- [x] 修改 `cutovertask.html`，在地图按钮跳转 URL 参数中追加 `cutover={{ object.pk }}`。
+- [x] 编写并运行单元测试验证解析逻辑与视图跳转。
+
 ## 2026-07-15 修复割接状态被自动流转覆盖
 - [x] 增加回归测试，锁定自动流转仅处理仍处于申请中的割接。
 - [x] 收紧 `CutoverTask.save()` 条件，保留用户手动选择的已完成、被取消等状态。

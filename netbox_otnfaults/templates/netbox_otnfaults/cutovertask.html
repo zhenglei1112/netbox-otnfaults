@@ -100,7 +100,7 @@
             {{ object.cutover_latitude|default:"—" }}
             <div class="position-absolute top-50 end-0 me-2 translate-middle-y d-print-none">
               {% url 'plugins:netbox_otnfaults:location_map' as location_map_url %}
-              <a href="{{ location_map_url }}?{% if object.interruption_location_a %}a_site={{ object.interruption_location_a.pk }}&{% endif %}{% if object.interruption_location.all %}z_sites={% for site in object.interruption_location.all %}{{ site.pk }}{% if not forloop.last %},{% endif %}{% endfor %}&{% endif %}{% if object.cutover_latitude and object.cutover_longitude %}q={{ object.cutover_latitude|unlocalize }},{{ object.cutover_longitude|unlocalize }}{% endif %}"
+              <a href="{{ location_map_url }}?cutover={{ object.pk }}&{% if object.interruption_location_a %}a_site={{ object.interruption_location_a.pk }}&{% endif %}{% if object.interruption_location.all %}z_sites={% for site in object.interruption_location.all %}{{ site.pk }}{% if not forloop.last %},{% endif %}{% endfor %}&{% endif %}{% if object.cutover_latitude and object.cutover_longitude %}q={{ object.cutover_latitude|unlocalize }},{{ object.cutover_longitude|unlocalize }}{% endif %}"
                 target="_blank" class="btn btn-primary btn-sm" style="background-color: #00897b; border-color: #00897b;">
                 <i class="mdi mdi-map-marker"></i> 地图
               </a>

@@ -67,7 +67,11 @@ from .services.fault_map_data import (
     get_sites_data,
     build_cutover_map_payload,
 )
-from .services.fault_coordinates import resolve_fault_coordinates
+from .services.fault_coordinates import (
+    resolve_fault_coordinates,
+    resolve_cutover_coordinates,
+    resolve_location_coordinates,
+)
 from .services.cutover_fault_generation import (
     build_fault_initial_data,
     create_fault_from_cutover,
@@ -993,6 +997,7 @@ class LocationMapView(PermissionRequiredMixin, View):
         
         if target_lat is None and target_lng is None:
             fault_id = request.GET.get('fault', '')
+            cutover_id = request.GET.get('cutover', '')
             if fault_id:
                 try:
                     fault = (
@@ -1006,20 +1011,29 @@ class LocationMapView(PermissionRequiredMixin, View):
                         target_lng = resolved.lng
                 except (OtnFault.DoesNotExist, ValueError):
                     pass
+            elif cutover_id:
+                try:
+                    cutover = (
+                        CutoverTask.objects.select_related('interruption_location_a')
+                        .prefetch_related('interruption_location')
+                        .get(pk=int(cutover_id))
+                    )
+                    resolved = resolve_cutover_coordinates(cutover)
+                    if resolved is not None:
+                        target_lat = resolved.lat
+                        target_lng = resolved.lng
+                except (CutoverTask.DoesNotExist, ValueError):
+                    pass
 
         if target_lat is None and target_lng is None:
-            # 如果没有指定 q 坐标，尝试根据 A/Z 站点计算中心
+            # 如果没有指定 q 坐标，尝试调用通用位置估算服务
             if location_site_ids:
-                sites = Site.objects.filter(
-                    id__in=location_site_ids,
-                    latitude__isnull=False,
-                    longitude__isnull=False,
-                )
-                if sites.exists():
-                    lngs = [float(s.longitude) for s in sites]
-                    lats = [float(s.latitude) for s in sites]
-                    target_lng = sum(lngs) / len(lngs)
-                    target_lat = sum(lats) / len(lats)
+                a_site_obj = Site.objects.filter(pk=a_site_pk).first() if a_site_pk else None
+                z_sites_objs = list(Site.objects.filter(id__in=[s for s in location_site_ids if s != a_site_pk]))
+                resolved = resolve_location_coordinates(a_site=a_site_obj, z_sites=z_sites_objs)
+                if resolved is not None:
+                    target_lat = resolved.lat
+                    target_lng = resolved.lng
         
         # 解析 ?path_id=xxx 参数（用于单条路径高亮显示）
         path_id = request.GET.get('path_id', '')
