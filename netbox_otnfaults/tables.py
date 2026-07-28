@@ -1,3 +1,5 @@
+import json
+
 import django_tables2 as tables
 from django.utils.html import format_html
 from netbox.tables import NetBoxTable, columns
@@ -16,6 +18,12 @@ from dcim.models import Site
 
 def _display_or_empty(value: str | None) -> str:
     return value or ''
+
+
+def _json_export_value(value: object) -> str:
+    if value in (None, '', []):
+        return ''
+    return json.dumps(value, ensure_ascii=False, default=str)
 
 
 def _duration_export_value(info: dict[str, object] | None) -> str:
@@ -984,13 +992,33 @@ class CutoverTaskTable(NetBoxTable):
     cutover_no = tables.Column(linkify=True, verbose_name='割接编号')
     status = columns.ChoiceFieldColumn(verbose_name='状态')
     cutover_type = columns.ChoiceFieldColumn(verbose_name='割接类型')
+    registrant = tables.Column(linkify=True, verbose_name='登记人')
     planned_cutover_time = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='计划割接时间')
+    planned_cutover_times = tables.Column(verbose_name='计划割接时间记录')
     cutover_location = tables.Column(verbose_name='割接具体地点')
+    interruption_location_a = tables.Column(linkify=True, verbose_name='割接位置A端站点')
+    interruption_location = columns.ManyToManyColumn(linkify_item=True, verbose_name='割接位置Z端站点')
+    resource_type = columns.ChoiceFieldColumn(verbose_name='光纤来源')
+    cable_route = columns.ChoiceFieldColumn(verbose_name='光缆路由属性')
+    resource_owner = columns.ChoiceFieldColumn(verbose_name='资源所有者')
+    maintenance_mode = columns.ChoiceFieldColumn(verbose_name='维护方式')
+    handling_unit = tables.Column(linkify=True, verbose_name='代维方/租赁方')
+    contract = tables.Column(linkify=True, verbose_name='代维/租赁合同')
     management_unit = columns.ChoiceFieldColumn(verbose_name='割接管理单位')
     implementation_unit = tables.Column(verbose_name='割接实施单位')
     cutover_contact = tables.Column(verbose_name='割接联系人')
+    customer_approval_detail = tables.Column(verbose_name='客户审核明细')
+    started_at = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='割接开始时间')
+    completed_at = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='割接完成时间')
+    closed_at = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='割接封包时间')
     cutover_result = columns.ChoiceFieldColumn(verbose_name='割接效果')
     is_timeout = columns.ChoiceFieldColumn(verbose_name='割接是否超时')
+    rectification_status = columns.ChoiceFieldColumn(verbose_name='是否整改')
+    rectification_measures = tables.Column(verbose_name='整改措施')
+    rectification_subject = columns.ChoiceFieldColumn(verbose_name='整改主体')
+    rectification_progress = columns.ChoiceFieldColumn(verbose_name='整改进度')
+    planned_completion_time = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='计划完成时间')
+    actual_completion_time = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='实际完成时间')
     line_supervisor = tables.Column(linkify=True, verbose_name='线路主管')
     registered_at = tables.DateTimeColumn(format='Y-m-d H:i', verbose_name='登记时间')
     re_cutover = tables.Column(linkify=True, verbose_name='再次割接')
@@ -999,9 +1027,21 @@ class CutoverTaskTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CutoverTask
         fields = (
-            'pk', 'cutover_no', 'status', 'cutover_type', 'planned_cutover_time', 'province',
-            'cutover_location', 'management_unit', 'implementation_unit', 'cutover_contact',
-            'cutover_result', 'is_timeout', 'line_supervisor', 'registered_at', 're_cutover', 'tags', 'actions',
+            'pk', 'cutover_no', 'status', 'cutover_type', 'registered_at', 'registrant',
+            'management_unit', 'management_unit_name', 'cutover_reason',
+            'province', 'cutover_location', 'interruption_location_a', 'interruption_location',
+            'cutover_longitude', 'cutover_latitude',
+            'implementation_unit', 'cutover_contact', 'cutover_contact_phone', 'line_supervisor',
+            'planned_cutover_time', 'planned_cutover_times', 'planned_impact_minutes',
+            'resource_type', 'cable_route', 'resource_owner', 'maintenance_mode',
+            'handling_unit', 'contract',
+            'started_at', 'completed_at', 'closed_at',
+            'customer_approval_detail', 'is_timeout', 'timeout_reason', 'cutover_result',
+            'remaining_issues',
+            'rectification_status', 'rectification_measures', 'rectification_description',
+            'rectification_subject', 'rectification_progress', 'planned_completion_time',
+            'actual_completion_time', 'rectification_completion_description', 're_cutover',
+            'comments', 'tags', 'actions',
         )
         default_columns = (
             'cutover_no', 'status', 'cutover_type', 'planned_cutover_time', 'province', 'cutover_location',
@@ -1028,6 +1068,60 @@ class CutoverTaskTable(NetBoxTable):
 
     def value_is_timeout(self, value: str | None, record: CutoverTask) -> str:
         return _display_or_empty(record.get_is_timeout_display())
+
+    def value_resource_type(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_resource_type_display())
+
+    def value_cable_route(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_cable_route_display())
+
+    def value_resource_owner(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_resource_owner_display())
+
+    def value_maintenance_mode(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_maintenance_mode_display())
+
+    def value_rectification_status(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_rectification_status_display())
+
+    def value_rectification_subject(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_rectification_subject_display())
+
+    def value_rectification_progress(self, value: str | None, record: CutoverTask) -> str:
+        return _display_or_empty(record.get_rectification_progress_display())
+
+    @staticmethod
+    def _rectification_measures_display(record: CutoverTask) -> str:
+        values = record.rectification_measures or []
+        model_field = record._meta.get_field('rectification_measures')
+        choice_map = dict(model_field.base_field.flatchoices)
+        return '、'.join(str(choice_map.get(item, item)) for item in values)
+
+    def render_rectification_measures(
+        self,
+        value: list[str] | None,
+        record: CutoverTask,
+    ) -> str:
+        return self._rectification_measures_display(record)
+
+    def value_rectification_measures(
+        self,
+        value: list[str] | None,
+        record: CutoverTask,
+    ) -> str:
+        return self._rectification_measures_display(record)
+
+    def render_planned_cutover_times(self, value: list[object] | None) -> str:
+        return _json_export_value(value)
+
+    def value_planned_cutover_times(self, value: list[object] | None) -> str:
+        return _json_export_value(value)
+
+    def render_customer_approval_detail(self, value: list[object] | None) -> str:
+        return _json_export_value(value)
+
+    def value_customer_approval_detail(self, value: list[object] | None) -> str:
+        return _json_export_value(value)
 
 
 class ExtraFieldColumn(tables.Column):

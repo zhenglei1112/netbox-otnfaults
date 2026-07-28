@@ -1,3 +1,9 @@
+## 2026-07-28 补全割接列表列设置
+- [x] 增加回归测试，锁定 `CutoverTask` 全部业务字段均可在列设置中选择。
+- [x] 为关系、枚举、时间、JSON 与数组字段补充合适的表格列定义和导出值。
+- [x] 将遗漏字段加入 `CutoverTaskTable.Meta.fields`，保持默认列不变且 `actions` 位于最后。
+- [x] 运行割接管理相关测试和 Python 编译检查。
+
 ## 2026-07-24 统一割接模型与故障模型的地图位置估算逻辑
 - [x] 重构 `services/fault_coordinates.py` 提取通用坐标解析服务（支持 OtnFault、CutoverTask 与通用 A/Z 站点）。
 - [x] 修改 `LocationMapView`（`views.py`），新增 `cutover` 参数处理并调用统一坐标解析器。
