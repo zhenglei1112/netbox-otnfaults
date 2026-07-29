@@ -181,7 +181,7 @@ class PopupTemplates {
       applying: "#0d6efd",
       pending_implementation: "#fd7e14",
       completed: "#198754",
-      cancelled: "#6c757d",
+      cancelled: "#dc3545",
     };
     const statusBgColor = cutoverStatusColors[props.status_key] || "#fd7e14";
 

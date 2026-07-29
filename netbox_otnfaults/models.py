@@ -297,7 +297,7 @@ class CutoverStatusChoices(ChoiceSet):
         (APPLYING, '申请中', 'blue'),
         (PENDING_IMPLEMENTATION, '待实施', 'orange'),
         (COMPLETED, '已完成', 'green'),
-        (CANCELLED, '被取消', 'gray'),
+        (CANCELLED, '被取消', 'red'),
     ]
 
 
