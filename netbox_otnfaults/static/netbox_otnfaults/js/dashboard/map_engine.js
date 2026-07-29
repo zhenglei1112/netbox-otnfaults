@@ -947,6 +947,18 @@ window.MapEngine = (function () {
         }
     }
 
+    function _parseMapCoordinate(value) {
+        if (value == null || (typeof value === 'string' && value.trim() === '')) {
+            return null;
+        }
+
+        var numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return null;
+        }
+        return numericValue;
+    }
+
     /**
      * 将现有割接 SVG 注册为 MapLibre 图片。
      *
@@ -1023,9 +1035,11 @@ window.MapEngine = (function () {
                 }
             }
 
-            var numericLat = Number(lat);
-            var numericLng = Number(lng);
-            if (!Number.isFinite(numericLat) || !Number.isFinite(numericLng)) {
+            var numericLat = _parseMapCoordinate(lat);
+            var numericLng = _parseMapCoordinate(lng);
+            if (numericLat === null || numericLng === null
+                || numericLat < -90 || numericLat > 90
+                || numericLng < -180 || numericLng > 180) {
                 return null;
             }
 
