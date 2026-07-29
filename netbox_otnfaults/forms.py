@@ -1965,6 +1965,12 @@ class CutoverTaskForm(NetBoxModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if not self.instance.pk and not self.initial.get('planned_cutover_time'):
+            from django.utils import timezone
+            from datetime import timedelta
+            now_local = timezone.localtime()
+            tomorrow_zero = (now_local + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            self.initial['planned_cutover_time'] = tomorrow_zero
         if 'handling_unit' in self.fields:
             self.fields['handling_unit'].widget.attrs['data-url'] = '/api/plugins/contracts/serviceproviders/'
         if 'contract' in self.fields:

@@ -583,21 +583,12 @@
         // 打开模态框
         window.showGeneratePlannedTimeModal = function() {
             if (modalTimeInput) {
-                let baseVal = '';
-                if (mainTimeInput && mainTimeInput.value) {
-                    baseVal = mainTimeInput.value.trim();
-                }
-                
-                if (baseVal) {
-                    const datePart = baseVal.split(' ')[0];
-                    modalTimeInput.value = `${datePart}T00:00`;
-                } else {
-                    const d = new Date();
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const date = String(d.getDate()).padStart(2, '0');
-                    modalTimeInput.value = `${year}-${month}-${date}T00:00`;
-                }
+                const d = new Date();
+                d.setDate(d.getDate() + 1);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const date = String(d.getDate()).padStart(2, '0');
+                modalTimeInput.value = `${year}-${month}-${date}T00:00`;
             }
 
             if (modalEl && backdropEl) {
