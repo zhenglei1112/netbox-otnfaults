@@ -7,6 +7,7 @@ from test_statistics_bare_fiber_interruption import StatisticsBareFiberInterrupt
 from test_datetime_utc_save import DateTimeUTCSaveTestCase
 from test_otnfault_detail_pagination import OtnFaultDetailPaginationTestCase
 from test_cutover_detail_pagination import CutoverTaskDetailPaginationTestCase
+from test_timezone_local_usage import TimezoneLocalUsageSourceTestCase
 
 if __name__ == '__main__':
     loader = unittest.TestLoader()
@@ -17,6 +18,7 @@ if __name__ == '__main__':
         loader.loadTestsFromTestCase(DateTimeUTCSaveTestCase),
         loader.loadTestsFromTestCase(OtnFaultDetailPaginationTestCase),
         loader.loadTestsFromTestCase(CutoverTaskDetailPaginationTestCase),
+        loader.loadTestsFromTestCase(TimezoneLocalUsageSourceTestCase),
     ))
 
     runner = unittest.TextTestRunner(verbosity=2)

@@ -1,5 +1,32 @@
+{% url 'plugins:netbox_otnfaults:contract_faults_fragment' contract_id=contract_id as contract_faults_url %}
 <div class="card mb-4" id="contract_otn_faults">
-    <h5 class="card-header">关联故障</h5>
+    <h5 class="card-header d-flex justify-content-between align-items-center">
+        <span>
+            关联故障
+            {% if fault_start_date or fault_end_date %}
+                <span class="badge text-bg-info ms-2">
+                    故障发生日期：{{ fault_start_date|date:"Y-m-d"|default:"不限" }} 至 {{ fault_end_date|date:"Y-m-d"|default:"不限" }}
+                </span>
+            {% endif %}
+            {% if fault_tag_ids %}
+                <span class="badge text-bg-info ms-2">匹配付款标签</span>
+            {% endif %}
+        </span>
+        {% if fault_start_date or fault_end_date or fault_tag_ids %}
+            <button type="button"
+                    hx-get="{{ contract_faults_url }}"
+                    hx-target="#contract_otn_faults"
+                    hx-swap="outerHTML"
+                    hx-push-url="false"
+                    hx-indicator="this"
+                    hx-disabled-elt="this"
+                    class="btn btn-sm btn-outline-secondary"
+                    title="清除故障筛选">
+                <i class="mdi mdi-filter-remove-outline" aria-hidden="true"></i>
+                清除筛选
+            </button>
+        {% endif %}
+    </h5>
     <div class="card-body p-0">
         <div class="table-responsive">
             {% load render_table from django_tables2 %}
@@ -7,4 +34,3 @@
         </div>
     </div>
 </div>
-

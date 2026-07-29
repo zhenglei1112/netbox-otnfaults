@@ -61,6 +61,7 @@ from .services.map_preferences import (
     save_user_map_style_config,
 )
 from .utils import build_fault_colors_config, get_hex_color
+from .template_content import build_contract_fault_context
 from .services.fault_map_data import (
     build_fault_map_payload,
     build_statistics_cable_break_map_payload,
@@ -158,6 +159,19 @@ class OtnFaultBulkImportView(generic.BulkImportView):
     table = OtnFaultTable
 
 from django.http import JsonResponse
+
+class ContractOtnFaultFragmentView(PermissionRequiredMixin, View):
+    """Render only the related-fault card for an HTMX request."""
+
+    permission_required = 'netbox_otnfaults.view_otnfault'
+
+    def get(self, request: HttpRequest, contract_id: int) -> HttpResponse:
+        context = build_contract_fault_context(request, contract_id)
+        return render(
+            request,
+            'netbox_otnfaults/inc/contract_otn_faults.html',
+            context,
+        )
 
 class OtnFaultMapDataView(PermissionRequiredMixin, View):
     """OTN故障地图数据视图 (Async API)"""

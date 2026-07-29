@@ -542,16 +542,20 @@ class ContractOtnFaultTable(NetBoxTable):
         orderable=False,
         empty_values=()
     )
+    tags = columns.TagColumn(
+        url_name='plugins:netbox_otnfaults:otnfault_list'
+    )
 
     class Meta(NetBoxTable.Meta):
         model = OtnFault
         fields = (
             'pk', 'fault_number', 'duty_officer', 'fault_occurrence_time',
             'fault_category', 'urgency', 'fault_status', 'is_suspended', 'progress', 'fault_duration',
+            'tags',
         )
         default_columns = (
             'fault_number', 'duty_officer', 'fault_occurrence_time',
-            'fault_category', 'urgency', 'fault_status', 'progress', 'fault_duration',
+            'fault_category', 'urgency', 'fault_status', 'progress', 'fault_duration', 'tags',
         )
 
     def render_fault_category(self, value, record):

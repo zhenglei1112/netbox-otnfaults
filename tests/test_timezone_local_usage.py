@@ -56,5 +56,14 @@ class TimezoneLocalUsageSourceTestCase(unittest.TestCase):
         self.assertNotIn("todayUtc", source)
 
 
+    def test_dashboard_views_uses_localtime_for_serialized_times(self) -> None:
+        source = _read("netbox_otnfaults/dashboard_views.py")
+        self.assertNotIn("fault.fault_occurrence_time.strftime(", source)
+        self.assertNotIn("cutover.planned_cutover_time.strftime(", source)
+        self.assertNotIn("hd.start_time.strftime(", source)
+        self.assertNotIn("hd.end_time.strftime(", source)
+
+
 if __name__ == "__main__":
     unittest.main()
+

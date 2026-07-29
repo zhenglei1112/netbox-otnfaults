@@ -1,5 +1,7 @@
 from netbox.plugins import PluginTemplateExtension
 from .models import OtnPath, OtnFault
+from django.http import HttpRequest
+from django.utils.dateparse import parse_date
 from django.db.models import Q
 from .tables import OtnFaultTable, ContractOtnFaultTable
 from django_tables2.config import RequestConfig
@@ -45,33 +47,59 @@ class SiteOtnFaults(PluginTemplateExtension):
         })
 
 
+def build_contract_fault_context(request: HttpRequest, contract_id: int) -> dict[str, object]:
+    """Build the related-fault table context for a contract."""
+    faults_qs = (
+        OtnFault.objects.restrict(request.user, 'view')
+        .filter(contract_id=contract_id)
+        .select_related('duty_officer')
+        .prefetch_related('tags')
+    )
+    fault_start_date = parse_date(
+        request.GET.get('fault_occurrence_time_after', '')
+    )
+    fault_end_date = parse_date(
+        request.GET.get('fault_occurrence_time_before', '')
+    )
+    fault_tag_ids = [
+        int(tag_id)
+        for tag_id in request.GET.getlist('fault_tag')
+        if tag_id.isdigit()
+    ]
+    if fault_start_date:
+        faults_qs = faults_qs.filter(
+            fault_occurrence_time__date__gte=fault_start_date
+        )
+    if fault_end_date:
+        faults_qs = faults_qs.filter(
+            fault_occurrence_time__date__lte=fault_end_date
+        )
+    if fault_tag_ids:
+        faults_qs = faults_qs.filter(tags__pk__in=fault_tag_ids).distinct()
+
+    faults_table = ContractOtnFaultTable(faults_qs)
+    faults_table.prefix = 'faults_'
+
+    return {
+        'faults_table': faults_table,
+        'fault_start_date': fault_start_date,
+        'fault_end_date': fault_end_date,
+        'fault_tag_ids': fault_tag_ids,
+        'contract_id': contract_id,
+    }
+
+
 class ContractOtnFaults(PluginTemplateExtension):
-    """
-    在外购合同详情页注入关联的故障列表。
-    通过 right_page 方法在右侧面板显示。
-    """
+    """在外购合同详情页注入关联故障列表。"""
     models = ['netbox_contract.contract']
-    
-    def right_page(self):
+
+    def right_page(self) -> str:
         obj = self.context['object']
         request = self.context['request']
-        
-        # 获取关联该合同的故障
-        faults_qs = OtnFault.objects.filter(contract=obj).prefetch_related(
-            'interruption_location_a', 'interruption_location', 'tags'
+        context = build_contract_fault_context(request, obj.pk)
+        return self.render(
+            'netbox_otnfaults/inc/contract_otn_faults.html',
+            extra_context=context,
         )
-        faults_count = faults_qs.count()
-        
-        # 实例化表格
-        faults_table = ContractOtnFaultTable(faults_qs)
-        
-        # 为表格指定前缀以区分参数冲突（虽然现在不分页了，但保留前缀是好习惯）
-        faults_table.prefix = 'faults_'
-        
-        return self.render('netbox_otnfaults/inc/contract_otn_faults.html', extra_context={
-            'faults_table': faults_table,
-            'faults_count': faults_count,
-            'contract_id': obj.pk,
-        })
 
 template_extensions = [SiteOtnPaths, SiteOtnFaults, ContractOtnFaults]

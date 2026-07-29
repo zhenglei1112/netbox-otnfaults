@@ -7,6 +7,11 @@ from . import weekly_report_views
 from . import statistics_views
 
 urlpatterns = [
+    path(
+        'contract-faults/<int:contract_id>/',
+        views.ContractOtnFaultFragmentView.as_view(),
+        name='contract_faults_fragment',
+    ),
     # OTN故障 (OtnFault)
     path('faults/', views.OtnFaultListView.as_view(), name='otnfault_list'),
     path('faults/add/', views.OtnFaultEditView.as_view(), name='otnfault_add'),
