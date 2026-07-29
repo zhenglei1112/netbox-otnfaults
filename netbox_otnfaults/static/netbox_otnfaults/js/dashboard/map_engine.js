@@ -19,6 +19,8 @@ window.MapEngine = (function () {
     const _physicalWidth = Math.round(window.screen.width * (window.devicePixelRatio || 1));
     const mapTextScale = _physicalWidth >= 3400 ? 1.8 : (_physicalWidth >= 2000 ? 1.4 : 1.0);
     const SITE_LABEL_MIN_ZOOM = 6;
+    const CUTOVER_ICON_IMAGE_ID = 'dashboard-cutover-wrench';
+    let _cutoverIconPromise = null;
 
     const DASHBOARD_LAYER_STACK = [
         'province-shadow',
@@ -42,6 +44,9 @@ window.MapEngine = (function () {
         'faults-pulse',
         'faults-glow',
         'faults-core',
+        'cutovers-glow',
+        'cutovers-core',
+        'cutovers-icon',
     ];
 
     /**
@@ -943,10 +948,59 @@ window.MapEngine = (function () {
     }
 
     /**
-     * 渲染割接标记（HTML Marker 方式实现）
-     * 
-     * 在割接坐标或 A端 站点坐标上添加黄色的发光扳手 HTML Marker。
-     * 使用 HTML 方式彻底避免离线 GIS 字体库不包含扳手字形导致的空白不可见问题。
+     * 将现有割接 SVG 注册为 MapLibre 图片。
+     *
+     * 图片注册失败时只省略扳手 Symbol Layer，割接圆形图层仍可正常显示。
+     */
+    function _registerCutoverIcon() {
+        if (map.hasImage(CUTOVER_ICON_IMAGE_ID)) {
+            return Promise.resolve(true);
+        }
+        if (_cutoverIconPromise) {
+            return _cutoverIconPromise;
+        }
+
+        var svg = window.FAULT_SVG_ICONS && window.FAULT_SVG_ICONS.cutover;
+        if (!svg) {
+            console.warn('[MapEngine] Cutover SVG icon is unavailable');
+            return Promise.resolve(false);
+        }
+
+        _cutoverIconPromise = new Promise(function (resolve) {
+            var blobUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+            var image = new Image();
+
+            image.onload = function () {
+                var canvas = document.createElement('canvas');
+                canvas.width = 64;
+                canvas.height = 64;
+                var context = canvas.getContext('2d');
+                context.drawImage(image, 0, 0, 64, 64);
+                URL.revokeObjectURL(blobUrl);
+
+                if (!map.hasImage(CUTOVER_ICON_IMAGE_ID)) {
+                    map.addImage(CUTOVER_ICON_IMAGE_ID,
+                        context.getImageData(0, 0, 64, 64),
+                        { pixelRatio: 2 }
+                    );
+                }
+                resolve(true);
+            };
+            image.onerror = function () {
+                URL.revokeObjectURL(blobUrl);
+                console.warn('[MapEngine] Failed to register cutover wrench icon');
+                resolve(false);
+            };
+            image.src = blobUrl;
+        });
+
+        return _cutoverIconPromise;
+    }
+
+    /**
+     * 渲染割接标记（WebGL Circle + Symbol Layers）。
+     *
+     * 与故障、站点和路径使用同一投影与合成管线，避免 HTML Marker 像素偏移。
      */
     function renderCutoverMarkers(cutovers, sites) {
         if (!map || !_mapReady) {
@@ -956,39 +1010,89 @@ window.MapEngine = (function () {
             return;
         }
 
-        // 清除上一次的 HTML Marker
-        if (window._cutoverMarkers) {
-            window._cutoverMarkers.forEach(function (m) { m.remove(); });
-        }
-        window._cutoverMarkers = [];
-
-        cutovers.forEach(function (c) {
+        var features = (cutovers || []).map(function (c) {
             var lat = c.lat;
             var lng = c.lng;
 
-            // 优先使用割接自身经纬度，若无则在前台匹配 A端 站点坐标
-            if (lat == null || lng == null) {
-                if (c.site_a && sites) {
-                    var matched = sites.find(function (s) { return s.name === c.site_a; });
-                    if (matched) {
-                        lat = matched.lat;
-                        lng = matched.lng;
-                    }
+            // 兼容旧接口或旧缓存：无显式坐标时按 A 端站点名称回退。
+            if ((lat == null || lng == null) && c.site_a && sites) {
+                var matched = sites.find(function (s) { return s.name === c.site_a; });
+                if (matched) {
+                    lat = matched.lat;
+                    lng = matched.lng;
                 }
             }
 
-            if (lat != null && lng != null) {
-                var el = document.createElement('div');
-                el.className = 'cutover-map-marker';
-                el.innerHTML = '<div class="cutover-marker-glow"></div>' +
-                               '<div class="cutover-marker-core">🔧</div>';
-
-                var marker = new maplibregl.Marker({ element: el })
-                    .setLngLat([lng, lat])
-                    .addTo(map);
-
-                window._cutoverMarkers.push(marker);
+            var numericLat = Number(lat);
+            var numericLng = Number(lng);
+            if (!Number.isFinite(numericLat) || !Number.isFinite(numericLng)) {
+                return null;
             }
+
+            return {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [numericLng, numericLat] },
+                properties: { id: c.id }
+            };
+        }).filter(function (feature) {
+            return feature !== null;
+        });
+
+        var geojson = {
+            type: 'FeatureCollection',
+            features: features
+        };
+
+        if (map.getSource('cutovers')) {
+            map.getSource('cutovers').setData(geojson);
+        } else {
+            map.addSource('cutovers', { type: 'geojson', data: geojson });
+
+            map.addLayer({
+                id: 'cutovers-glow',
+                type: 'circle',
+                source: 'cutovers',
+                paint: {
+                    'circle-radius': 16 * mapTextScale,
+                    'circle-color': '#f59e0b',
+                    'circle-opacity': 0.16,
+                    'circle-blur': 0.8,
+                }
+            });
+
+            map.addLayer({
+                id: 'cutovers-core',
+                type: 'circle',
+                source: 'cutovers',
+                paint: {
+                    'circle-radius': 10 * mapTextScale,
+                    'circle-color': '#f59e0b',
+                    'circle-opacity': 0.9,
+                    'circle-stroke-color': '#ffffff',
+                    'circle-stroke-width': 1.5 * mapTextScale,
+                    'circle-stroke-opacity': 0.65,
+                }
+            });
+
+            _restackDashboardLayers();
+        }
+
+        _registerCutoverIcon().then(function (registered) {
+            if (!registered || !map || !map.getSource('cutovers') || map.getLayer('cutovers-icon')) {
+                return;
+            }
+            map.addLayer({
+                id: 'cutovers-icon',
+                type: 'symbol',
+                source: 'cutovers',
+                layout: {
+                    'icon-image': CUTOVER_ICON_IMAGE_ID,
+                    'icon-size': 0.62 * mapTextScale,
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true,
+                }
+            });
+            _restackDashboardLayers();
         });
     }
 

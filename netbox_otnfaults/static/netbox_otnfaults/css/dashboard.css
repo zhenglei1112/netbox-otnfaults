@@ -2130,18 +2130,6 @@ html.screen-4k body.layout-overview #directing-indicator {
     top: 24px;
 }
 
-html.screen-4k .cutover-map-marker {
-    width: 60px;
-    height: 60px;
-}
-html.screen-4k .cutover-marker-glow {
-    width: 60px;
-    height: 60px;
-    border-width: 3px;
-}
-html.screen-4k .cutover-marker-core {
-    font-size: 26px;
-}
 
 html.screen-4k .event-item {
     border-left-width: 6px;
@@ -2188,65 +2176,6 @@ html.screen-4k #event-focus-card {
     html:not(.screen-4k) .situation-metrics .stat-value { font-size: 48px; }
     html:not(.screen-4k) .heavy-duty-bar { padding: 12px 32px; min-height: 64px; }
     html:not(.screen-4k) #directing-indicator { top: 90px; }
-    html:not(.screen-4k) .cutover-map-marker { width: 60px; height: 60px; }
     html:not(.screen-4k) .event-item { border-left-width: 6px; }
     html:not(.screen-4k) #event-focus-card { height: 325px !important; flex: 0 0 325px !important; }
-}
-
-/* ── 割接地图 HTML 标记常规屏样式 ── */
-.cutover-map-marker {
-    position: relative;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 15;
-}
-
-.cutover-marker-glow {
-    position: absolute;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: rgba(245, 158, 11, 0.15);
-    border: 1.5px solid rgba(245, 158, 11, 0.4);
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6), inset 0 0 8px rgba(245, 158, 11, 0.3);
-    animation: cutover-pulse 2s infinite ease-in-out;
-}
-
-.cutover-marker-core {
-    position: relative;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-shadow: 0 0 4px rgba(245, 158, 11, 0.8);
-    animation: cutover-wiggle 4s infinite ease-in-out;
-}
-
-@keyframes cutover-pulse {
-    0% {
-        transform: scale(0.85);
-        opacity: 0.7;
-        box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
-    }
-    50% {
-        transform: scale(1.15);
-        opacity: 1;
-        box-shadow: 0 0 18px rgba(245, 158, 11, 0.8), inset 0 0 10px rgba(245, 158, 11, 0.4);
-    }
-    100% {
-        transform: scale(0.85);
-        opacity: 0.7;
-        box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
-    }
-}
-
-@keyframes cutover-wiggle {
-    0%, 100% { transform: rotate(0deg); }
-    10%, 20% { transform: rotate(-8deg); }
-    15%, 25% { transform: rotate(8deg); }
-    30% { transform: rotate(0deg); }
 }

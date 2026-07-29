@@ -1,3 +1,12 @@
+## 2026-07-29 统一态势大屏割接 WebGL 图层
+
+- [x] 增加失败回归测试，锁定割接使用 GeoJSON source、WebGL 图层和地图图片。
+- [x] 将现有扳手 SVG 注册为 MapLibre image，以 Symbol Layer 绘制图标。
+- [x] 以 Circle Layer 绘制割接光晕和核心，并纳入统一图层排序。
+- [x] 删除 HTML Marker 创建逻辑和专用 CSS。
+- [x] 运行定向测试、JavaScript 语法检查和态势大屏基线测试。
+
+
 ## 2026-07-29 修正态势大屏割接地图位置
 
 - [x] 增加回归测试，锁定态势大屏割接数据必须复用统一坐标解析器。

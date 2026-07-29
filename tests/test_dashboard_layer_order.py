@@ -40,6 +40,9 @@ class DashboardLayerOrderTestCase(unittest.TestCase):
             "'faults-pulse'",
             "'faults-glow'",
             "'faults-core'",
+            "'cutovers-glow'",
+            "'cutovers-core'",
+            "'cutovers-icon'",
         ]
 
         stack = source.split("const DASHBOARD_LAYER_STACK = [", 1)[1].split("];", 1)[0]
