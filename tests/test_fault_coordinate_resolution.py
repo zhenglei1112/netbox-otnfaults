@@ -49,6 +49,12 @@ class FaultCoordinateResolutionTestCase(unittest.TestCase):
 
         self.assertIn("from .services.fault_coordinates import resolve_fault_coordinates", dashboard_source)
         self.assertIn("resolved = resolve_fault_coordinates(fault)", dashboard_source)
+        self.assertIn("resolve_cutover_coordinates", dashboard_source)
+        self.assertIn("resolved = resolve_cutover_coordinates(cutover)", dashboard_source)
+        self.assertIn("'lat': resolved.lat if resolved is not None else None", dashboard_source)
+        self.assertIn("'lng': resolved.lng if resolved is not None else None", dashboard_source)
+        self.assertIn("'site_a_id': cutover.interruption_location_a_id", dashboard_source)
+        self.assertIn("'site_z_ids': [site.pk for site in z_site_objects]", dashboard_source)
 
         self.assertIn("resolve_cutover_coordinates", views_source)
         self.assertIn("resolve_location_coordinates", views_source)

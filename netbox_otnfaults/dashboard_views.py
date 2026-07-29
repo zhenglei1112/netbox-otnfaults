@@ -21,7 +21,7 @@ from .models import (
     CutoverStatusChoices, FaultCategoryChoices, FaultStatusChoices, UrgencyChoices,
 )
 from .dashboard_topology import build_fault_path_overlays
-from .services.fault_coordinates import resolve_fault_coordinates
+from .services.fault_coordinates import resolve_fault_coordinates, resolve_cutover_coordinates
 
 
 def get_plugin_settings() -> dict:
@@ -314,11 +314,15 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
 
         cutovers_data = []
         for cutover in upcoming_cutovers_qs:
-            z_sites = [s.name for s in cutover.interruption_location.all()]
+            z_site_objects = list(cutover.interruption_location.all())
+            resolved = resolve_cutover_coordinates(cutover)
+            z_sites = [site.name for site in z_site_objects]
             minutes_until = int((cutover.planned_cutover_time - now).total_seconds() // 60)
             cutovers_data.append({
                 'id': cutover.pk,
                 'cutover_no': cutover.cutover_no,
+                'lat': resolved.lat if resolved is not None else None,
+                'lng': resolved.lng if resolved is not None else None,
                 'status': cutover.status,
                 'status_display': cutover.get_status_display() if cutover.status else '',
                 'planned_cutover_time': timezone.localtime(cutover.planned_cutover_time).isoformat(),
@@ -328,6 +332,8 @@ class DashboardDataAPI(PermissionRequiredMixin, View):
                 'location': cutover.cutover_location,
                 'site_a': cutover.interruption_location_a.name if cutover.interruption_location_a else '',
                 'sites_z': z_sites,
+                'site_a_id': cutover.interruption_location_a_id,
+                'site_z_ids': [site.pk for site in z_site_objects],
                 'impact_count': getattr(cutover, 'impact_count', 0),
                 'implementation_unit': cutover.implementation_unit,
                 'contact': cutover.cutover_contact,
