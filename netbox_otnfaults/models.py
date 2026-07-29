@@ -349,7 +349,7 @@ class CutoverManagementUnitChoices(ChoiceSet):
         (INNER_MONGOLIA, '内蒙古子公司', 'teal'),
         (JIANGXI, '江西子公司', 'yellow'),
         (SHANDONG, '山东子公司', 'cyan'),
-        (THIRD_PARTY, '第三方', 'gray'),
+        (THIRD_PARTY, '第三方（不可控）', 'gray'),
     ]
 
 
