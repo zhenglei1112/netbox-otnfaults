@@ -27,6 +27,7 @@
     --text-primary: #e0e8f0;
     --text-secondary: rgba(180, 200, 220, 0.7);
     --text-dim: rgba(140, 160, 180, 0.5);
+    --text-readable-muted: #b8c8d8;
 
     /* 告警色 */
     --color-critical: #FF1E1E;
@@ -872,7 +873,7 @@ body.layout-overview #directing-indicator {
 }
 
 .focus-label {
-    color: var(--text-dim);
+    color: var(--text-readable-muted);
     flex: 0 0 60px;
 }
 
@@ -1174,7 +1175,7 @@ body.layout-overview #directing-indicator {
 
 .event-detail {
     margin-top: 3px;
-    color: var(--text-dim);
+    color: var(--text-readable-muted);
     font-size: var(--fs-10);
     line-height: 1.35;
     display: -webkit-box;
@@ -1582,11 +1583,11 @@ body.layout-overview #directing-indicator {
 }
 
 .cutover-card-label {
-    color: var(--text-dim);
+    color: var(--text-readable-muted);
 }
 
 .cutover-card-value {
-    color: var(--text-secondary);
+    color: var(--text-readable-muted);
     font-family: var(--font-data);
     font-size: var(--fs-10);
 }
@@ -1635,7 +1636,7 @@ body.layout-overview #directing-indicator {
     flex: 0 0 auto;
     font-family: var(--font-data);
     font-size: var(--fs-10);
-    color: var(--text-dim);
+    color: var(--text-readable-muted);
 }
 
 .cutover-compact-info {
@@ -1644,7 +1645,7 @@ body.layout-overview #directing-indicator {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: var(--text-secondary);
+    color: var(--text-readable-muted);
 }
 
 .cutover-compact-no {

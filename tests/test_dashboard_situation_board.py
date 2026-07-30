@@ -82,6 +82,21 @@ class DashboardSituationBoardTestCase(unittest.TestCase):
         self.assertIn(".event-item--heavy_duty", source)
         self.assertIn(".event-item--fault", source)
 
+    def test_dashboard_information_text_uses_readable_muted_color(self) -> None:
+        source = DASHBOARD_CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("--text-readable-muted: #b8c8d8;", source)
+        for selector in (
+            ".focus-label",
+            ".event-detail",
+            ".cutover-card-label",
+            ".cutover-card-value",
+            ".cutover-compact-time",
+            ".cutover-compact-info",
+        ):
+            selector_block = source.split(selector + " {", 1)[1].split("}", 1)[0]
+            self.assertIn("color: var(--text-readable-muted);", selector_block)
+
     def test_trend_chart_uses_responsive_canvas_ratio(self) -> None:
         template = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
         css = DASHBOARD_CSS_PATH.read_text(encoding="utf-8")

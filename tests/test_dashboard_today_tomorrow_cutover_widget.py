@@ -31,6 +31,82 @@ class DashboardTodayTomorrowCutoverWidgetTestCase(unittest.TestCase):
         self.assertIn("'site_a': site_a_name,", source)
         self.assertIn("'site_z': site_z_display,", source)
 
+    def test_widget_builds_pending_cutover_reports_for_nine_and_eighteen(self) -> None:
+        source = DASHBOARD_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("def _get_cutover_report_window(report_date: date, report_hour: int)", source)
+        self.assertIn("status=CutoverStatusChoices.PENDING_IMPLEMENTATION", source)
+        self.assertIn("planned_cutover_time__gte=window_start", source)
+        self.assertIn("planned_cutover_time__lt=window_end", source)
+        self.assertIn("_build_cutover_report(request, today, 9)", source)
+        self.assertIn("_build_cutover_report(request, today, 18)", source)
+
+    def test_widget_report_groups_bare_fiber_impacts_by_tenant_group(self) -> None:
+        source = DASHBOARD_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("'impacts__bare_fiber_service__tenant_group'", source)
+        self.assertIn("impact.bare_fiber_service.tenant_group", source)
+        self.assertIn("impact.bare_fiber_service.name", source)
+        self.assertIn("impact.circuit_service.special_line_name", source)
+        self.assertIn("impact.service_site_a.name", source)
+        self.assertIn("impact.service_site_z.all()", source)
+        self.assertIn("group_lines.setdefault(group_name, []).append(report_line)", source)
+        self.assertIn("group_cutover_ids.setdefault(group_name, set()).add(cutover.pk)", source)
+        self.assertIn("'cutover_count': len(group_cutover_ids[group_name])", source)
+        self.assertIn("group_text = '\\n'.join(lines)", source)
+        self.assertIn("f\"【{group['name']}（割接数量：{group['cutover_count']}）】\\n\"", source)
+        self.assertIn("report_groups.append({", source)
+        self.assertIn("'groups': report_groups,", source)
+        self.assertIn("预计影响时长{impact_minutes}分钟", source)
+        self.assertIn("影响[{service_name}{site_a}-{site_z}]", source)
+
+    def test_template_exposes_report_buttons_modal_and_copy_action(self) -> None:
+        template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('data-report-hour="9"', template_source)
+        self.assertIn('data-report-hour="18"', template_source)
+        self.assertIn('id="cutoverReportModal"', template_source)
+        self.assertIn('id="cutoverReportText"', template_source)
+        self.assertIn('id="cutoverReportGroups"', template_source)
+        self.assertIn("copyGroupButton.className = 'btn btn-outline-primary btn-sm copy-cutover-report-group'", template_source)
+        self.assertIn('id="copyAllCutoverReports"', template_source)
+        self.assertIn("navigator.clipboard.writeText", template_source)
+        self.assertIn("9点通报", template_source)
+        self.assertIn("18点通报", template_source)
+
+    def test_report_buttons_use_distinct_high_contrast_time_styles_and_icons(self) -> None:
+        template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("otn-cutover-report-button-nine", template_source)
+        self.assertIn("otn-cutover-report-button-eighteen", template_source)
+        self.assertIn("mdi-clock-time-nine-outline", template_source)
+        self.assertIn("mdi-clock-time-six-outline", template_source)
+        self.assertIn("otn-cutover-report-time-icon", template_source)
+        self.assertIn("otn-cutover-report-count", template_source)
+        self.assertIn("{{ nine_report.cutover_count }}项割接", template_source)
+        self.assertIn("{{ eighteen_report.cutover_count }}项割接", template_source)
+        self.assertIn("html[data-bs-theme=\"dark\"] .otn-cutover-report-button-nine", template_source)
+        self.assertIn("html[data-bs-theme=\"dark\"] .otn-cutover-report-button-eighteen", template_source)
+    def test_report_modal_places_dated_title_before_filter_window(self) -> None:
+        template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
+        modal_header = template_source.split('<div class="modal-header', 1)[1].split('</div>', 1)[0]
+
+        title_position = modal_header.index('id="cutoverReportModalLabel"')
+        window_position = modal_header.index('id="cutoverReportWindow"')
+        self.assertLess(title_position, window_position)
+        self.assertIn("const reportDates = {", template_source)
+        self.assertIn('date:"Y年n月j日"', template_source)
+        self.assertIn("`${reportDates[hour]}${hour}点割接通报`", template_source)
+    def test_report_modal_shows_all_groups_and_keeps_close_button_on_the_far_right(self) -> None:
+        template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("groups.forEach((group, index) =>", template_source)
+        self.assertIn("copy-cutover-report-group", template_source)
+        self.assertNotIn("copyCurrentCutoverReport", template_source)
+        modal_footer = template_source.split('<div class="modal-footer', 1)[1].split('</div>', 1)[0]
+        copy_all_position = modal_footer.index('id="copyAllCutoverReports"')
+        close_position = modal_footer.index('data-report-action="close"')
+        self.assertLess(copy_all_position, close_position)
     def test_today_tomorrow_template_renders_site_information(self) -> None:
         template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
 

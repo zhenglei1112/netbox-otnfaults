@@ -190,9 +190,204 @@
     border-color: rgba(74, 222, 128, 0.3);
     background-color: rgba(74, 222, 128, 0.08);
   }
+  .otn-cutover-report-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .otn-cutover-report-button {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 10px;
+    border-width: 1.5px;
+    border-radius: 8px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    transition: color 0.16s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+  .otn-cutover-report-button-main {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .otn-cutover-report-time-icon {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    color: #ffffff;
+    font-size: 1.05rem;
+  }
+  .otn-cutover-report-label {
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+  }
+  .otn-cutover-report-count {
+    min-width: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .otn-cutover-report-button-nine {
+    color: #075985 !important;
+    background-color: #f0f9ff !important;
+    border-color: #0ea5e9 !important;
+  }
+  .otn-cutover-report-button-nine .otn-cutover-report-time-icon,
+  .otn-cutover-report-button-nine .otn-cutover-report-count {
+    background-color: #0369a1;
+  }
+  .otn-cutover-report-button-eighteen {
+    color: #92400e !important;
+    background-color: #fffbeb !important;
+    border-color: #f59e0b !important;
+  }
+  .otn-cutover-report-button-eighteen .otn-cutover-report-time-icon,
+  .otn-cutover-report-button-eighteen .otn-cutover-report-count {
+    background-color: #b45309;
+  }
+  .otn-cutover-report-button-nine:hover,
+  .otn-cutover-report-button-nine:focus,
+  .otn-cutover-report-button-nine:active {
+    color: #ffffff !important;
+    background-color: #0369a1 !important;
+    border-color: #075985 !important;
+  }
+  .otn-cutover-report-button-eighteen:hover,
+  .otn-cutover-report-button-eighteen:focus,
+  .otn-cutover-report-button-eighteen:active {
+    color: #ffffff !important;
+    background-color: #b45309 !important;
+    border-color: #92400e !important;
+  }
+  .otn-cutover-report-button:hover .otn-cutover-report-time-icon,
+  .otn-cutover-report-button:focus .otn-cutover-report-time-icon,
+  .otn-cutover-report-button:active .otn-cutover-report-time-icon {
+    background-color: rgba(255, 255, 255, 0.18);
+  }
+  .otn-cutover-report-button:hover .otn-cutover-report-count,
+  .otn-cutover-report-button:focus .otn-cutover-report-count,
+  .otn-cutover-report-button:active .otn-cutover-report-count {
+    color: #172033;
+    background-color: #ffffff;
+  }
+  .otn-cutover-report-button:focus-visible {
+    outline: 3px solid rgba(14, 165, 233, 0.25);
+    outline-offset: 2px;
+  }
+  html[data-bs-theme="dark"] .otn-cutover-report-button-nine {
+    color: #bae6fd !important;
+    background-color: rgba(14, 165, 233, 0.12) !important;
+    border-color: #38bdf8 !important;
+  }
+  html[data-bs-theme="dark"] .otn-cutover-report-button-eighteen {
+    color: #fde68a !important;
+    background-color: rgba(245, 158, 11, 0.12) !important;
+    border-color: #fbbf24 !important;
+  }
+  html[data-bs-theme="dark"] .otn-cutover-report-button-nine:hover,
+  html[data-bs-theme="dark"] .otn-cutover-report-button-nine:focus,
+  html[data-bs-theme="dark"] .otn-cutover-report-button-nine:active {
+    color: #ffffff !important;
+    background-color: #0369a1 !important;
+  }
+  html[data-bs-theme="dark"] .otn-cutover-report-button-eighteen:hover,
+  html[data-bs-theme="dark"] .otn-cutover-report-button-eighteen:focus,
+  html[data-bs-theme="dark"] .otn-cutover-report-button-eighteen:active {
+    color: #ffffff !important;
+    background-color: #92400e !important;
+  }
+
+  .otn-cutover-report-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .otn-cutover-report-group {
+    border: 1px solid var(--nbx-border-color, #dee2e6);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--nbx-card-bg, var(--bs-body-bg));
+  }
+  .otn-cutover-report-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--nbx-border-color, #dee2e6);
+  }
+  .otn-cutover-report-group-title {
+    min-width: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+  .otn-cutover-report-group-text {
+    margin: 0;
+    padding: 10px 12px;
+    font-family: var(--font-monospace, monospace);
+    font-size: 0.78rem;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--bs-body-color);
+    background: transparent;
+  }
+  .otn-cutover-report-empty {
+    padding: 24px 12px;
+    text-align: center;
+    color: var(--bs-secondary-color);
+    border: 1px dashed var(--nbx-border-color, #dee2e6);
+    border-radius: 6px;
+  }
+  .otn-cutover-report-heading {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .otn-cutover-report-heading .modal-title {
+    white-space: nowrap;
+  }
+  .otn-cutover-report-window {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+  }
 </style>
 
 <div class="otn-cutovers-widget">
+  <div class="otn-cutover-report-actions" aria-label="生成割接通报">
+    <button type="button" class="btn otn-cutover-report-button otn-cutover-report-button-nine" data-report-hour="9">
+      <span class="otn-cutover-report-button-main">
+        <span class="otn-cutover-report-time-icon" aria-hidden="true"><i class="mdi mdi-clock-time-nine-outline"></i></span>
+        <span class="otn-cutover-report-label">9点通报</span>
+      </span>
+      <span class="otn-cutover-report-count">{{ nine_report.cutover_count }}项割接</span>
+    </button>
+    <button type="button" class="btn otn-cutover-report-button otn-cutover-report-button-eighteen" data-report-hour="18">
+      <span class="otn-cutover-report-button-main">
+        <span class="otn-cutover-report-time-icon" aria-hidden="true"><i class="mdi mdi-clock-time-six-outline"></i></span>
+        <span class="otn-cutover-report-label">18点通报</span>
+      </span>
+      <span class="otn-cutover-report-count">{{ eighteen_report.cutover_count }}项割接</span>
+    </button>
+  </div>
   <!-- 今日割接段 -->
   <div class="otn-cutover-day-group">
     <div class="otn-cutover-day-title">
@@ -309,3 +504,177 @@
     {% endif %}
   </div>
 </div>
+
+{{ nine_report.text|json_script:"cutover-report-9-data" }}
+{{ eighteen_report.text|json_script:"cutover-report-18-data" }}
+{{ nine_report.groups|json_script:"cutover-report-9-groups" }}
+{{ eighteen_report.groups|json_script:"cutover-report-18-groups" }}
+
+<div class="modal fade" id="cutoverReportModal" tabindex="-1" aria-labelledby="cutoverReportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <div class="otn-cutover-report-heading">
+          <h5 class="modal-title" id="cutoverReportModalLabel">割接通报</h5>
+          <span class="otn-cutover-report-window" id="cutoverReportWindow"></span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" data-report-action="close" aria-label="关闭"></button>
+      </div>
+      <div class="modal-body">
+        <div id="cutoverReportText">
+          <div class="otn-cutover-report-groups" id="cutoverReportGroups"></div>
+        </div>
+      </div>
+      <div class="modal-footer py-2 justify-content-end">
+        <button type="button" class="btn btn-primary btn-sm" id="copyAllCutoverReports">
+          <i class="mdi mdi-content-copy me-1"></i>复制全部
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-report-action="close">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const reportModal = document.getElementById('cutoverReportModal');
+  const reportTitle = document.getElementById('cutoverReportModalLabel');
+  const reportWindow = document.getElementById('cutoverReportWindow');
+  const reportGroups = document.getElementById('cutoverReportGroups');
+  const copyAllButton = document.getElementById('copyAllCutoverReports');
+  let activeReportText = '';
+  let manualBackdrop = null;
+
+  const reportDates = {
+    9: '{{ nine_report.window_start|date:"Y年n月j日" }}',
+    18: '{{ eighteen_report.window_start|date:"Y年n月j日" }}'
+  };
+
+  const reportWindows = {
+    9: '{{ nine_report.window_start|date:"Y-m-d H:i" }} 至 {{ nine_report.window_end|date:"Y-m-d H:i" }}',
+    18: '{{ eighteen_report.window_start|date:"Y-m-d H:i" }} 至 {{ eighteen_report.window_end|date:"Y-m-d H:i" }}'
+  };
+
+  function readJsonData(elementId, fallbackValue) {
+    const dataElement = document.getElementById(elementId);
+    return dataElement ? JSON.parse(dataElement.textContent) : fallbackValue;
+  }
+
+  function showReportModal() {
+    if (window.bootstrap && window.bootstrap.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(reportModal).show();
+      return;
+    }
+    reportModal.style.display = 'block';
+    reportModal.classList.add('show');
+    reportModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    manualBackdrop = document.createElement('div');
+    manualBackdrop.className = 'modal-backdrop fade show';
+    document.body.appendChild(manualBackdrop);
+  }
+
+  function hideReportModalFallback() {
+    if (window.bootstrap && window.bootstrap.Modal) return;
+    reportModal.style.display = 'none';
+    reportModal.classList.remove('show');
+    reportModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    if (manualBackdrop) manualBackdrop.remove();
+    manualBackdrop = null;
+  }
+
+  function fallbackCopy(text) {
+    const copyArea = document.createElement('textarea');
+    copyArea.value = text;
+    copyArea.setAttribute('readonly', '');
+    copyArea.style.position = 'fixed';
+    copyArea.style.opacity = '0';
+    document.body.appendChild(copyArea);
+    copyArea.select();
+    document.execCommand('copy');
+    copyArea.remove();
+  }
+
+  function markCopied(button, originalHtml) {
+    button.innerHTML = '<i class="mdi mdi-check me-1"></i>已复制';
+    window.setTimeout(() => { button.innerHTML = originalHtml; }, 1600);
+  }
+
+  function copyReportText(text, button) {
+    const originalHtml = button.innerHTML;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => {
+        markCopied(button, originalHtml);
+      }).catch(() => {
+        fallbackCopy(text);
+        markCopied(button, originalHtml);
+      });
+    } else {
+      fallbackCopy(text);
+      markCopied(button, originalHtml);
+    }
+  }
+
+  function renderReportGroups(groups, emptyText) {
+    reportGroups.replaceChildren();
+    if (!groups.length) {
+      const emptyState = document.createElement('div');
+      emptyState.className = 'otn-cutover-report-empty';
+      emptyState.textContent = emptyText;
+      reportGroups.appendChild(emptyState);
+      return;
+    }
+
+    groups.forEach((group, index) => {
+      const groupCard = document.createElement('section');
+      groupCard.className = 'otn-cutover-report-group';
+      groupCard.dataset.groupIndex = String(index);
+
+      const groupHeader = document.createElement('div');
+      groupHeader.className = 'otn-cutover-report-group-header';
+      const groupTitle = document.createElement('div');
+      groupTitle.className = 'otn-cutover-report-group-title';
+      groupTitle.textContent = `${group.name} · ${group.cutover_count}项割接`;
+
+      const copyGroupButton = document.createElement('button');
+      copyGroupButton.type = 'button';
+      copyGroupButton.className = 'btn btn-outline-primary btn-sm copy-cutover-report-group';
+      copyGroupButton.innerHTML = '<i class="mdi mdi-content-copy me-1"></i>复制本组';
+      copyGroupButton.addEventListener('click', () => {
+        copyReportText(group.text, copyGroupButton);
+      });
+
+      const groupText = document.createElement('pre');
+      groupText.className = 'otn-cutover-report-group-text';
+      groupText.textContent = group.text;
+      groupHeader.append(groupTitle, copyGroupButton);
+      groupCard.append(groupHeader, groupText);
+      reportGroups.appendChild(groupCard);
+    });
+  }
+
+  document.querySelectorAll('.otn-cutover-report-button').forEach((button) => {
+    button.addEventListener('click', () => {
+      const hour = Number(button.dataset.reportHour);
+      const groups = readJsonData(`cutover-report-${hour}-groups`, []);
+      activeReportText = readJsonData(`cutover-report-${hour}-data`, '');
+      reportTitle.textContent = `${reportDates[hour]}${hour}点割接通报`;
+      reportWindow.textContent = `筛选范围：${reportWindows[hour]}`;
+      renderReportGroups(groups, activeReportText);
+      showReportModal();
+    });
+  });
+
+  reportModal.querySelectorAll('[data-report-action="close"]').forEach((button) => {
+    button.addEventListener('click', hideReportModalFallback);
+  });
+  reportModal.addEventListener('click', (event) => {
+    if (event.target === reportModal) hideReportModalFallback();
+  });
+
+  copyAllButton.addEventListener('click', () => {
+    copyReportText(activeReportText, copyAllButton);
+  });
+})();
+</script>

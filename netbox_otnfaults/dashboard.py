@@ -1,7 +1,7 @@
 import json
 import traceback
 import calendar
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from urllib.parse import urlencode
 from django.db.models import Count
 from django.template.loader import render_to_string
@@ -323,6 +323,152 @@ class OtnFaultsPendingReviewWidget(DashboardWidget):
             return f'<div class="alert alert-danger"><pre style="font-size:11px;white-space:pre-wrap">{error_trace}</pre></div>'
 
 
+def _get_cutover_report_window(report_date: date, report_hour: int) -> tuple[datetime, datetime]:
+    """返回指定通报时点至次日同一时点的本地时区半开时间窗。"""
+    current_timezone = timezone.get_current_timezone()
+    window_start = timezone.make_aware(
+        datetime.combine(report_date, time(hour=report_hour)),
+        current_timezone,
+    )
+    window_end = timezone.make_aware(
+        datetime.combine(report_date + timedelta(days=1), time(hour=report_hour)),
+        current_timezone,
+    )
+    return window_start, window_end
+
+
+def _get_cutover_impact_service(impact: CutoverImpact) -> tuple[str, str, str]:
+    """提取影响业务名称及业务 A/Z 端站点，缺失时回退到割接任务站点。"""
+    cutover = impact.cutover_task
+    fallback_site_a = (
+        cutover.interruption_location_a.name
+        if cutover.interruption_location_a
+        else '未填写站点A'
+    )
+    fallback_site_z_names = [site.name for site in cutover.interruption_location.all()]
+    fallback_site_z = '、'.join(fallback_site_z_names) if fallback_site_z_names else '未填写站点Z'
+
+    if impact.bare_fiber_service_id and impact.bare_fiber_service:
+        service_name = impact.bare_fiber_service.name
+        site_a = impact.service_site_a.name if impact.service_site_a else fallback_site_a
+        site_z_names = [site.name for site in impact.service_site_z.all()]
+        site_z = '、'.join(site_z_names) if site_z_names else fallback_site_z
+        return service_name, site_a, site_z
+
+    if impact.circuit_service_id and impact.circuit_service:
+        circuit = impact.circuit_service
+        extra_fields = circuit.extra_fields or {}
+        service_name = (
+            impact.circuit_service.special_line_name
+            or impact.circuit_service.name
+        )
+        site_a = str(
+            extra_fields.get('trunk_a_site')
+            or extra_fields.get('customer_a_end')
+            or fallback_site_a
+        )
+        site_z = str(
+            extra_fields.get('trunk_z_site')
+            or extra_fields.get('customer_z_end')
+            or fallback_site_z
+        )
+        return service_name, site_a, site_z
+
+    return '未关联业务', fallback_site_a, fallback_site_z
+
+
+def _build_cutover_report(request, report_date: date, report_hour: int) -> dict[str, object]:
+    """生成指定时点未来 24 小时内待实施割接的租户组分组通报。"""
+    window_start, window_end = _get_cutover_report_window(report_date, report_hour)
+    cutovers = list(
+        CutoverTask.objects.restrict(request.user, 'view')
+        .select_related('province', 'interruption_location_a')
+        .prefetch_related(
+            'interruption_location',
+            'impacts__bare_fiber_service__tenant_group',
+            'impacts__circuit_service',
+            'impacts__service_site_a',
+            'impacts__service_site_z',
+        )
+        .filter(
+            status=CutoverStatusChoices.PENDING_IMPLEMENTATION,
+            planned_cutover_time__gte=window_start,
+            planned_cutover_time__lt=window_end,
+        )
+        .order_by('planned_cutover_time', 'pk')
+    )
+
+    group_lines: dict[str, list[str]] = {}
+    group_cutover_ids: dict[str, set[int]] = {}
+    for cutover in cutovers:
+        impacts = list(cutover.impacts.all())
+        if not impacts:
+            impacts = [None]
+
+        for impact in impacts:
+            if impact is None:
+                site_a = cutover.interruption_location_a.name if cutover.interruption_location_a else '未填写站点A'
+                site_z_names = [site.name for site in cutover.interruption_location.all()]
+                site_z = '、'.join(site_z_names) if site_z_names else '未填写站点Z'
+                service_name = '未关联业务'
+                group_name = '未关联业务'
+            else:
+                service_name, site_a, site_z = _get_cutover_impact_service(impact)
+                if impact.bare_fiber_service_id and impact.bare_fiber_service:
+                    tenant_group = impact.bare_fiber_service.tenant_group
+                    group_name = str(tenant_group) if tenant_group else '未设置租户组'
+                elif impact.circuit_service_id:
+                    group_name = '电路业务'
+                else:
+                    group_name = '未关联业务'
+
+            province = str(cutover.province) if cutover.province else '未填写省份'
+            reason = ' '.join((cutover.cutover_reason or '未填写割接原因').split())
+            planned_time = timezone.localtime(cutover.planned_cutover_time).strftime('%Y-%m-%d %H:%M')
+            impact_minutes = (
+                cutover.planned_impact_minutes
+                if cutover.planned_impact_minutes is not None
+                else '未填写'
+            )
+            report_line = (
+                f'[{province}]割接报备：因{reason}需进行光缆割接，'
+                f'申请{planned_time}开始，预计影响时长{impact_minutes}分钟，'
+                f'影响[{service_name}{site_a}-{site_z}]'
+            )
+            group_lines.setdefault(group_name, []).append(report_line)
+            group_cutover_ids.setdefault(group_name, set()).add(cutover.pk)
+
+    report_groups: list[dict[str, object]] = []
+    for group_name, lines in group_lines.items():
+        group_text = '\n'.join(lines)
+        report_groups.append({
+            'name': group_name,
+            'cutover_count': len(group_cutover_ids[group_name]),
+            'text': group_text,
+        })
+
+    if report_groups:
+        report_text = '\n\n'.join(
+            (
+                f"【{group['name']}（割接数量：{group['cutover_count']}）】\n"
+                + str(group['text'])
+            )
+            for group in report_groups
+        )
+    else:
+        start_text = timezone.localtime(window_start).strftime('%Y-%m-%d %H:%M')
+        end_text = timezone.localtime(window_end).strftime('%Y-%m-%d %H:%M')
+        report_text = f'{start_text} 至 {end_text} 无待实施割接。'
+
+    return {
+        'hour': report_hour,
+        'text': report_text,
+        'groups': report_groups,
+        'cutover_count': len(cutovers),
+        'window_start': window_start,
+        'window_end': window_end,
+    }
+
 @register_widget
 class OtnTodayTomorrowCutoverWidget(DashboardWidget):
     """今明割接任务小组件：直观展示今日和明日的割接任务，由当前用户作为线路主管的任务将高亮显示。"""
@@ -397,6 +543,8 @@ class OtnTodayTomorrowCutoverWidget(DashboardWidget):
                     'tomorrow_cutovers': tomorrow_cutovers,
                     'today': today,
                     'tomorrow': tomorrow,
+                    'nine_report': _build_cutover_report(request, today, 9),
+                    'eighteen_report': _build_cutover_report(request, today, 18),
                 },
                 request=request,
             )
