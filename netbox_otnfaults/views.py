@@ -181,6 +181,16 @@ class OtnFaultMapDataView(PermissionRequiredMixin, View):
         # 检查请求模式
         mode = request.GET.get('mode', 'fault')
         
+        if request.GET.get('cutover_only') == '1':
+            cutover_status = request.GET.getlist('cutover_status') or request.GET.getlist('cutover_status[]')
+            cutover_time_range = request.GET.get('cutover_time_range', 'all')
+            if not cutover_status:
+                return JsonResponse({'cutover_data': []})
+            cutover_data = build_cutover_map_payload(
+                status_list=cutover_status, time_range=cutover_time_range
+            )
+            return JsonResponse({'cutover_data': cutover_data})
+
         # 获取站点数据 (所有模式都需要)
         sites_data = get_sites_data()
         

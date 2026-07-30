@@ -22,6 +22,8 @@ FAULT_MODE_PATH = (
     / "fault_mode.js"
 )
 
+VIEWS_PATH = REPO_ROOT / "netbox_otnfaults" / "views.py"
+
 
 class FaultMapCutoverControlTestCase(unittest.TestCase):
     def test_cutover_is_its_own_left_side_control(self) -> None:
@@ -86,5 +88,30 @@ class FaultMapCutoverControlTestCase(unittest.TestCase):
         self.assertIn("ctx.shadowOffsetY = 2", card_icon_method)
 
 
+    def test_cutover_filter_uses_lightweight_abortable_request(self) -> None:
+        source = CONTROL_PATH.read_text(encoding="utf-8")
+        fetch_method = source.split("fetchCutoverDataAndRefresh() {", 1)[1].split(
+            "\n    }", 1
+        )[0]
+
+        self.assertIn("url.searchParams.set('cutover_only', '1')", fetch_method)
+        self.assertIn("this.cutoverRequestController.abort()", fetch_method)
+        self.assertIn("this.cutoverRequestController = new AbortController()", fetch_method)
+        self.assertIn("signal: requestController.signal", fetch_method)
+        self.assertIn("if (requestController !== this.cutoverRequestController) return", fetch_method)
+        self.assertIn("if (err.name === 'AbortError') return", fetch_method)
+
+    def test_cutover_only_response_skips_full_map_payload_builders(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        view_method = source.split("class OtnFaultMapDataView", 1)[1].split(
+            "\n\nclass MapPreferenceView", 1
+        )[0]
+
+        cutover_only_index = view_method.index("if request.GET.get('cutover_only') == '1':")
+        sites_index = view_method.index("sites_data = get_sites_data()")
+        faults_index = view_method.index("payload = build_fault_map_payload()")
+        self.assertLess(cutover_only_index, sites_index)
+        self.assertLess(cutover_only_index, faults_index)
+        self.assertIn("return JsonResponse({'cutover_data': cutover_data})", view_method)
 if __name__ == "__main__":
     unittest.main()

@@ -68,6 +68,7 @@ class LayerToggleControl {
         this.showCutover = true; // 默认勾选显示割接计划
         this.cutoverTimeRange = 'all'; // 默认全部时间范围
         this.selectedCutoverStatuses = ['pending_implementation']; // 默认仅勾选“待实施”
+        this.cutoverRequestController = null;
     }
 
     onAdd(map) {
@@ -1152,18 +1153,26 @@ class LayerToggleControl {
 
         const url = new URL(config.mapDataUrl, window.location.origin);
         url.searchParams.append('mode', 'fault');
+        url.searchParams.set('cutover_only', '1');
 
         this.selectedCutoverStatuses.forEach(status => {
             url.searchParams.append('cutover_status', status);
         });
         url.searchParams.append('cutover_time_range', this.cutoverTimeRange);
 
-        fetch(url.toString(), { credentials: 'same-origin' })
+        if (this.cutoverRequestController) {
+            this.cutoverRequestController.abort();
+        }
+        this.cutoverRequestController = new AbortController();
+        const requestController = this.cutoverRequestController;
+
+        fetch(url.toString(), { credentials: 'same-origin', signal: requestController.signal })
             .then(res => {
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 return res.json();
             })
             .then(data => {
+                if (requestController !== this.cutoverRequestController) return;
                 if (config) {
                     config.cutoverData = data.cutover_data || [];
                 }
@@ -1173,6 +1182,7 @@ class LayerToggleControl {
                 this.triggerGlobalUpdate();
             })
             .catch(err => {
+                if (err.name === 'AbortError') return;
                 console.error('[LayerToggleControl] 获取割接数据失败:', err);
             });
     }

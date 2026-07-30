@@ -2619,3 +2619,10 @@
 - [x] 增加按钮窄宽布局回归测试，锁定内部换行和标题不可压缩。
 - [x] 调整通报按钮 Flex 布局，使数量徽标在宽度不足时换行并右对齐。
 - [x] 运行今明割接小组件定向测试与差异检查。
+
+## 2026-07-30 Improve cutover map filter responsiveness
+
+- [x] Add regression coverage for cutover-only requests and stale-response protection.
+- [x] Add a lightweight cutover-only map response that skips site and fault payload work.
+- [x] Cancel an unfinished cutover filter request when the selection changes again.
+- [x] Run targeted tests, Python compilation, and JavaScript syntax checks.
