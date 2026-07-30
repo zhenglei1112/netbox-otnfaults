@@ -433,7 +433,7 @@ def _build_cutover_report(request, report_date: date, report_hour: int) -> dict[
             report_line = (
                 f'[{province}]割接报备：因{reason}需进行光缆割接，'
                 f'申请{planned_time}开始，预计影响时长{impact_minutes}分钟，'
-                f'影响[{service_name}{site_a}-{site_z}]'
+                f'影响[{service_name}：A{site_a}→Z{site_z}]'
             )
             group_lines.setdefault(group_name, []).append(report_line)
             group_cutover_ids.setdefault(group_name, set()).add(cutover.pk)

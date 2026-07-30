@@ -198,6 +198,7 @@
   .otn-cutover-report-button {
     min-height: 44px;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
@@ -210,7 +211,7 @@
     transition: color 0.16s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
   }
   .otn-cutover-report-button-main {
-    min-width: 0;
+    min-width: max-content;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -231,6 +232,7 @@
   }
   .otn-cutover-report-count {
     min-width: 36px;
+    margin-left: auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;

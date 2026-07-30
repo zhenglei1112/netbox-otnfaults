@@ -58,7 +58,7 @@ class DashboardTodayTomorrowCutoverWidgetTestCase(unittest.TestCase):
         self.assertIn("report_groups.append({", source)
         self.assertIn("'groups': report_groups,", source)
         self.assertIn("预计影响时长{impact_minutes}分钟", source)
-        self.assertIn("影响[{service_name}{site_a}-{site_z}]", source)
+        self.assertIn("影响[{service_name}：A{site_a}→Z{site_z}]", source)
 
     def test_template_exposes_report_buttons_modal_and_copy_action(self) -> None:
         template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -87,6 +87,15 @@ class DashboardTodayTomorrowCutoverWidgetTestCase(unittest.TestCase):
         self.assertIn("{{ eighteen_report.cutover_count }}项割接", template_source)
         self.assertIn("html[data-bs-theme=\"dark\"] .otn-cutover-report-button-nine", template_source)
         self.assertIn("html[data-bs-theme=\"dark\"] .otn-cutover-report-button-eighteen", template_source)
+    def test_report_buttons_wrap_count_when_widget_is_narrow(self) -> None:
+        template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
+        button_block = template_source.split(".otn-cutover-report-button {", 1)[1].split("}", 1)[0]
+        main_block = template_source.split(".otn-cutover-report-button-main {", 1)[1].split("}", 1)[0]
+        count_block = template_source.split(".otn-cutover-report-count {", 1)[1].split("}", 1)[0]
+
+        self.assertIn("flex-wrap: wrap;", button_block)
+        self.assertIn("min-width: max-content;", main_block)
+        self.assertIn("margin-left: auto;", count_block)
     def test_report_modal_places_dated_title_before_filter_window(self) -> None:
         template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
         modal_header = template_source.split('<div class="modal-header', 1)[1].split('</div>', 1)[0]
