@@ -73,3 +73,43 @@ Run: `git diff --check`
 Expected: 退出码为 `0`，无空白错误。
 
 > 根据项目 `AGENTS.md`，本计划不创建分支或 worktree，也不暂存、提交、推送或创建 Pull Request。
+
+### Task 3: 修正未关联业务的正文措辞
+
+**Files:**
+- Modify: `tests/test_cutover_report_text.py`
+- Modify: `netbox_otnfaults/services/cutover_report_text.py`
+
+- [x] **Step 1: 编写未关联业务失败测试**
+
+在 `tests/test_cutover_report_text.py` 增加 `test_reports_no_business_impact_when_service_is_unlinked()`，调用 `build_cutover_report_line()` 并传入 `service_name="未关联业务"`；断言完整正文包含“不影响业务，A端”，且不包含“影响未关联业务业务”。
+
+- [x] **Step 2: 运行测试并确认因旧模板而失败**
+
+Run: `python -m unittest tests.test_cutover_report_text.CutoverReportTextTestCase.test_reports_no_business_impact_when_service_is_unlinked -v`
+
+Expected: `FAIL`，实际正文仍包含“影响未关联业务业务”。
+
+- [x] **Step 3: 编写最小实现**
+
+在 `build_cutover_report_line()` 中先清洗 `service_name`，当清洗结果严格等于 `未关联业务` 时使用 `不影响业务`，否则继续使用 `影响{service_name}业务`；正文其他部分不变。
+
+- [x] **Step 4: 运行定向测试并确认通过**
+
+Run: `python -m unittest tests.test_cutover_report_text -v`
+
+Expected: `Ran 2 tests ... OK`
+
+- [x] **Step 5: 运行相关回归和静态验证**
+
+Run: `python -m unittest tests.test_cutover_report_text tests.test_dashboard_today_tomorrow_cutover_widget -v`
+
+Expected: 所有测试通过，输出以 `OK` 结束。
+
+Run: `python -m py_compile netbox_otnfaults/services/cutover_report_text.py tests/test_cutover_report_text.py`
+
+Expected: 退出码为 `0`，无错误输出。
+
+Run: `git diff --check`
+
+Expected: 退出码为 `0`，无空白错误。

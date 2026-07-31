@@ -21,12 +21,17 @@ def build_cutover_report_line(
         f'{planned_time.year}年{planned_time.month}月{planned_time.day}日'
         f'{planned_time:%H:%M}'
     )
+    service_name_text = _remove_whitespace(service_name)
+    business_impact_text = (
+        '预计不影响在用裸纤及电路业务' if service_name_text == '未关联业务'
+        else f'影响{service_name_text}业务'
+    )
     return (
         f'{_remove_whitespace(province)}割接报备：'
         f'因{_remove_whitespace(reason)}影响，需实施光缆割接，'
         f'计划于{time_text}开始，'
         f'预计影响时长{_remove_whitespace(impact_minutes)}分钟，'
-        f'影响{_remove_whitespace(service_name)}业务，'
+        f'{business_impact_text}，'
         f'A端{_remove_whitespace(site_a)}，'
         f'Z端{_remove_whitespace(site_z)}。'
     )

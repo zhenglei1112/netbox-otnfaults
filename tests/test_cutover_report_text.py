@@ -33,6 +33,25 @@ class CutoverReportTextTestCase(unittest.TestCase):
         self.assertNotIn("]", report)
         self.assertNotIn("→", report)
 
+    def test_reports_no_business_impact_when_service_is_unlinked(self) -> None:
+        report = build_cutover_report_line(
+            province="浙江",
+            reason="管廊施工",
+            planned_time=datetime(2026, 7, 31, 20, 0),
+            impact_minutes=240,
+            service_name="未关联业务",
+            site_a="宁海",
+            site_z="宁波收费站",
+        )
+
+        self.assertEqual(
+            report,
+            "浙江割接报备：因管廊施工影响，需实施光缆割接，"
+            "计划于2026年7月31日20:00开始，预计影响时长240分钟，"
+            "不影响业务，A端宁海，Z端宁波收费站。",
+        )
+        self.assertNotIn("影响未关联业务业务", report)
+
 
 if __name__ == "__main__":
     unittest.main()
