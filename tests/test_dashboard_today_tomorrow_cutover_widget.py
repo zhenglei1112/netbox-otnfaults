@@ -57,8 +57,18 @@ class DashboardTodayTomorrowCutoverWidgetTestCase(unittest.TestCase):
         self.assertIn("f\"【{group['name']}（割接数量：{group['cutover_count']}）】\\n\"", source)
         self.assertIn("report_groups.append({", source)
         self.assertIn("'groups': report_groups,", source)
-        self.assertIn("预计影响时长{impact_minutes}分钟", source)
-        self.assertIn("影响[{service_name}：A{site_a}→Z{site_z}]", source)
+        self.assertIn(
+            "from .services.cutover_report_text import build_cutover_report_line",
+            source,
+        )
+        self.assertIn("planned_time = timezone.localtime(cutover.planned_cutover_time)", source)
+        self.assertIn("report_line = build_cutover_report_line(", source)
+        self.assertIn("province=province,", source)
+        self.assertIn("reason=reason,", source)
+        self.assertIn("service_name=service_name,", source)
+        self.assertIn("site_a=site_a,", source)
+        self.assertIn("site_z=site_z,", source)
+        self.assertNotIn("影响[{service_name}：A{site_a}→Z{site_z}]", source)
 
     def test_template_exposes_report_buttons_modal_and_copy_action(self) -> None:
         template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")

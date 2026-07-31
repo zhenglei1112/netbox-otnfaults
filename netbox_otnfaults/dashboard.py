@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 from extras.dashboard.widgets import DashboardWidget, register_widget
 from .models import OtnFault, FaultCategoryChoices, CutoverTask, CutoverStatusChoices, CutoverImpact
+from .services.cutover_report_text import build_cutover_report_line
 
 
 # --- 故障分类 → CSS 颜色映射 ---
@@ -423,17 +424,21 @@ def _build_cutover_report(request, report_date: date, report_hour: int) -> dict[
                     group_name = '未关联业务'
 
             province = str(cutover.province) if cutover.province else '未填写省份'
-            reason = ' '.join((cutover.cutover_reason or '未填写割接原因').split())
-            planned_time = timezone.localtime(cutover.planned_cutover_time).strftime('%Y-%m-%d %H:%M')
+            reason = cutover.cutover_reason or '未填写割接原因'
+            planned_time = timezone.localtime(cutover.planned_cutover_time)
             impact_minutes = (
                 cutover.planned_impact_minutes
                 if cutover.planned_impact_minutes is not None
                 else '未填写'
             )
-            report_line = (
-                f'[{province}]割接报备：因{reason}需进行光缆割接，'
-                f'申请{planned_time}开始，预计影响时长{impact_minutes}分钟，'
-                f'影响[{service_name}：A{site_a}→Z{site_z}]'
+            report_line = build_cutover_report_line(
+                province=province,
+                reason=reason,
+                planned_time=planned_time,
+                impact_minutes=impact_minutes,
+                service_name=service_name,
+                site_a=site_a,
+                site_z=site_z,
             )
             group_lines.setdefault(group_name, []).append(report_line)
             group_cutover_ids.setdefault(group_name, set()).add(cutover.pk)
