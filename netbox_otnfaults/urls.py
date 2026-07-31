@@ -5,8 +5,19 @@ from . import models, views
 from . import dashboard_views
 from . import weekly_report_views
 from . import statistics_views
+from . import calendar_widget_views
 
 urlpatterns = [
+    path(
+        'dashboard/calendar/faults/',
+        calendar_widget_views.fault_calendar_fragment,
+        name='dashboard_fault_calendar_fragment',
+    ),
+    path(
+        'dashboard/calendar/cutovers/',
+        calendar_widget_views.cutover_calendar_fragment,
+        name='dashboard_cutover_calendar_fragment',
+    ),
     path(
         'contract-faults/<int:contract_id>/',
         views.ContractOtnFaultFragmentView.as_view(),

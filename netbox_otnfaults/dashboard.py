@@ -1,15 +1,22 @@
+import logging
 import json
 import traceback
 import calendar
-from datetime import date, datetime, time, timedelta
+from datetime import date, timedelta
+from datetime import datetime, time
 from urllib.parse import urlencode
 from django.db.models import Count
+from django.http import HttpRequest
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from extras.dashboard.widgets import DashboardWidget, register_widget
+from .calendar_navigation import resolve_requested_month, shift_month
 from .models import OtnFault, FaultCategoryChoices, CutoverTask, CutoverStatusChoices, CutoverImpact
 from .services.cutover_report_text import build_cutover_report_line
+
+
+logger = logging.getLogger(__name__)
 
 
 # --- 故障分类 → CSS 颜色映射 ---
@@ -77,11 +84,31 @@ class OtnFaultsCalendarWidget(DashboardWidget):
     width = 4
     height = 4
 
-    def render(self, request) -> str:
+    def render(
+        self,
+        request: HttpRequest,
+        *,
+        year_value: str | None = None,
+        month_value: str | None = None,
+        raise_errors: bool = False,
+    ) -> str:
         try:
             now = timezone.localtime()
-            year, month = now.year, now.month
-            today_day = now.day
+            today = now.date()
+            year, month = resolve_requested_month(
+                year_value,
+                month_value,
+                today,
+                max_future_months=0,
+            )
+            previous_year, previous_month = shift_month(year, month, -1)
+            next_year, next_month = shift_month(year, month, 1)
+            maximum_year, maximum_month = shift_month(today.year, today.month, 0)
+            fragment_url = reverse(
+                'plugins:netbox_otnfaults:dashboard_fault_calendar_fragment'
+            )
+            previous_month_url = f'{fragment_url}?{urlencode({"year": previous_year, "month": previous_month})}'
+            next_month_url = f'{fragment_url}?{urlencode({"year": next_year, "month": next_month})}'
 
             # 本月起止范围
             first_day = date(year, month, 1)
@@ -136,7 +163,7 @@ class OtnFaultsCalendarWidget(DashboardWidget):
                     'day': d,
                     'date': day_date.isoformat(),
                     'dots': day_dots.get(day_date, []),
-                    'is_today': d == today_day,
+                    'is_today': day_date == today,
                     'is_current_month': day_date.month == month,
                     'fault_list_url': f'{fault_list_base_url}?{fault_list_query}',
                     'holiday_marker': holiday_marker,
@@ -168,12 +195,17 @@ class OtnFaultsCalendarWidget(DashboardWidget):
                     'weeks': weeks,
                     'legend': legend,
                     'weeks_json': json.dumps(weeks, ensure_ascii=False),
+                    'previous_month_url': previous_month_url,
+                    'next_month_url': next_month_url,
+                    'can_navigate_next': (year, month) < (maximum_year, maximum_month),
                 },
                 request=request,
             )
-        except Exception as e:
-            error_trace = traceback.format_exc()
-            return f'<div class="alert alert-danger"><pre style="font-size:11px;white-space:pre-wrap">{error_trace}</pre></div>'
+        except Exception:
+            logger.exception('Failed to render the fault calendar widget')
+            if raise_errors:
+                raise
+            return '<div class="alert alert-danger">日历加载失败，请稍后重试。</div>'
 
 
 @register_widget
@@ -184,11 +216,31 @@ class OtnCutoverCalendarWidget(DashboardWidget):
     width = 4
     height = 4
 
-    def render(self, request) -> str:
+    def render(
+        self,
+        request: HttpRequest,
+        *,
+        year_value: str | None = None,
+        month_value: str | None = None,
+        raise_errors: bool = False,
+    ) -> str:
         try:
             now = timezone.localtime()
-            year, month = now.year, now.month
-            today_day = now.day
+            today = now.date()
+            year, month = resolve_requested_month(
+                year_value,
+                month_value,
+                today,
+                max_future_months=1,
+            )
+            previous_year, previous_month = shift_month(year, month, -1)
+            next_year, next_month = shift_month(year, month, 1)
+            maximum_year, maximum_month = shift_month(today.year, today.month, 1)
+            fragment_url = reverse(
+                'plugins:netbox_otnfaults:dashboard_cutover_calendar_fragment'
+            )
+            previous_month_url = f'{fragment_url}?{urlencode({"year": previous_year, "month": previous_month})}'
+            next_month_url = f'{fragment_url}?{urlencode({"year": next_year, "month": next_month})}'
 
             first_day = date(year, month, 1)
             _, days_in_month = calendar.monthrange(year, month)
@@ -256,7 +308,7 @@ class OtnCutoverCalendarWidget(DashboardWidget):
                 cal_cells.append(build_cell(day_date, False))
             for d in range(1, days_in_month + 1):
                 day_date = date(year, month, d)
-                cal_cells.append(build_cell(day_date, d == today_day))
+                cal_cells.append(build_cell(day_date, day_date == today))
             while len(cal_cells) % 7 != 0:
                 cal_cells.append(None)
 
@@ -277,12 +329,17 @@ class OtnCutoverCalendarWidget(DashboardWidget):
                         day.month == month and bool(items)
                         for day, items in day_cutovers.items()
                     ),
+                    'previous_month_url': previous_month_url,
+                    'next_month_url': next_month_url,
+                    'can_navigate_next': (year, month) < (maximum_year, maximum_month),
                 },
                 request=request,
             )
-        except Exception as e:
-            error_trace = traceback.format_exc()
-            return f'<div class="alert alert-danger"><pre style="font-size:11px;white-space:pre-wrap">{error_trace}</pre></div>'
+        except Exception:
+            logger.exception('Failed to render the cutover calendar widget')
+            if raise_errors:
+                raise
+            return '<div class="alert alert-danger">日历加载失败，请稍后重试。</div>'
 
 
 @register_widget

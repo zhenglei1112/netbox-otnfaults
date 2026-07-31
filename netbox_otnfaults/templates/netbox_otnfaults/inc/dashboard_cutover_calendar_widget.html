@@ -1,4 +1,37 @@
+{% load static %}
 <style>
+  .otn-calendar-widget { position: relative; }
+  .otn-calendar-widget--cutover { min-height: 320px; }
+  .otn-calendar-nav {
+    position: absolute;
+    top: 50%;
+    z-index: 5;
+    width: 30px;
+    height: 72px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: rgba(13, 110, 253, .12);
+    color: var(--bs-primary);
+    font-size: 1.7rem;
+    line-height: 1;
+    opacity: 0;
+    transform: translateY(-50%);
+    transition: opacity .15s ease, background-color .15s ease;
+  }
+  .otn-calendar-nav--previous { left: 0; }
+  .otn-calendar-nav--next { right: 0; }
+  .otn-calendar-nav:hover,
+  .otn-calendar-nav:focus-visible {
+    opacity: 1;
+    background: rgba(13, 110, 253, .2);
+  }
+  .otn-calendar-nav:disabled {
+    cursor: wait;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .otn-calendar-nav { transition: none; }
+  }
   .otn-cutover-cal { width: 100%; border-collapse: collapse; table-layout: fixed; }
   .otn-cutover-cal th { font-size: .68rem; color: var(--bs-secondary-color); text-align: center; padding: 2px 0; font-weight: 500; }
   .otn-cutover-cal td { text-align: center; vertical-align: top; padding: 1px; height: 66px; position: relative; }
@@ -74,6 +107,17 @@
   .otn-cutover-cal-empty-month { margin-top: 4px; color: var(--bs-secondary-color); font-size: .65rem; text-align: center; }
 </style>
 
+<div class="otn-calendar-widget otn-calendar-widget--cutover" data-calendar-widget>
+<button type="button"
+        class="otn-calendar-nav otn-calendar-nav--previous"
+        data-calendar-nav-url="{{ previous_month_url }}"
+        aria-label="查看上一月">‹</button>
+{% if can_navigate_next %}
+<button type="button"
+        class="otn-calendar-nav otn-calendar-nav--next"
+        data-calendar-nav-url="{{ next_month_url }}"
+        aria-label="查看下一月">›</button>
+{% endif %}
 <div class="otn-cutover-cal-hdr">
   <span>{{ year }}年{{ month }}月</span>
 </div>
@@ -134,3 +178,6 @@
 {% if not has_month_cutovers %}
 <div class="otn-cutover-cal-empty-month">本月暂无计划割接</div>
 {% endif %}
+</div>
+
+<script src="{% static 'netbox_otnfaults/js/dashboard_calendar_navigation.js' %}"></script>
