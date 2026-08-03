@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q, QuerySet
 import django_filters
 from netbox.filtersets import NetBoxModelFilterSet
 from netbox_contract.models import ServiceProvider, Contract
@@ -31,6 +31,8 @@ from .models import (
     CutoverImpact,
     OtnFault,
     OtnFaultImpact,
+    BusinessImpactChoices,
+    ServiceTypeChoices,
     OtnMapPreference,
     OtnPath,
     OtnPathGroup,
@@ -43,6 +45,10 @@ from .models import (
 
 
 class OtnFaultFilterSet(NetBoxModelFilterSet):
+    caused_bare_fiber_interruption = django_filters.BooleanFilter(
+        method='filter_caused_bare_fiber_interruption',
+        label='造成裸纤业务中断',
+    )
     province = RegionMultipleChoiceFilter(
         field_name='province',
         queryset=Region.objects.all(),
@@ -104,6 +110,7 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'id', 'fault_number', 'source_cutover_task', 'duty_officer',
             'interruption_location_a', 'interruption_location',
             'fault_occurrence_time_after', 'fault_occurrence_time_before',
+            'caused_bare_fiber_interruption',
             'fault_recovery_time', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact',
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
             'fault_details', 'interruption_longitude',
@@ -119,6 +126,24 @@ class OtnFaultFilterSet(NetBoxModelFilterSet):
             'fault_status', 'is_suspended', 'ac_fault_is_class_i', 'device_fault_is_class_i', 'manager_reviewed', 'manager_reviewer', 'noc_reviewed', 'noc_reviewer',
             'manager_review_time', 'noc_review_time'
         )
+
+    def filter_caused_bare_fiber_interruption(
+        self,
+        queryset: QuerySet,
+        name: str,
+        value: bool | None,
+    ) -> QuerySet:
+        if value is None:
+            return queryset
+
+        matching_impacts = OtnFaultImpact.objects.filter(
+            otn_fault_id=OuterRef('pk'),
+            service_type=ServiceTypeChoices.BARE_FIBER,
+            business_impact=BusinessImpactChoices.INTERRUPTED,
+        )
+        if value:
+            return queryset.filter(Exists(matching_impacts))
+        return queryset.filter(~Exists(matching_impacts))
 
     def search(self, queryset, name, value):
         if not value.strip():

@@ -957,6 +957,11 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         label='设备故障是否为I类',
         widget=forms.Select(choices=[(None, '---------'), (True, '是'), (False, '否')])
     )
+    caused_bare_fiber_interruption = forms.NullBooleanField(
+        required=False,
+        label='造成裸纤业务中断',
+        widget=forms.Select(choices=[(None, '---------'), (True, '是'), (False, '否')])
+    )
     
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
@@ -966,7 +971,8 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
             'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
             'first_report_source', 'duty_officer',
-            'fault_occurrence_time_after', 'fault_occurrence_time_before', 'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
+            'fault_occurrence_time_after', 'fault_occurrence_time_before', 'caused_bare_fiber_interruption',
+            'dispatch_time', 'departure_time', 'arrival_time', 'fault_recovery_time',
             'closure_time', 'handler', 'fault_details',
             name='故障信息'
         ),

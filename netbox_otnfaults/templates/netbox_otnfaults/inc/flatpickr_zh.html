@@ -39,6 +39,7 @@
                     fp.setDate(currentValue, false);
                 }
 
+                {% if not disable_default_now %}
                 // 添加 onOpen 钩子：当字段为空时，自动填入当前日期时间
                 var origOnOpen = fp.config.onOpen || [];
                 fp.config.onOpen = (Array.isArray(origOnOpen) ? origOnOpen : [origOnOpen]).concat(function(selectedDates, dateStr, instance) {
@@ -46,6 +47,7 @@
                         instance.setDate(new Date(), true);
                     }
                 });
+                {% endif %}
             }
         });
     }
