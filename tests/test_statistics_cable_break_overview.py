@@ -2702,7 +2702,11 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
         self.assertIn("kpi_repeat_ids: set[int] = set()", details_source)
         self.assertIn("if detail_scope != 'cable_break':", details_source)
-        self.assertIn("preceding_qs = apply_detail_filters(_annotate_class_i_business_impact(preceding_qs))", details_source)
+        self.assertIn("preceding_qs = apply_detail_filters(", details_source)
+        self.assertIn("_annotate_bare_fiber_impact_count(", details_source)
+        self.assertIn(
+            "_annotate_class_i_business_impact(preceding_qs)", details_source
+        )
         self.assertIn(
             "repeat_filter_ids = kpi_repeat_ids if detail_scope == 'cable_break' else ui_repeat_ids",
             details_source,

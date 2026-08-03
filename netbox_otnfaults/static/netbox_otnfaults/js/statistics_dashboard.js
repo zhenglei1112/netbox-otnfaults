@@ -936,7 +936,7 @@ document.addEventListener("DOMContentLoaded", function() {
             loadBranchDetails();
         } catch (error) {
             console.error('Fetch error:', error);
-            document.getElementById('details-tbody').innerHTML = '<tr><td colspan="10" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
+            document.getElementById('details-tbody').innerHTML = '<tr><td colspan="12" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         } finally {
             hideGlobalLoading();
         }
@@ -2063,6 +2063,17 @@ document.addEventListener("DOMContentLoaded", function() {
         const distinctCountEl = document.getElementById(`${idPrefix}-distinct-count`);
         const totalDurationEl = document.getElementById(`${idPrefix}-total-duration`);
         const distinctDurationEl = document.getElementById(`${idPrefix}-distinct-duration`);
+        const bareFiberMetricElements = [
+            totalCountEl, distinctCountEl, totalDurationEl, distinctDurationEl
+        ];
+        bareFiberMetricElements.forEach(valueElement => {
+            const metric = valueElement && valueElement.closest('.statistics-drill-metric');
+            if (!metric) return;
+            metric.dataset.filterField = 'bare_fiber_interruption';
+            metric.dataset.filterValue = 'true';
+            metric.dataset.detailScope = 'bare_fiber_interruption';
+            metric.dataset.filterLabel = '裸纤业务中断';
+        });
 
         if (totalCountEl) {
             totalCountEl.textContent = formatCardCountValue(overview.total_count);
@@ -3306,7 +3317,7 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
         const tbody = document.getElementById('details-tbody');
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>';
 
         try {
             const response = await fetch(url);
@@ -3317,7 +3328,7 @@ document.addEventListener("DOMContentLoaded", function() {
             renderDetailsTable();
         } catch (error) {
             console.error('Fetch details error:', error);
-            tbody.innerHTML = '<tr><td colspan="10" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         }
     }
 
@@ -3401,6 +3412,7 @@ document.addEventListener("DOMContentLoaded", function() {
             else if (activeFilterField === 'duration_min') { filterName = '历时指标'; filterValueDisp = `>=${formatCardMetricValue(activeFilterValue)}小时`; }
             else if (activeFilterField === 'duration_histogram_bucket') filterName = '故障历时频数';
             else if (activeFilterField === 'category') filterName = '分类';
+            else if (activeFilterField === 'bare_fiber_interruption') filterName = '业务影响';
             else if (activeFilterField === 'fault_group') filterName = '故障类型';
             else if (activeFilterField === 'occurrence_period') filterName = '发生时段';
             else if (activeFilterField === 'cause_group') filterName = '成因';
@@ -3467,11 +3479,16 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!level) return '—';
         return `<span class="badge bg-indigo text-white" style="color: #fff !important;">${level}</span>`;
     }
+    function formatBareFiberImpactCount(value) {
+        const count = Number(value || 0);
+        return count > 0 ? String(count) : '-';
+    }
+
 
     function renderDetailsTableHtml(results) {
         const tbody = document.getElementById('details-tbody');
         if (results.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-muted">包含过滤条件下，无可展示的故障数据</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center py-4 text-muted">包含过滤条件下，无可展示的故障数据</td></tr>`;
             return;
         }
 
@@ -3500,6 +3517,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <td>${item.province}</td>
                 <td>${item.reason}</td>
                 <td><small>${item.site_a}${item.site_z ? ' &rarr; ' + item.site_z : ''}</small></td>
+                <td>${formatBareFiberImpactCount(item.bare_fiber_impact_count)}</td>
                 <td>${badges}</td>
             </tr>`;
         }).join('');
@@ -3534,7 +3552,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderDetailRows(details, emptyText) {
         if (details.length === 0) {
-            return `<tr><td colspan="11" class="text-center py-4 text-muted">${emptyText}</td></tr>`;
+            return `<tr><td colspan="12" class="text-center py-4 text-muted">${emptyText}</td></tr>`;
         }
 
         assignRepeatGroupColors(details);
@@ -3562,6 +3580,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <td>${item.province}</td>
                 <td>${item.reason}</td>
                 <td><small>${item.site_a}${item.site_z ? ' &rarr; ' + item.site_z : ''}</small></td>
+                <td>${formatBareFiberImpactCount(item.bare_fiber_impact_count)}</td>
                 <td>${badges}</td>
             </tr>`;
         }).join('');
@@ -3578,7 +3597,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const tbody = document.getElementById('branch-company-details-tbody');
-        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>';
 
         try {
             const response = await fetch(url);
@@ -3588,7 +3607,7 @@ document.addEventListener("DOMContentLoaded", function() {
             renderBranchCompanyDetailsTable();
         } catch (error) {
             console.error('Fetch branch details error:', error);
-            tbody.innerHTML = '<tr><td colspan="11" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         }
     }
 
@@ -3603,6 +3622,7 @@ document.addEventListener("DOMContentLoaded", function() {
             let filterValueDisp = activeBranchCompanyFilterLabel || activeBranchCompanyFilterValue;
             if (activeBranchCompanyFilterField === 'province') filterName = '省份';
             else if (activeBranchCompanyFilterField === 'category') filterName = '分类';
+            else if (activeBranchCompanyFilterField === 'bare_fiber_interruption') filterName = '业务影响';
             else if (activeBranchCompanyFilterField === 'reason') filterName = '原因';
             else if (activeBranchCompanyFilterField === 'is_valid_duration') { filterName = '特殊标签'; filterValueDisp = '有效平均'; }
             else if (activeBranchCompanyFilterField === 'is_long') { filterName = '特殊标签'; filterValueDisp = '长时故障(≥6h)'; }

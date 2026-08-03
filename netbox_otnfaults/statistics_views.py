@@ -42,6 +42,21 @@ def _annotate_class_i_business_impact(queryset: QuerySet) -> QuerySet:
     return queryset.annotate(has_class_i_business_impact=Exists(class_i_impact_exists))
 
 
+def _annotate_bare_fiber_impact_count(queryset: QuerySet) -> QuerySet:
+    return queryset.annotate(
+        bare_fiber_impact_count=Count(
+            'impacts__bare_fiber_service',
+            filter=Q(
+                impacts__service_type=ServiceTypeChoices.BARE_FIBER,
+                impacts__business_impact=BusinessImpactChoices.INTERRUPTED,
+                impacts__bare_fiber_service__isnull=False,
+            ),
+            distinct=True,
+        )
+    )
+
+
+
 def _get_impact_level_display(fault: OtnFault, has_class_i_business_impact: bool) -> str:
     if fault.source_cutover_task_id is not None:
         return "割接排除"
@@ -1803,24 +1818,26 @@ def _apply_physical_province_filter(queryset: QuerySet, selected_provinces: list
     return queryset.filter(province__name__in=selected_provinces)
 
 
-def _compute_bare_fiber_interruption_overview(
-    start_date,
-    end_date,
+def _get_filtered_bare_fiber_interruption_impacts(
+    start_date: datetime,
+    end_date: datetime,
     selected_provinces: list[str],
-    now,
     branch_company_scope: bool = False,
-) -> dict[str, float | int]:
-    """计算统计周期内裸纤业务的中断概览指标。"""
+) -> list[OtnFaultImpact]:
+    """筛选统计周期内符合概览和故障下钻口径的裸纤业务中断记录。"""
     impacts = OtnFaultImpact.objects.select_related(
         'otn_fault',
-        'otn_fault__province'
+        'otn_fault__province',
+        'otn_fault__handling_unit',
     ).filter(
         service_interruption_time__gte=start_date,
         service_interruption_time__lt=end_date,
         service_type=ServiceTypeChoices.BARE_FIBER,
         otn_fault__is_suspended=False
     ).exclude(
-        otn_fault__fault_status=FaultStatusChoices.SUSPENDED
+        otn_fault__fault_status=FaultStatusChoices.SUSPENDED,
+    ).exclude(
+        business_impact=BusinessImpactChoices.NOT_INTERRUPTED,
     )
 
     if selected_provinces:
@@ -1849,6 +1866,24 @@ def _compute_bare_fiber_interruption_overview(
             continue
 
         filtered_impacts.append(imp)
+
+    return filtered_impacts
+
+
+def _compute_bare_fiber_interruption_overview(
+    start_date: datetime,
+    end_date: datetime,
+    selected_provinces: list[str],
+    now: datetime,
+    branch_company_scope: bool = False,
+) -> dict[str, float | int]:
+    """计算统计周期内裸纤业务的中断概览指标。"""
+    filtered_impacts = _get_filtered_bare_fiber_interruption_impacts(
+        start_date=start_date,
+        end_date=end_date,
+        selected_provinces=selected_provinces,
+        branch_company_scope=branch_company_scope,
+    )
 
     total_count = len(filtered_impacts)
 
@@ -2783,11 +2818,18 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
         start_date, end_date, prev_start_date, prev_end_date, _yoy_start_date, _yoy_end_date, filter_type = _parse_time_range(request)
         now = timezone.localtime()
         selected_provinces = _parse_selected_provinces(request)
+        bare_fiber_interruption = request.GET.get('bare_fiber_interruption')
+        scope = request.GET.get('scope')
 
         qs = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
-        qs = qs.filter(fault_occurrence_time__gte=start_date, fault_occurrence_time__lt=end_date)
+        if bare_fiber_interruption != 'true':
+            qs = qs.filter(
+                fault_occurrence_time__gte=start_date,
+                fault_occurrence_time__lt=end_date,
+            )
         qs = _apply_physical_province_filter(qs, selected_provinces)
         qs = _annotate_class_i_business_impact(qs)
+        qs = _annotate_bare_fiber_impact_count(qs)
 
         category_aliases: dict[str, str] = {
             '光缆中断': FaultCategoryChoices.FIBER_BREAK,
@@ -2827,7 +2869,6 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
         duration_max = request.GET.get('duration_max')
         occurrence_period = request.GET.get('occurrence_period')
         cause_group = request.GET.get('cause_group')
-        scope = request.GET.get('scope')
         province = request.GET.get('province')
         is_repeat = request.GET.get('is_repeat')
 
@@ -2848,6 +2889,19 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
 
         def apply_detail_filters(queryset: QuerySet) -> QuerySet:
             queryset = apply_cable_break_scope(queryset)
+            if bare_fiber_interruption == 'true':
+                filtered_impacts = _get_filtered_bare_fiber_interruption_impacts(
+                    start_date=start_date,
+                    end_date=end_date,
+                    selected_provinces=selected_provinces,
+                    branch_company_scope=scope == 'branch_company',
+                )
+                bare_fiber_fault_ids = {
+                    impact.otn_fault_id
+                    for impact in filtered_impacts
+                    if impact.otn_fault_id is not None
+                }
+                queryset = queryset.filter(pk__in=bare_fiber_fault_ids)
             if impact_level:
                 impact_filters: dict[str, Q] = {
                     'total': Q_CLASS_TOTAL,
@@ -2997,7 +3051,11 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 ).prefetch_related('interruption_location')
                 if detail_scope != 'cable_break':
                     preceding_qs = _apply_physical_province_filter(preceding_qs, selected_provinces)
-                    preceding_qs = apply_detail_filters(_annotate_class_i_business_impact(preceding_qs))
+                    preceding_qs = apply_detail_filters(
+                        _annotate_bare_fiber_impact_count(
+                            _annotate_class_i_business_impact(preceding_qs)
+                        )
+                    )
                 preceding_faults = list(preceding_qs)
                 if scope == 'branch_company':
                     preceding_faults = [fault for fault in preceding_faults if _is_branch_company_fault(fault)]
@@ -3064,6 +3122,9 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
                 'site_z': ', '.join(z_site_names),
                 'is_repeat': fault.id in ui_repeat_ids,
+                'bare_fiber_impact_count': int(
+                    getattr(fault, 'bare_fiber_impact_count', 0) or 0
+                ),
                 'is_long': duration_hours >= 6.0,
                 'url': fault.get_absolute_url(),
                 'in_period': True
@@ -3089,6 +3150,9 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
                 'site_z': ', '.join(z_site_names),
                 'is_repeat': True,
+                'bare_fiber_impact_count': int(
+                    getattr(fault, 'bare_fiber_impact_count', 0) or 0
+                ),
                 'is_long': duration_hours >= 6.0,
                 'url': fault.get_absolute_url(),
                 'in_period': False,

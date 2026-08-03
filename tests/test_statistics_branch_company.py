@@ -79,12 +79,12 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
 
     def test_backend_bare_fiber_interruption_supports_branch_company_scope(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")
-        compute_source = source.split("def _compute_bare_fiber_interruption_overview(", 1)[1].split("\n\n\ndef _build_physical_province_chart_stats", 1)[0]
+        helper_source = source.split("def _get_filtered_bare_fiber_interruption_impacts(", 1)[1].split("\n\n\ndef _compute_bare_fiber_interruption_overview", 1)[0]
 
-        self.assertIn("branch_company_scope: bool = False", compute_source)
-        self.assertIn("if branch_company_scope:", compute_source)
-        self.assertIn("_branch_province_for_fault(fault) not in BRANCH_PROVINCE_NAMES", compute_source)
-        self.assertIn("_should_exclude_for_branch(fault)", compute_source)
+        self.assertIn("branch_company_scope: bool = False", helper_source)
+        self.assertIn("if branch_company_scope:", helper_source)
+        self.assertIn("_branch_province_for_fault(fault) not in BRANCH_PROVINCE_NAMES", helper_source)
+        self.assertIn("_should_exclude_for_branch(fault)", helper_source)
 
     def test_backend_branch_company_payload_contains_performance_cards(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")
