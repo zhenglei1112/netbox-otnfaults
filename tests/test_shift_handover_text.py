@@ -153,7 +153,8 @@ def test_build_handover_text_renders_all_sections_and_missing_fields() -> None:
     assert '影响：业务甲、业务乙线路，处理人员张三' in text
     assert '处理进度：2026年8月4日11:00:00到达现场' in text
     assert '因-导致中断' in text
-    assert '影响：-线路，处理人员-' in text
+    assert '影响：线路组网，处理人员-' in text
+    assert '影响：-线路' not in text
     assert '三、今明割接任务（至2026年8月5日24:00）' in text
     assert '（一）影响裸纤业务\n（1）省份：四川' in text
     assert '中继段：成都A站-成都Z站' in text

@@ -131,6 +131,8 @@ def _format_faults(faults: tuple[FaultHandoverItem, ...]) -> str:
 
     lines: list[str] = []
     for index, fault in enumerate(faults, start=1):
+        service_names = _unique_text(fault.service_names)
+        impact = '线路组网' if service_names == '-' else f'{service_names}线路'
         progress = (
             f'{_format_datetime(fault.progress_at)}{_display(fault.progress_stage)}'
             if fault.progress_at is not None
@@ -138,7 +140,7 @@ def _format_faults(faults: tuple[FaultHandoverItem, ...]) -> str:
         )
         lines.append(
             f'{index}、{_display(fault.number)}故障：因{_display(fault.reason)}导致中断，'
-            f'目前正在处理，影响：{_unique_text(fault.service_names)}线路，'
+            f'目前正在处理，影响：{impact}，'
             f'处理人员{_display(fault.handler)}，处理进度：{progress}，请继续跟进。'
         )
     return '\n'.join(lines)

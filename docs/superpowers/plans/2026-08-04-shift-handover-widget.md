@@ -219,3 +219,13 @@ async function copyShiftHandoverText(text) {
 - [x] 在复制按钮中加入 `mdi-content-copy` 图标，将默认标签保存为按钮初始 `innerHTML`。
 - [x] 成功时将按钮 `innerHTML` 切换为 `mdi-check` 图标和“已复制”；失败时显示“复制失败”；1.5 秒后恢复初始 HTML。不得修改 Clipboard API 与隐藏文本框回退逻辑。
 - [x] 运行交接班及相关仪表盘测试、JavaScript 语法和 `git diff --check`，确认通过后更新 `PLAN.md`；不得暂存或提交。
+
+## Task 9：无关联业务故障显示线路组网
+
+**Files:** `tests/test_shift_handover_text.py`, `netbox_otnfaults/services/shift_handover_text.py`, `PLAN.md`
+
+- [x] 修改故障文本测试，断言空业务集合或业务名称均为空时输出 `影响：线路组网`，且不再出现 `影响：-线路`。
+- [x] 保留有关联业务时的现有格式断言，例如 `影响：业务甲、业务乙线路`。
+- [x] 运行 `python -m unittest tests.test_shift_handover_text -v`，确认因旧实现输出 `影响：-线路` 而失败。
+- [x] 在 `_format_faults()` 内单独构建影响文案：`_unique_text()` 返回 `-` 时使用 `线路组网`，否则在业务名称后追加 `线路`；不得修改 `_unique_text()` 或其他章节缺失值规则。
+- [x] 运行交接班及相关仪表盘测试、Python/JavaScript 语法检查和 `git diff --check`，确认通过后更新 `PLAN.md`；不得暂存或提交。
