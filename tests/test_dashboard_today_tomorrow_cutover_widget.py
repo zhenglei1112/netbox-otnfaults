@@ -53,21 +53,26 @@ class DashboardTodayTomorrowCutoverWidgetTestCase(unittest.TestCase):
         self.assertIn("group_lines.setdefault(group_name, []).append(report_line)", source)
         self.assertIn("group_cutover_ids.setdefault(group_name, set()).add(cutover.pk)", source)
         self.assertIn("'cutover_count': len(group_cutover_ids[group_name])", source)
-        self.assertIn("group_text = '\\n'.join(lines)", source)
+        self.assertIn("group_text = '\\n\\n'.join(lines)", source)
         self.assertIn("f\"【{group['name']}（割接数量：{group['cutover_count']}）】\\n\"", source)
         self.assertIn("report_groups.append({", source)
         self.assertIn("'groups': report_groups,", source)
         self.assertIn(
-            "from .services.cutover_report_text import build_cutover_report_line",
+            "build_cutover_report_title",
             source,
         )
         self.assertIn("planned_time = timezone.localtime(cutover.planned_cutover_time)", source)
+        self.assertIn("item_number=len(group_lines.get(group_name, [])) + 1,", source)
         self.assertIn("report_line = build_cutover_report_line(", source)
         self.assertIn("province=province,", source)
         self.assertIn("reason=reason,", source)
         self.assertIn("service_name=service_name,", source)
         self.assertIn("site_a=site_a,", source)
         self.assertIn("site_z=site_z,", source)
+        self.assertIn("cutover_type=cutover.get_cutover_type_display(),", source)
+        self.assertIn("location=cutover.cutover_location or '未填写割接地点',", source)
+        self.assertIn("report_title = build_cutover_report_title(window_start, window_end)", source)
+        self.assertIn("f'{report_title}\\n\\n'", source)
         self.assertNotIn("影响[{service_name}：A{site_a}→Z{site_z}]", source)
 
     def test_template_exposes_report_buttons_modal_and_copy_action(self) -> None:
@@ -106,16 +111,18 @@ class DashboardTodayTomorrowCutoverWidgetTestCase(unittest.TestCase):
         self.assertIn("flex-wrap: wrap;", button_block)
         self.assertIn("min-width: max-content;", main_block)
         self.assertIn("margin-left: auto;", count_block)
-    def test_report_modal_places_dated_title_before_filter_window(self) -> None:
+    def test_report_modal_places_24_hour_title_before_chinese_window(self) -> None:
         template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
         modal_header = template_source.split('<div class="modal-header', 1)[1].split('</div>', 1)[0]
 
         title_position = modal_header.index('id="cutoverReportModalLabel"')
         window_position = modal_header.index('id="cutoverReportWindow"')
         self.assertLess(title_position, window_position)
-        self.assertIn("const reportDates = {", template_source)
-        self.assertIn('date:"Y年n月j日"', template_source)
-        self.assertIn("`${reportDates[hour]}${hour}点割接通报`", template_source)
+        self.assertIn('date:"Y年n月j日 G:i"', template_source)
+        self.assertIn("reportTitle.textContent = '24小时割接预告';", template_source)
+        self.assertIn("reportWindow.textContent = `（${reportWindows[hour]}）`;", template_source)
+        self.assertNotIn("`${reportDates[hour]}${hour}点割接通报`", template_source)
+        self.assertNotIn("`筛选范围：${reportWindows[hour]}`", template_source)
     def test_report_modal_shows_all_groups_and_keeps_close_button_on_the_far_right(self) -> None:
         template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
 

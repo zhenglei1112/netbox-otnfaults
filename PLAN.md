@@ -2685,3 +2685,9 @@
 - [x] Add a lightweight cutover-only map response that skips site and fault payload work.
 - [x] Cancel an unfinished cutover filter request when the selection changes again.
 - [x] Run targeted tests, Python compilation, and JavaScript syntax checks.
+
+## 2026-08-04 今明割接通报结构化提示
+
+- [x] 增加结构化通报格式回归测试，锁定 24 小时时间窗、组内编号及截图所示字段顺序。
+- [x] 调整通报格式化器和小组件数据映射，保留现有业务分组、筛选及数量统计逻辑。
+- [x] 运行今明割接小组件定向测试、Python 编译检查与差异检查。

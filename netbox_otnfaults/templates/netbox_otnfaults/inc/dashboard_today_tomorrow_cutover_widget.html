@@ -547,14 +547,9 @@
   let activeReportText = '';
   let manualBackdrop = null;
 
-  const reportDates = {
-    9: '{{ nine_report.window_start|date:"Y年n月j日" }}',
-    18: '{{ eighteen_report.window_start|date:"Y年n月j日" }}'
-  };
-
   const reportWindows = {
-    9: '{{ nine_report.window_start|date:"Y-m-d H:i" }} 至 {{ nine_report.window_end|date:"Y-m-d H:i" }}',
-    18: '{{ eighteen_report.window_start|date:"Y-m-d H:i" }} 至 {{ eighteen_report.window_end|date:"Y-m-d H:i" }}'
+    9: '{{ nine_report.window_start|date:"Y年n月j日 G:i" }} 至 {{ nine_report.window_end|date:"Y年n月j日 G:i" }}',
+    18: '{{ eighteen_report.window_start|date:"Y年n月j日 G:i" }} 至 {{ eighteen_report.window_end|date:"Y年n月j日 G:i" }}'
   };
 
   function readJsonData(elementId, fallbackValue) {
@@ -661,8 +656,8 @@
       const hour = Number(button.dataset.reportHour);
       const groups = readJsonData(`cutover-report-${hour}-groups`, []);
       activeReportText = readJsonData(`cutover-report-${hour}-data`, '');
-      reportTitle.textContent = `${reportDates[hour]}${hour}点割接通报`;
-      reportWindow.textContent = `筛选范围：${reportWindows[hour]}`;
+      reportTitle.textContent = '24小时割接预告';
+      reportWindow.textContent = `（${reportWindows[hour]}）`;
       renderReportGroups(groups, activeReportText);
       showReportModal();
     });

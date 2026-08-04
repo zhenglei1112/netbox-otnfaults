@@ -13,7 +13,10 @@ from django.utils import timezone
 from extras.dashboard.widgets import DashboardWidget, register_widget
 from .calendar_navigation import resolve_requested_month, shift_month
 from .models import OtnFault, FaultCategoryChoices, CutoverTask, CutoverStatusChoices, CutoverImpact
-from .services.cutover_report_text import build_cutover_report_line
+from .services.cutover_report_text import (
+    build_cutover_report_line,
+    build_cutover_report_title,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -489,38 +492,43 @@ def _build_cutover_report(request, report_date: date, report_hour: int) -> dict[
                 else '未填写'
             )
             report_line = build_cutover_report_line(
+                item_number=len(group_lines.get(group_name, [])) + 1,
                 province=province,
+                cutover_type=cutover.get_cutover_type_display(),
                 reason=reason,
                 planned_time=planned_time,
                 impact_minutes=impact_minutes,
                 service_name=service_name,
                 site_a=site_a,
                 site_z=site_z,
+                location=cutover.cutover_location or '未填写割接地点',
             )
             group_lines.setdefault(group_name, []).append(report_line)
             group_cutover_ids.setdefault(group_name, set()).add(cutover.pk)
 
     report_groups: list[dict[str, object]] = []
     for group_name, lines in group_lines.items():
-        group_text = '\n'.join(lines)
+        group_text = '\n\n'.join(lines)
         report_groups.append({
             'name': group_name,
             'cutover_count': len(group_cutover_ids[group_name]),
             'text': group_text,
         })
 
+    report_title = build_cutover_report_title(window_start, window_end)
     if report_groups:
-        report_text = '\n\n'.join(
-            (
-                f"【{group['name']}（割接数量：{group['cutover_count']}）】\n"
-                + str(group['text'])
+        report_text = (
+            f'{report_title}\n\n'
+            + '\n\n'.join(
+                (
+                    f"【{group['name']}（割接数量：{group['cutover_count']}）】\n"
+                    + str(group['text'])
+                )
+                for group in report_groups
             )
-            for group in report_groups
         )
     else:
-        start_text = timezone.localtime(window_start).strftime('%Y-%m-%d %H:%M')
-        end_text = timezone.localtime(window_end).strftime('%Y-%m-%d %H:%M')
-        report_text = f'{start_text} 至 {end_text} 无待实施割接。'
+        report_text = f'{report_title}\n\n无待实施割接。'
 
     return {
         'hour': report_hour,
