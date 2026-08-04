@@ -2691,3 +2691,10 @@
 - [x] 增加结构化通报格式回归测试，锁定 24 小时时间窗、组内编号及截图所示字段顺序。
 - [x] 调整通报格式化器和小组件数据映射，保留现有业务分组、筛选及数量统计逻辑。
 - [x] 运行今明割接小组件定向测试、Python 编译检查与差异检查。
+
+## 2026-08-04 Require completion fields for completed cutovers
+
+- [x] Add failing regression tests for all missing, partially missing, complete, and non-completed scenarios.
+- [x] Add all missing completion fields as inline form errors and prevent saving.
+- [x] Mark errored fields and scroll/focus the first missing field without adding a top summary.
+- [x] Run targeted cutover regression tests, Python compilation, and diff checks.

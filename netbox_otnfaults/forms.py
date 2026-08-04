@@ -15,6 +15,9 @@ from .models import (
     CutoverTimeoutStatusChoices, CutoverResultChoices, CutoverManagementUnitChoices, CutoverCoordinationStatusChoices, HeavyDuty,
     HeavyDutyTypeChoices
 )
+from .services.cutover_completion import find_missing_cutover_completion_fields
+
+
 import json
 
 from typing import Any
@@ -35,6 +38,9 @@ CIRCUIT_SERVICE_EXTRA_FIELD_FIELD_NAMES = tuple(
     f'{CIRCUIT_SERVICE_EXTRA_FIELD_PREFIX}{key}'
     for key, _label in CircuitService.EXTRA_FIELD_DEFINITIONS
 )
+CUTOVER_COMPLETION_REQUIRED_ERROR = '\u72b6\u6001\u4e3a\u5df2\u5b8c\u6210\u65f6\uff0c\u6b64\u5b57\u6bb5\u5fc5\u586b\u3002'
+
+
 
 class CurrentContractDynamicModelChoiceField(DynamicModelChoiceField):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -2002,6 +2008,22 @@ class CutoverTaskForm(NetBoxModelForm):
 
     def clean_customer_approval_detail(self) -> list[object]:
         return self._clean_json_list_field('customer_approval_detail')
+
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean()
+        if cleaned_data is None:
+            cleaned_data = getattr(self, 'cleaned_data', None) or {}
+
+        missing_fields = find_missing_cutover_completion_fields(
+            cleaned_data,
+            completed_status=CutoverStatusChoices.COMPLETED,
+        )
+        for field_name in missing_fields:
+            if field_name not in self.errors:
+                self.add_error(field_name, CUTOVER_COMPLETION_REQUIRED_ERROR)
+
+        return cleaned_data
+
 
 
 class CutoverTaskFilterForm(NetBoxModelFilterSetForm):

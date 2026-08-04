@@ -170,8 +170,11 @@
 <div class="field-group my-5" id="group_implementation_timeline">
   <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">实施时间线</h2></div>
   <div class="row">
+    {% if form.started_at.errors %}<span hidden data-cutover-completion-error-for="id_started_at"></span>{% endif %}
     {% render_field form.started_at %}
+    {% if form.completed_at.errors %}<span hidden data-cutover-completion-error-for="id_completed_at"></span>{% endif %}
     {% render_field form.completed_at %}
+    {% if form.closed_at.errors %}<span hidden data-cutover-completion-error-for="id_closed_at"></span>{% endif %}
     {% render_field form.closed_at %}
   </div>
 </div>
@@ -180,8 +183,10 @@
   <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">考核与闭环</h2></div>
   {{ form.customer_approval_detail.as_hidden }}
   <div class="row">
+    {% if form.is_timeout.errors %}<span hidden data-cutover-completion-error-for="id_is_timeout"></span>{% endif %}
     {% render_field form.is_timeout %}
     {% render_field form.timeout_reason %}
+    {% if form.cutover_result.errors %}<span hidden data-cutover-completion-error-for="id_cutover_result"></span>{% endif %}
     {% render_field form.cutover_result %}
     {% render_field form.remaining_issues %}
   </div>
@@ -190,6 +195,7 @@
 <div class="field-group my-5" id="group_rectification_info">
   <div class="row mb-3"><h2 class="col-9 offset-3 mb-0">整改信息</h2></div>
   <div class="row">
+    {% if form.rectification_status.errors %}<span hidden data-cutover-completion-error-for="id_rectification_status"></span>{% endif %}
     {% render_field form.rectification_status %}
     {% render_field form.rectification_measures %}
     {% render_field form.rectification_description %}
@@ -960,6 +966,24 @@
         toggleFields();
     }
 
+    function focusFirstCutoverCompletionError() {
+        const marker = document.querySelector('[data-cutover-completion-error-for]');
+        if (!marker) return;
+
+        const field = document.getElementById(marker.dataset.cutoverCompletionErrorFor);
+        if (!field) return;
+
+        const fieldRow = field.closest('.row') || field;
+        fieldRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.setTimeout(function() {
+            if (field.tomselect) {
+                field.tomselect.focus();
+            } else {
+                field.focus({ preventScroll: true });
+            }
+        }, 300);
+    }
+
     if (document.readyState === 'complete') {
         setTimeout(initMapPicker, 200);
         setTimeout(initPathShortcuts, 200);
@@ -970,6 +994,7 @@
         setTimeout(initStatusSectionToggle, 200);
         setTimeout(initTimeoutReasonToggle, 200);
         setTimeout(initRectificationFieldsToggle, 200);
+        setTimeout(focusFirstCutoverCompletionError, 200);
     } else {
         window.addEventListener('load', function() {
             setTimeout(initMapPicker, 200);
@@ -981,6 +1006,7 @@
             setTimeout(initStatusSectionToggle, 200);
             setTimeout(initTimeoutReasonToggle, 200);
             setTimeout(initRectificationFieldsToggle, 200);
+            setTimeout(focusFirstCutoverCompletionError, 200);
         });
     }
 })();
