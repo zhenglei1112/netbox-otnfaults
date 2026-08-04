@@ -17,6 +17,7 @@ from .services.cutover_report_text import (
     build_cutover_report_line,
     build_cutover_report_title,
 )
+from .services.shift_handover_text import default_shift_start
 
 
 logger = logging.getLogger(__name__)
@@ -661,4 +662,33 @@ class OtnPendingCoordinationWidget(DashboardWidget):
         except Exception as e:
             error_trace = traceback.format_exc()
             return f'<div class="alert alert-danger"><pre style="font-size:11px;white-space:pre-wrap">{error_trace}</pre></div>'
+
+
+@register_widget
+class OtnShiftHandoverWidget(DashboardWidget):
+    """班次时间选择与实时交接文本生成小组件。"""
+
+    default_title = "交接班"
+    description = "按所选班次时间生成故障、割接、重保和通知交接内容。"
+    width = 2
+    height = 2
+
+    def render(self, request: HttpRequest) -> str:
+        try:
+            now = timezone.localtime()
+            default_shift = default_shift_start(now).strftime('%Y-%m-%dT%H:%M')
+            generate_url = reverse(
+                'plugins:netbox_otnfaults:dashboard_shift_handover_generate'
+            )
+            return render_to_string(
+                'netbox_otnfaults/inc/dashboard_shift_handover_widget.html',
+                {
+                    'default_shift': default_shift,
+                    'generate_url': generate_url,
+                },
+                request=request,
+            )
+        except Exception:
+            logger.exception('Failed to render shift handover widget')
+            return '<div class="alert alert-danger">交接班小组件加载失败，请稍后重试。</div>'
 

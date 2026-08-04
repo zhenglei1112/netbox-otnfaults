@@ -1,0 +1,308 @@
+<style>
+  .otn-shift-handover {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 8px;
+  }
+  .otn-shift-handover-label {
+    color: var(--bs-secondary-color);
+    font-size: .75rem;
+    font-weight: 600;
+  }
+  .otn-shift-handover-time-row {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .otn-shift-handover-time-row .form-control {
+    min-width: 0;
+  }
+  .otn-shift-handover-arrows {
+    display: flex;
+    flex: 0 0 34px;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .otn-shift-handover-arrow {
+    align-items: center;
+    display: flex;
+    flex: 1 1 0;
+    justify-content: center;
+    line-height: 1;
+    min-height: 0;
+    padding: 0 8px;
+  }
+  .otn-shift-handover-generate {
+    width: 100%;
+  }
+  .otn-shift-handover-error:empty {
+    display: none;
+  }
+  #shiftHandoverText {
+    min-height: 55vh;
+    resize: vertical;
+    white-space: pre-wrap;
+  }
+</style>
+
+<div
+  class="otn-shift-handover"
+  data-generate-url="{{ generate_url }}"
+  id="shiftHandoverWidget"
+>
+  <label class="otn-shift-handover-label" for="shiftHandoverStart">
+    班次开始时间
+  </label>
+  <div class="otn-shift-handover-time-row">
+    <input
+      class="form-control form-control-sm"
+      id="shiftHandoverStart"
+      type="datetime-local"
+      value="{{ default_shift }}"
+    >
+    <div class="otn-shift-handover-arrows">
+      <button
+        aria-label="前一个班次"
+        class="btn btn-outline-secondary btn-sm otn-shift-handover-arrow"
+        data-shift-direction="previous"
+        title="前一个班次"
+        type="button"
+      >▲</button>
+      <button
+        aria-label="后一个班次"
+        class="btn btn-outline-secondary btn-sm otn-shift-handover-arrow"
+        data-shift-direction="next"
+        title="后一个班次"
+        type="button"
+      >▼</button>
+    </div>
+  </div>
+  <button
+    class="btn btn-primary btn-sm otn-shift-handover-generate"
+    id="generateShiftHandover"
+    type="button"
+  >
+    <i class="mdi mdi-swap-horizontal me-1"></i>生成交接班内容
+  </button>
+  <div
+    class="alert alert-danger py-2 px-3 mb-0 small otn-shift-handover-error"
+    id="shiftHandoverError"
+    role="alert"
+  ></div>
+</div>
+
+<div
+  aria-hidden="true"
+  aria-labelledby="shiftHandoverModalLabel"
+  class="modal fade"
+  id="shiftHandoverModal"
+  tabindex="-1"
+>
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="shiftHandoverModalLabel">交接班内容</h5>
+        <button
+          aria-label="关闭"
+          class="btn-close"
+          data-handover-action="close"
+          data-bs-dismiss="modal"
+          type="button"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <textarea
+          class="form-control font-monospace"
+          id="shiftHandoverText"
+          readonly
+        ></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="copyShiftHandoverText" type="button">
+          <i class="mdi mdi-content-copy me-1"></i>复制内容
+        </button>
+        <button
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+          data-handover-action="close"
+          type="button"
+        >
+          关闭
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const root = document.getElementById('shiftHandoverWidget');
+  const input = document.getElementById('shiftHandoverStart');
+  const generateButton = document.getElementById('generateShiftHandover');
+  const errorBox = document.getElementById('shiftHandoverError');
+  const modalElement = document.getElementById('shiftHandoverModal');
+  const output = document.getElementById('shiftHandoverText');
+  const copyButton = document.getElementById('copyShiftHandoverText');
+  const generateUrl = root.dataset.generateUrl;
+  const generateLabel = generateButton.innerHTML;
+  const copyLabel = copyButton.innerHTML;
+  let manualBackdrop = null;
+
+  function showShiftHandoverModal() {
+    if (window.bootstrap && window.bootstrap.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
+      return;
+    }
+    modalElement.style.display = 'block';
+    modalElement.classList.add('show');
+    modalElement.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    manualBackdrop = document.createElement('div');
+    manualBackdrop.className = 'modal-backdrop fade show';
+    document.body.appendChild(manualBackdrop);
+  }
+
+  function hideShiftHandoverModalFallback() {
+    if (window.bootstrap && window.bootstrap.Modal) return;
+    modalElement.style.display = 'none';
+    modalElement.classList.remove('show');
+    modalElement.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    if (manualBackdrop) manualBackdrop.remove();
+    manualBackdrop = null;
+  }
+
+  function parseLocalDateTime(value) {
+    if (!value) return null;
+    const selected = new Date(value);
+    return Number.isNaN(selected.getTime()) ? null : selected;
+  }
+
+  function formatLocalDateTime(value) {
+    const pad = number => String(number).padStart(2, '0');
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`
+      + `T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+  }
+
+  function moveToAdjacentShift(direction) {
+    const selected = parseLocalDateTime(input.value);
+    if (!selected) return;
+    const selectedHour = selected.getHours() + (selected.getMinutes() / 60);
+    const target = new Date(selected);
+    target.setSeconds(0, 0);
+
+    if (direction === 'previous') {
+      if (selectedHour > 18) {
+        target.setHours(18, 0, 0, 0);
+      } else if (selectedHour > 9) {
+        target.setHours(9, 0, 0, 0);
+      } else {
+        target.setDate(target.getDate() - 1);
+        target.setHours(18, 0, 0, 0);
+      }
+    } else if (selectedHour < 9) {
+      target.setHours(9, 0, 0, 0);
+    } else if (selectedHour < 18) {
+      target.setHours(18, 0, 0, 0);
+    } else {
+      target.setDate(target.getDate() + 1);
+      target.setHours(9, 0, 0, 0);
+    }
+    input.value = formatLocalDateTime(target);
+  }
+
+  root.querySelectorAll('[data-shift-direction]').forEach(button => {
+    button.addEventListener('click', () => {
+      moveToAdjacentShift(button.dataset.shiftDirection);
+    });
+  });
+
+  generateButton.addEventListener('click', async () => {
+    errorBox.textContent = '';
+    if (!parseLocalDateTime(input.value)) {
+      errorBox.textContent = '请选择有效的班次开始时间。';
+      return;
+    }
+
+    generateButton.disabled = true;
+    generateButton.textContent = '正在生成…';
+    try {
+      const params = new URLSearchParams({ shift_start: input.value });
+      const response = await fetch(`${generateUrl}?${params.toString()}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || '生成交接班内容失败，请稍后重试。');
+      }
+      output.value = payload.text;
+      showShiftHandoverModal();
+    } catch (error) {
+      errorBox.textContent = error.message || '生成交接班内容失败，请稍后重试。';
+    } finally {
+      generateButton.disabled = false;
+      generateButton.innerHTML = generateLabel;
+    }
+  });
+
+  function setCopyFeedback(message) {
+    if (message === '已复制') {
+      copyButton.innerHTML = '<i class="mdi mdi-check me-1"></i>已复制';
+    } else {
+      copyButton.textContent = message;
+    }
+    copyButton.disabled = true;
+    window.setTimeout(() => {
+      copyButton.innerHTML = copyLabel;
+      copyButton.disabled = false;
+    }, 1500);
+  }
+
+  function fallbackCopy(text) {
+    const copyArea = document.createElement('textarea');
+    copyArea.value = text;
+    copyArea.setAttribute('readonly', '');
+    copyArea.style.position = 'fixed';
+    copyArea.style.opacity = '0';
+    document.body.appendChild(copyArea);
+    try {
+      copyArea.select();
+      copyArea.setSelectionRange(0, copyArea.value.length);
+      return document.execCommand('copy');
+    } catch (error) {
+      return false;
+    } finally {
+      copyArea.remove();
+    }
+  }
+
+  async function copyShiftHandoverText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (error) {
+        // Continue with the DOM fallback.
+      }
+    }
+    return fallbackCopy(text);
+  }
+
+  copyButton.addEventListener('click', async () => {
+    const copied = await copyShiftHandoverText(output.value);
+    if (copied) {
+      setCopyFeedback('已复制');
+    } else {
+      setCopyFeedback('复制失败');
+    }
+  });
+
+  modalElement.querySelectorAll('[data-handover-action="close"]').forEach(button => {
+    button.addEventListener('click', hideShiftHandoverModalFallback);
+  });
+  modalElement.addEventListener('click', event => {
+    if (event.target === modalElement) hideShiftHandoverModalFallback();
+  });
+})();
+</script>

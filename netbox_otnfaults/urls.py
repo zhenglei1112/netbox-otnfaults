@@ -6,8 +6,14 @@ from . import dashboard_views
 from . import weekly_report_views
 from . import statistics_views
 from . import calendar_widget_views
+from . import handover_views
 
 urlpatterns = [
+    path(
+        'dashboard/shift-handover/generate/',
+        handover_views.ShiftHandoverGenerateView.as_view(),
+        name='dashboard_shift_handover_generate',
+    ),
     path(
         'dashboard/calendar/faults/',
         calendar_widget_views.fault_calendar_fragment,
@@ -153,4 +159,3 @@ urlpatterns = [
     path('statistics/cable-break-map/', views.StatisticsCableBreakMapView.as_view(), name='statistics_cable_break_map'),
     path('statistics/cable-break-map-data/', views.StatisticsCableBreakMapDataAPI.as_view(), name='statistics_cable_break_map_data'),
 ]
-

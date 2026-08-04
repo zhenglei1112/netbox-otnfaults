@@ -2698,3 +2698,19 @@
 - [x] Add all missing completion fields as inline form errors and prevent saving.
 - [x] Mark errored fields and scroll/focus the first missing field without adding a top summary.
 - [x] Run targeted cutover regression tests, Python compilation, and diff checks.
+
+## 2026-08-04 交接班小组件
+
+- [x] 先为班次默认值、前后班次切换、交接文本格式和边界时间编写失败测试。
+- [x] 实现独立的交接班时间与文本格式化服务，覆盖故障、割接、重保、通知及空章节。
+- [x] 先为权限受限查询、故障新旧分组、挂起排除、割接分类和重保窗口编写失败测试。
+- [x] 实现交接班数据聚合与只读生成视图，并注册插件 URL。
+- [x] 先为小组件结构、时间控件、快捷箭头、弹窗按钮顺序和复制反馈编写失败测试。
+- [x] 注册“交接班”Dashboard widget，完成模板交互和错误提示。
+- [x] 运行交接班定向测试、相关仪表盘回归测试、Python 编译检查和差异检查。
+- [x] 删除故障计数后的两段解释文字，并增加复制 API 失败时的隐藏文本框回退。
+- [x] 运行新增回归测试、相关测试套件、Python/JavaScript 语法检查和差异检查。
+- [x] 删除数据库文字字段中的横向空白，并紧凑显示所有日期时间和处理进度。
+- [x] 验证接班人行与手机交接行的固定排版空格保持不变，并运行相关回归检查。
+- [x] 为复制内容按钮增加默认复制图标和复制成功勾选图标，并保持失败后恢复默认状态。
+- [x] 运行复制按钮定向测试、相关仪表盘回归、JavaScript 语法及差异检查。
