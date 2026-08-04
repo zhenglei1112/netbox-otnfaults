@@ -613,7 +613,7 @@
     }
   }
 
-  function renderReportGroups(groups, emptyText) {
+  function renderReportGroups(groups, emptyText, reportTitleText) {
     reportGroups.replaceChildren();
     if (!groups.length) {
       const emptyState = document.createElement('div');
@@ -639,7 +639,7 @@
       copyGroupButton.className = 'btn btn-outline-primary btn-sm copy-cutover-report-group';
       copyGroupButton.innerHTML = '<i class="mdi mdi-content-copy me-1"></i>复制本组';
       copyGroupButton.addEventListener('click', () => {
-        copyReportText(group.text, copyGroupButton);
+        copyReportText(`${reportTitleText}\n\n${group.text}`, copyGroupButton);
       });
 
       const groupText = document.createElement('pre');
@@ -656,9 +656,10 @@
       const hour = Number(button.dataset.reportHour);
       const groups = readJsonData(`cutover-report-${hour}-groups`, []);
       activeReportText = readJsonData(`cutover-report-${hour}-data`, '');
+      const reportTitleText = activeReportText.split('\n', 1)[0];
       reportTitle.textContent = '24小时割接预告';
       reportWindow.textContent = `（${reportWindows[hour]}）`;
-      renderReportGroups(groups, activeReportText);
+      renderReportGroups(groups, activeReportText, reportTitleText);
       showReportModal();
     });
   });

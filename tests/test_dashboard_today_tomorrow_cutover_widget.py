@@ -89,6 +89,15 @@ class DashboardTodayTomorrowCutoverWidgetTestCase(unittest.TestCase):
         self.assertIn("9点通报", template_source)
         self.assertIn("18点通报", template_source)
 
+    def test_copy_group_includes_report_title_without_group_heading(self) -> None:
+        template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("const reportTitleText = activeReportText.split('\\n', 1)[0];", template_source)
+        self.assertIn(
+            "copyReportText(`${reportTitleText}\\n\\n${group.text}`, copyGroupButton);",
+            template_source,
+        )
+
     def test_report_buttons_use_distinct_high_contrast_time_styles_and_icons(self) -> None:
         template_source = WIDGET_TEMPLATE_PATH.read_text(encoding="utf-8")
 
