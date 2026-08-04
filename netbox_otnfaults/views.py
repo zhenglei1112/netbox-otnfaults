@@ -577,6 +577,7 @@ class OtnFaultBulkEditView(generic.BulkEditView):
     filterset = OtnFaultFilterSet
     table = OtnFaultTable
     form = OtnFaultBulkEditForm
+    template_name = 'netbox_otnfaults/datetime_bulk_edit.html'
     
     def get_required_permission(self):
         return 'netbox_otnfaults.change_otnfault'
@@ -701,6 +702,7 @@ class OtnFaultImpactBulkEditView(generic.BulkEditView):
     filterset = OtnFaultImpactFilterSet
     table = OtnFaultImpactTable
     form = OtnFaultImpactBulkEditForm
+    template_name = 'netbox_otnfaults/datetime_bulk_edit.html'
     
     def get_required_permission(self):
         return 'netbox_otnfaults.change_otnfaultimpact'
@@ -1513,6 +1515,7 @@ class BareFiberServiceBulkEditView(generic.BulkEditView):
     filterset = BareFiberServiceFilterSet
     table = BareFiberServiceTable
     form = BareFiberServiceBulkEditForm
+    template_name = 'netbox_otnfaults/datetime_bulk_edit.html'
 
 
 # ========== 割接管理视图 ==========
@@ -1523,6 +1526,7 @@ class CutoverTaskListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView):
     table = CutoverTaskTable
     filterset = CutoverTaskFilterSet
     filterset_form = CutoverTaskFilterForm
+    template_name = 'netbox_otnfaults/datetime_object_list.html'
 
 
 class CutoverTaskBulkImportView(generic.BulkImportView):
@@ -1719,6 +1723,7 @@ class CutoverTaskBulkEditView(generic.BulkEditView):
     filterset = CutoverTaskFilterSet
     table = CutoverTaskTable
     form = CutoverTaskBulkEditForm
+    template_name = 'netbox_otnfaults/datetime_bulk_edit.html'
 
 
 # ========== 割接影响业务视图 ==========
@@ -1729,6 +1734,7 @@ class CutoverImpactListView(ExcelFriendlyCSVExportMixin, generic.ObjectListView)
     table = CutoverImpactTable
     filterset = CutoverImpactFilterSet
     filterset_form = CutoverImpactFilterForm
+    template_name = 'netbox_otnfaults/datetime_object_list.html'
 
 
 class CutoverImpactBulkImportView(generic.BulkImportView):
@@ -1777,6 +1783,7 @@ class CutoverImpactBulkEditView(generic.BulkEditView):
     filterset = CutoverImpactFilterSet
     table = CutoverImpactTable
     form = CutoverImpactBulkEditForm
+    template_name = 'netbox_otnfaults/datetime_bulk_edit.html'
 
 
 # ========== 电路业务视图 ==========
@@ -1920,6 +1927,7 @@ class CircuitServiceBulkEditView(generic.BulkEditView):
     filterset = CircuitServiceFilterSet
     table = CircuitServiceTable
     form = CircuitServiceBulkEditForm
+    template_name = 'netbox_otnfaults/datetime_bulk_edit.html'
 
 
 # ========== 重要保障视图 ==========
@@ -1981,6 +1989,7 @@ class HeavyDutyEditView(generic.ObjectEditView):
     """重要保障编辑视图"""
     queryset = HeavyDuty.objects.all()
     form = HeavyDutyForm
+    template_name = 'netbox_otnfaults/datetime_object_edit.html'
 
 
 class HeavyDutyDeleteView(generic.ObjectDeleteView):
@@ -2009,6 +2018,7 @@ class HeavyDutyBulkEditView(generic.BulkEditView):
     filterset = HeavyDutyFilterSet
     table = HeavyDutyTable
     form = HeavyDutyBulkEditForm
+    template_name = 'netbox_otnfaults/datetime_bulk_edit.html'
 
     def get_required_permission(self):
         return 'netbox_otnfaults.change_heavyduty'

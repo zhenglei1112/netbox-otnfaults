@@ -1,0 +1,6 @@
+{% extends 'generic/object_list.html' %}
+
+{% block content %}
+  {{ block.super }}
+  {% include 'netbox_otnfaults/inc/flatpickr_zh.html' with disable_default_now=True %}
+{% endblock %}

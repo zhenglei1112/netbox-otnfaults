@@ -104,4 +104,5 @@
     <button type="submit" class="btn btn-primary" {% if existing_fault %}disabled{% endif %}>确认生成故障</button>
   </div>
 </form>
+{% include 'netbox_otnfaults/inc/flatpickr_zh.html' with disable_default_now=True %}
 {% endblock %}

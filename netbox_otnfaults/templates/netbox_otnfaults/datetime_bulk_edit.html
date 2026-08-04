@@ -1,0 +1,6 @@
+{% extends 'generic/bulk_edit.html' %}
+
+{% block content %}
+  {{ block.super }}
+  {% include 'netbox_otnfaults/inc/flatpickr_zh.html' with disable_default_now=True %}
+{% endblock %}
