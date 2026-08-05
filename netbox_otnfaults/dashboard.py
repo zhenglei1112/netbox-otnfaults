@@ -680,11 +680,15 @@ class OtnShiftHandoverWidget(DashboardWidget):
             generate_url = reverse(
                 'plugins:netbox_otnfaults:dashboard_shift_handover_generate'
             )
+            check_url = reverse(
+                'plugins:netbox_otnfaults:dashboard_shift_handover_check_overdue_cutovers'
+            )
             return render_to_string(
                 'netbox_otnfaults/inc/dashboard_shift_handover_widget.html',
                 {
                     'default_shift': default_shift,
                     'generate_url': generate_url,
+                    'check_url': check_url,
                 },
                 request=request,
             )

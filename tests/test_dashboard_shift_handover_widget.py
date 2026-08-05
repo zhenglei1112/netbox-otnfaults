@@ -31,6 +31,13 @@ class DashboardShiftHandoverWidgetTestCase(unittest.TestCase):
             "'plugins:netbox_otnfaults:dashboard_shift_handover_generate'",
             self.dashboard_source,
         )
+        self.assertIn('check_url = reverse(', self.dashboard_source)
+        self.assertIn(
+            "'plugins:netbox_otnfaults:dashboard_shift_handover_check_overdue_cutovers'",
+            self.dashboard_source,
+        )
+        self.assertIn("'check_url': check_url", self.dashboard_source)
+        self.assertIn('data-check-url="{{ check_url }}"', self.template_source)
         self.assertIn(
             "'netbox_otnfaults/inc/dashboard_shift_handover_widget.html'",
             self.dashboard_source,
@@ -110,6 +117,61 @@ class DashboardShiftHandoverWidgetTestCase(unittest.TestCase):
         self.assertIn('copyButton.innerHTML = copyLabel', self.template_source)
         self.assertIn("setCopyFeedback('复制失败')", self.template_source)
         self.assertIn('}, 1500)', self.template_source)
+
+    def test_template_has_overdue_cutover_warning_modal_and_required_columns(self) -> None:
+        self.assertIn('id="shiftHandoverOverdueCutoverModal"', self.template_source)
+        self.assertIn('data-bs-backdrop="static"', self.template_source)
+        self.assertIn('data-bs-keyboard="false"', self.template_source)
+        self.assertIn('下列割接可能已经实施完成，请检查修正状态', self.template_source)
+        for heading in ('割接编号', '计划割接时间', '省份', '割接类型', 'A端', 'Z端', '割接地点'):
+            self.assertIn(f'<th scope="col">{heading}</th>', self.template_source)
+        self.assertIn('id="shiftHandoverOverdueCutoverRows"', self.template_source)
+        self.assertIn('id="skipOverdueCutoverCheck"', self.template_source)
+        self.assertIn('id="recheckOverdueCutovers"', self.template_source)
+        self.assertNotIn('data-overdue-action="close"', self.template_source)
+
+    def test_overdue_cutover_rows_use_text_content_and_new_window_edit_links(self) -> None:
+        self.assertIn('function renderOverdueCutovers(cutovers)', self.template_source)
+        self.assertIn("link.target = '_blank'", self.template_source)
+        self.assertIn("link.rel = 'noopener'", self.template_source)
+        self.assertIn('link.href = cutover.edit_url', self.template_source)
+        self.assertIn('link.textContent = cutover.cutover_no', self.template_source)
+        self.assertIn('cell.textContent = cutover[field]', self.template_source)
+        self.assertNotIn('overdueRows.innerHTML', self.template_source)
+
+    def test_generate_flow_checks_overdue_cutovers_before_generating(self) -> None:
+        self.assertIn('const checkUrl = root.dataset.checkUrl;', self.template_source)
+        self.assertIn('async function fetchOverdueCutovers()', self.template_source)
+        self.assertIn('const cutovers = await fetchOverdueCutovers();', self.template_source)
+        self.assertIn('if (cutovers.length)', self.template_source)
+        self.assertIn('showOverdueCutoverModal()', self.template_source)
+        self.assertIn('await generateShiftHandoverContent()', self.template_source)
+        self.assertIn("skipButton.addEventListener('click'", self.template_source)
+
+    def test_recheck_refreshes_rows_or_starts_five_second_countdown(self) -> None:
+        self.assertIn("recheckButton.addEventListener('click'", self.template_source)
+        self.assertIn('renderOverdueCutovers(cutovers)', self.template_source)
+        self.assertIn('startCompletedCheckCountdown()', self.template_source)
+        self.assertIn('let remainingSeconds = 5;', self.template_source)
+        self.assertIn('window.setInterval(', self.template_source)
+        self.assertIn(
+            '已经完成检查，${remainingSeconds}秒后自动进入交接班信息窗口。',
+            self.template_source,
+        )
+
+    def test_check_failures_restore_the_correct_controls(self) -> None:
+        self.assertIn('function resetGenerateButton()', self.template_source)
+        self.assertIn('function setWarningButtonsDisabled(disabled)', self.template_source)
+        self.assertIn('warningError.textContent = error.message', self.template_source)
+        self.assertIn('setWarningButtonsDisabled(false)', self.template_source)
+        self.assertIn('resetGenerateButton()', self.template_source)
+
+    def test_warning_modal_has_a_dom_fallback_without_dismiss_handlers(self) -> None:
+        self.assertIn('function showOverdueCutoverModal()', self.template_source)
+        self.assertIn('function hideOverdueCutoverModal()', self.template_source)
+        self.assertIn("overdueModalElement.classList.add('show')", self.template_source)
+        self.assertIn("overdueBackdrop.className = 'modal-backdrop fade show'", self.template_source)
+        self.assertNotIn("if (event.target === overdueModalElement)", self.template_source)
 
 
 if __name__ == '__main__':

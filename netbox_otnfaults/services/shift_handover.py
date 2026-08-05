@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Iterable
 
+from django.urls import reverse
 from django.utils import timezone
 
 from ..models import (
@@ -27,6 +28,54 @@ def _ordered_unique(values: list[str]) -> tuple[str, ...]:
 
 def _localtime(value: datetime | None) -> datetime | None:
     return timezone.localtime(value) if value is not None else None
+
+
+def _display(value: object) -> str:
+    text = str(value).strip() if value is not None else ''
+    return text or '-'
+
+
+def _joined_display(values: Iterable[object]) -> str:
+    names = tuple(_display(value) for value in values)
+    visible_names = tuple(name for name in names if name != '-')
+    return '、'.join(visible_names) if visible_names else '-'
+
+
+def get_overdue_pending_cutovers(
+    *,
+    user: Any,
+    now: datetime,
+) -> list[dict[str, str]]:
+    """Return overdue pending cutovers visible to the current user."""
+    cutovers = (
+        CutoverTask.objects.restrict(user, 'view')
+        .filter(
+            status=CutoverStatusChoices.PENDING_IMPLEMENTATION,
+            planned_cutover_time__lt=now,
+        )
+        .select_related('province', 'interruption_location_a')
+        .prefetch_related('interruption_location')
+        .order_by('planned_cutover_time', 'pk')
+    )
+    result: list[dict[str, str]] = []
+    for cutover in cutovers:
+        planned_time = _localtime(cutover.planned_cutover_time)
+        result.append({
+            'cutover_no': _display(cutover.cutover_no),
+            'planned_cutover_time': _display(
+                planned_time.strftime('%Y-%m-%d %H:%M') if planned_time else None
+            ),
+            'province': _display(cutover.province),
+            'cutover_type': _display(cutover.get_cutover_type_display()),
+            'a_end': _display(cutover.interruption_location_a),
+            'z_end': _joined_display(cutover.interruption_location.all()),
+            'location': _display(cutover.cutover_location),
+            'edit_url': reverse(
+                'plugins:netbox_otnfaults:cutovertask_edit',
+                args=[cutover.pk],
+            ),
+        })
+    return result
 
 
 def _fault_item(fault: OtnFault) -> FaultHandoverItem:

@@ -66,6 +66,26 @@ class ShiftHandoverDataSourceTestCase(unittest.TestCase):
         self.assertIn('return build_handover_text(', self.source)
         self.assertIn('shift_start=shift_start,', self.source)
 
+    def test_overdue_cutover_check_is_permission_limited_and_stably_ordered(self) -> None:
+        self.assertIn('def get_overdue_pending_cutovers(', self.source)
+        self.assertIn("CutoverTask.objects.restrict(user, 'view')", self.source)
+        self.assertIn('status=CutoverStatusChoices.PENDING_IMPLEMENTATION', self.source)
+        self.assertIn('planned_cutover_time__lt=now', self.source)
+        self.assertIn(".select_related('province', 'interruption_location_a')", self.source)
+        self.assertIn(".prefetch_related('interruption_location')", self.source)
+        self.assertIn(".order_by('planned_cutover_time', 'pk')", self.source)
+
+    def test_overdue_cutover_check_maps_az_ends_and_edit_url(self) -> None:
+        self.assertIn("'cutover_no': _display(cutover.cutover_no)", self.source)
+        self.assertIn("strftime('%Y-%m-%d %H:%M')", self.source)
+        self.assertIn("'province': _display(cutover.province)", self.source)
+        self.assertIn("'cutover_type': _display(cutover.get_cutover_type_display())", self.source)
+        self.assertIn("'a_end': _display(cutover.interruption_location_a)", self.source)
+        self.assertIn("'z_end': _joined_display(cutover.interruption_location.all())", self.source)
+        self.assertIn("'location': _display(cutover.cutover_location)", self.source)
+        self.assertIn("'edit_url': reverse(", self.source)
+        self.assertIn("'plugins:netbox_otnfaults:cutovertask_edit'", self.source)
+
 
 class ShiftHandoverViewTestCase(unittest.TestCase):
     def setUp(self) -> None:
@@ -104,6 +124,32 @@ class ShiftHandoverViewTestCase(unittest.TestCase):
             self.url_source,
         )
         self.assertIn("name='dashboard_shift_handover_generate'", self.url_source)
+
+    def test_overdue_cutover_check_view_uses_server_time_and_safe_errors(self) -> None:
+        self.assertIn(
+            'class ShiftHandoverOverdueCutoverCheckView(LoginRequiredMixin, View):',
+            self.view_source,
+        )
+        self.assertIn('now = timezone.localtime()', self.view_source)
+        self.assertIn('get_overdue_pending_cutovers(', self.view_source)
+        self.assertIn('user=request.user,', self.view_source)
+        self.assertIn("return JsonResponse({'cutovers': cutovers})", self.view_source)
+        self.assertIn("logger.exception('Failed to check overdue cutovers')", self.view_source)
+        self.assertIn('检查逾期待实施割接失败，请稍后重试。', self.view_source)
+
+    def test_url_registers_plugin_owned_overdue_check_endpoint(self) -> None:
+        self.assertIn(
+            "'dashboard/shift-handover/check-overdue-cutovers/'",
+            self.url_source,
+        )
+        self.assertIn(
+            'handover_views.ShiftHandoverOverdueCutoverCheckView.as_view()',
+            self.url_source,
+        )
+        self.assertIn(
+            "name='dashboard_shift_handover_check_overdue_cutovers'",
+            self.url_source,
+        )
 
 
 if __name__ == '__main__':

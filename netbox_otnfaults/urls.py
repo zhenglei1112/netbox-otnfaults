@@ -10,6 +10,11 @@ from . import handover_views
 
 urlpatterns = [
     path(
+        'dashboard/shift-handover/check-overdue-cutovers/',
+        handover_views.ShiftHandoverOverdueCutoverCheckView.as_view(),
+        name='dashboard_shift_handover_check_overdue_cutovers',
+    ),
+    path(
         'dashboard/shift-handover/generate/',
         handover_views.ShiftHandoverGenerateView.as_view(),
         name='dashboard_shift_handover_generate',

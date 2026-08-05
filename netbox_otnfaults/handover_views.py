@@ -6,10 +6,32 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 
-from .services.shift_handover import generate_shift_handover_text
+from .services.shift_handover import (
+    generate_shift_handover_text,
+    get_overdue_pending_cutovers,
+)
 
 
 logger = logging.getLogger(__name__)
+
+
+class ShiftHandoverOverdueCutoverCheckView(LoginRequiredMixin, View):
+    """Return overdue pending cutovers visible to the current user."""
+
+    def get(self, request: HttpRequest) -> JsonResponse:
+        try:
+            now = timezone.localtime()
+            cutovers = get_overdue_pending_cutovers(
+                user=request.user,
+                now=now,
+            )
+            return JsonResponse({'cutovers': cutovers})
+        except Exception:
+            logger.exception('Failed to check overdue cutovers')
+            return JsonResponse(
+                {'error': '检查逾期待实施割接失败，请稍后重试。'},
+                status=500,
+            )
 
 
 class ShiftHandoverGenerateView(LoginRequiredMixin, View):

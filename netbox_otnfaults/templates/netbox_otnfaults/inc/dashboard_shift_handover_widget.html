@@ -48,6 +48,7 @@
 
 <div
   class="otn-shift-handover"
+  data-check-url="{{ check_url }}"
   data-generate-url="{{ generate_url }}"
   id="shiftHandoverWidget"
 >
@@ -135,6 +136,65 @@
   </div>
 </div>
 
+<div
+  aria-hidden="true"
+  aria-labelledby="shiftHandoverOverdueCutoverModalLabel"
+  class="modal fade"
+  data-bs-backdrop="static"
+  data-bs-keyboard="false"
+  id="shiftHandoverOverdueCutoverModal"
+  tabindex="-1"
+>
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="shiftHandoverOverdueCutoverModalLabel">
+          逾期待实施割接检查
+        </h5>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning" role="alert">
+          下列割接可能已经实施完成，请检查修正状态
+        </div>
+        <div class="table-responsive" id="shiftHandoverOverdueCutoverTable">
+          <table class="table table-hover table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">割接编号</th>
+                <th scope="col">计划割接时间</th>
+                <th scope="col">省份</th>
+                <th scope="col">割接类型</th>
+                <th scope="col">A端</th>
+                <th scope="col">Z端</th>
+                <th scope="col">割接地点</th>
+              </tr>
+            </thead>
+            <tbody id="shiftHandoverOverdueCutoverRows"></tbody>
+          </table>
+        </div>
+        <div
+          class="alert alert-danger mt-3 mb-0 d-none"
+          id="shiftHandoverOverdueCutoverError"
+          role="alert"
+        ></div>
+        <div
+          class="alert alert-success mt-3 mb-0 d-none"
+          id="shiftHandoverOverdueCutoverSuccess"
+          role="status"
+        ></div>
+      </div>
+      <div class="modal-footer" id="shiftHandoverOverdueCutoverActions">
+        <button class="btn btn-secondary" id="skipOverdueCutoverCheck" type="button">
+          跳过
+        </button>
+        <button class="btn btn-primary" id="recheckOverdueCutovers" type="button">
+          <i class="mdi mdi-refresh me-1"></i>再次检查
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (() => {
   const root = document.getElementById('shiftHandoverWidget');
@@ -144,10 +204,20 @@
   const modalElement = document.getElementById('shiftHandoverModal');
   const output = document.getElementById('shiftHandoverText');
   const copyButton = document.getElementById('copyShiftHandoverText');
+  const overdueModalElement = document.getElementById('shiftHandoverOverdueCutoverModal');
+  const overdueRows = document.getElementById('shiftHandoverOverdueCutoverRows');
+  const overdueTable = document.getElementById('shiftHandoverOverdueCutoverTable');
+  const warningError = document.getElementById('shiftHandoverOverdueCutoverError');
+  const warningSuccess = document.getElementById('shiftHandoverOverdueCutoverSuccess');
+  const actionsElement = document.getElementById('shiftHandoverOverdueCutoverActions');
+  const skipButton = document.getElementById('skipOverdueCutoverCheck');
+  const recheckButton = document.getElementById('recheckOverdueCutovers');
+  const checkUrl = root.dataset.checkUrl;
   const generateUrl = root.dataset.generateUrl;
   const generateLabel = generateButton.innerHTML;
   const copyLabel = copyButton.innerHTML;
   let manualBackdrop = null;
+  let overdueBackdrop = null;
 
   function showShiftHandoverModal() {
     if (window.bootstrap && window.bootstrap.Modal) {
@@ -171,6 +241,103 @@
     document.body.classList.remove('modal-open');
     if (manualBackdrop) manualBackdrop.remove();
     manualBackdrop = null;
+  }
+
+  function showOverdueCutoverModal() {
+    if (window.bootstrap && window.bootstrap.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(overdueModalElement, {
+        backdrop: 'static',
+        keyboard: false,
+      }).show();
+      return;
+    }
+    overdueModalElement.style.display = 'block';
+    overdueModalElement.classList.add('show');
+    overdueModalElement.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    overdueBackdrop = document.createElement('div');
+    overdueBackdrop.className = 'modal-backdrop fade show';
+    document.body.appendChild(overdueBackdrop);
+  }
+
+  function hideOverdueCutoverModal() {
+    if (window.bootstrap && window.bootstrap.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(overdueModalElement).hide();
+      return;
+    }
+    overdueModalElement.style.display = 'none';
+    overdueModalElement.classList.remove('show');
+    overdueModalElement.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    if (overdueBackdrop) overdueBackdrop.remove();
+    overdueBackdrop = null;
+  }
+
+  function resetGenerateButton() {
+    generateButton.disabled = false;
+    generateButton.innerHTML = generateLabel;
+  }
+
+  function setWarningButtonsDisabled(disabled) {
+    skipButton.disabled = disabled;
+    recheckButton.disabled = disabled;
+  }
+
+  function resetWarningState() {
+    warningError.textContent = '';
+    warningError.classList.add('d-none');
+    warningSuccess.textContent = '';
+    warningSuccess.classList.add('d-none');
+    overdueTable.classList.remove('d-none');
+    actionsElement.classList.remove('d-none');
+    setWarningButtonsDisabled(false);
+  }
+
+  function renderOverdueCutovers(cutovers) {
+    overdueRows.replaceChildren();
+    cutovers.forEach(cutover => {
+      const row = document.createElement('tr');
+      const numberCell = document.createElement('td');
+      const link = document.createElement('a');
+      link.href = cutover.edit_url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = cutover.cutover_no;
+      numberCell.appendChild(link);
+      row.appendChild(numberCell);
+      ['planned_cutover_time', 'province', 'cutover_type', 'a_end', 'z_end', 'location']
+        .forEach(field => {
+          const cell = document.createElement('td');
+          cell.textContent = cutover[field];
+          row.appendChild(cell);
+        });
+      overdueRows.appendChild(row);
+    });
+  }
+
+  async function fetchOverdueCutovers() {
+    const response = await fetch(checkUrl, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || '检查逾期待实施割接失败，请稍后重试。');
+    }
+    return payload.cutovers;
+  }
+
+  async function generateShiftHandoverContent() {
+    const params = new URLSearchParams({ shift_start: input.value });
+    const response = await fetch(`${generateUrl}?${params.toString()}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || '生成交接班内容失败，请稍后重试。');
+    }
+    output.value = payload.text;
+    showShiftHandoverModal();
+    resetGenerateButton();
   }
 
   function parseLocalDateTime(value) {
@@ -226,23 +393,78 @@
     }
 
     generateButton.disabled = true;
+    generateButton.textContent = '正在检查…';
+    try {
+      const cutovers = await fetchOverdueCutovers();
+      if (cutovers.length) {
+        resetWarningState();
+        renderOverdueCutovers(cutovers);
+        showOverdueCutoverModal();
+      } else {
+        generateButton.textContent = '正在生成…';
+        await generateShiftHandoverContent();
+      }
+    } catch (error) {
+      errorBox.textContent = error.message || '检查逾期待实施割接失败，请稍后重试。';
+      resetGenerateButton();
+    }
+  });
+
+  skipButton.addEventListener('click', async () => {
+    setWarningButtonsDisabled(true);
+    hideOverdueCutoverModal();
     generateButton.textContent = '正在生成…';
     try {
-      const params = new URLSearchParams({ shift_start: input.value });
-      const response = await fetch(`${generateUrl}?${params.toString()}`, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error || '生成交接班内容失败，请稍后重试。');
-      }
-      output.value = payload.text;
-      showShiftHandoverModal();
+      await generateShiftHandoverContent();
     } catch (error) {
       errorBox.textContent = error.message || '生成交接班内容失败，请稍后重试。';
-    } finally {
-      generateButton.disabled = false;
-      generateButton.innerHTML = generateLabel;
+      resetGenerateButton();
+    }
+  });
+
+  function startCompletedCheckCountdown() {
+    actionsElement.classList.add('d-none');
+    overdueTable.classList.add('d-none');
+    warningSuccess.classList.remove('d-none');
+    let remainingSeconds = 5;
+    const renderCountdown = () => {
+      warningSuccess.textContent = `已经完成检查，${remainingSeconds}秒后自动进入交接班信息窗口。`;
+    };
+    renderCountdown();
+    const timer = window.setInterval(async () => {
+      remainingSeconds -= 1;
+      if (remainingSeconds > 0) {
+        renderCountdown();
+        return;
+      }
+      window.clearInterval(timer);
+      hideOverdueCutoverModal();
+      generateButton.textContent = '正在生成…';
+      try {
+        await generateShiftHandoverContent();
+      } catch (error) {
+        errorBox.textContent = error.message || '生成交接班内容失败，请稍后重试。';
+        resetGenerateButton();
+      }
+    }, 1000);
+  }
+
+  recheckButton.addEventListener('click', async () => {
+    warningError.textContent = '';
+    warningError.classList.add('d-none');
+    setWarningButtonsDisabled(true);
+    try {
+      const cutovers = await fetchOverdueCutovers();
+      if (cutovers.length) {
+        renderOverdueCutovers(cutovers);
+        setWarningButtonsDisabled(false);
+      } else {
+        startCompletedCheckCountdown();
+      }
+    } catch (error) {
+      warningError.textContent = error.message || '检查逾期待实施割接失败，请稍后重试。';
+      warningError.classList.remove('d-none');
+      setWarningButtonsDisabled(false);
     }
   });
 
