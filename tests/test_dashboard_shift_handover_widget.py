@@ -154,10 +154,7 @@ class DashboardShiftHandoverWidgetTestCase(unittest.TestCase):
         self.assertIn('startCompletedCheckCountdown()', self.template_source)
         self.assertIn('let remainingSeconds = 5;', self.template_source)
         self.assertIn('window.setInterval(', self.template_source)
-        self.assertIn(
-            '已经完成检查，${remainingSeconds}秒后自动进入交接班信息窗口。',
-            self.template_source,
-        )
+        self.assertIn('renderCompletedCountdown(remainingSeconds)', self.template_source)
 
     def test_check_failures_restore_the_correct_controls(self) -> None:
         self.assertIn('function resetGenerateButton()', self.template_source)
@@ -172,6 +169,49 @@ class DashboardShiftHandoverWidgetTestCase(unittest.TestCase):
         self.assertIn("overdueModalElement.classList.add('show')", self.template_source)
         self.assertIn("overdueBackdrop.className = 'modal-backdrop fade show'", self.template_source)
         self.assertNotIn("if (event.target === overdueModalElement)", self.template_source)
+
+    def test_completed_check_keeps_rows_and_marks_them_as_verified(self) -> None:
+        self.assertIn('id="shiftHandoverOverdueCutoverBanner"', self.template_source)
+        self.assertIn('id="shiftHandoverOverdueCutoverBannerIcon"', self.template_source)
+        self.assertIn('id="shiftHandoverOverdueCutoverBannerText"', self.template_source)
+        self.assertIn('<th class="text-center" scope="col">核对</th>', self.template_source)
+        self.assertIn("statusCell.className = 'text-center'", self.template_source)
+        self.assertIn("row.classList.add('table-success')", self.template_source)
+        self.assertIn(
+            "statusIcon.className = 'mdi mdi-check-circle text-success'",
+            self.template_source,
+        )
+        self.assertIn(
+            "bannerText.textContent = '已完成逾期待实施割接核对'",
+            self.template_source,
+        )
+        self.assertNotIn("overdueTable.classList.add('d-none')", self.template_source)
+        self.assertNotIn('id="shiftHandoverOverdueCutoverSuccess"', self.template_source)
+
+    def test_completed_check_countdown_is_shown_on_clickable_button(self) -> None:
+        self.assertIn('id="recheckOverdueCutoversLabel"', self.template_source)
+        self.assertIn('id="shiftHandoverCountdownProgress"', self.template_source)
+        self.assertIn("skipButton.classList.add('d-none')", self.template_source)
+        self.assertIn(
+            "recheckButton.classList.replace('btn-primary', 'btn-success')",
+            self.template_source,
+        )
+        self.assertIn('recheckButton.disabled = false', self.template_source)
+        self.assertIn(
+            '`<i class="mdi mdi-check me-1"></i>已核对 · ${remainingSeconds}秒后进入`',
+            self.template_source,
+        )
+        self.assertIn('if (completionCountdownActive)', self.template_source)
+        self.assertIn('await finishCompletedCheck()', self.template_source)
+
+    def test_completed_check_uses_progress_and_single_shot_generation(self) -> None:
+        self.assertIn('let completionTimer = null;', self.template_source)
+        self.assertIn('let completionGenerationStarted = false;', self.template_source)
+        self.assertIn('if (completionGenerationStarted) return;', self.template_source)
+        self.assertIn('completionGenerationStarted = true;', self.template_source)
+        self.assertIn('window.clearInterval(completionTimer)', self.template_source)
+        self.assertIn('countdownProgress.style.width =', self.template_source)
+        self.assertIn('completionCountdownActive = false;', self.template_source)
 
 
 if __name__ == '__main__':

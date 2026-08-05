@@ -44,6 +44,18 @@
     resize: vertical;
     white-space: pre-wrap;
   }
+  .otn-overdue-cutover-verified {
+    --bs-table-bg: var(--bs-success-bg-subtle);
+  }
+  .otn-overdue-countdown-progress {
+    background: rgba(255, 255, 255, .45);
+    bottom: 0;
+    height: 3px;
+    left: 0;
+    position: absolute;
+    transition: width .25s linear;
+    width: 0;
+  }
 </style>
 
 <div
@@ -153,13 +165,24 @@
         </h5>
       </div>
       <div class="modal-body">
-        <div class="alert alert-warning" role="alert">
-          下列割接可能已经实施完成，请检查修正状态
+        <div
+          class="alert alert-warning"
+          id="shiftHandoverOverdueCutoverBanner"
+          role="alert"
+        >
+          <i
+            class="mdi mdi-alert-outline me-1"
+            id="shiftHandoverOverdueCutoverBannerIcon"
+          ></i>
+          <span id="shiftHandoverOverdueCutoverBannerText">
+            下列割接可能已经实施完成，请检查修正状态
+          </span>
         </div>
         <div class="table-responsive" id="shiftHandoverOverdueCutoverTable">
           <table class="table table-hover table-sm align-middle mb-0">
             <thead>
               <tr>
+                <th class="text-center" scope="col">核对</th>
                 <th scope="col">割接编号</th>
                 <th scope="col">计划割接时间</th>
                 <th scope="col">省份</th>
@@ -177,18 +200,23 @@
           id="shiftHandoverOverdueCutoverError"
           role="alert"
         ></div>
-        <div
-          class="alert alert-success mt-3 mb-0 d-none"
-          id="shiftHandoverOverdueCutoverSuccess"
-          role="status"
-        ></div>
       </div>
       <div class="modal-footer" id="shiftHandoverOverdueCutoverActions">
         <button class="btn btn-secondary" id="skipOverdueCutoverCheck" type="button">
           跳过
         </button>
-        <button class="btn btn-primary" id="recheckOverdueCutovers" type="button">
-          <i class="mdi mdi-refresh me-1"></i>再次检查
+        <button
+          class="btn btn-primary position-relative overflow-hidden"
+          id="recheckOverdueCutovers"
+          type="button"
+        >
+          <span id="recheckOverdueCutoversLabel">
+            <i class="mdi mdi-refresh me-1"></i>再次检查
+          </span>
+          <span
+            class="otn-overdue-countdown-progress"
+            id="shiftHandoverCountdownProgress"
+          ></span>
         </button>
       </div>
     </div>
@@ -207,17 +235,25 @@
   const overdueModalElement = document.getElementById('shiftHandoverOverdueCutoverModal');
   const overdueRows = document.getElementById('shiftHandoverOverdueCutoverRows');
   const overdueTable = document.getElementById('shiftHandoverOverdueCutoverTable');
+  const bannerElement = document.getElementById('shiftHandoverOverdueCutoverBanner');
+  const bannerIcon = document.getElementById('shiftHandoverOverdueCutoverBannerIcon');
+  const bannerText = document.getElementById('shiftHandoverOverdueCutoverBannerText');
   const warningError = document.getElementById('shiftHandoverOverdueCutoverError');
-  const warningSuccess = document.getElementById('shiftHandoverOverdueCutoverSuccess');
   const actionsElement = document.getElementById('shiftHandoverOverdueCutoverActions');
   const skipButton = document.getElementById('skipOverdueCutoverCheck');
   const recheckButton = document.getElementById('recheckOverdueCutovers');
+  const recheckLabel = document.getElementById('recheckOverdueCutoversLabel');
+  const countdownProgress = document.getElementById('shiftHandoverCountdownProgress');
   const checkUrl = root.dataset.checkUrl;
   const generateUrl = root.dataset.generateUrl;
   const generateLabel = generateButton.innerHTML;
   const copyLabel = copyButton.innerHTML;
+  const recheckLabelDefault = recheckLabel.innerHTML;
   let manualBackdrop = null;
   let overdueBackdrop = null;
+  let completionTimer = null;
+  let completionCountdownActive = false;
+  let completionGenerationStarted = false;
 
   function showShiftHandoverModal() {
     if (window.bootstrap && window.bootstrap.Modal) {
@@ -284,12 +320,22 @@
   }
 
   function resetWarningState() {
+    completionCountdownActive = false;
+    completionGenerationStarted = false;
+    if (completionTimer !== null) window.clearInterval(completionTimer);
+    completionTimer = null;
     warningError.textContent = '';
     warningError.classList.add('d-none');
-    warningSuccess.textContent = '';
-    warningSuccess.classList.add('d-none');
+    bannerElement.classList.remove('alert-success');
+    bannerElement.classList.add('alert-warning');
+    bannerIcon.className = 'mdi mdi-alert-outline me-1';
+    bannerText.textContent = '下列割接可能已经实施完成，请检查修正状态';
     overdueTable.classList.remove('d-none');
     actionsElement.classList.remove('d-none');
+    skipButton.classList.remove('d-none');
+    recheckButton.classList.replace('btn-success', 'btn-primary');
+    recheckLabel.innerHTML = recheckLabelDefault;
+    countdownProgress.style.width = '0%';
     setWarningButtonsDisabled(false);
   }
 
@@ -297,6 +343,10 @@
     overdueRows.replaceChildren();
     cutovers.forEach(cutover => {
       const row = document.createElement('tr');
+      const statusCell = document.createElement('td');
+      statusCell.className = 'text-center';
+      statusCell.dataset.overdueCheckStatus = '';
+      row.appendChild(statusCell);
       const numberCell = document.createElement('td');
       const link = document.createElement('a');
       link.href = cutover.edit_url;
@@ -313,6 +363,22 @@
         });
       overdueRows.appendChild(row);
     });
+  }
+
+  function markOverdueCutoversVerified() {
+    overdueRows.querySelectorAll('tr').forEach(row => {
+      row.classList.add('table-success');
+      row.classList.add('otn-overdue-cutover-verified');
+      const statusCell = row.querySelector('[data-overdue-check-status]');
+      const statusIcon = document.createElement('i');
+      statusIcon.className = 'mdi mdi-check-circle text-success';
+      statusIcon.setAttribute('aria-label', '已核对');
+      statusCell.replaceChildren(statusIcon);
+    });
+    bannerElement.classList.remove('alert-warning');
+    bannerElement.classList.add('alert-success');
+    bannerIcon.className = 'mdi mdi-check-circle me-1';
+    bannerText.textContent = '已完成逾期待实施割接核对';
   }
 
   async function fetchOverdueCutovers() {
@@ -422,34 +488,52 @@
     }
   });
 
+  async function finishCompletedCheck() {
+    if (completionGenerationStarted) return;
+    completionGenerationStarted = true;
+    completionCountdownActive = false;
+    if (completionTimer !== null) {
+      window.clearInterval(completionTimer);
+      completionTimer = null;
+    }
+    hideOverdueCutoverModal();
+    generateButton.textContent = '正在生成…';
+    try {
+      await generateShiftHandoverContent();
+    } catch (error) {
+      errorBox.textContent = error.message || '生成交接班内容失败，请稍后重试。';
+      resetGenerateButton();
+    }
+  }
+
+  function renderCompletedCountdown(remainingSeconds) {
+    recheckLabel.innerHTML = `<i class="mdi mdi-check me-1"></i>已核对 · ${remainingSeconds}秒后进入`;
+    countdownProgress.style.width = `${(remainingSeconds / 5) * 100}%`;
+  }
+
   function startCompletedCheckCountdown() {
-    actionsElement.classList.add('d-none');
-    overdueTable.classList.add('d-none');
-    warningSuccess.classList.remove('d-none');
+    markOverdueCutoversVerified();
+    completionCountdownActive = true;
+    skipButton.classList.add('d-none');
+    recheckButton.classList.replace('btn-primary', 'btn-success');
+    recheckButton.disabled = false;
     let remainingSeconds = 5;
-    const renderCountdown = () => {
-      warningSuccess.textContent = `已经完成检查，${remainingSeconds}秒后自动进入交接班信息窗口。`;
-    };
-    renderCountdown();
-    const timer = window.setInterval(async () => {
+    renderCompletedCountdown(remainingSeconds);
+    completionTimer = window.setInterval(() => {
       remainingSeconds -= 1;
       if (remainingSeconds > 0) {
-        renderCountdown();
+        renderCompletedCountdown(remainingSeconds);
         return;
       }
-      window.clearInterval(timer);
-      hideOverdueCutoverModal();
-      generateButton.textContent = '正在生成…';
-      try {
-        await generateShiftHandoverContent();
-      } catch (error) {
-        errorBox.textContent = error.message || '生成交接班内容失败，请稍后重试。';
-        resetGenerateButton();
-      }
+      void finishCompletedCheck();
     }, 1000);
   }
 
   recheckButton.addEventListener('click', async () => {
+    if (completionCountdownActive) {
+      await finishCompletedCheck();
+      return;
+    }
     warningError.textContent = '';
     warningError.classList.add('d-none');
     setWarningButtonsDisabled(true);
