@@ -387,6 +387,7 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("'嘉兴广信信息科技有限公司'", source)
         self.assertIn("'杭州骏云科技有限公司'", source)
         self.assertIn("'上海信智通网络技术有限公司'", source)
+        self.assertIn("'北京京宽网络科技有限公司'", source)
 
         self.assertIn("def _should_exclude_for_branch(fault) -> bool:", source)
         self.assertIn("fault.handling_unit.name in EXCLUDED_HANDLING_UNITS", source)
