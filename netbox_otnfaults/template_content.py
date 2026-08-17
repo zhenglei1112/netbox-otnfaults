@@ -52,8 +52,8 @@ def build_contract_fault_context(request: HttpRequest, contract_id: int) -> dict
     faults_qs = (
         OtnFault.objects.restrict(request.user, 'view')
         .filter(contract_id=contract_id)
-        .select_related('duty_officer')
-        .prefetch_related('tags')
+        .select_related('duty_officer', 'interruption_location_a')
+        .prefetch_related('interruption_location', 'tags')
     )
     fault_start_date = parse_date(
         request.GET.get('fault_occurrence_time_after', '')

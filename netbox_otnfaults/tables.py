@@ -20,6 +20,13 @@ def _display_or_empty(value: str | None) -> str:
     return value or ''
 
 
+def _is_planned_cutover(record: object) -> bool:
+    return (
+        getattr(record, 'interruption_reason', None) == 'cable_rectification'
+        and getattr(record, 'interruption_reason_detail', None) == 'planned_reporting'
+    )
+
+
 def _json_export_value(value: object) -> str:
     if value in (None, '', []):
         return ''
@@ -524,23 +531,28 @@ class ContractOtnFaultTable(NetBoxTable):
     fault_category = columns.ChoiceFieldColumn(
         verbose_name='故障分类'
     )
+    cutover = tables.Column(
+        verbose_name='割接',
+        orderable=False,
+        empty_values=(),
+    )
+    interruption_location_a = tables.Column(
+        linkify=True,
+        verbose_name='故障位置A端站点',
+    )
+    interruption_location = columns.ManyToManyColumn(
+        linkify_item=True,
+        verbose_name='故障位置Z端站点',
+    )
     urgency = columns.ChoiceFieldColumn(
         verbose_name='紧急程度'
     )
     fault_status = columns.ChoiceFieldColumn(
         verbose_name='处理状态'
     )
-    is_suspended = columns.BooleanColumn(
-        verbose_name='挂起'
-    )
     fault_duration = tables.Column(
         verbose_name='故障历时',
         orderable=False
-    )
-    progress = tables.Column(
-        verbose_name='处理进度',
-        orderable=False,
-        empty_values=()
     )
     tags = columns.TagColumn(
         url_name='plugins:netbox_otnfaults:otnfault_list'
@@ -548,14 +560,26 @@ class ContractOtnFaultTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = OtnFault
+        exclude = ('id',)
         fields = (
-            'pk', 'fault_number', 'duty_officer', 'fault_occurrence_time',
-            'fault_category', 'urgency', 'fault_status', 'is_suspended', 'progress', 'fault_duration',
-            'tags',
+            'fault_number', 'duty_officer', 'fault_occurrence_time',
+            'fault_duration', 'fault_category', 'cutover',
+            'interruption_location_a', 'interruption_location',
+            'urgency', 'fault_status', 'tags',
         )
         default_columns = (
             'fault_number', 'duty_officer', 'fault_occurrence_time',
-            'fault_category', 'urgency', 'fault_status', 'progress', 'fault_duration', 'tags',
+            'fault_duration', 'fault_category', 'cutover',
+            'interruption_location_a', 'interruption_location',
+            'urgency', 'fault_status', 'tags',
+        )
+
+    def render_cutover(self, record: OtnFault):
+        if not _is_planned_cutover(record):
+            return ''
+        return format_html(
+            '<i class="mdi mdi-check-bold text-success" aria-label="{}"></i>',
+            '割接',
         )
 
     def render_fault_category(self, value, record):
@@ -1278,6 +1302,11 @@ class SiteHistoryFaultTable(ContractOtnFaultTable):
     interruption_location = columns.ManyToManyColumn(
         linkify_item=True,
         verbose_name='故障位置Z端'
+    )
+    progress = tables.Column(
+        verbose_name='处理进度',
+        orderable=False,
+        empty_values=(),
     )
 
     class Meta(ContractOtnFaultTable.Meta):

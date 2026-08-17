@@ -34,10 +34,9 @@ def test_contract_fault_query_is_permission_scoped_and_avoids_unused_work():
     source = EXTENSION_PATH.read_text(encoding="utf-8-sig")
 
     assert "OtnFault.objects.restrict(request.user, 'view')" in source
-    assert ".select_related('duty_officer')" in source
-    assert ".prefetch_related('tags')" in source
+    assert ".select_related('duty_officer', 'interruption_location_a')" in source
+    assert ".prefetch_related('interruption_location', 'tags')" in source
     assert "faults_qs.count()" not in source
-    assert "prefetch_related(\n            'interruption_location_a'" not in source
 
 
 def test_lightweight_contract_fault_fragment_endpoint_is_registered():
