@@ -5,7 +5,7 @@
 {% block title %}故障统计{% endblock %}
 
 {% block content %}
-<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=33" rel="stylesheet">
+<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=34" rel="stylesheet">
 <style>
   .table-container ul.pagination { display: none !important; }
 
@@ -317,7 +317,8 @@
                 <section class="statistics-impact-level-overview mb-4">
                     <div class="statistics-cable-break-heading-row mb-3">
                         <h3 class="statistics-cable-break-heading mb-0">
-                            <span>故障和异常事件（按影响程度划分等级）</span>
+                            <span>故障和异常事件</span>
+                            <span class="badge bg-warning text-dark statistics-scope-badge">不含报备割接</span>
                         </h3>
                     </div>
                     <div class="row statistics-chart-area mt-3 mb-3">
@@ -433,6 +434,8 @@
                     <div class="statistics-cable-break-heading-row mb-3">
                         <h3 class="statistics-cable-break-heading mb-0">
                             <span>光缆中断情况</span>
+                            <span class="badge bg-warning text-dark statistics-scope-badge">不含报备割接</span>
+                            <span class="badge bg-warning text-dark statistics-scope-badge">不含挂起</span>
                             <button type="button" class="statistics-cable-break-map-action"
                                 id="statistics-cable-break-map-btn" title="打开光缆中断地图" aria-label="打开光缆中断地图">
                                 <i class="mdi mdi-map-marker-radius" aria-hidden="true"></i><span>定位地图</span>
@@ -1421,5 +1424,5 @@
     window.FAULT_REPEATS_API = "{% url 'plugins:netbox_otnfaults:statistics_fault_repeats' %}";
     window.SERVICE_STATISTICS_DETAILS_API = "{% url 'plugins:netbox_otnfaults:statistics_service_details' %}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=41"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=44"></script>
 {% endblock %}

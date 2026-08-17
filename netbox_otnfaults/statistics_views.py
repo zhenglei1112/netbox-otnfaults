@@ -520,9 +520,17 @@ def _suspended_fault_q() -> Q:
     return Q(fault_status=FaultStatusChoices.SUSPENDED) | Q(is_suspended=True)
 
 
+def _exclude_planned_rectification_faults(queryset: QuerySet) -> QuerySet:
+    """Exclude cable-break faults recorded as planned rectification work."""
+    return queryset.exclude(
+        interruption_reason='cable_rectification',
+        interruption_reason_detail='planned_reporting',
+    )
+
+
 def get_cable_break_base_queryset(start_date, end_date) -> QuerySet:
     """Return the shared cable-break queryset used by statistics and map views."""
-    return (
+    return _exclude_planned_rectification_faults(
         OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit')
         .prefetch_related('interruption_location')
         .filter(
@@ -1589,7 +1597,9 @@ def _compute_comparison_period_data(
     unfiltered_all_faults = list(qs_period)
     filtered_qs = _apply_physical_province_filter(qs_period, selected_provinces)
     all_faults = list(filtered_qs)
-    annotated_qs = _annotate_class_i_business_impact(filtered_qs)
+    annotated_qs = _annotate_class_i_business_impact(
+        _exclude_planned_rectification_faults(filtered_qs)
+    )
 
     level_stats = annotated_qs.aggregate(
         total=Count('id', filter=Q_CLASS_TOTAL),
@@ -1680,15 +1690,19 @@ def _compute_comparison_period_data(
         if p_fiber_faults:
             p_min_occ = min([f.fault_occurrence_time for f in p_fiber_faults])
             p_check_start = p_min_occ - timedelta(days=60)
-            p_past_qs = OtnFault.objects.filter(
-                fault_occurrence_time__gte=p_check_start,
-                fault_occurrence_time__lt=end_date,
-                fault_category__in=[
-                    FaultCategoryChoices.FIBER_BREAK, 
-                    FaultCategoryChoices.FIBER_DEGRADATION, 
-                    FaultCategoryChoices.FIBER_JITTER
-                ]
-            ).select_related('interruption_location_a').prefetch_related('interruption_location')
+            p_past_qs = _exclude_planned_rectification_faults(
+                OtnFault.objects.filter(
+                    fault_occurrence_time__gte=p_check_start,
+                    fault_occurrence_time__lt=end_date,
+                    fault_category__in=[
+                        FaultCategoryChoices.FIBER_BREAK,
+                        FaultCategoryChoices.FIBER_DEGRADATION,
+                        FaultCategoryChoices.FIBER_JITTER,
+                    ],
+                )
+                .select_related('interruption_location_a')
+                .prefetch_related('interruption_location')
+            )
             p_past_list = list(p_past_qs)
         else:
             p_past_list = []
@@ -2044,7 +2058,9 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         all_faults = list(filtered_current_qs)
 
         # 计算当前期影响程度等级指标卡片数据
-        annotated_current_qs = _annotate_class_i_business_impact(filtered_current_qs)
+        annotated_current_qs = _annotate_class_i_business_impact(
+            _exclude_planned_rectification_faults(filtered_current_qs)
+        )
         current_level_stats = annotated_current_qs.aggregate(
             total=Count('id', filter=Q_CLASS_TOTAL),
             class_i_ii=Count('id', filter=Q_CLASS_I_II),
@@ -2133,14 +2149,16 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         physical_daily_start, physical_daily_end = _resolve_physical_daily_range(now)
         physical_daily_faults = list(
             _apply_physical_province_filter(
-                qs_all.filter(
-                    fault_occurrence_time__gte=physical_daily_start,
-                    fault_occurrence_time__lt=physical_daily_end,
-                    fault_category=FaultCategoryChoices.FIBER_BREAK,
-                ).filter(
-                    is_suspended=False
-                ).exclude(
-                    fault_status=FaultStatusChoices.SUSPENDED
+                _exclude_planned_rectification_faults(
+                    qs_all.filter(
+                        fault_occurrence_time__gte=physical_daily_start,
+                        fault_occurrence_time__lt=physical_daily_end,
+                        fault_category=FaultCategoryChoices.FIBER_BREAK,
+                    ).filter(
+                        is_suspended=False
+                    ).exclude(
+                        fault_status=FaultStatusChoices.SUSPENDED
+                    )
                 ),
                 selected_provinces,
             )
@@ -2886,6 +2904,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 queryset = queryset.filter(fault_category=FaultCategoryChoices.FIBER_BREAK)
                 queryset = queryset.filter(is_suspended=False)
                 queryset = queryset.exclude(fault_status=FaultStatusChoices.SUSPENDED)
+                queryset = _exclude_planned_rectification_faults(queryset)
             return queryset
 
         def apply_detail_filters(queryset: QuerySet) -> QuerySet:
@@ -2903,6 +2922,8 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                     if impact.otn_fault_id is not None
                 }
                 queryset = queryset.filter(pk__in=bare_fiber_fault_ids)
+            if impact_level or fault_group:
+                queryset = _exclude_planned_rectification_faults(queryset)
             if impact_level:
                 impact_filters: dict[str, Q] = {
                     'total': Q_CLASS_TOTAL,

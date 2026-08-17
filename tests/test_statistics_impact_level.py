@@ -71,6 +71,42 @@ class StatisticsImpactLevelTestCase(unittest.TestCase):
         self.assertIn("'class_i': Q_CLASS_I", views_source)
         self.assertIn("queryset = queryset.filter(impact_filters[impact_level])", views_source)
 
+    def test_impact_level_period_queries_exclude_planned_rectification_faults(self) -> None:
+        source = _read(STATISTICS_VIEWS_PATH)
+        comparison_source = source.split(
+            "def _compute_comparison_period_data", 1
+        )[1].split("class FaultStatisticsDataAPI", 1)[0]
+        current_source = source.split(
+            "class FaultStatisticsDataAPI", 1
+        )[1].split("class FaultStatisticsDetailsAPI", 1)[0]
+
+        self.assertIn(
+            "_annotate_class_i_business_impact(\n"
+            "        _exclude_planned_rectification_faults(filtered_qs)\n"
+            "    )",
+            comparison_source,
+        )
+        self.assertIn(
+            "_annotate_class_i_business_impact(\n"
+            "            _exclude_planned_rectification_faults(filtered_current_qs)\n"
+            "        )",
+            current_source,
+        )
+
+    def test_impact_level_and_ring_details_exclude_planned_rectification_faults(self) -> None:
+        source = _read(STATISTICS_VIEWS_PATH)
+        details_source = source.split(
+            "class FaultStatisticsDetailsAPI", 1
+        )[1].split("class FaultRepeatsAPI", 1)[0]
+
+        exclusion_index = details_source.index("if impact_level or fault_group:")
+        impact_filter_index = details_source.index("if impact_level:")
+        self.assertLess(exclusion_index, impact_filter_index)
+        self.assertIn(
+            "queryset = _exclude_planned_rectification_faults(queryset)",
+            details_source[exclusion_index:impact_filter_index],
+        )
+
     def test_frontend_dashboard_and_js(self) -> None:
         html_source = _read(DASHBOARD_HTML_PATH)
         # 校验 8 个等级指标卡片
@@ -131,6 +167,27 @@ class StatisticsImpactLevelTestCase(unittest.TestCase):
         self.assertIn("elif fault_group == 'environment':", views_source)
         self.assertIn("FaultCategoryChoices.AC_FAULT,", views_source)
         self.assertIn("FaultCategoryChoices.DEVICE_FAULT,", views_source)
+
+    def test_ring_chart_centers_show_total_and_non_suspended_counts(self) -> None:
+        js_source = _read(DASHBOARD_JS_PATH)
+        html_source = _read(DASHBOARD_HTML_PATH)
+        ring_source = js_source.split(
+            "const buildRingOption = (titleText, dataList) => {", 1
+        )[1].split("if (chartsData.ring_fiber)", 1)[0]
+
+        self.assertIn(
+            "const suspendedItem = dataList.find(item => item.name === '挂起');",
+            ring_source,
+        )
+        self.assertIn(
+            "const suspended = suspendedItem ? (suspendedItem.value || 0) : 0;",
+            ring_source,
+        )
+        self.assertIn("const nonSuspended = total - suspended;", ring_source)
+        self.assertIn("text: `${total}/${nonSuspended}起`,", ring_source)
+        self.assertIn("subtext: '总数/不含挂起',", ring_source)
+        self.assertNotIn("text: total + '起',", ring_source)
+        self.assertIn("statistics_dashboard.js' %}?v=44", html_source)
 
 if __name__ == "__main__":
     unittest.main()

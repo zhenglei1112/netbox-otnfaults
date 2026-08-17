@@ -1387,6 +1387,12 @@ body.modal-open {
     box-shadow: 0 0 0 3px rgba(35, 127, 156, 0.1);
 }
 
+.statistics-scope-badge {
+    font-size: 0.75rem;
+    line-height: 1;
+    padding: 0.2rem 0.45rem;
+}
+
 .statistics-cable-break-map-action {
     display: inline-flex;
     align-items: center;
@@ -3398,4 +3404,3 @@ body.modal-open {
     justify-content: center;
     align-items: stretch;
 }
-

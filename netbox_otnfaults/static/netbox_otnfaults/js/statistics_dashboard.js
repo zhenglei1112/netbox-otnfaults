@@ -1591,6 +1591,7 @@ document.addEventListener("DOMContentLoaded", function() {
         items.forEach((item) => {
             let val = (item && item.value !== undefined) ? item.value : item;
             let name = (item && (item.name !== undefined || item.title !== undefined)) ? (item.name || item.title) : item;
+            const displayName = item && item.displayName !== undefined ? item.displayName : name;
             
             // 按名称在上周期数据中查找对应值
             let prevVal = undefined;
@@ -1610,7 +1611,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             const itemFilterField = item && item.filterField !== undefined ? item.filterField : filterField;
             const itemFilterValue = item && item.filterValue !== undefined ? item.filterValue : name;
-            const itemFilterLabel = item && item.filterLabel !== undefined ? item.filterLabel : name;
+            const itemFilterLabel = item && item.filterLabel !== undefined ? item.filterLabel : displayName;
             const itemValueId = item && item.id !== undefined ? item.id : undefined;
             const itemFilterExtraField = item && item.filterExtraField !== undefined ? item.filterExtraField : undefined;
             const itemFilterExtraValue = item && item.filterExtraValue !== undefined ? item.filterExtraValue : undefined;
@@ -1620,7 +1621,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const itemUnit = item && item.unit !== undefined ? item.unit : unit;
             const itemDetailScope = item && item.detailScope !== undefined ? item.detailScope : detailScope;
             const itemMetricType = item && item.metricType !== undefined ? item.metricType : null;
-            groupHtml += buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel, itemDisplayValue, itemDetailScope, itemMetricType, yoyVal, useShortFormat);
+            groupHtml += buildFlexItemCore(val, itemUnit, displayName, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel, itemDisplayValue, itemDetailScope, itemMetricType, yoyVal, useShortFormat);
         });
         groupHtml += `</div>`;
         if (groupTitle) {
@@ -1639,6 +1640,17 @@ document.addEventListener("DOMContentLoaded", function() {
             normalized.push({name: '--', value: 0});
         }
         return normalized;
+    }
+
+    function getCableRectificationDisplayName(name) {
+        return name === '光缆整改' ? '光缆整改未报备' : name;
+    }
+
+    function withCableRectificationDisplayName(items) {
+        return (items || []).map(item => {
+            if (!item || item.name !== '光缆整改') return item;
+            return {...item, displayName: getCableRectificationDisplayName(item.name)};
+        });
     }
 
     function normalizeNamedItems(items, names) {
@@ -1684,7 +1696,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const yoyReasonTop3 = yoyOverview.reason_top3 || [];
         const yoySourceCounts = yoyOverview.source_counts || [];
 
-        const reasonTop3 = normalizeTopItems(overview.reason_top3 || [], 3);
+        const reasonTop3 = withCableRectificationDisplayName(normalizeTopItems(overview.reason_top3 || [], 3));
         const reasonList = document.getElementById('cable-break-reason-top3-flex-list');
         if (reasonList) reasonList.innerHTML = buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break", yoyReasonTop3);
 
@@ -1808,10 +1820,10 @@ document.addEventListener("DOMContentLoaded", function() {
         
         const durationTotalList = document.getElementById('cable-break-duration-total-list');
 
-        const durReasonItems = normalizeTopItems((overview.reason_duration_top3 || []).map(i => ({
+        const durReasonItems = withCableRectificationDisplayName(normalizeTopItems((overview.reason_duration_top3 || []).map(i => ({
             name: i.name || i.title,
             value: Number(i.value || 0),
-        })), 3);
+        })), 3));
         const prevDurReasonItems = prevDurReasonTop3.map(i => ({...i, value: Number(i.value || 0)}));
         const yoyDurReasonItems = yoyDurReasonTop3.map(i => ({...i, value: Number(i.value || 0)}));
         
@@ -2232,7 +2244,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 trigger: 'item', 
                 formatter: params => {
                     let avg = params.data._count > 0 ? (params.data._duration / params.data._count).toFixed(2) : "0.00";
-                    return `${params.marker}${params.name}: ${params.data._count}次 (${isReasonCount ? params.percent + '%' : '-'})<br/>` +
+                    const reasonDisplayName = getCableRectificationDisplayName(params.name);
+                    return `${params.marker}${reasonDisplayName}: ${params.data._count}次 (${isReasonCount ? params.percent + '%' : '-'})<br/>` +
                            `<span style="margin-left:14px;">总历时: ${params.data._duration} 小时 (${!isReasonCount ? params.percent + '%' : '-'})</span><br/>` +
                            `<span style="margin-left:14px;">平均历时: ${avg} 小时</span>`;
                 }
@@ -2241,10 +2254,11 @@ document.addEventListener("DOMContentLoaded", function() {
                 bottom: 0,
                 left: 'center',
                 formatter: name => {
+                    const reasonDisplayName = getCableRectificationDisplayName(name);
                     const item = reasonLegendByName.get(name);
-                    if (!item) return name;
+                    if (!item) return reasonDisplayName;
                     const percent = reasonTotal > 0 ? ((item.value / reasonTotal) * 100).toFixed(2) : "0.00";
-                    return isReasonCount ? `${name}  ${item._count}次 ${percent}%` : `${name}  ${item._duration.toFixed(2)}时 ${percent}%`;
+                    return isReasonCount ? `${reasonDisplayName}  ${item._count}次 ${percent}%` : `${reasonDisplayName}  ${item._duration.toFixed(2)}时 ${percent}%`;
                 },
                 ...buildLegendTheme(chartTheme)
             },
@@ -2270,6 +2284,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
         const buildRingOption = (titleText, dataList) => {
             const total = dataList.reduce((sum, item) => sum + (item.value || 0), 0);
+            const suspendedItem = dataList.find(item => item.name === '挂起');
+            const suspended = suspendedItem ? (suspendedItem.value || 0) : 0;
+            const nonSuspended = total - suspended;
             
             const colorMap = {
                 'I类': '#ef4444',
@@ -2291,8 +2308,8 @@ document.addEventListener("DOMContentLoaded", function() {
                     }
                 },
                 title: {
-                    text: total + '起',
-                    subtext: '总数',
+                    text: `${total}/${nonSuspended}起`,
+                    subtext: '总数/不含挂起',
                     left: 'center',
                     top: '32%',
                     textStyle: {

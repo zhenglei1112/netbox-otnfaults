@@ -88,6 +88,38 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('id="cable-break-deferred-metrics"', template)
         self.assertIn('class="statistics-cable-break-summary-grid statistics-cable-break-deferred-grid"', template)
 
+    def test_statistics_scope_notes_use_separate_warning_badges(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        compact_template = _compact_html(template)
+
+        self.assertIn(
+            '<span>故障和异常事件</span> '
+            '<span class="badge bg-warning text-dark statistics-scope-badge">不含报备割接</span>',
+            compact_template,
+        )
+        self.assertIn(
+            '<span>光缆中断情况</span> '
+            '<span class="badge bg-warning text-dark statistics-scope-badge">不含报备割接</span> '
+            '<span class="badge bg-warning text-dark statistics-scope-badge">不含挂起</span>',
+            compact_template,
+        )
+        self.assertNotIn("故障和异常事件（按影响程度划分等级）- 不含报备割接", template)
+        self.assertNotIn("光缆中断情况 - 不含报备割接，不含挂起", template)
+
+    def test_statistics_scope_badges_use_compact_dimensions(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        self.assertEqual(
+            template.count('class="badge bg-warning text-dark statistics-scope-badge"'),
+            3,
+        )
+        self.assertIn("statistics_dashboard.css' %}?v=34", template)
+        self.assertIn(".statistics-scope-badge {", css)
+        self.assertIn("font-size: 0.75rem;", css)
+        self.assertIn("line-height: 1;", css)
+        self.assertIn("padding: 0.2rem 0.45rem;", css)
+
     def test_statistics_page_uses_wide_container(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
 
@@ -304,7 +336,10 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn('<div class="statistics-strip-card-footer">中断起数</div>', primary_grid)
         self.assertIn('<div class="statistics-strip-card-footer">原因TOP3</div>', primary_grid)
         self.assertIn('<div class="statistics-strip-card-footer">光缆属性</div>', deferred_grid)
-        self.assertIn("const reasonTop3 = normalizeTopItems(overview.reason_top3 || [], 3);", source)
+        self.assertIn(
+            "const reasonTop3 = withCableRectificationDisplayName(normalizeTopItems(overview.reason_top3 || [], 3));",
+            source,
+        )
         self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break", yoyReasonTop3)', source)
         self.assertIn('const sourceCounts = normalizeNamedItems(overview.source_counts || [], ["自控", "第三方", "其他/未填"]);', source)
         self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break", yoySourceCounts)', source)
@@ -793,6 +828,80 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
         self.assertIn("原因TOP3", overview_source)
         self.assertNotIn("一级原因", overview_source)
+
+    def test_reason_top3_uses_unreported_rectification_display_alias(self) -> None:
+        source = JS_PATH.read_text(encoding="utf-8")
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        flex_source = source.split("function buildFlexGroup(", 1)[1].split(
+            "function normalizeTopItems", 1
+        )[0]
+        overview_source = source.split("function renderCableBreakOverview(", 1)[1].split(
+            "function renderBareFiberInterruption", 1
+        )[0]
+        branch_source = source.split("function renderBranchCompanyOverview(", 1)[1].split(
+            "function renderBranchCompanyBarCharts", 1
+        )[0]
+
+        self.assertIn("function withCableRectificationDisplayName(items) {", source)
+        self.assertIn("item.name !== '光缆整改'", source)
+        self.assertIn("displayName: getCableRectificationDisplayName(item.name)", source)
+        self.assertIn(
+            "const displayName = item && item.displayName !== undefined ? item.displayName : name;",
+            flex_source,
+        )
+        self.assertIn(
+            "const itemFilterValue = item && item.filterValue !== undefined ? item.filterValue : name;",
+            flex_source,
+        )
+        self.assertIn(
+            "const itemFilterLabel = item && item.filterLabel !== undefined ? item.filterLabel : displayName;",
+            flex_source,
+        )
+        self.assertIn("buildFlexItemCore(val, itemUnit, displayName,", flex_source)
+        self.assertIn(
+            "withCableRectificationDisplayName(normalizeTopItems(overview.reason_top3 || [], 3))",
+            overview_source,
+        )
+        self.assertIn(
+            "withCableRectificationDisplayName(normalizeTopItems((overview.reason_duration_top3 || []).map",
+            overview_source,
+        )
+        self.assertNotIn("withCableRectificationDisplayName", branch_source)
+        self.assertIn("statistics_dashboard.js' %}?v=44", template)
+
+    def test_main_reason_chart_uses_rectification_display_alias_without_changing_filter_name(self) -> None:
+        source = JS_PATH.read_text(encoding="utf-8")
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        reason_source = source.split("// 3. 一级原因 (Pie)", 1)[1].split(
+            "function renderRingCharts", 1
+        )[0]
+
+        self.assertIn("function getCableRectificationDisplayName(name) {", source)
+        self.assertIn("return name === '光缆整改' ? '光缆整改未报备' : name;", source)
+        self.assertIn("displayName: getCableRectificationDisplayName(item.name)", source)
+        self.assertIn(
+            "const reasonDisplayName = getCableRectificationDisplayName(params.name);",
+            reason_source,
+        )
+        self.assertIn("`${params.marker}${reasonDisplayName}:", reason_source)
+        self.assertIn(
+            "const reasonDisplayName = getCableRectificationDisplayName(name);",
+            reason_source,
+        )
+        self.assertIn("return isReasonCount ? `${reasonDisplayName}", reason_source)
+        self.assertIn(
+            "const reasonData = chartsData.reason.map(item => ({name: item.name,",
+            reason_source,
+        )
+        self.assertIn(
+            "chartReason.on('click', params => handleChartClick(params, 'reason', 'cable_break', currentMetricReason));",
+            source,
+        )
+        self.assertIn(
+            "chartReason.on('legendselectchanged', params => { updateExcludedSet('reason', params.selected);",
+            source,
+        )
+        self.assertIn("statistics_dashboard.js' %}?v=44", template)
 
     def test_physical_fault_summary_always_returns_all_categories_in_required_order(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")
@@ -1894,7 +2003,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("else if (activeFilterField === 'duration_min') { filterName = '历时指标'; filterValueDisp = `>=${formatCardMetricValue(activeFilterValue)}小时`; }", source)
         self.assertIn("附加：有效历时>30分钟", source)
         self.assertIn("const itemUnit = item && item.unit !== undefined ? item.unit : unit;", source)
-        self.assertIn("buildFlexItemCore(val, itemUnit, name, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel", source)
+        self.assertIn("buildFlexItemCore(val, itemUnit, displayName, colorClass, prevVal, itemFilterField, itemFilterValue, itemFilterLabel, itemValueId, itemFilterExtraField, itemFilterExtraValue, itemInfoTitle, itemInfoLabel", source)
         self.assertIn('buildFlexGroup(reasonTop3, "起", "", "text-indigo", prevReasonTop3, "reason", "cable_break", yoyReasonTop3)', source)
         self.assertIn('buildFlexGroup(sourceCounts, "起", "", "text-indigo", prevSourceCounts, "source_group", "cable_break", yoySourceCounts)', source)
         self.assertIn('buildFlexGroup(longItems, "起", "", "text-indigo", prevLongItems, undefined, "cable_break", yoyLongItems)', source)
@@ -1923,6 +2032,43 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("exclude(fault_status=FaultStatusChoices.SUSPENDED)", source)
         self.assertIn("faults = list(get_cable_break_base_queryset(start_date, end_date))", source)
         self.assertNotIn("qs = qs_all.filter(fault_category=FaultCategoryChoices.FIBER_BREAK)", source)
+
+    def test_cable_break_scope_excludes_only_planned_rectification_faults(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        helper_source = source.split(
+            "def _exclude_planned_rectification_faults", 1
+        )[1].split("def get_cable_break_base_queryset", 1)[0]
+        base_source = source.split(
+            "def get_cable_break_base_queryset", 1
+        )[1].split("def _occurrence_period_for_fault", 1)[0]
+        details_source = source.split(
+            "class FaultStatisticsDetailsAPI", 1
+        )[1].split("class FaultRepeatsAPI", 1)[0]
+        physical_daily_source = source.split(
+            "physical_daily_faults = list(", 1
+        )[1].split("physical_daily_stats =", 1)[0]
+
+        self.assertIn("interruption_reason='cable_rectification'", helper_source)
+        self.assertIn("interruption_reason_detail='planned_reporting'", helper_source)
+        self.assertIn("return queryset.exclude(", helper_source)
+        self.assertIn("_exclude_planned_rectification_faults(", base_source)
+        self.assertIn("_exclude_planned_rectification_faults(", details_source)
+        self.assertIn("_exclude_planned_rectification_faults(", physical_daily_source)
+        self.assertGreaterEqual(
+            source.count("_exclude_planned_rectification_faults("),
+            5,
+        )
+
+    def test_cable_break_repeat_history_excludes_planned_rectification_faults(self) -> None:
+        source = VIEWS_PATH.read_text(encoding="utf-8")
+        repeat_history_source = source.split(
+            "p_past_qs =", 1
+        )[1].split("p_past_list = list(p_past_qs)", 1)[0]
+
+        self.assertIn(
+            "_exclude_planned_rectification_faults(",
+            repeat_history_source,
+        )
 
     def test_statistics_cable_break_map_routes_and_context_are_declared(self) -> None:
         stats_source = VIEWS_PATH.read_text(encoding="utf-8")
