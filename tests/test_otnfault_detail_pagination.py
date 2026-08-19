@@ -11,7 +11,7 @@ class OtnFaultDetailPaginationTestCase(unittest.TestCase):
 
         # 1. 验证是否隐藏了默认的 django_tables2 分页
         self.assertIn('.impacts-table-container ul.pagination,', template_text)
-        self.assertIn('.site-faults-table-container ul.pagination {', template_text)
+        self.assertIn('.site-faults-table-container .pagination {', template_text)
         self.assertIn('display: none !important;', template_text)
 
         # 2. 验证影响业务列表的分页组件和参数
