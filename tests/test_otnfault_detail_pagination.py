@@ -9,19 +9,28 @@ class OtnFaultDetailPaginationTestCase(unittest.TestCase):
     def test_otnfault_template_pagination_rules(self) -> None:
         template_text = TEMPLATE_PATH.read_text(encoding="utf-8-sig")
 
-        # 1. 验证是否隐藏了默认的 django_tables2 分页
-        self.assertIn('.impacts-table-container ul.pagination,', template_text)
-        self.assertIn('.site-faults-table-container .pagination {', template_text)
-        self.assertIn('display: none !important;', template_text)
+        # 1. 验证样式通过 NetBox 基础模板支持的 head 块加载
+        self.assertIn('{% block head %}', template_text)
+        self.assertIn('{{ block.super }}', template_text)
+        self.assertNotIn('{% block extra_styles %}', template_text)
 
-        # 2. 验证影响业务列表的分页组件和参数
+        # 2. 验证是否隐藏了默认的 django_tables2 分页
+        expected_pagination_css = """.impacts-table-container ul.pagination,
+  .impacts-table-container .pagination,
+  .site-faults-table-container ul.pagination,
+  .site-faults-table-container .pagination {
+    display: none !important;
+  }"""
+        self.assertIn(expected_pagination_css, template_text)
+
+        # 3. 验证影响业务列表的分页组件和参数
         self.assertIn('{% if impacts_table.page %}', template_text)
         self.assertIn('aria-label="影响业务分页"', template_text)
         self.assertIn('impacts_page={{ impacts_table.page.previous_page_number }}', template_text)
         self.assertIn('impacts_page={{ num }}', template_text)
         self.assertIn('per_page={{ per_page }}', template_text)
 
-        # 3. 验证站点历史故障的分页组件、参数和锚点
+        # 4. 验证站点历史故障的分页组件、参数和锚点
         self.assertIn('{% if site_faults_table.page %}', template_text)
         self.assertIn('aria-label="站点历史故障分页"', template_text)
         self.assertIn('site_page={{ site_faults_table.page.previous_page_number }}', template_text)

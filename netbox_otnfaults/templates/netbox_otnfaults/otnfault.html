@@ -6,7 +6,8 @@
 {% load helpers %}
 {% load otnfault_display %}
 
-{% block extra_styles %}
+{% block head %}
+{{ block.super }}
 <style>
   .attr-table {
     table-layout: fixed;
@@ -38,6 +39,8 @@
 
   /* 隐藏django_tables2默认分页 */
   .impacts-table-container ul.pagination,
+  .impacts-table-container .pagination,
+  .site-faults-table-container ul.pagination,
   .site-faults-table-container .pagination {
     display: none !important;
   }
