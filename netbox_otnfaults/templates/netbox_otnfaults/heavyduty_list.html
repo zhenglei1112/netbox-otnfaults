@@ -7,7 +7,10 @@
   <style>
     /* 隐藏django_tables2默认分页 */
     .card > .card-footer:not(.custom-pagination),
-    .table-container ul.pagination, .table-responsive ul.pagination {
+    .table-container ul.pagination,
+    .table-container .pagination,
+    .table-responsive ul.pagination,
+    .table-responsive .pagination {
       display: none !important;
     }
   </style>

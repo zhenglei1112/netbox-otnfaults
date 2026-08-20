@@ -4,10 +4,12 @@
 {% load render_table from django_tables2 %}
 {% load otnfault_display %}
 
-{% block extra_styles %}
+{% block head %}
+{{ block.super }}
 <style>
   /* 隐藏django_tables2默认分页 */
-  .impacts-table-container ul.pagination {
+  .impacts-table-container ul.pagination,
+  .impacts-table-container .pagination {
     display: none !important;
   }
 </style>

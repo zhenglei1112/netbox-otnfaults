@@ -9,8 +9,12 @@ class CutoverTaskDetailPaginationTestCase(unittest.TestCase):
     def test_cutover_template_pagination_rules(self) -> None:
         template_text = TEMPLATE_PATH.read_text(encoding="utf-8-sig")
 
-        # 1. 验证是否隐藏了默认的分页
-        self.assertIn('.impacts-table-container ul.pagination {', template_text)
+        # 1. 验证样式通过 NetBox 支持的 head 块加载并隐藏默认分页
+        self.assertIn('{% block head %}', template_text)
+        self.assertIn('{{ block.super }}', template_text)
+        self.assertNotIn('{% block extra_styles %}', template_text)
+        self.assertIn('.impacts-table-container ul.pagination,', template_text)
+        self.assertIn('.impacts-table-container .pagination {', template_text)
         self.assertIn('display: none !important;', template_text)
 
         # 2. 验证影响业务列表的分页组件和参数

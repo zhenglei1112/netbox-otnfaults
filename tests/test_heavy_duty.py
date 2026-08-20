@@ -59,8 +59,14 @@ class HeavyDutySourceCodeTestCase(unittest.TestCase):
         self.assertIn("'bare_fiber_services','actions'", normalized_source)
 
         # 校验自定义分页样式隐藏逻辑 (规范 6.3)
-        self.assertIn(".table-container ul.pagination, .table-responsive ul.pagination {", _read(HEAVY_DUTY_LIST_HTML_PATH))
-        self.assertIn(".sites-table-container ul.pagination,", _read(HEAVY_DUTY_DETAIL_HTML_PATH))
+        list_template = _read(HEAVY_DUTY_LIST_HTML_PATH)
+        detail_template = _read(HEAVY_DUTY_DETAIL_HTML_PATH)
+        self.assertIn(".table-container ul.pagination,", list_template)
+        self.assertIn(".table-container .pagination,", list_template)
+        self.assertIn(".table-responsive ul.pagination,", list_template)
+        self.assertIn(".table-responsive .pagination {", list_template)
+        self.assertIn(".sites-table-container ul.pagination,", detail_template)
+        self.assertIn(".sites-table-container .pagination,", detail_template)
 
     def test_forms_and_filtersets(self) -> None:
         forms_source = _read(FORMS_PATH)

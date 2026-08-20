@@ -29,7 +29,9 @@
 
   /* 隐藏django_tables2默认分页 */
   .paths-table-container ul.pagination,
-  .sites-table-container ul.pagination {
+  .paths-table-container .pagination,
+  .sites-table-container ul.pagination,
+  .sites-table-container .pagination {
     display: none !important;
   }
 </style>
@@ -132,7 +134,6 @@
           </ul>
         </nav>
         <span class="text-muted small">显示 {{ paths_table.page.start_index }}-{{ paths_table.page.end_index }} 共 {{ paths_table.paginator.count }}</span>
-        >
         <div class="dropdown">
           <button
             class="btn btn-sm btn-outline-secondary dropdown-toggle"
