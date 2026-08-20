@@ -40,6 +40,23 @@ document.addEventListener("DOMContentLoaded", function() {
     const cableBreakDeferredMetrics = document.getElementById('cable-break-deferred-metrics');
     const statisticsPage = document.querySelector('.page-statistics');
     const btnStatisticsFullscreen = document.getElementById('statistics-fullscreen-btn');
+    const statisticsMetricHelpTabMap = {
+        'tab-physical-btn': 'statistics-help-tab-physical',
+        'tab-service-btn': 'statistics-help-tab-bare-fiber',
+        'tab-circuit-service-btn': 'statistics-help-tab-circuit',
+        'tab-branch-company-btn': 'statistics-help-tab-branch-company',
+        'tab-branch-performance-btn': 'statistics-help-tab-branch-performance',
+    };
+    const statisticsMetricHelpModal = document.getElementById('statisticsMetricHelpModal');
+    if (statisticsMetricHelpModal) {
+        statisticsMetricHelpModal.addEventListener('show.bs.modal', () => {
+            const activeMainTab = document.querySelector('#statisticsTab .nav-link.active');
+            const helpTabId = statisticsMetricHelpTabMap[activeMainTab && activeMainTab.id]
+                || 'statistics-help-tab-physical';
+            const helpTab = document.getElementById(helpTabId);
+            if (helpTab) bootstrap.Tab.getOrCreateInstance(helpTab).show();
+        });
+    }
     
     function showGlobalLoading() {
         const loading = document.getElementById('statistics-global-loading');

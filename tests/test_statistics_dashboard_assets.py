@@ -26,8 +26,8 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
     def test_statistics_dashboard_loads_bumped_theme_assets(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("statistics_dashboard.css' %}?v=33", template)
-        self.assertIn("statistics_dashboard.js' %}?v=41", template)
+        self.assertIn("statistics_dashboard.css' %}?v=34", template)
+        self.assertIn("statistics_dashboard.js' %}?v=45", template)
 
     def test_statistics_dashboard_css_covers_light_and_dark_theme_surfaces(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -194,13 +194,25 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn('id="statisticsMetricHelpModal"', template)
         self.assertIn('class="modal-dialog modal-xl modal-dialog-scrollable"', template)
         self.assertIn("指标说明", template)
-        self.assertIn("统计周期", template)
-        self.assertIn("不纳入总体故障总数", template)
-        self.assertIn("挂起的故障显示未关闭的挂起故障数量，括号内为系统内总挂起故障数量，不随当前统计周期变化", template)
-        self.assertIn("分类统计仅展示起数", template)
+        help_tab_ids = [
+            'statistics-help-tab-physical',
+            'statistics-help-tab-bare-fiber',
+            'statistics-help-tab-circuit',
+            'statistics-help-tab-branch-company',
+            'statistics-help-tab-branch-performance',
+        ]
+        for help_tab_id in help_tab_ids:
+            self.assertIn(f'id="{help_tab_id}"', template)
+        self.assertEqual(
+            [template.index(f'id="{help_tab_id}"') for help_tab_id in help_tab_ids],
+            sorted(template.index(f'id="{help_tab_id}"') for help_tab_id in help_tab_ids),
+        )
+        self.assertIn("不含计划报备整改", template)
+        self.assertIn("上须阈值", template)
+        self.assertIn("所选省份范围内的历史挂起故障总数", template)
         self.assertIn("每日中断图固定展示当前自然年内未挂起光缆中断", template)
         self.assertIn("中断时长箱线图跟随当前统计周期", template)
-        self.assertIn("光缆中断统计仅包含故障类型为“光缆中断”且未挂起的物理故障", template)
+        self.assertIn("光缆中断统计仅包含故障类型为“光缆中断”、未挂起且不属于计划报备整改的物理故障", template)
         self.assertIn("长时故障", template)
         self.assertIn("历时大于 0.5 小时", template)
         self.assertIn("P50修复时长", template)
@@ -210,22 +222,38 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn("同一 A 端站点与任一 Z 端站点", template)
         self.assertIn("光缆属性指标卡按汇总口径展示", template)
         self.assertIn("光缆属性分布图按原始资源属性展示", template)
-        self.assertIn("业务卡片展示年度累计、本期间、运行月历和近三个月中断日历", template)
+        self.assertIn("故障业务和全部业务", template)
         self.assertIn("年度累计按所选年份统计 SLA、中断时长和中断起数", template)
         self.assertIn("运行月历按所选年份逐月展示故障数与故障时长", template)
-        self.assertIn("裸纤业务和电路业务均仅统计影响为“中断”的故障影响记录", template)
         self.assertIn("裸纤业务不再限定故障类型为“光缆中断”", template)
-        self.assertIn("电路业务同样不再限定故障类型为“光缆中断”", template)
+        self.assertIn("电路业务不限定物理故障类型为“光缆中断”", template)
         self.assertIn("本期间按故障分类汇总故障总数和故障时长，分类明细仅显示非零项", template)
         self.assertIn("SLA 按两位小数向下截取展示", template)
         self.assertIn("运行月历的 SLA 单元格只显示数字，不显示百分号", template)
-        self.assertIn("中断日历默认展示近三个月（子公司绩效考核卡片默认展示近六个月），可展开查看所选年份截至当前月份", template)
+        self.assertIn("子公司范围固定为浙江、山东、内蒙、陕西、四川、江西", template)
+        self.assertIn("千公里和原始值之间切换", template)
+        self.assertIn("年度裸纤业务、未挂起光缆中断和供电故障", template)
         self.assertIn("SLA", template)
         self.assertIn("合并重叠不可用时段", template)
+        self.assertNotIn("考核评分（100分制）", template)
+        self.assertNotIn("频次扣分", template)
+        self.assertNotIn("I类和II类（阻断故障）", template)
         self.assertNotIn("本期间按故障分类全量列示故障总数和故障时长", template)
         self.assertNotIn("平均时长为累计时长除以影响次数", template)
         self.assertNotIn("业务长时故障指单次业务影响历时大于等于 6 小时", template)
         self.assertNotIn("业务重复故障指同一业务相邻两次影响时间间隔不超过 60 天", template)
+
+    def test_metric_help_defaults_to_active_dashboard_tab(self) -> None:
+        script = JS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("const statisticsMetricHelpTabMap", script)
+        self.assertIn("'tab-physical-btn': 'statistics-help-tab-physical'", script)
+        self.assertIn("'tab-service-btn': 'statistics-help-tab-bare-fiber'", script)
+        self.assertIn("'tab-circuit-service-btn': 'statistics-help-tab-circuit'", script)
+        self.assertIn("'tab-branch-company-btn': 'statistics-help-tab-branch-company'", script)
+        self.assertIn("'tab-branch-performance-btn': 'statistics-help-tab-branch-performance'", script)
+        self.assertIn("statisticsMetricHelpModal.addEventListener('show.bs.modal'", script)
+        self.assertIn("bootstrap.Tab.getOrCreateInstance(helpTab).show()", script)
 
     def test_statistics_metric_help_modal_uses_compact_card_layout(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -233,7 +261,7 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
 
         self.assertIn("statistics-metric-help-modal", template)
         self.assertIn("statistics-metric-help-grid", template)
-        self.assertEqual(template.count('class="statistics-metric-help-card"'), 6)
+        self.assertEqual(template.count('class="statistics-metric-help-card"'), 18)
         self.assertIn("statistics-metric-help-card-title", template)
         self.assertIn("statistics-metric-help-footer", template)
         self.assertIn("statistics-metric-help-confirm", template)

@@ -187,7 +187,7 @@ class StatisticsImpactLevelTestCase(unittest.TestCase):
         self.assertIn("text: `${total}/${nonSuspended}起`,", ring_source)
         self.assertIn("subtext: '总数/不含挂起',", ring_source)
         self.assertNotIn("text: total + '起',", ring_source)
-        self.assertIn("statistics_dashboard.js' %}?v=44", html_source)
+        self.assertIn("statistics_dashboard.js' %}?v=45", html_source)
 
 if __name__ == "__main__":
     unittest.main()

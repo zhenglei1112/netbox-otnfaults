@@ -1224,111 +1224,133 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
             </div>
             <div class="modal-body">
-                <div class="statistics-metric-help-grid">
-                    <section class="statistics-metric-help-card">
-                        <h6 class="statistics-metric-help-card-title">统计周期与总体情况</h6>
-                        <div class="statistics-metric-help-card-body">
-                            <ul class="mb-0">
-                                <li>统计周期由页面右上角的年、半年、季度、月、周和日期共同决定；总体情况、光缆中断概览、下钻明细和业务故障按对应发生/中断时间落入周期统计。</li>
-                                <li>故障总数统计物理故障中除“光缆劣化”“光缆抖动”以外的故障；这两类展示在“其他”卡片中，不纳入总体故障总数。</li>
-                                <li>挂起的故障显示未关闭的挂起故障数量，括号内为系统内总挂起故障数量，不随当前统计周期变化。</li>
-                                <li>分类统计仅展示起数，包含光缆中断、空调故障、供电故障、设备故障。</li>
-                                <li>每日中断图固定展示当前自然年内未挂起光缆中断，可在中断数量和中断时长之间切换，并支持按天/按周查看。</li>
-                                <li>中断时长箱线图跟随当前统计周期，展示每日光缆中断历时的最小值、Q1、中位数、Q3、最大值；“滤除短时”表示仅保留历时大于 0.5
-                                    小时的样本，“滤除整改”表示排除一级原因为“光缆整改”的样本。</li>
-                            </ul>
+                <ul class="nav nav-tabs statistics-metric-help-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="statistics-help-tab-physical" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-physical" type="button" role="tab" aria-controls="statistics-help-pane-physical" aria-selected="true">物理故障</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="statistics-help-tab-bare-fiber" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-bare-fiber" type="button" role="tab" aria-controls="statistics-help-pane-bare-fiber" aria-selected="false">裸纤业务故障</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="statistics-help-tab-circuit" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-circuit" type="button" role="tab" aria-controls="statistics-help-pane-circuit" aria-selected="false">电路业务故障</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="statistics-help-tab-branch-company" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-branch-company" type="button" role="tab" aria-controls="statistics-help-pane-branch-company" aria-selected="false">子公司（省份）故障</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="statistics-help-tab-branch-performance" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-branch-performance" type="button" role="tab" aria-controls="statistics-help-pane-branch-performance" aria-selected="false">子公司绩效</button></li>
+                </ul>
+                <div class="tab-content statistics-metric-help-tab-content">
+                    <div class="tab-pane fade show active" id="statistics-help-pane-physical" role="tabpanel" aria-labelledby="statistics-help-tab-physical" tabindex="0">
+                        <div class="statistics-metric-help-grid">
+                            <section class="statistics-metric-help-card">
+                                <h6 class="statistics-metric-help-card-title">筛选范围与业务中断概览</h6>
+                                <div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                    <li>年、半年、季度、月、周和日期决定当前统计周期；省份多选只作用于物理故障页及其明细。</li>
+                                    <li>裸纤业务中断概览按业务中断时间落入当前周期统计，只计业务影响为“中断”的裸纤影响记录，并排除挂起故障及已协调通过的计划报备整改。</li>
+                                    <li>总次数和总历时按影响记录累计；“去除同源”按物理故障去重，同一故障的历时取其裸纤影响记录中的最大值。</li>
+                                </ul></div>
+                            </section>
+                            <section class="statistics-metric-help-card">
+                                <h6 class="statistics-metric-help-card-title">故障和异常事件等级</h6>
+                                <div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                    <li>等级统计不含由割接任务自动生成的故障，也不含计划报备整改。</li>
+                                    <li><strong>总次数：</strong>统计当期非割接的故障和异常事件，包括挂起记录。</li>
+                                    <li><strong>I类：</strong>非挂起的严重故障，包括造成裸纤中断或重要电路中断的光缆中断、导致设备脱管的供电故障，以及标记为 I 类的空调或设备故障。</li>
+                                    <li><strong>II类：</strong>非挂起且不满足 I 类条件的光缆中断；<strong>III类：</strong>其余非挂起的空调、供电和设备故障；<strong>IV类：</strong>非挂起的光缆抖动与光缆劣化；<strong>V类：</strong>挂起故障。</li>
+                                    <li><strong>割接实施：</strong>割接任务实际开始时间落入当前周期的任务数。</li>
+                                </ul></div>
+                            </section>
+                            <section class="statistics-metric-help-card">
+                                <h6 class="statistics-metric-help-card-title">光缆中断指标</h6>
+                                <div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                    <li>光缆中断统计仅包含故障类型为“光缆中断”、未挂起且不属于计划报备整改的物理故障。</li>
+                                    <li>中断历时从故障发生时间计算到恢复时间；未恢复故障按当前时间计算。长时故障为历时大于等于 6 小时。</li>
+                                    <li>有效平均只统计历时大于 0.5 小时的记录；日间为 06:00 至 18:00，夜间为其他时段。施工类按一级原因为“施工”统计。</li>
+                                    <li>P50修复时长、P90修复时长分别为当前周期历时的 50% 和 90% 分位数；超时率为历时大于等于 4 小时的起数除以光缆中断总起数。</li>
+                                    <li>光缆属性指标卡按汇总口径展示：自建、协调归为“自控”，租赁归为“第三方”，其他值归为“其他/未填”。</li>
+                                </ul></div>
+                            </section>
+                            <section class="statistics-metric-help-card">
+                                <h6 class="statistics-metric-help-card-title">图表、箱线图与明细</h6>
+                                <div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                    <li>每日中断图固定展示当前自然年内未挂起光缆中断，可在中断数量和中断时长之间切换，并支持按天/按周查看。</li>
+                                    <li>省份、主要原因、光缆属性和历时频数图基于当前周期光缆中断聚合；光缆属性分布图按原始资源属性展示自建、协调、租赁和未填写。</li>
+                                    <li>中断时长箱线图跟随当前统计周期，依次展示最小值、Q1、中位数、Q3和上须阈值（Q3 + 1.5 × IQR），超过上须阈值的样本作为异常点单独展示。“滤除短时”仅保留历时大于 0.5 小时，“滤除整改”排除一级原因为“光缆整改”的样本。</li>
+                                    <li>重复故障指当前光纤类故障发生前 60 天内，存在同一 A 端站点与任一 Z 端站点相同的历史光纤类故障。</li>
+                                    <li>点击指标或图表会过滤下方明细；挂起指标括号内为所选省份范围内的历史挂起故障总数，未选择省份时为全系统历史总数。</li>
+                                </ul></div>
+                            </section>
                         </div>
-                    </section>
-                    <section class="statistics-metric-help-card">
-                        <h6 class="statistics-metric-help-card-title">故障和异常事件等级说明</h6>
-                        <div class="statistics-metric-help-card-body">
-                            <ul class="mb-0">
-                                <li><strong>总次数：</strong>统计当期非割接故障和异常事件总数，包括光缆中断、空调/供电/设备故障、光缆抖动/劣化以及挂起的故障（不含由割接自动生成的故障）。</li>
-                                <li><strong>I类故障（严重故障）：</strong>非割接、非挂起且满足以下条件之一：
-                                    <ul>
-                                        <li>光缆中断导致了裸纤业务中断，或导致了重要电路业务（is_important=True）中断；</li>
-                                        <li>供电故障导致设备脱管；</li>
-                                        <li>空调故障引发网络设备不能正常工作（ac_fault_is_class_i=True）；</li>
-                                        <li>设备故障产生实际影响且非部件冗余（device_fault_is_class_i=True）。</li>
-                                    </ul>
-                                </li>
-                                <li><strong>II类故障（一般故障）：</strong>非割接、非挂起，且不满足I类故障条件的光缆中断故障。</li>
-                                <li><strong>I类和II类（阻断故障）：</strong>I类故障和II类故障起数的总和。</li>
-                                <li><strong>III类事件（重要隐患）：</strong>非割接、非挂起，且不属于I类故障的空调故障、未导致脱管的供电故障、未产生实际影响的设备故障。</li>
-                                <li><strong>IV类事件（一般隐患）：</strong>非割接、非挂起的“光缆抖动”和“光缆劣化”异常事件。</li>
-                                <li><strong>V类（挂起的故障）：</strong>当期处于“挂起”状态（is_suspended=True 或 状态为挂起）的非割接故障。</li>
-                                <li><strong>割接实施：</strong>当期已开始实施的割接任务次数，以割接任务的实际开始时间（started_at）落入当期为准。</li>
-                                <li><strong>多线路中断规则：</strong>多条物理线路同时中断引发同一重要业务中断时，按物理故障记录逐条计入I类。</li>
-                            </ul>
+                    </div>
+                    <div class="tab-pane fade" id="statistics-help-pane-bare-fiber" role="tabpanel" aria-labelledby="statistics-help-tab-bare-fiber" tabindex="0">
+                        <div class="statistics-metric-help-grid">
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">业务范围与卡片</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>仅统计业务影响为“中断”的裸纤业务影响记录，按业务中断时间落入当前周期；裸纤业务不再限定故障类型为“光缆中断”。</li>
+                                <li>“故障业务和全部业务”用于切换仅展示当前周期发生中断的裸纤业务，或展示全部已配置裸纤业务。</li>
+                                <li>业务按所属租户组分组；点击业务卡片会过滤下方裸纤业务故障明细。</li>
+                            </ul></div></section>
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">本期间</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>本期间按故障分类汇总故障总数和故障时长，分类明细仅显示非零项。</li>
+                                <li>故障时长从业务中断时间计算到业务恢复时间，未恢复影响按当前时间计算；本期间查询不额外排除挂起物理故障。</li>
+                            </ul></div></section>
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">年度累计与运行月历</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>年度累计按所选年份统计 SLA、中断时长和中断起数；业务中断开始时间用于判定所属年份，并排除挂起物理故障。</li>
+                                <li>SLA 合并重叠不可用时段后，按“(年度小时数 - 不可用小时数) / 年度小时数”计算，SLA 按两位小数向下截取展示。</li>
+                                <li>运行月历按所选年份逐月展示故障数与故障时长，并展示 SLA；运行月历的 SLA 单元格只显示数字，不显示百分号。</li>
+                            </ul></div></section>
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">中断日历</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>中断日历默认展示截至所选月份的近三个月中断次数，可展开查看所选年份一月至所选月份。</li>
+                                <li>日历按业务中断发生日期计数，并排除挂起物理故障。</li>
+                            </ul></div></section>
                         </div>
-                    </section>
-                    <section class="statistics-metric-help-card">
-                        <h6 class="statistics-metric-help-card-title">光缆中断情况</h6>
-                        <div class="statistics-metric-help-card-body">
-                            <ul class="mb-0">
-                                <li>光缆中断统计仅包含故障类型为“光缆中断”且未挂起的物理故障。</li>
-                                <li>中断历时从故障发生时间计算到故障恢复时间；未恢复故障按当前时间计算。</li>
-                                <li>长时故障指历时大于等于 6 小时的光缆中断，并按 6-8 小时、8-10 小时、10-12 小时、12 小时以上分桶统计。</li>
-                                <li>有效平均历时只统计历时大于 0.5 小时的光缆中断；日间为 06:00 至 18:00，夜间为其他时段。</li>
-                                <li>P50修复时长为当前周期光缆中断历时的中位数；P90修复时长为 90 分位修复时长，用于观察较长尾部故障。</li>
-                                <li>超时率按历时大于等于 4 小时的光缆中断起数 / 光缆中断总起数计算。</li>
-                                <li>施工类平均历时按一级原因为“施工”统计，非施工类为其他一级原因。</li>
-                                <li>光缆属性指标卡按汇总口径展示：自建、协调归为“自控”，租赁归为“第三方”，未填或其他取值归为“其他/未填”。</li>
-                            </ul>
+                    </div>
+                    <div class="tab-pane fade" id="statistics-help-pane-circuit" role="tabpanel" aria-labelledby="statistics-help-tab-circuit" tabindex="0">
+                        <div class="statistics-metric-help-grid">
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">业务范围与卡片</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>仅统计业务影响为“中断”的电路业务影响记录，按业务中断时间落入当前周期；电路业务不限定物理故障类型为“光缆中断”。</li>
+                                <li>业务按业务门类分组；页面展示当前周期发生中断的电路业务，点击业务卡片会过滤下方电路业务故障明细。</li>
+                            </ul></div></section>
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">本期间</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>本期间按故障分类汇总故障总数和故障时长，分类明细仅显示非零项。</li>
+                                <li>故障时长从业务中断时间计算到业务恢复时间，未恢复影响按当前时间计算；本期间查询不额外排除挂起物理故障。</li>
+                            </ul></div></section>
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">年度累计与运行月历</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>年度累计按所选年份统计 SLA、中断时长和中断起数；业务中断开始时间用于判定所属年份，并排除挂起物理故障。</li>
+                                <li>SLA 合并重叠不可用时段后计算可用率，并按两位小数向下截取展示；运行月历逐月展示故障数、故障时长和不带百分号的 SLA 数字。</li>
+                            </ul></div></section>
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">中断日历</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>中断日历默认展示截至所选月份的近三个月中断次数，可展开查看所选年份一月至所选月份。</li>
+                                <li>日历按业务中断发生日期计数，并排除挂起物理故障。</li>
+                            </ul></div></section>
                         </div>
-                    </section>
-                    <section class="statistics-metric-help-card">
-                        <h6 class="statistics-metric-help-card-title">图表、下钻与重复故障</h6>
-                        <div class="statistics-metric-help-card-body">
-                            <ul class="mb-0">
-                                <li>省份、主要原因、光缆属性、历时频数图均基于当前周期内的光缆中断明细聚合。</li>
-                                <li>光缆属性分布图按原始资源属性展示自建光缆、协调资源、租赁纤芯和未填写。</li>
-                                <li>点击图表或指标卡会过滤下方故障明细，并同步显示过滤后的局部起数、累计历时、平均历时、长时故障和重复故障。</li>
-                                <li>重复故障判断范围为光纤类故障；当前故障发生前 60 天内，如存在同一 A 端站点与任一 Z 端站点相同的历史故障，则当前故障计为重复。</li>
-                                <li>图例取消选中会作为排除条件参与明细表过滤；“清除图表过滤”会清空下钻和图例排除条件。</li>
-                            </ul>
+                    </div>
+                    <div class="tab-pane fade" id="statistics-help-pane-branch-company" role="tabpanel" aria-labelledby="statistics-help-tab-branch-company" tabindex="0">
+                        <div class="statistics-metric-help-grid">
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">统计范围</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>子公司范围固定为浙江、山东、内蒙、陕西、四川、江西，并排除系统配置的指定维护单位故障。</li>
+                                <li>裸纤业务中断、光缆中断及下方明细均使用同一子公司归属和维护单位排除范围。</li>
+                                <li>光缆中断指标不含挂起及计划报备整改，历时、长时、有效平均和重复故障规则与物理故障页一致。</li>
+                            </ul></div></section>
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">省份图表</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>故障起数/历时柱图按六省汇总，可在原始值与千公里归一化之间切换；千公里值按“原始值 × 1000 / 光缆公里数”计算。</li>
+                                <li>中断时长箱线图展示各省光缆中断历时分布；有效平均历时只统计历时大于 0.5 小时的记录。</li>
+                                <li>点击省份图表或指标会过滤子公司故障明细，清除过滤后恢复全部六省范围。</li>
+                            </ul></div></section>
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">周/月趋势</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>周趋势和月趋势固定展示所选年份内六省的光缆中断起数与历时。</li>
+                                <li>趋势图可在千公里和原始值之间切换；有效时长为历时大于 0.5 小时记录的累计历时。</li>
+                            </ul></div></section>
                         </div>
-                    </section>
-                    <section class="statistics-metric-help-card">
-                        <h6 class="statistics-metric-help-card-title">业务故障统计</h6>
-                        <div class="statistics-metric-help-card-body">
-                            <ul class="mb-0">
-                                <li>裸纤业务故障和电路业务故障基于故障影响记录统计，按业务中断时间落入当前周期筛选；裸纤业务和电路业务均仅统计影响为“中断”的故障影响记录。</li>
-                                <li>裸纤业务不再限定故障类型为“光缆中断”，会纳入所有物理故障类型产生的中断影响；电路业务同样不再限定故障类型为“光缆中断”。</li>
-                                <li>业务卡片展示年度累计、本期间、运行月历和近三个月中断日历，并按业务所属租户组或业务门类分组。</li>
-                                <li>本期间按故障分类汇总故障总数和故障时长，分类明细仅显示非零项；业务累计时长从业务中断时间计算到业务恢复时间，未恢复影响按当前时间计算。</li>
-                                <li>年度累计按所选年份统计 SLA、中断时长和中断起数；SLA 先合并重叠不可用时段，再按“(年度小时数 - 不可用小时数) / 年度小时数”得到可用率，SLA 按两位小数向下截取展示。</li>
-                                <li>运行月历按所选年份逐月展示故障数与故障时长；运行月历的 SLA 单元格只显示数字，不显示百分号。</li>
-                                <li>中断日历默认展示近三个月（子公司绩效考核卡片默认展示近六个月），可展开查看所选年份截至当前月份的业务中断次数。</li>
-                            </ul>
+                    </div>
+                    <div class="tab-pane fade" id="statistics-help-pane-branch-performance" role="tabpanel" aria-labelledby="statistics-help-tab-branch-performance" tabindex="0">
+                        <div class="statistics-metric-help-grid">
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">年度累计</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>每张子公司卡片展示所选年份的年度裸纤业务、未挂起光缆中断和供电故障统计。</li>
+                                <li>裸纤业务展示影响记录总次数、按物理故障去除同源后的次数及对应历时；计划报备整改在协调通过后不计入。</li>
+                                <li>光缆中断展示总次数、千公里次数、总历时、千公里历时、有效平均历时、长时和重复故障；供电故障展示总次数与设备脱管次数。</li>
+                            </ul></div></section>
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">运行月历</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>运行月历按所选年份逐月展示各子公司的光缆中断起数和中断历时。</li>
+                                <li>顶部切换可在千公里和原始值之间切换运行月历指标，不改变年度累计卡片。</li>
+                            </ul></div></section>
+                            <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">中断日历</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
+                                <li>中断日历默认展示截至所选月份的近三个月光缆中断次数，可展开查看所选年份一月至所选月份。</li>
+                                <li>日历按光缆中断发生日期计数，并排除挂起及计划报备整改。</li>
+                            </ul></div></section>
                         </div>
-                    </section>
-                    <section class="statistics-metric-help-card">
-                        <h6 class="statistics-metric-help-card-title">子公司绩效与扣分规则</h6>
-                        <div class="statistics-metric-help-card-body">
-                            <ul class="mb-0">
-                                <li><strong>考核评分（100分制）：</strong>总分 100 分，按以下指标进行扣分计算，各扣分项均设有上限：
-                                    <ul>
-                                        <li><strong>频次扣分：</strong>千公里频次 * 1.8，扣分上限为 30.0 分。</li>
-                                        <li><strong>历时扣分：</strong>千公里历时 * 0.4，扣分上限为 25.0 分。</li>
-                                        <li><strong>有效平均扣分：</strong>有效平均历时超出 4.0 小时的部分 * 3.0，扣分上限为 15.0 分。</li>
-                                        <li><strong>长时/超时/未恢复扣分：</strong>长时故障数 * 2.0 + 超时故障数 * 2.0 + 未恢复故障数 * 3.0，累计扣分上限为 15.0 分。</li>
-                                        <li><strong>重复扣分：</strong>重复故障起数 * 2.0，扣分上限为 10.0 分。</li>
-                                        <li><strong>趋势扣分：</strong>目前未启用，上限为 5.0 分。</li>
-                                    </ul>
-                                </li>
-                                <li><strong>千公里归一化：</strong>对故障频次和故障历时按子公司维护的光缆千公里数进行折算。计算公式为：<code>原始值 * 1000 / 光缆公里数</code>。</li>
-                                <li><strong>计入责任口径规则：</strong>
-                                    <ul>
-                                        <li><strong>仅全量计入（weight=0.0）：</strong>自然灾害或计划报备故障，不计入责任考核评分。</li>
-                                        <li><strong>降权计入（weight=0.5）：</strong>租赁资源、第三方施工或交通事故故障，按 50% 权重折算计入责任考核评分。</li>
-                                        <li><strong>责任计入（weight=1.0）：</strong>其他非降权/免责故障，按 100% 权重全量计入责任考核评分。</li>
-                                    </ul>
-                                </li>
-                                <li><strong>评级标准：</strong>根据绩效得分划分为四个等级：优秀（得分 &ge; 90）、良好（80 &le; 得分 &lt; 90）、关注（70 &le; 得分 &lt; 80）、待整改（得分 &lt; 70）。</li>
-                            </ul>
-                        </div>
-                    </section>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer statistics-metric-help-footer">
@@ -1424,5 +1446,5 @@
     window.FAULT_REPEATS_API = "{% url 'plugins:netbox_otnfaults:statistics_fault_repeats' %}";
     window.SERVICE_STATISTICS_DETAILS_API = "{% url 'plugins:netbox_otnfaults:statistics_service_details' %}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=44"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=45"></script>
 {% endblock %}
