@@ -5,7 +5,7 @@
 {% block title %}故障统计{% endblock %}
 
 {% block content %}
-<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=34" rel="stylesheet">
+<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=35" rel="stylesheet">
 <style>
   .table-container ul.pagination { display: none !important; }
 
@@ -26,14 +26,15 @@
       border-radius: 6px;
       padding: 4px;
       cursor: pointer;
-      transition: transform 0.2s, opacity 0.2s;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: inset 0 0 0 2px transparent, 0 2px 4px rgba(0,0,0,0.08);
       position: relative;
   }
-  .impact-level-block-item:hover {
-      transform: translateY(-2px);
-      opacity: 0.95;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  .impact-level-block-item:hover,
+  .impact-level-block-item:focus-visible {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: inset 0 0 0 2px #ffffff, 0 8px 18px rgba(15, 23, 42, 0.32);
+      z-index: 2;
   }
   .impact-level-block-item .block-value-wrapper {
       display: flex;
