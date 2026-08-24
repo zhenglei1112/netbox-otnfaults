@@ -39,7 +39,7 @@ class StatisticsImpactLevelHoverTestCase(unittest.TestCase):
     def test_statistics_stylesheet_cache_version_is_incremented(self) -> None:
         source = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("statistics_dashboard.css' %}?v=35", source)
+        self.assertIn("statistics_dashboard.css' %}?v=36", source)
 
 
 if __name__ == "__main__":

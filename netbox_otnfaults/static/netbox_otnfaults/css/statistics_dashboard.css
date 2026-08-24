@@ -2086,6 +2086,10 @@ body.modal-open {
     background: var(--statistics-surface, #ffffff);
 }
 
+.statistics-metric-help-tabs .nav-link.active {
+    border-bottom-color: var(--statistics-surface, #ffffff) !important;
+}
+
 .statistics-metric-help-grid {
     column-count: 2;
     column-gap: 1.2rem;

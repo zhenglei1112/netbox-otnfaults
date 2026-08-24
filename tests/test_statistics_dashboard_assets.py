@@ -26,8 +26,8 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
     def test_statistics_dashboard_loads_bumped_theme_assets(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("statistics_dashboard.css' %}?v=35", template)
-        self.assertIn("statistics_dashboard.js' %}?v=45", template)
+        self.assertIn("statistics_dashboard.css' %}?v=36", template)
+        self.assertIn("statistics_dashboard.js' %}?v=46", template)
 
     def test_statistics_dashboard_css_covers_light_and_dark_theme_surfaces(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
@@ -247,13 +247,16 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         script = JS_PATH.read_text(encoding="utf-8")
 
         self.assertIn("const statisticsMetricHelpTabMap", script)
+        self.assertIn("const statisticsMetricHelpButton = document.getElementById('statistics-metric-help-btn');", script)
         self.assertIn("'tab-physical-btn': 'statistics-help-tab-physical'", script)
         self.assertIn("'tab-service-btn': 'statistics-help-tab-bare-fiber'", script)
         self.assertIn("'tab-circuit-service-btn': 'statistics-help-tab-circuit'", script)
         self.assertIn("'tab-branch-company-btn': 'statistics-help-tab-branch-company'", script)
         self.assertIn("'tab-branch-performance-btn': 'statistics-help-tab-branch-performance'", script)
-        self.assertIn("statisticsMetricHelpModal.addEventListener('show.bs.modal'", script)
-        self.assertIn("bootstrap.Tab.getOrCreateInstance(helpTab).show()", script)
+        self.assertIn("statisticsMetricHelpButton.addEventListener('click'", script)
+        self.assertIn("const activeMainTab = document.querySelector('#statisticsTab .nav-link.active');", script)
+        self.assertIn("if (helpTab) helpTab.click();", script)
+        self.assertNotIn("bootstrap.Tab.getOrCreateInstance(helpTab).show()", script)
 
     def test_statistics_metric_help_modal_uses_compact_card_layout(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -274,6 +277,17 @@ class StatisticsDashboardAssetsTestCase(unittest.TestCase):
         self.assertIn("background: #008a7a;", css)
         self.assertIn("background: var(--statistics-surface, #ffffff);", css)
         self.assertIn("border: 1px solid var(--statistics-border, #d7dee8);", css)
+
+    def test_statistics_metric_help_active_tab_hides_bottom_border(self) -> None:
+        css = CSS_PATH.read_text(encoding="utf-8")
+
+        selector = ".statistics-metric-help-tabs .nav-link.active {"
+        self.assertIn(selector, css)
+        active_tab_block = css.split(selector, 1)[1].split("}", 1)[0]
+        self.assertIn(
+            "border-bottom-color: var(--statistics-surface, #ffffff) !important;",
+            active_tab_block,
+        )
 
     def test_statistics_dashboard_exposes_content_fullscreen_control(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")

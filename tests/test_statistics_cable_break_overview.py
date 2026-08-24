@@ -114,7 +114,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             template.count('class="badge bg-warning text-dark statistics-scope-badge"'),
             3,
         )
-        self.assertIn("statistics_dashboard.css' %}?v=34", template)
+        self.assertIn("statistics_dashboard.css' %}?v=36", template)
         self.assertIn(".statistics-scope-badge {", css)
         self.assertIn("font-size: 0.75rem;", css)
         self.assertIn("line-height: 1;", css)
@@ -867,7 +867,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             overview_source,
         )
         self.assertNotIn("withCableRectificationDisplayName", branch_source)
-        self.assertIn("statistics_dashboard.js' %}?v=45", template)
+        self.assertIn("statistics_dashboard.js' %}?v=46", template)
 
     def test_main_reason_chart_uses_rectification_display_alias_without_changing_filter_name(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -901,7 +901,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             "chartReason.on('legendselectchanged', params => { updateExcludedSet('reason', params.selected);",
             source,
         )
-        self.assertIn("statistics_dashboard.js' %}?v=45", template)
+        self.assertIn("statistics_dashboard.js' %}?v=46", template)
 
     def test_physical_fault_summary_always_returns_all_categories_in_required_order(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")

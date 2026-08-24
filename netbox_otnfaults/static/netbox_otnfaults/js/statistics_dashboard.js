@@ -40,6 +40,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const cableBreakDeferredMetrics = document.getElementById('cable-break-deferred-metrics');
     const statisticsPage = document.querySelector('.page-statistics');
     const btnStatisticsFullscreen = document.getElementById('statistics-fullscreen-btn');
+    const statisticsMetricHelpButton = document.getElementById('statistics-metric-help-btn');
     const statisticsMetricHelpTabMap = {
         'tab-physical-btn': 'statistics-help-tab-physical',
         'tab-service-btn': 'statistics-help-tab-bare-fiber',
@@ -47,14 +48,13 @@ document.addEventListener("DOMContentLoaded", function() {
         'tab-branch-company-btn': 'statistics-help-tab-branch-company',
         'tab-branch-performance-btn': 'statistics-help-tab-branch-performance',
     };
-    const statisticsMetricHelpModal = document.getElementById('statisticsMetricHelpModal');
-    if (statisticsMetricHelpModal) {
-        statisticsMetricHelpModal.addEventListener('show.bs.modal', () => {
+    if (statisticsMetricHelpButton) {
+        statisticsMetricHelpButton.addEventListener('click', () => {
             const activeMainTab = document.querySelector('#statisticsTab .nav-link.active');
             const helpTabId = statisticsMetricHelpTabMap[activeMainTab && activeMainTab.id]
                 || 'statistics-help-tab-physical';
             const helpTab = document.getElementById(helpTabId);
-            if (helpTab) bootstrap.Tab.getOrCreateInstance(helpTab).show();
+            if (helpTab) helpTab.click();
         });
     }
     

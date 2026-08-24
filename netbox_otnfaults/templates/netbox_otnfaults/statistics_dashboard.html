@@ -5,7 +5,7 @@
 {% block title %}故障统计{% endblock %}
 
 {% block content %}
-<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=35" rel="stylesheet">
+<link href="{% static 'netbox_otnfaults/css/statistics_dashboard.css' %}?v=36" rel="stylesheet">
 <style>
   .table-container ul.pagination { display: none !important; }
 
@@ -1447,5 +1447,5 @@
     window.FAULT_REPEATS_API = "{% url 'plugins:netbox_otnfaults:statistics_fault_repeats' %}";
     window.SERVICE_STATISTICS_DETAILS_API = "{% url 'plugins:netbox_otnfaults:statistics_service_details' %}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=45"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=46"></script>
 {% endblock %}
