@@ -29,6 +29,20 @@ def _ancestor_card_opening(source: str, element_id: str) -> str:
 
 
 class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
+    def test_map_cluster_circle_uses_thirty_five_percent_opacity(self) -> None:
+        source = STATISTICS_MAP_MODE_PATH.read_text(encoding="utf-8")
+        cluster_layer = source.split('id: "cb-clusters"', 1)[1].split('id: "cb-cluster-count"', 1)[0]
+
+        self.assertIn('"circle-opacity": 0.35', cluster_layer)
+
+    def test_map_uses_gray_for_closed_clusters_and_individual_pins(self) -> None:
+        source = STATISTICS_MAP_MODE_PATH.read_text(encoding="utf-8")
+        cluster_layer = source.split('id: "cb-clusters"', 1)[1].split('id: "cb-cluster-count"', 1)[0]
+        status_entries = source.split("const statusEntries = {", 1)[1].split("};", 1)[0]
+
+        self.assertIn('["==", ["get", "hasClosed"], 1], "#6c757d"', cluster_layer)
+        self.assertIn('closed: "#6c757d"', status_entries)
+
     def test_backend_builds_cable_break_overview_with_required_scope_and_buckets(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")
 
@@ -2243,7 +2257,8 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
         self.assertIn("FAULT_STATUS_COLORS.processing", source)
         self.assertIn("FAULT_STATUS_COLORS.temporary_recovery", source)
         self.assertIn("FAULT_STATUS_COLORS.suspended", source)
-        self.assertIn("FAULT_STATUS_COLORS.closed", source)
+        self.assertNotIn("FAULT_STATUS_COLORS.closed", source)
+        self.assertIn('closed: "#6c757d"', source)
         self.assertIn("cb-pin-${key}-defaulted", source)
         self.assertIn("coordsFromSite", source)
         self.assertIn("\"icon-image\": iconImageExpr", source)

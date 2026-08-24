@@ -260,7 +260,7 @@ const StatisticsCableBreakModePlugin = {
           ["==", ["get", "hasProcessing"], 1], FAULT_STATUS_COLORS.processing || "#dc3545",
           ["==", ["get", "hasSuspended"], 1], FAULT_STATUS_COLORS.suspended || "#ffc107",
           ["==", ["get", "hasTemporaryRecovery"], 1], FAULT_STATUS_COLORS.temporary_recovery || "#0d6efd",
-          ["==", ["get", "hasClosed"], 1], FAULT_STATUS_COLORS.closed || "#198754",
+          ["==", ["get", "hasClosed"], 1], "#6c757d",
           "#51bbd6",
         ],
         "circle-radius": [
@@ -271,7 +271,7 @@ const StatisticsCableBreakModePlugin = {
         ],
         "circle-stroke-width": 3,
         "circle-stroke-color": "rgba(255,255,255,0.7)",
-        "circle-opacity": 0.85,
+        "circle-opacity": 0.35,
       },
     });
 
@@ -297,7 +297,7 @@ const StatisticsCableBreakModePlugin = {
       processing: FAULT_STATUS_COLORS.processing || "#dc3545",
       temporary_recovery: FAULT_STATUS_COLORS.temporary_recovery || "#0d6efd",
       suspended: FAULT_STATUS_COLORS.suspended || "#ffc107",
-      closed: FAULT_STATUS_COLORS.closed || "#198754",
+      closed: "#6c757d",
     };
 
     const iconPromises = Object.entries(statusEntries).map(async ([key, color]) => {
