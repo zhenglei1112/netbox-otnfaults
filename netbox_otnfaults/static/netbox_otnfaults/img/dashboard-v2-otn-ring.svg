@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-labelledby="title desc">
+  <title id="title">OTN 双纤环网</title>
+  <desc id="desc">蓝色双纤保护环连接五个网元，中心为绿色光交叉节点。</desc>
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="0.75" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="24" cy="24" r="17" stroke="#006fca" stroke-width="1.35"/>
+    <circle cx="24" cy="24" r="13.2" stroke="#0089df" stroke-width="0.9" opacity="0.9"/>
+    <path d="M24 10.8v9.1M36.6 19.9l-8.7 2.8M31.8 34.7l-5-7M16.2 34.7l5-7M11.4 19.9l8.7 2.8"
+          stroke="#007bd1" stroke-width="0.85" opacity="0.86"/>
+  </g>
+  <g fill="#081a2c" stroke="#008fe8" stroke-width="1.15">
+    <rect x="21.5" y="5.2" width="5" height="5" rx="1"/>
+    <rect x="36" y="16.7" width="5" height="5" rx="1"/>
+    <rect x="30.4" y="33.4" width="5" height="5" rx="1"/>
+    <rect x="12.6" y="33.4" width="5" height="5" rx="1"/>
+    <rect x="7" y="16.7" width="5" height="5" rx="1"/>
+  </g>
+  <rect x="19.4" y="19.4" width="9.2" height="9.2" rx="2.4" fill="#09243a" stroke="#008fe8" stroke-width="1.15"/>
+  <path d="m21.2 24 2.8-2.8 2.8 2.8-2.8 2.8Z" fill="#15c889" filter="url(#glow)"/>
+</svg>

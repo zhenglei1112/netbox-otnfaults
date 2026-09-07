@@ -16,6 +16,14 @@ class OtnFaultsConfig(PluginConfig):
         'map_api_key': '',
         # 地图默认中心点 [经度, 纬度]
         'map_default_center': [112.53, 33.00],
+        # 态势大屏 V2 独立初始中心点，避免影响 V1 和其他地图
+        'dashboard_v2_map_center': [103.0, 34.3],
+        'dashboard_v2_map_zoom': 4.0,
+        'dashboard_v2_map_bearing': 0.0,
+        # 新版态势大屏默认使用服务器 /maps 下的全球 Protomaps z0-z6 原型。
+        'dashboard_v2_basemap_mode': 'protomaps',
+        'dashboard_v2_protomaps_tiles_url': '/maps/protomaps-z0-z6.pmtiles',
+        'dashboard_v2_china_provinces_pmtiles_url': '/maps/china_provinces.pmtiles',
         # 地图默认缩放级别
         'map_default_zoom': 4.2,
         # 热力图数据缓存时间（秒）

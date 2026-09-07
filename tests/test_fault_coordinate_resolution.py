@@ -6,6 +6,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 COORDS_PATH = REPO_ROOT / "netbox_otnfaults" / "services" / "fault_coordinates.py"
 MAP_DATA_PATH = REPO_ROOT / "netbox_otnfaults" / "services" / "fault_map_data.py"
 DASHBOARD_VIEWS_PATH = REPO_ROOT / "netbox_otnfaults" / "dashboard_views.py"
+DASHBOARD_V2_VIEWS_PATH = REPO_ROOT / "netbox_otnfaults" / "dashboard_v2_views.py"
 VIEWS_PATH = REPO_ROOT / "netbox_otnfaults" / "views.py"
 
 
@@ -62,6 +63,14 @@ class FaultCoordinateResolutionTestCase(unittest.TestCase):
         self.assertIn("resolved = resolve_cutover_coordinates(cutover)", views_source)
 
         self.assertIn("location_map_url }}?cutover={{ object.pk }}&", cutover_html_source)
+
+    def test_dashboard_v2_reuses_shared_fault_coordinate_resolver(self) -> None:
+        source = DASHBOARD_V2_VIEWS_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("from .services.fault_coordinates import resolve_fault_coordinates", source)
+        self.assertIn("resolved_coordinates = resolve_fault_coordinates(fault)", source)
+        self.assertIn('"coords_source"', source)
+        self.assertIn('"coords_from_site"', source)
 
 
 if __name__ == "__main__":

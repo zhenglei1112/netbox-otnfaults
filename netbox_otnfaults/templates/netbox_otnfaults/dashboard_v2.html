@@ -1,0 +1,243 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>中交信通网络运行态势图</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}" rel="stylesheet">
+  <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
+  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260904-fault-center-index-v1" rel="stylesheet">
+</head>
+<body>
+  <header id="dashboard-v2-header">
+    <div class="dashboard-v2-header-side">
+      <span class="dashboard-v2-status-dot" id="dashboard-v2-status-dot"></span>
+      <span id="dashboard-v2-status-text">地球初始化中...</span>
+    </div>
+    <div class="dashboard-v2-heading">
+      <img
+        class="dashboard-v2-brand-icon"
+        src="{% static 'netbox_otnfaults/img/dashboard-v2-otn-ring.svg' %}"
+        alt=""
+        aria-hidden="true"
+      >
+      <h1>中交信通网络运行态势图</h1>
+    </div>
+    <div class="dashboard-v2-clock">
+      <div id="dashboard-v2-date"></div>
+      <div id="dashboard-v2-time"></div>
+    </div>
+  </header>
+
+  <main id="dashboard-v2-main">
+    <section id="dashboard-v2-map-stage" aria-label="地图区">
+      <canvas id="dashboard-v2-galaxy" aria-hidden="true"></canvas>
+      <canvas id="dashboard-v2-starfield" aria-hidden="true"></canvas>
+      <div id="dashboard-v2-map"></div>
+      <nav class="dashboard-v2-map-tools" aria-label="地图工具">
+        <button
+          id="dashboard-v2-map-home"
+          class="dashboard-v2-map-tool-button"
+          type="button"
+          title="恢复初始视野"
+          aria-label="恢复初始视野"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 10.8 12 3l9 7.8v9.1a1.1 1.1 0 0 1-1.1 1.1h-5.2v-6.3H9.3V21H4.1A1.1 1.1 0 0 1 3 19.9v-9.1Z"/>
+            <path d="m1.8 11.3 9.5-8.2a1.1 1.1 0 0 1 1.4 0l9.5 8.2-1.5 1.8L12 5.6l-8.7 7.5-1.5-1.8Z"/>
+          </svg>
+        </button>
+        <button
+          id="dashboard-v2-map-graticule"
+          class="dashboard-v2-map-tool-button is-stroke-icon"
+          type="button"
+          title="显示经纬网"
+          aria-label="显示经纬网"
+          aria-pressed="false"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M3.6 9h16.8M3.6 15h16.8M12 3c2.3 2.4 3.5 5.4 3.5 9S14.3 18.6 12 21M12 3C9.7 5.4 8.5 8.4 8.5 12s1.2 6.6 3.5 9"/>
+          </svg>
+        </button>
+        <output
+          id="dashboard-v2-graticule-status"
+          class="dashboard-v2-map-tool-status"
+          aria-live="polite"
+        >经纬度 关闭</output>
+        <button
+          id="dashboard-v2-map-sky"
+          class="dashboard-v2-map-tool-button"
+          type="button"
+          title="天空 开启"
+          aria-label="天空 开启，点击切换"
+          data-sky-mode="full"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9.2 2.2c.4-1.2 2.1-1.2 2.5 0l.7 2.2c.1.4.4.7.8.8l2.2.7c1.2.4 1.2 2.1 0 2.5l-2.2.7c-.4.1-.7.4-.8.8l-.7 2.2c-.4 1.2-2.1 1.2-2.5 0l-.7-2.2a1.3 1.3 0 0 0-.8-.8l-2.2-.7c-1.2-.4-1.2-2.1 0-2.5l2.2-.7c.4-.1.7-.4.8-.8l.7-2.2Z"/>
+            <path d="M17.3 12.5c.3-.9 1.6-.9 1.9 0l.4 1.3c.1.3.3.5.6.6l1.3.4c.9.3.9 1.6 0 1.9l-1.3.4a1 1 0 0 0-.6.6l-.4 1.3c-.3.9-1.6.9-1.9 0l-.4-1.3a1 1 0 0 0-.6-.6l-1.3-.4c-.9-.3-.9-1.6 0-1.9l1.3-.4c.3-.1.5-.3.6-.6l.4-1.3ZM5.1 14.8c.2-.7 1.2-.7 1.4 0l.3.9c.1.2.2.4.5.5l.9.3c.7.2.7 1.2 0 1.4l-.9.3a.7.7 0 0 0-.5.5l-.3.9c-.2.7-1.2.7-1.4 0l-.3-.9a.7.7 0 0 0-.5-.5l-.9-.3c-.7-.2-.7-1.2 0-1.4l.9-.3c.2-.1.4-.2.5-.5l.3-.9Z"/>
+          </svg>
+        </button>
+        <output
+          id="dashboard-v2-sky-status"
+          class="dashboard-v2-map-tool-status"
+          aria-live="polite"
+        >天空 开启</output>
+        <button
+          id="dashboard-v2-map-day-night"
+          class="dashboard-v2-map-tool-button is-stroke-icon"
+          type="button"
+          title="昼夜 开启"
+          aria-label="昼夜 开启，点击切换"
+          aria-pressed="true"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5"/>
+            <path d="M12 3.5v17M12 3.5a8.5 8.5 0 0 1 0 17Z" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
+        <output
+          id="dashboard-v2-day-night-status"
+          class="dashboard-v2-map-tool-status"
+          aria-live="polite"
+        >昼夜 开启</output>
+        <button
+          id="dashboard-v2-map-base-network"
+          class="dashboard-v2-map-tool-button is-stroke-icon"
+          type="button"
+          title="基础网络 开启"
+          aria-label="基础网络 开启，点击切换"
+          aria-pressed="true"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6 12 12 18 5M12 12 18 19M12 12 5 18"/>
+            <circle cx="6" cy="6" r="2.2" fill="currentColor" stroke="none"/>
+            <circle cx="18" cy="5" r="2.2" fill="currentColor" stroke="none"/>
+            <circle cx="18" cy="19" r="2.2" fill="currentColor" stroke="none"/>
+            <circle cx="5" cy="18" r="2.2" fill="currentColor" stroke="none"/>
+            <circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
+        <output
+          id="dashboard-v2-base-network-status"
+          class="dashboard-v2-map-tool-status"
+          aria-live="polite"
+        >基础网络 开启</output>
+      </nav>
+      <aside
+        id="dashboard-v2-info-drawer"
+        class="dashboard-v2-info-drawer"
+        aria-label="网络信息"
+      >
+        <section
+          id="dashboard-v2-info-drawer-content"
+          class="dashboard-v2-info-drawer-content"
+          aria-hidden="true"
+        >
+          <div class="dashboard-v2-info-heading">
+            <h2>网络信息</h2>
+            <span id="dashboard-v2-info-update-status">数据加载中</span>
+          </div>
+          <div class="dashboard-v2-info-drawer-divider"></div>
+          <div class="dashboard-v2-info-metrics" aria-label="故障统计">
+            <div class="dashboard-v2-info-metric is-total">
+              <span>故障总量</span>
+              <strong id="dashboard-v2-info-total-faults">--</strong>
+            </div>
+            <div class="dashboard-v2-info-metric is-processing">
+              <span>处理中</span>
+              <strong id="dashboard-v2-info-processing-faults">--</strong>
+            </div>
+            <div class="dashboard-v2-info-metric is-today">
+              <span>本日起数</span>
+              <strong id="dashboard-v2-info-today-faults">--</strong>
+            </div>
+            <div class="dashboard-v2-info-metric is-interrupted">
+              <span>业务中断</span>
+              <strong id="dashboard-v2-info-business-interruptions">--</strong>
+            </div>
+          </div>
+          <div class="dashboard-v2-info-list-heading">
+            <h3>处理中故障</h3>
+            <span id="dashboard-v2-info-fault-count">--</span>
+          </div>
+          <div id="dashboard-v2-info-fault-list" class="dashboard-v2-info-fault-list">
+            <div class="dashboard-v2-info-state">数据加载中</div>
+          </div>
+        </section>
+        <button
+          id="dashboard-v2-info-drawer-toggle"
+          class="dashboard-v2-info-drawer-toggle"
+          type="button"
+          aria-controls="dashboard-v2-info-drawer-content"
+          aria-expanded="false"
+          aria-label="展开网络信息"
+          title="展开网络信息"
+        >
+          <svg class="dashboard-v2-info-drawer-grip" viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M5 7h10M7 10h8M9 13h6"/>
+          </svg>
+          <svg class="dashboard-v2-info-drawer-chevron" viewBox="0 0 20 24" aria-hidden="true">
+            <path d="m6.5 5 7 7-7 7"/>
+          </svg>
+        </button>
+      </aside>
+      <aside id="dashboard-v2-debug-panel" class="dashboard-v2-debug-panel" aria-label="地图调试面板" hidden>
+        <div class="dashboard-v2-debug-header">
+          <div class="dashboard-v2-debug-title">初始视野调试</div>
+          <button id="dashboard-v2-debug-toggle" class="dashboard-v2-debug-toggle" type="button" aria-expanded="true">收起</button>
+        </div>
+        <div id="dashboard-v2-debug-content" class="dashboard-v2-debug-content">
+          <div class="dashboard-v2-debug-grid">
+            <label for="dashboard-v2-debug-longitude">中心经度</label>
+            <input id="dashboard-v2-debug-longitude" type="number" min="-180" max="180" step="0.01">
+            <label for="dashboard-v2-debug-latitude">中心纬度</label>
+            <input id="dashboard-v2-debug-latitude" type="number" min="-90" max="90" step="0.01">
+            <label for="dashboard-v2-debug-zoom">缩放等级</label>
+            <input id="dashboard-v2-debug-zoom" type="number" min="0" max="24" step="0.05">
+            <label for="dashboard-v2-debug-pitch">倾斜角度</label>
+            <input id="dashboard-v2-debug-pitch" type="number" value="0" readonly aria-readonly="true">
+            <label for="dashboard-v2-debug-bearing">方位角</label>
+            <input id="dashboard-v2-debug-bearing" type="number" value="0" readonly aria-readonly="true">
+          </div>
+          <section class="dashboard-v2-debug-performance" aria-label="渲染性能">
+            <div>
+              <span>实时 FPS</span>
+              <output id="dashboard-v2-debug-fps-current">--</output>
+            </div>
+            <div>
+              <span>平均 FPS</span>
+              <output id="dashboard-v2-debug-fps-average">--</output>
+            </div>
+            <div>
+              <span>最低 FPS</span>
+              <output id="dashboard-v2-debug-fps-minimum">--</output>
+            </div>
+          </section>
+          <label class="dashboard-v2-debug-simulation" for="dashboard-v2-debug-data-simulation">
+            <span>
+              <strong>数据模拟</strong>
+              <small>显示 5 条处理中故障</small>
+            </span>
+            <input id="dashboard-v2-debug-data-simulation" type="checkbox" role="switch" aria-label="启用故障数据模拟">
+            <i aria-hidden="true"></i>
+          </label>
+          <div class="dashboard-v2-debug-actions">
+            <button id="dashboard-v2-debug-apply" type="button">应用</button>
+            <button id="dashboard-v2-debug-reset" type="button" class="is-secondary">重置</button>
+          </div>
+          <div id="dashboard-v2-debug-message" class="dashboard-v2-debug-message" role="status"></div>
+        </div>
+      </aside>
+      <div id="dashboard-v2-map-status" role="status">地球初始化中...</div>
+    </section>
+  </main>
+
+  {{ dashboard_v2_config|json_script:"dashboard-v2-config" }}
+  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260904-fault-center-index-v1"></script>
+</body>
+</html>

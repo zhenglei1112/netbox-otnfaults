@@ -3,6 +3,7 @@ from utilities.urls import get_model_urls
 from netbox.views.generic import ObjectChangeLogView
 from . import models, views
 from . import dashboard_views
+from . import dashboard_v2_views
 from . import weekly_report_views
 from . import statistics_views
 from . import calendar_widget_views
@@ -149,6 +150,8 @@ urlpatterns = [
     # 大屏可视化系统
     path('dashboard/', dashboard_views.DashboardPageView.as_view(), name='dashboard'),
     path('dashboard/data/', dashboard_views.DashboardDataAPI.as_view(), name='dashboard_data'),
+    path('dashboard-v2/data/', dashboard_v2_views.DashboardV2DataView.as_view(), name='dashboard_v2_data'),
+    path('dashboard-v2/', dashboard_v2_views.DashboardV2PageView.as_view(), name='dashboard_v2'),
 
     # 每周通报大屏
     path('weekly-report/', weekly_report_views.WeeklyReportPageView.as_view(), name='weekly_report'),
