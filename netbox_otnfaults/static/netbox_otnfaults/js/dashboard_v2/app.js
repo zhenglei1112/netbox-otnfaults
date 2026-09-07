@@ -1,4 +1,4 @@
-import * as maplibreglModule from '../../lib/maplibre-gl-v6.js?v=20260831-mime-v2';
+import * as maplibreglModule from '../../lib/maplibre-gl-v6.js?v=20260907-worker-fix';
 import {
   initializeDashboardV2DebugPanel,
   isDashboardV2DebugEnabled,

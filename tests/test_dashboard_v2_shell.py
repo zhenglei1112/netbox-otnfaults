@@ -120,7 +120,7 @@ class DashboardV2ShellTestCase(unittest.TestCase):
         self.assertIn("netbox_otnfaults/css/dashboard_v2.css", template)
         self.assertIn("netbox_otnfaults/js/dashboard_v2/app.js", template)
         self.assertIn("?v=20260907-callout-content-v1", template)
-        self.assertIn("app.js' %}?v=20260907-callout-content-v1", template)
+        self.assertIn("app.js' %}?v=20260907-worker-fix", template)
         self.assertNotIn("netbox_otnfaults/css/dashboard.css", template)
         self.assertNotIn("js/dashboard/dashboard_app.js", template)
         self.assertNotIn("dashboard_data", template)
@@ -376,7 +376,7 @@ class DashboardV2ShellTestCase(unittest.TestCase):
 
         self.assertIn("JSON.parse(configNode.textContent)", source)
         self.assertIn("initializeDashboardV2Map(config", source)
-        self.assertIn("../../lib/maplibre-gl-v6.js?v=20260831-mime-v2", source)
+        self.assertIn("../../lib/maplibre-gl-v6.js?v=20260907-worker-fix", source)
         self.assertNotIn("../../lib/maplibre-gl.mjs", source)
         self.assertIn("globalThis.maplibregl = maplibreglModule", source)
         self.assertIn("./map_engine.js?v=20260907-callout-content-v1", source)
