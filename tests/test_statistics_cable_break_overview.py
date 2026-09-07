@@ -126,7 +126,11 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
 
         self.assertEqual(
             template.count('class="badge bg-warning text-dark statistics-scope-badge"'),
-            3,
+            5,
+        )
+        self.assertEqual(
+            template.count('class="badge bg-info text-dark statistics-scope-badge"'),
+            2,
         )
         self.assertIn("statistics_dashboard.css' %}?v=36", template)
         self.assertIn(".statistics-scope-badge {", css)
