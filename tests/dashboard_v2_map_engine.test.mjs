@@ -11,7 +11,8 @@ const MODULE_SOURCE = await readFile(MODULE_PATH, 'utf8');
 
 
 async function loadMapModule(tag) {
-  const encoded = Buffer.from(MODULE_SOURCE).toString('base64');
+  const layout = new URL('../netbox_otnfaults/static/netbox_otnfaults/js/dashboard_v2/fault_overlays.js', import.meta.url).href;
+  const encoded = Buffer.from(MODULE_SOURCE.replace('./fault_overlays.js?v=20260907-callout-content-v1', layout + '?test=' + tag)).toString('base64');
   return import(`data:text/javascript;base64,${encoded}#${tag}`);
 }
 
@@ -804,7 +805,8 @@ test('shows every fault callout together from zoom 3.9 without carousel selectio
   assert.ok(renderedText.includes('北京站-济南站等2站 OTN'));
   assert.ok(renderedText.includes('光缆故障'));
   assert.ok(renderedText.includes('F009'));
-  assert.ok(renderedText.includes('!'));
+  assert.ok(!renderedText.includes('!'));
+  assert.ok(renderedText.includes('影响业务 0 项'));
 
   assert.ok(collectText(maplibreState.markers[1].element).includes('北京市 OTN'));
 
@@ -959,7 +961,7 @@ test('prefers the seaward side when inland candidates cover sites and OTN paths'
 });
 
 
-test('replaces all existing fault callout markers when processing data refreshes', async () => {
+test('removes obsolete markers but retains observers when processing data refreshes', async () => {
   installDom();
   const maplibreState = installMapLibre();
   const resizeObservers = [];
@@ -1003,8 +1005,8 @@ test('replaces all existing fault callout markers when processing data refreshes
   assert.equal(maplibreState.markers.length, 2);
   assert.equal(maplibreState.markers[1].removed, false);
   assert.ok(handlers.zoom);
-  assert.equal(resizeObservers.length, 2);
-  assert.equal(resizeObservers[0].disconnected, true);
+  assert.equal(resizeObservers.length, 1);
+  assert.equal(resizeObservers[0].disconnected, false);
   delete globalThis.ResizeObserver;
 });
 

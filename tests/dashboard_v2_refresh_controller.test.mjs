@@ -26,6 +26,41 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
+test('identical successful response clears request error without a data redraw', async () => {
+  const { createDashboardMapRefresher } = await loadRefreshController('recover-identical');
+  let calls = 0;
+  let redraws = 0;
+  let status;
+  const refresh = createDashboardMapRefresher({
+    load: async () => { if (++calls === 2) throw Error('offline'); return { sites: [] }; },
+    getDataSignature: JSON.stringify,
+    onSuccess: () => { status = 'success'; },
+    onData: () => { redraws++; },
+    onError: () => { status = 'error'; },
+  });
+  await refresh(); await refresh(); await refresh();
+  assert.equal(status, 'success');
+  assert.equal(redraws, 1);
+});
+
+test('destroy aborts in-flight work and suppresses late rendering', async () => {
+  const { createDashboardMapRefresher } = await loadRefreshController('destroy');
+  const request = deferred();
+  let signal;
+  let applied = 0;
+  const refresh = createDashboardMapRefresher({
+    load: (options) => { signal = options.signal; return request.promise; },
+    onData: () => applied++, onSuccess: () => applied++, onError: () => applied++,
+  });
+  const running = refresh();
+  refresh.destroy();
+  request.resolve({});
+  await running;
+  assert.equal(signal.aborted, true);
+  assert.equal(applied, 0);
+  assert.equal(await refresh(), null);
+});
+
 
 test('refresh controller suppresses overlapping requests and applies data once', async () => {
   const firstRequest = deferred();

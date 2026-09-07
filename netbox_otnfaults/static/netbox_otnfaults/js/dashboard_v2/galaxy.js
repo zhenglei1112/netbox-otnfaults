@@ -2,7 +2,7 @@ import {
   celestialFieldOfView,
   createCelestialView,
   greenwichMeanSiderealDegrees,
-} from './starfield.js?v=20260901-celestial-v2';
+} from './starfield.js?v=20260907-callout-content-v1';
 
 const DEG_TO_RAD = Math.PI / 180;
 const GALAXY_TEXTURE_URL = new URL('../../img/dashboard-v2-milky-way-8k.jpg', import.meta.url);
@@ -202,6 +202,8 @@ export async function initializeDashboardV2Galaxy(map) {
       if (visible) scheduleRender();
     },
     destroy() {
+      map.off('move', scheduleRender);
+      map.off('resize', scheduleRender);
       resizeObserver?.disconnect();
       window.clearInterval(clockTimer);
       if (animationFrame) cancelAnimationFrame(animationFrame);

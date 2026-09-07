@@ -1,14 +1,15 @@
+import { createFaultOverlayController } from './fault_overlays.js?v=20260907-callout-content-v1';
 let dashboardMap = null;
 let hasRuntimeMapError = false;
 let pmtilesProtocolRegistered = false;
-let processingFaultFocusMarkers = [];
-let processingFaultFocusMoveHandler = null;
-let processingFaultFocusEndHandler = null;
-let processingFaultFocusMap = null;
-let processingFaultFocusFrameId = null;
-let processingFaultFocusResizeObserver = null;
-let processingFaultNetworkLayoutDirty = true;
-const processingFaultFocusPlacements = new Map();
+const sourceSignatures = new WeakMap();
+
+function setSourceDataIfChanged(source, data) {
+  const signature = JSON.stringify(data);
+  if (sourceSignatures.get(source) === signature) return;
+  source.setData(data);
+  sourceSignatures.set(source, signature);
+}
 
 const SMALL_SCALE_LABEL_MIN_ZOOM = 5.5;
 const GRATICULE_SOURCE_ID = 'dashboard-v2-graticule-source';
@@ -39,24 +40,8 @@ const LONGITUDE_STEP = 15;
 const LATITUDE_STEP = 10;
 const LATITUDE_SEGMENT_SPAN = 45;
 const SITE_LABEL_MIN_ZOOM = 6;
-const PROCESSING_FAULT_INFO_MIN_ZOOM = 3.9;
-const PROCESSING_FAULT_CALLOUT_WIDTH = 220;
-const PROCESSING_FAULT_CALLOUT_HEIGHT = 88;
-const PROCESSING_FAULT_LAYOUT_PADDING = 12;
-const PROCESSING_FAULT_LAYOUT_GAP = 10;
-const PROCESSING_FAULT_RADAR_RADIUS = 38;
-const PROCESSING_FAULT_NETWORK_CANDIDATE_LIMIT = 8;
-const PROCESSING_FAULT_NETWORK_LAYER_IDS = [
-  OTN_PATHS_MAIN_LAYER_ID,
-  SITES_CORE_LAYER_ID,
-  SITES_LABEL_LAYER_ID,
-];
 const SITE_LABEL_FONT = 'HarmonyOS Sans SC Regular';
 const FIXED_MAP_BEARING = 0;
-const CIRCLED_NUMBERS = [
-  '', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩',
-  '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳',
-];
 
 const GLOBE_PALETTE = {
   space: '#020814',
@@ -137,6 +122,14 @@ function lockMapRotation(map) {
   map.keyboard?.disableRotation?.();
 }
 
+const mapDomDisposers = new WeakMap();
+
+function listenForMap(map, element, event, handler) {
+  element.addEventListener(event, handler);
+  if (!mapDomDisposers.has(map)) mapDomDisposers.set(map, []);
+  mapDomDisposers.get(map).push(() => element.removeEventListener(event, handler));
+}
+
 function enableRightButtonZoom(map) {
   const canvas = map.getCanvas?.();
   if (!canvas) return;
@@ -145,8 +138,8 @@ function enableRightButtonZoom(map) {
   let startY = 0;
   let startZoom = 0;
 
-  canvas.addEventListener('contextmenu', (event) => event.preventDefault());
-  canvas.addEventListener('pointerdown', (event) => {
+  listenForMap(map, canvas, 'contextmenu', (event) => event.preventDefault());
+  listenForMap(map, canvas, 'pointerdown', (event) => {
     if (event.button !== 2) return;
     event.preventDefault();
     activePointerId = event.pointerId;
@@ -154,7 +147,7 @@ function enableRightButtonZoom(map) {
     startZoom = map.getZoom();
     canvas.setPointerCapture?.(event.pointerId);
   });
-  canvas.addEventListener('pointermove', (event) => {
+  listenForMap(map, canvas, 'pointermove', (event) => {
     if (event.pointerId !== activePointerId) return;
     event.preventDefault();
     const minZoom = map.getMinZoom?.() ?? 0;
@@ -170,15 +163,15 @@ function enableRightButtonZoom(map) {
     canvas.releasePointerCapture?.(event.pointerId);
     activePointerId = null;
   };
-  canvas.addEventListener('pointerup', finishZoom);
-  canvas.addEventListener('pointercancel', finishZoom);
+  listenForMap(map, canvas, 'pointerup', finishZoom);
+  listenForMap(map, canvas, 'pointercancel', finishZoom);
 }
 
 function initializeHomeControl(map, initialCamera) {
   const homeButton = document.getElementById('dashboard-v2-map-home');
   if (!homeButton) return;
 
-  homeButton.addEventListener('click', () => {
+  listenForMap(map, homeButton, 'click', () => {
     const camera = {
       center: [...initialCamera.center],
       zoom: initialCamera.zoom,
@@ -499,479 +492,20 @@ export function renderDashboardV2Sites(map, sites = []) {
       },
     }];
   });
-  source.setData({ type: 'FeatureCollection', features });
+  features.sort((a, b) => a.properties.id.localeCompare(b.properties.id));
+  setSourceDataIfChanged(source, { type: 'FeatureCollection', features });
   return features.length;
 }
 
-function processingFaultLabel(index) {
-  const number = index + 1;
-  return CIRCLED_NUMBERS[number] || `[${number}]`;
-}
-
+const faultControllers = new WeakMap();
 export function renderDashboardV2ProcessingFaults(map, faults = []) {
-  const source = map?.getSource?.(PROCESSING_FAULTS_SOURCE_ID);
-  if (!source?.setData) {
-    if (typeof map?.once === 'function' && !map.loaded?.()) {
-      map.once('load', () => renderDashboardV2ProcessingFaults(map, faults));
-    }
-    return 0;
+  if (!map) return 0;
+  let controller = faultControllers.get(map);
+  if (!controller) {
+    controller = createFaultOverlayController(setSourceDataIfChanged);
+    faultControllers.set(map, controller);
   }
-  const features = faults.flatMap((fault, index) => {
-    if (fault?.lng == null || fault?.lat == null || fault.lng === '' || fault.lat === '') return [];
-    const longitude = Number(fault.lng);
-    const latitude = Number(fault.lat);
-    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return [];
-    if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) return [];
-    return [{
-      type: 'Feature',
-      id: String(fault.id ?? index),
-      geometry: { type: 'Point', coordinates: [longitude, latitude] },
-      properties: {
-        fault_number: String(fault.fault_number ?? ''),
-        index_label: processingFaultLabel(index),
-        severity: String(fault.severity || 'minor'),
-      },
-    }];
-  });
-  source.setData({ type: 'FeatureCollection', features });
-  renderProcessingFaultFocuses(map, faults);
-  return features.length;
-}
-
-function createFaultFocusNode(tagName, className, text = null) {
-  const node = document.createElement(tagName);
-  node.className = className;
-  if (text !== null) node.textContent = String(text);
-  return node;
-}
-
-function faultFocusLocation(fault) {
-  return String(fault?.site_a || fault?.province || fault?.fault_number || '故障位置');
-}
-
-function faultFocusRoute(fault) {
-  const aSite = String(fault?.site_a || fault?.province || '未知站点');
-  const zSites = Array.isArray(fault?.sites_z) ? fault.sites_z.filter(Boolean) : [];
-  if (!zSites.length) return `${aSite} OTN`;
-  const suffix = zSites.length > 1 ? `${zSites[0]}等${zSites.length}站` : zSites[0];
-  return `${aSite}-${suffix} OTN`;
-}
-
-function buildProcessingFaultFocusElement(fault, index) {
-  const root = createFaultFocusNode('div', 'dashboard-v2-fault-focus');
-  root.dataset.faultId = String(fault.id ?? '');
-  root.setAttribute?.('aria-label', `${faultFocusLocation(fault)} ${fault?.category_display || '处理中故障'}`);
-
-  const radar = createFaultFocusNode('div', 'dashboard-v2-fault-focus-radar');
-  for (let ring = 1; ring <= 3; ring += 1) {
-    radar.appendChild(createFaultFocusNode('span', `dashboard-v2-fault-focus-ring is-${ring}`));
-  }
-  radar.appendChild(createFaultFocusNode(
-    'span',
-    'dashboard-v2-fault-focus-core',
-    processingFaultLabel(index),
-  ));
-  root.appendChild(radar);
-  root.appendChild(createFaultFocusNode(
-    'span',
-    'dashboard-v2-fault-focus-location',
-    faultFocusLocation(fault),
-  ));
-  root.appendChild(createFaultFocusNode('span', 'dashboard-v2-fault-focus-leader'));
-
-  const callout = createFaultFocusNode('section', 'dashboard-v2-fault-callout');
-  callout.appendChild(createFaultFocusNode('div', 'dashboard-v2-fault-callout-route', faultFocusRoute(fault)));
-  const alertRow = createFaultFocusNode('div', 'dashboard-v2-fault-callout-alert');
-  alertRow.appendChild(createFaultFocusNode(
-    'strong',
-    'dashboard-v2-fault-callout-category',
-    fault?.category_display || '处理中故障',
-  ));
-  alertRow.appendChild(createFaultFocusNode('span', 'dashboard-v2-fault-callout-warning', '!'));
-  callout.appendChild(alertRow);
-  callout.appendChild(createFaultFocusNode(
-    'div',
-    'dashboard-v2-fault-callout-number',
-    fault?.fault_number || '未编号故障',
-  ));
-  root.appendChild(callout);
-  return root;
-}
-
-function setFaultFocusStyle(element, property, value) {
-  if (typeof element?.style?.setProperty === 'function') {
-    element.style.setProperty(property, value);
-  } else if (element?.style) {
-    element.style[property] = value;
-  }
-}
-
-function expandRect(rect, gap) {
-  return {
-    left: rect.left - gap,
-    top: rect.top - gap,
-    right: rect.right + gap,
-    bottom: rect.bottom + gap,
-  };
-}
-
-function overlapArea(first, second) {
-  const width = Math.max(0, Math.min(first.right, second.right) - Math.max(first.left, second.left));
-  const height = Math.max(0, Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top));
-  return width * height;
-}
-
-function candidateOffset(direction, tier) {
-  const sideGap = tier === 0 ? 88 : 168;
-  const verticalGap = tier === 0 ? 56 : 126;
-  const diagonalX = tier === 0 ? 76 : 138;
-  const diagonalY = tier === 0 ? 34 : 96;
-  const halfWidth = PROCESSING_FAULT_CALLOUT_WIDTH / 2;
-  const halfHeight = PROCESSING_FAULT_CALLOUT_HEIGHT / 2;
-  const offsets = {
-    e: [sideGap, -halfHeight],
-    w: [-sideGap - PROCESSING_FAULT_CALLOUT_WIDTH, -halfHeight],
-    ne: [diagonalX, -PROCESSING_FAULT_CALLOUT_HEIGHT - diagonalY],
-    nw: [-diagonalX - PROCESSING_FAULT_CALLOUT_WIDTH, -PROCESSING_FAULT_CALLOUT_HEIGHT - diagonalY],
-    se: [diagonalX, diagonalY],
-    sw: [-diagonalX - PROCESSING_FAULT_CALLOUT_WIDTH, diagonalY],
-    n: [-halfWidth, -PROCESSING_FAULT_CALLOUT_HEIGHT - verticalGap],
-    s: [-halfWidth, verticalGap],
-  };
-  return offsets[direction];
-}
-
-function placementDirections(point, width, height) {
-  const horizontal = point.x <= width / 2 ? ['e', 'w'] : ['w', 'e'];
-  const vertical = point.y <= height / 2 ? ['s', 'n'] : ['n', 's'];
-  const diagonal = (verticalDirection, horizontalDirection) => `${verticalDirection}${horizontalDirection}`;
-  return [
-    horizontal[0],
-    diagonal(vertical[0], horizontal[0]),
-    vertical[0],
-    diagonal(vertical[1], horizontal[0]),
-    horizontal[1],
-    diagonal(vertical[0], horizontal[1]),
-    vertical[1],
-    diagonal(vertical[1], horizontal[1]),
-  ];
-}
-
-function buildPlacementCandidates(point, width, height) {
-  const directions = placementDirections(point, width, height);
-  return [0, 1].flatMap((tier) => directions.map((direction, rank) => {
-    const [x, y] = candidateOffset(direction, tier);
-    return {
-      direction,
-      tier,
-      rank: rank + (tier * directions.length),
-      x,
-      y,
-      rect: {
-        left: point.x + x,
-        top: point.y + y,
-        right: point.x + x + PROCESSING_FAULT_CALLOUT_WIDTH,
-        bottom: point.y + y + PROCESSING_FAULT_CALLOUT_HEIGHT,
-      },
-    };
-  }));
-}
-
-function screenRectForElement(element, containerRect) {
-  if (!element || element.hidden || typeof element.getBoundingClientRect !== 'function') return null;
-  const rect = element.getBoundingClientRect();
-  if (!rect || rect.width <= 0 || rect.height <= 0) return null;
-  return {
-    left: rect.left - containerRect.left,
-    top: rect.top - containerRect.top,
-    right: rect.right - containerRect.left,
-    bottom: rect.bottom - containerRect.top,
-  };
-}
-
-function reservedInterfaceRects(containerRect) {
-  const elements = [
-    document.getElementById('dashboard-v2-info-drawer'),
-    document.getElementById('dashboard-v2-debug-panel'),
-    document.querySelector?.('.dashboard-v2-map-tools'),
-  ];
-  return elements
-    .map((element) => screenRectForElement(element, containerRect))
-    .filter(Boolean);
-}
-
-function networkObstructionScore(map, rect, cache) {
-  if (typeof map?.queryRenderedFeatures !== 'function') return 0;
-  const layers = PROCESSING_FAULT_NETWORK_LAYER_IDS.filter((layerId) => map.getLayer?.(layerId));
-  if (!layers.length) return 0;
-  const cacheKey = [rect.left, rect.top, rect.right, rect.bottom]
-    .map((value) => Math.round(value / 4) * 4)
-    .join(':');
-  if (cache.has(cacheKey)) return cache.get(cacheKey);
-  try {
-    const features = map.queryRenderedFeatures(
-      [[rect.left, rect.top], [rect.right, rect.bottom]],
-      { layers },
-    );
-    const siteKeys = new Set();
-    const pathKeys = new Set();
-    features.forEach((feature, index) => {
-      const layerId = feature?.layer?.id || '';
-      const featureKey = String(feature?.id ?? feature?.properties?.id ?? index);
-      if (layerId === SITES_CORE_LAYER_ID || layerId === SITES_LABEL_LAYER_ID) {
-        siteKeys.add(featureKey);
-      } else if (layerId === OTN_PATHS_MAIN_LAYER_ID) {
-        pathKeys.add(featureKey);
-      }
-    });
-    const score = (siteKeys.size * 240000) + (Math.min(pathKeys.size, 12) * 32000);
-    cache.set(cacheKey, score);
-    return score;
-  } catch (_error) {
-    cache.set(cacheKey, 0);
-    return 0;
-  }
-}
-
-function isCoordinateFrontFacing(map, coordinates) {
-  const center = map?.getCenter?.();
-  if (!center || !Number.isFinite(Number(center.lng)) || !Number.isFinite(Number(center.lat))) return true;
-  const toRadians = (degrees) => (Number(degrees) * Math.PI) / 180;
-  const centerLatitude = toRadians(center.lat);
-  const latitude = toRadians(coordinates[1]);
-  const longitudeDelta = toRadians(coordinates[0] - center.lng);
-  const dot = (Math.sin(centerLatitude) * Math.sin(latitude))
-    + (Math.cos(centerLatitude) * Math.cos(latitude) * Math.cos(longitudeDelta));
-  return dot >= -0.01;
-}
-
-function scorePlacement(candidate, context, previous) {
-  const { width, height, placedRects, radarRects, reservedRects } = context;
-  const rect = candidate.rect;
-  const overflow = Math.max(0, PROCESSING_FAULT_LAYOUT_PADDING - rect.left)
-    + Math.max(0, PROCESSING_FAULT_LAYOUT_PADDING - rect.top)
-    + Math.max(0, rect.right - width + PROCESSING_FAULT_LAYOUT_PADDING)
-    + Math.max(0, rect.bottom - height + PROCESSING_FAULT_LAYOUT_PADDING);
-  let score = overflow * 1000000;
-  placedRects.forEach((placed) => {
-    score += overlapArea(expandRect(rect, PROCESSING_FAULT_LAYOUT_GAP), placed) * 10000;
-  });
-  reservedRects.forEach((reserved) => {
-    score += overlapArea(expandRect(rect, PROCESSING_FAULT_LAYOUT_GAP), reserved) * 12000;
-  });
-  radarRects.forEach((radar) => {
-    score += overlapArea(expandRect(rect, 5), radar) * 5000;
-  });
-  score += candidate.rank * 20;
-  score += Math.hypot(candidate.x, candidate.y) * 0.2;
-  if (previous) {
-    if (previous.direction !== candidate.direction) score += 2400;
-    if (previous.tier !== candidate.tier) score += 600;
-  }
-  return score;
-}
-
-function applyProcessingFaultPlacement(entry, candidate) {
-  const { element } = entry;
-  setFaultFocusStyle(element, '--fault-callout-x', `${candidate.x}px`);
-  setFaultFocusStyle(element, '--fault-callout-y', `${candidate.y}px`);
-  const targetX = candidate.x > 0
-    ? candidate.x
-    : (candidate.x + PROCESSING_FAULT_CALLOUT_WIDTH < 0
-      ? candidate.x + PROCESSING_FAULT_CALLOUT_WIDTH
-      : 0);
-  const targetY = candidate.y > 0
-    ? candidate.y
-    : (candidate.y + PROCESSING_FAULT_CALLOUT_HEIGHT < 0
-      ? candidate.y + PROCESSING_FAULT_CALLOUT_HEIGHT
-      : 0);
-  const distance = Math.max(Math.hypot(targetX, targetY), 1);
-  const unitX = targetX / distance;
-  const unitY = targetY / distance;
-  const leaderStart = 14;
-  setFaultFocusStyle(element, '--fault-leader-x', `${unitX * leaderStart}px`);
-  setFaultFocusStyle(element, '--fault-leader-y', `${unitY * leaderStart}px`);
-  setFaultFocusStyle(element, '--fault-leader-length', `${Math.max(distance - leaderStart, 0)}px`);
-  setFaultFocusStyle(element, '--fault-leader-angle', `${Math.atan2(targetY, targetX)}rad`);
-  element.dataset.placement = candidate.direction;
-  element.classList?.toggle('is-left', targetX < 0);
-  element.classList?.toggle('is-location-below', candidate.y + PROCESSING_FAULT_CALLOUT_HEIGHT < 0);
-}
-
-function removeProcessingFaultFocuses() {
-  if (processingFaultFocusMap && processingFaultFocusMoveHandler) {
-    processingFaultFocusMap.off?.('move', processingFaultFocusMoveHandler);
-    processingFaultFocusMap.off?.('resize', processingFaultFocusEndHandler);
-    processingFaultFocusMap.off?.('zoom', processingFaultFocusMoveHandler);
-    processingFaultFocusMap.off?.('moveend', processingFaultFocusEndHandler);
-    processingFaultFocusMap.off?.('zoomend', processingFaultFocusEndHandler);
-  }
-  if (processingFaultFocusFrameId !== null) {
-    globalThis.cancelAnimationFrame?.(processingFaultFocusFrameId);
-    processingFaultFocusFrameId = null;
-  }
-  processingFaultFocusResizeObserver?.disconnect?.();
-  processingFaultFocusMarkers.forEach(({ marker }) => marker?.remove?.());
-  processingFaultFocusMarkers = [];
-  processingFaultFocusMoveHandler = null;
-  processingFaultFocusEndHandler = null;
-  processingFaultFocusResizeObserver = null;
-  processingFaultFocusMap = null;
-}
-
-function createProcessingFaultFocus(map, fault, index) {
-  if (!fault || typeof maplibregl === 'undefined' || typeof maplibregl.Marker !== 'function') return false;
-  if (fault.lng === null || fault.lng === undefined || fault.lng === ''
-    || fault.lat === null || fault.lat === undefined || fault.lat === '') return false;
-  const longitude = Number(fault.lng);
-  const latitude = Number(fault.lat);
-  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return false;
-  if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) return false;
-
-  const coordinates = [longitude, latitude];
-  const element = buildProcessingFaultFocusElement(fault, index);
-  try {
-    const marker = new maplibregl.Marker({
-      element,
-      anchor: 'center',
-      rotationAlignment: 'viewport',
-      pitchAlignment: 'viewport',
-      opacityWhenCovered: 0,
-    }).setLngLat(coordinates).addTo(map);
-    processingFaultFocusMarkers.push({
-      marker,
-      element,
-      coordinates,
-      faultId: String(fault.id ?? index),
-    });
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
-
-function updateProcessingFaultFocuses(map) {
-  const zoom = Number(map?.getZoom?.());
-  const visible = !Number.isFinite(zoom) || zoom >= PROCESSING_FAULT_INFO_MIN_ZOOM;
-  const container = map?.getContainer?.();
-  const containerRect = container?.getBoundingClientRect?.() || {
-    left: 0,
-    top: 0,
-    width: container?.clientWidth || 0,
-    height: container?.clientHeight || 0,
-  };
-  const width = container?.clientWidth || containerRect.width || 0;
-  const height = container?.clientHeight || containerRect.height || 0;
-  const projected = processingFaultFocusMarkers.flatMap((entry) => {
-    if (!visible || !isCoordinateFrontFacing(map, entry.coordinates)) {
-      entry.element.hidden = true;
-      return [];
-    }
-    try {
-      const point = map.project(entry.coordinates);
-      if (!Number.isFinite(point?.x) || !Number.isFinite(point?.y)
-        || point.x < 0 || point.x > width || point.y < 0 || point.y > height) {
-        entry.element.hidden = true;
-        return [];
-      }
-      entry.element.hidden = false;
-      return [{ ...entry, point }];
-    } catch (_error) {
-      entry.element.hidden = true;
-      return [];
-    }
-  });
-  const radarRects = projected.map(({ point }) => ({
-    left: point.x - PROCESSING_FAULT_RADAR_RADIUS,
-    top: point.y - PROCESSING_FAULT_RADAR_RADIUS,
-    right: point.x + PROCESSING_FAULT_RADAR_RADIUS,
-    bottom: point.y + PROCESSING_FAULT_RADAR_RADIUS,
-  }));
-  const context = {
-    map,
-    width,
-    height,
-    placedRects: [],
-    radarRects,
-    reservedRects: reservedInterfaceRects(containerRect),
-    networkScoreCache: new Map(),
-    evaluateNetwork: processingFaultNetworkLayoutDirty,
-  };
-  projected.forEach((entry) => {
-    const previous = processingFaultFocusPlacements.get(entry.faultId);
-    const candidates = buildPlacementCandidates(entry.point, width, height);
-    const shortlist = candidates
-      .map((candidate) => ({
-        ...candidate,
-        baseScore: scorePlacement(candidate, context, previous),
-      }))
-      .sort((first, second) => first.baseScore - second.baseScore)
-      .slice(0, PROCESSING_FAULT_NETWORK_CANDIDATE_LIMIT);
-    const candidate = shortlist.reduce((best, current) => {
-      const score = current.baseScore + (context.evaluateNetwork
-        ? networkObstructionScore(map, current.rect, context.networkScoreCache)
-        : 0);
-      return !best || score < best.score ? { ...current, score } : best;
-    }, null);
-    if (!candidate) return;
-    applyProcessingFaultPlacement(entry, candidate);
-    context.placedRects.push(expandRect(candidate.rect, PROCESSING_FAULT_LAYOUT_GAP));
-    processingFaultFocusPlacements.set(entry.faultId, {
-      direction: candidate.direction,
-      tier: candidate.tier,
-    });
-  });
-  processingFaultNetworkLayoutDirty = false;
-}
-
-function scheduleProcessingFaultFocusLayout(map) {
-  if (processingFaultFocusFrameId !== null) return;
-  if (typeof globalThis.requestAnimationFrame !== 'function') {
-    updateProcessingFaultFocuses(map);
-    return;
-  }
-  processingFaultFocusFrameId = globalThis.requestAnimationFrame(() => {
-    processingFaultFocusFrameId = null;
-    updateProcessingFaultFocuses(map);
-  });
-}
-
-function observeProcessingFaultLayout(map) {
-  if (typeof globalThis.ResizeObserver !== 'function') return;
-  processingFaultFocusResizeObserver = new globalThis.ResizeObserver(() => {
-    processingFaultNetworkLayoutDirty = true;
-    scheduleProcessingFaultFocusLayout(map);
-  });
-  const targets = [
-    map?.getContainer?.(),
-    document.getElementById('dashboard-v2-info-drawer'),
-    document.getElementById('dashboard-v2-debug-panel'),
-    document.querySelector?.('.dashboard-v2-map-tools'),
-  ].filter(Boolean);
-  targets.forEach((target) => processingFaultFocusResizeObserver.observe(target));
-}
-
-function renderProcessingFaultFocuses(map, faults) {
-  removeProcessingFaultFocuses();
-  processingFaultFocusMap = map;
-  faults.forEach((fault, index) => createProcessingFaultFocus(map, fault, index));
-  const currentFaultIds = new Set(processingFaultFocusMarkers.map(({ faultId }) => faultId));
-  [...processingFaultFocusPlacements.keys()].forEach((faultId) => {
-    if (!currentFaultIds.has(faultId)) processingFaultFocusPlacements.delete(faultId);
-  });
-  processingFaultNetworkLayoutDirty = true;
-  processingFaultFocusMoveHandler = () => scheduleProcessingFaultFocusLayout(map);
-  processingFaultFocusEndHandler = () => {
-    processingFaultNetworkLayoutDirty = true;
-    scheduleProcessingFaultFocusLayout(map);
-  };
-  map.on?.('move', processingFaultFocusMoveHandler);
-  map.on?.('resize', processingFaultFocusEndHandler);
-  map.on?.('zoom', processingFaultFocusMoveHandler);
-  map.on?.('moveend', processingFaultFocusEndHandler);
-  map.on?.('zoomend', processingFaultFocusEndHandler);
-  observeProcessingFaultLayout(map);
-  scheduleProcessingFaultFocusLayout(map);
+  return controller.render(map, faults);
 }
 
 function initializeGraticuleControl(map) {
@@ -980,7 +514,7 @@ function initializeGraticuleControl(map) {
   if (!button) return;
 
   let visible = false;
-  button.addEventListener('click', () => {
+  listenForMap(map, button, 'click', () => {
     if (!map.getLayer?.(GRATICULE_LAYER_ID)) return;
     visible = !visible;
     map.setLayoutProperty(GRATICULE_LAYER_ID, 'visibility', visible ? 'visible' : 'none');
@@ -1012,9 +546,10 @@ function initializeBaseNetworkControl(map) {
     button.setAttribute('aria-label', `基础网络 ${state}，点击切换`);
     button.setAttribute('aria-pressed', String(visible));
     if (status) status.textContent = `基础网络 ${state}`;
+    faultControllers.get(map)?.invalidate();
   };
 
-  button.addEventListener('click', () => {
+  listenForMap(map, button, 'click', () => {
     visible = !visible;
     applyVisibility();
   });
@@ -1431,4 +966,13 @@ export async function initializeDashboardV2Map(config = {}) {
 
 export function getDashboardV2Map() {
   return dashboardMap;
+}
+
+export function destroyDashboardV2Map(map = dashboardMap) {
+  for (const dispose of mapDomDisposers.get(map) || []) dispose();
+  mapDomDisposers.delete(map);
+  faultControllers.get(map)?.destroy();
+  faultControllers.delete(map);
+  map?.remove?.();
+  if (dashboardMap === map) dashboardMap = null;
 }

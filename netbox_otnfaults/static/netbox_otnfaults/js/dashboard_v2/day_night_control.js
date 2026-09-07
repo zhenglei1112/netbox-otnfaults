@@ -15,9 +15,10 @@ export function initializeDashboardV2DayNightControl(dayNight) {
   };
 
   applyState();
-  button.addEventListener('click', () => {
+  const onClick = () => {
     enabled = !enabled;
     applyState();
-  });
-  return { getEnabled: () => enabled };
+  };
+  button.addEventListener('click', onClick);
+  return { getEnabled: () => enabled, destroy: () => button.removeEventListener('click', onClick) };
 }

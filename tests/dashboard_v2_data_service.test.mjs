@@ -9,6 +9,40 @@ const MODULE_PATH = new URL(
 );
 const MODULE_SOURCE = await readFile(MODULE_PATH, 'utf8');
 
+test('site version reuses snapshot and rejects unmatched omitted payload', async () => {
+  const { fetchDashboardV2Data } = await loadDataService('versions');
+  installFetch({ data: { sites_version: 'one', sites: [{ id: 1 }] } });
+  const initial = await fetchDashboardV2Data('/data');
+  const calls = installFetch({ data: { sites_version: 'one' } });
+  const next = await fetchDashboardV2Data('/data');
+  assert.equal(next.sites, initial.sites);
+  assert.equal(calls[0][0], '/data?sites_version=one');
+  installFetch({ data: { sites_version: 'two' } });
+  await assert.rejects(fetchDashboardV2Data('/data'), /版本不匹配/);
+});
+
+test('elapsed-only changes preserve accepted fault order but fresh duration', async () => {
+  const { reconcileDashboardData } = await loadDataService('reconcile');
+  const previous = { processing_faults: [{ id: 1 }, { id: 2 }] };
+  const next = reconcileDashboardData(previous, {
+    processing_faults: [{ id: 2, duration: '2分' }, { id: 1, duration: '3分' }],
+  });
+  assert.deepEqual(next.processing_faults.map((fault) => fault.id), [1, 2]);
+  assert.equal(next.processing_faults[0].duration, '3分');
+});
+
+test('stalled requests time out and can be aborted by owner', async () => {
+  const { fetchDashboardV2Data } = await loadDataService('abort');
+  globalThis.fetch = (url, { signal }) => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+  });
+  await assert.rejects(fetchDashboardV2Data('/data', { timeoutMs: 5 }), /aborted/);
+  const controller = new AbortController();
+  const pending = fetchDashboardV2Data('/data', { signal: controller.signal });
+  controller.abort();
+  await assert.rejects(pending, /aborted/);
+});
+
 
 async function loadDataService(tag) {
   const encoded = Buffer.from(MODULE_SOURCE).toString('base64');

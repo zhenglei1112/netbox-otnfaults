@@ -40,12 +40,21 @@ export function installDashboardV2FrameRateLimit(
     if (nextFrameAt === null) nextFrameAt = timestamp;
 
     if (timestamp + FRAME_TIME_TOLERANCE_MS >= nextFrameAt) {
-      const pending = [...callbacks.values()];
-      callbacks.clear();
+      const pending = [...callbacks.keys()];
       do {
         nextFrameAt += frameInterval;
       } while (nextFrameAt <= timestamp);
-      pending.forEach((callback) => callback(timestamp));
+      pending.forEach((id) => {
+        const callback = callbacks.get(id);
+        if (!callback) return;
+        callbacks.delete(id);
+        try {
+          callback(timestamp);
+        } catch (error) {
+          if (typeof target.reportError === 'function') target.reportError(error);
+          else console.error('[Dashboard V2] 动画回调失败:', error);
+        }
+      });
     }
     requestPump();
   };

@@ -259,6 +259,8 @@ export async function initializeDashboardV2Starfield(map) {
       scheduleRender();
     },
     destroy() {
+      map.off('move', scheduleRender);
+      map.off('resize', scheduleRender);
       resizeObserver?.disconnect();
       window.clearInterval(clockTimer);
       if (animationFrame) cancelAnimationFrame(animationFrame);

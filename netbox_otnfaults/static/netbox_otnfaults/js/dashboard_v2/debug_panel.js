@@ -195,8 +195,9 @@ export function initializeDashboardV2DebugPanel(map, config = {}) {
   writeCamera(cameraFromMap(map, initial.bearing));
   enableDebugInteractions(map);
   fpsMonitor?.start();
-  map.on('moveend', () => writeCamera(cameraFromMap(map, initial.bearing)));
-  toggleButton.addEventListener('click', () => {
+  const onMove = () => writeCamera(cameraFromMap(map, initial.bearing));
+  map.on('moveend', onMove);
+  const onToggle = () => {
     const collapsed = !content.hidden;
     content.hidden = collapsed;
     toggleButton.textContent = collapsed ? '展开' : '收起';
@@ -206,27 +207,37 @@ export function initializeDashboardV2DebugPanel(map, config = {}) {
     } else {
       fpsMonitor?.start();
     }
-  });
-  applyButton.addEventListener('click', () => {
+  };
+  toggleButton.addEventListener('click', onToggle);
+  const onApply = () => {
     try {
       applyCamera(readCamera(), '已应用当前视野参数');
     } catch (error) {
       showMessage(error.message, true);
     }
-  });
-  resetButton.addEventListener('click', () => applyCamera(initial, '已重置为初始视野'));
+  };
+  applyButton.addEventListener('click', onApply);
+  const onReset = () => applyCamera(initial, '已重置为初始视野');
+  resetButton.addEventListener('click', onReset);
   const applySimulationState = (enabled) => {
     simulationToggle.checked = Boolean(enabled);
     config.onDataSimulationChange?.(enabled);
     showMessage(enabled ? '已开启故障数据模拟' : '已恢复实时故障数据');
   };
   simulationToggle.checked = false;
-  simulationToggle.addEventListener('change', () => {
+  const onSimulation = () => {
     applySimulationState(Boolean(simulationToggle.checked));
-  });
+  };
+  simulationToggle.addEventListener('change', onSimulation);
 
-  const destroy = () => fpsMonitor?.stop();
-  globalThis.addEventListener?.('beforeunload', destroy, { once: true });
+  const destroy = () => {
+    fpsMonitor?.stop();
+    map.off?.('moveend', onMove);
+    toggleButton.removeEventListener?.('click', onToggle);
+    applyButton.removeEventListener?.('click', onApply);
+    resetButton.removeEventListener?.('click', onReset);
+    simulationToggle.removeEventListener?.('change', onSimulation);
+  };
 
   return {
     apply: () => applyButton.click(),

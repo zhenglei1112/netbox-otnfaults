@@ -14,6 +14,7 @@ const MOCK_FAULT_DEFINITIONS = [
   {
     fault_number: 'DEBUG-OTN-001',
     category_display: '光缆故障',
+    category_color: 'purple',
     urgency_display: '紧急',
     severity: 'critical',
     priority_score: 100,
@@ -34,6 +35,7 @@ const MOCK_FAULT_DEFINITIONS = [
   {
     fault_number: 'DEBUG-OTN-002',
     category_display: '设备故障',
+    category_color: 'pink',
     urgency_display: '高',
     severity: 'major',
     priority_score: 88,
@@ -54,6 +56,7 @@ const MOCK_FAULT_DEFINITIONS = [
   {
     fault_number: 'DEBUG-OTN-003',
     category_display: '电源故障',
+    category_color: 'indigo',
     urgency_display: '高',
     severity: 'major',
     priority_score: 76,
@@ -74,6 +77,7 @@ const MOCK_FAULT_DEFINITIONS = [
   {
     fault_number: 'DEBUG-OTN-004',
     category_display: '纤芯劣化',
+    category_color: 'orange',
     urgency_display: '中',
     severity: 'minor',
     priority_score: 54,
@@ -94,6 +98,7 @@ const MOCK_FAULT_DEFINITIONS = [
   {
     fault_number: 'DEBUG-OTN-005',
     category_display: '空调故障',
+    category_color: 'teal',
     urgency_display: '一般',
     severity: 'minor',
     priority_score: 32,

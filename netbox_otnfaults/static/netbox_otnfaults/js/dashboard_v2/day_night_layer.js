@@ -260,6 +260,10 @@ export function initializeDashboardV2DayNight(map) {
   else map.once('load', addLayer);
   return {
     layerId: 'dashboard-v2-day-night',
+    destroy() {
+      map.off?.('load', addLayer);
+      if (map.getLayer('dashboard-v2-day-night')) map.removeLayer('dashboard-v2-day-night');
+    },
     getEnabled: () => layer.enabled,
     setEnabled(enabled) {
       layer.enabled = Boolean(enabled);

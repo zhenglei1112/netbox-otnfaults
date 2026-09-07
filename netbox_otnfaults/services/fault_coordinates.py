@@ -23,6 +23,7 @@ def resolve_location_coordinates(
     obj: Any = None,
     a_site: Any = None,
     z_sites: list[Any] | None = None,
+    path_midpoints: dict[tuple[int, int], tuple[float, float] | None] | None = None,
 ) -> FaultCoordinate | None:
     """Resolve coordinates using shared map fallback policy for OtnFault, CutoverTask or Site pairs."""
     # 1. 如果传入了模型实例，先判断显式自带的经纬度
@@ -70,12 +71,14 @@ def resolve_location_coordinates(
 
     # 3. 若只配置了 1 个 Z 端站点，优先检索两站点之间的光缆路径中点
     if len(z_sites) == 1 and z_sites[0] is not None:
-        path = _find_path_between_sites(a_site, z_sites[0])
-        if path:
-            midpoint = _geometry_midpoint(path.geometry)
-            if midpoint is not None:
-                lat, lng = midpoint
-                return FaultCoordinate(lat=lat, lng=lng, source='path_midpoint')
+        if path_midpoints is not None:
+            midpoint = path_midpoints.get(tuple(sorted((a_site.pk, z_sites[0].pk))))
+        else:
+            path = _find_path_between_sites(a_site, z_sites[0])
+            midpoint = _geometry_midpoint(path.geometry) if path else None
+        if midpoint is not None:
+            lat, lng = midpoint
+            return FaultCoordinate(lat=lat, lng=lng, source='path_midpoint')
 
     # 4. 退回 A 端站点坐标
     if a_site_coordinate is not None:
@@ -86,9 +89,41 @@ def resolve_location_coordinates(
     return _calculate_sites_center(all_sites, source='sites_center')
 
 
-def resolve_fault_coordinates(fault: OtnFault) -> FaultCoordinate | None:
+def resolve_fault_coordinates(
+    fault: OtnFault,
+    path_midpoints: dict[tuple[int, int], tuple[float, float] | None] | None = None,
+) -> FaultCoordinate | None:
     """Resolve fault coordinates using shared map fallback policy."""
-    return resolve_location_coordinates(obj=fault)
+    return resolve_location_coordinates(obj=fault, path_midpoints=path_midpoints)
+
+
+def load_fault_path_midpoints(faults: list[OtnFault]) -> dict[tuple[int, int], tuple[float, float] | None]:
+    """Load path fallback geometry in batches; callers must prefetch A/Z sites."""
+    from ..models import OtnPath
+
+    pairs: set[tuple[int, int]] = set()
+    for fault in faults:
+        if fault.interruption_latitude is not None and fault.interruption_longitude is not None:
+            continue
+        a_site = fault.interruption_location_a
+        z_sites = list(fault.interruption_location.all())
+        if a_site is not None and len(z_sites) == 1:
+            pairs.add(tuple(sorted((a_site.pk, z_sites[0].pk))))
+    result: dict[tuple[int, int], tuple[float, float] | None] = {}
+    pair_list = sorted(pairs)
+    for offset in range(0, len(pair_list), 200):
+        query = Q()
+        for first, second in pair_list[offset:offset + 200]:
+            query |= Q(site_a_id=first, site_z_id=second) | Q(site_a_id=second, site_z_id=first)
+        paths = OtnPath.objects.filter(query).exclude(geometry__isnull=True).exclude(geometry=[])
+        # Match QuerySet.first(): retain model ordering, falling back to primary key.
+        if not paths.ordered:
+            paths = paths.order_by('pk')
+        for path in paths.only('site_a_id', 'site_z_id', 'geometry'):
+            key = tuple(sorted((path.site_a_id, path.site_z_id)))
+            if key not in result:
+                result[key] = _geometry_midpoint(path.geometry)
+    return result
 
 
 def resolve_cutover_coordinates(cutover: CutoverTask) -> FaultCoordinate | None:

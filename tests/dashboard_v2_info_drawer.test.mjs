@@ -5,6 +5,7 @@ import {
   initializeDashboardV2InfoDrawer,
   renderDashboardV2InfoDrawer,
   showDashboardV2InfoDrawerError,
+  updateDashboardV2Elapsed,
 } from '../netbox_otnfaults/static/netbox_otnfaults/js/dashboard_v2/info_drawer.js';
 
 
@@ -39,8 +40,20 @@ class FakeElement {
   }
 
   appendChild(child) {
+    child.parentElement = this;
     this.children.push(child);
     return child;
+  }
+
+  insertBefore(child, before) {
+    child.remove();
+    const index = before ? this.children.indexOf(before) : this.children.length;
+    this.children.splice(index, 0, child);
+    child.parentElement = this;
+  }
+
+  remove() {
+    if (this.parentElement) this.parentElement.children = this.parentElement.children.filter((node) => node !== this);
   }
 
   replaceChildren(...children) {
@@ -180,6 +193,7 @@ test('information drawer cycles fault cards with hover arrows and keyboard contr
     createElement: (tagName) => new FakeElement(tagName),
   };
   const faults = ['F001', 'F002', 'F003'].map((faultNumber) => ({
+    id: faultNumber,
     fault_number: faultNumber,
     severity: 'minor',
   }));
@@ -212,6 +226,14 @@ test('information drawer cycles fault cards with hover arrows and keyboard contr
   list.onkeydown({ key: 'ArrowLeft', preventDefault() {} });
   assert.equal(count.textContent, '3/3');
   assert.equal(track.style.transform, 'translateX(-200%)');
+  const originalCards = [...track.children];
+  renderDashboardV2InfoDrawer({ summary: {}, processing_faults: faults });
+  assert.equal(list.children[0], track);
+  assert.deepEqual(track.children, originalCards);
+  assert.equal(count.textContent, '3/3');
+  renderDashboardV2InfoDrawer({ summary: {}, processing_faults: [faults[2], faults[0], faults[1]] });
+  assert.equal(count.textContent, '1/3');
+  assert.equal(track.children[0], originalCards[2]);
 });
 
 

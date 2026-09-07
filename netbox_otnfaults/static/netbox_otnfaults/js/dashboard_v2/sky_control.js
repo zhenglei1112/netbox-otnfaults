@@ -24,9 +24,10 @@ export function initializeDashboardV2SkyControl(galaxy, starfield) {
   };
 
   applyMode();
-  button.addEventListener('click', () => {
+  const onClick = () => {
     modeIndex = (modeIndex + 1) % SKY_MODES.length;
     applyMode();
-  });
-  return { getMode: () => SKY_MODES[modeIndex] };
+  };
+  button.addEventListener('click', onClick);
+  return { getMode: () => SKY_MODES[modeIndex], destroy: () => button.removeEventListener('click', onClick) };
 }

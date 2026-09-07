@@ -1,3 +1,32 @@
+const carouselStates = new WeakMap();
+
+function setText(element, text) {
+  if (element && element.textContent !== text) element.textContent = text;
+}
+
+function cardSignature(fault) {
+  return JSON.stringify([
+    fault.url, fault.severity, fault.fault_number, fault.category_display, fault.urgency_display,
+    fault.province, fault.site_a, fault.sites_z, fault.occurrence_time_display, fault.duration,
+    fault.handling_unit, fault.handler, fault.interrupted_business_count,
+    fault.interrupted_business_names, fault.reason,
+  ]);
+}
+
+// Patch leaves in place so focus, the current card and animation state survive polling.
+function patchCard(target, source) {
+  if (target.className !== source.className) target.className = source.className;
+  if (target.dataset.severity !== source.dataset.severity) target.dataset.severity = source.dataset.severity;
+  for (const key of ['href', 'target', 'rel', 'title']) {
+    if (target[key] !== source[key]) target[key] = source[key] || '';
+  }
+  const label = source.getAttribute?.('aria-label');
+  if (label && target.getAttribute?.('aria-label') !== label) target.setAttribute('aria-label', label);
+  const children = Array.from(source.children || []);
+  if (!children.length) setText(target, source.textContent);
+  else children.forEach((child, index) => patchCard(target.children[index], child));
+}
+
 function textValue(value, fallback = '—') {
   if (value === null || value === undefined) return fallback;
   const text = String(value).trim();
@@ -89,7 +118,7 @@ function createFaultCard(fault) {
 
 function setMetric(id, value) {
   const element = document.getElementById(id);
-  if (element) element.textContent = String(Number(value) || 0);
+  setText(element, String(Number(value) || 0));
 }
 
 function createCarouselButton(direction, onActivate) {
@@ -106,34 +135,78 @@ function createCarouselButton(direction, onActivate) {
 }
 
 function renderFaultCarousel(list, faults, count, onActiveFaultChange) {
+  const existing = carouselStates.get(list);
+  if (existing) {
+    const selectedId = existing.faults[existing.currentIndex]?.id;
+    const nextCards = new Map();
+    faults.forEach((fault, index) => {
+      const key = String(fault.id ?? index);
+      const signature = cardSignature(fault);
+      let entry = existing.cards.get(key);
+      if (!entry || Boolean(entry.fault.url) !== Boolean(fault.url)) {
+        entry = { node: createFaultCard(fault), signature, fault };
+      } else if (entry.signature !== signature) {
+        patchCard(entry.node, createFaultCard(fault));
+      }
+      entry.signature = signature;
+      entry.fault = fault;
+      nextCards.set(key, entry);
+    });
+    const nodes = [...nextCards.values()].map((entry) => entry.node);
+    if (nodes.length !== existing.track.children.length
+        || nodes.some((node, i) => node !== existing.track.children[i])) {
+      // Move existing nodes rather than recreating cards.
+      nodes.forEach((node, i) => {
+        if (existing.track.children[i] !== node) existing.track.insertBefore(node, existing.track.children[i] || null);
+      });
+      Array.from(existing.track.children).slice(nodes.length).forEach((node) => node.remove());
+    }
+    existing.cards = nextCards;
+    existing.faults = faults;
+    existing.onActiveFaultChange = onActiveFaultChange;
+    const selected = faults.findIndex((fault) => fault.id === selectedId);
+    existing.show(selected < 0 ? Math.min(existing.currentIndex, faults.length - 1) : selected);
+    return;
+  }
   const track = document.createElement('div');
   track.className = 'dashboard-v2-fault-carousel-track';
-  faults.forEach((fault) => track.appendChild(createFaultCard(fault || {})));
+  const cards = new Map();
+  faults.forEach((fault, index) => {
+    const node = createFaultCard(fault || {});
+    track.appendChild(node);
+    cards.set(String(fault.id ?? index), { node, signature: cardSignature(fault), fault });
+  });
   list.replaceChildren(track);
   list.tabIndex = 0;
   list.onkeydown = null;
   list.setAttribute('role', 'region');
   list.setAttribute('aria-label', '处理中故障轮播');
 
-  let currentIndex = 0;
+  const state = { track, cards, faults, currentIndex: 0, onActiveFaultChange };
+  carouselStates.set(list, state);
   const showFault = (index) => {
-    currentIndex = (index + faults.length) % faults.length;
-    track.style.transform = `translateX(-${currentIndex * 100}%)`;
-    if (count) count.textContent = `${currentIndex + 1}/${faults.length}`;
-    onActiveFaultChange?.(faults[currentIndex], currentIndex);
+    state.currentIndex = (index + state.faults.length) % state.faults.length;
+    const transform = `translateX(-${state.currentIndex * 100}%)`;
+    if (track.style.transform !== transform) track.style.transform = transform;
+    setText(count, `${state.currentIndex + 1}/${state.faults.length}`);
+    state.onActiveFaultChange?.(state.faults[state.currentIndex], state.currentIndex);
+    if (state.previous) state.previous.hidden = state.next.hidden = state.faults.length < 2;
   };
-  if (faults.length > 1) {
-    const previous = createCarouselButton('previous', () => showFault(currentIndex - 1));
-    const next = createCarouselButton('next', () => showFault(currentIndex + 1));
+  state.show = showFault;
+  {
+    const previous = createCarouselButton('previous', () => showFault(state.currentIndex - 1));
+    const next = createCarouselButton('next', () => showFault(state.currentIndex + 1));
+    state.previous = previous;
+    state.next = next;
     list.appendChild(previous);
     list.appendChild(next);
     list.onkeydown = (event) => {
       if (event.key === 'ArrowLeft') {
         event.preventDefault?.();
-        showFault(currentIndex - 1);
+        showFault(state.currentIndex - 1);
       } else if (event.key === 'ArrowRight') {
         event.preventDefault?.();
-        showFault(currentIndex + 1);
+        showFault(state.currentIndex + 1);
       }
     };
   }
@@ -163,7 +236,11 @@ export function renderDashboardV2InfoDrawer(data = {}, { onActiveFaultChange } =
 
   const updateStatus = document.getElementById('dashboard-v2-info-update-status');
   if (updateStatus) {
-    updateStatus.textContent = data.simulated ? '模拟数据 · 5 条处理中' : formatUpdateTime(data.timestamp);
+    if (updateStatus.classList.contains('is-error') || !updateStatus.textContent
+        || updateStatus.dataset.simulated !== String(Boolean(data.simulated))) {
+      setText(updateStatus, data.simulated ? '模拟数据 · 5 条处理中' : formatUpdateTime(data.timestamp));
+      updateStatus.dataset.simulated = String(Boolean(data.simulated));
+    }
     updateStatus.classList.remove('is-error');
   }
 
@@ -171,10 +248,10 @@ export function renderDashboardV2InfoDrawer(data = {}, { onActiveFaultChange } =
   const count = document.getElementById('dashboard-v2-info-fault-count');
   const list = document.getElementById('dashboard-v2-info-fault-list');
   if (!list) return 0;
-  list.replaceChildren();
-  list.onkeydown = null;
   if (!faults.length) {
-    list.appendChild(createTextElement(
+    carouselStates.delete(list);
+    list.onkeydown = null;
+    if (list.children.length !== 1 || list.children[0].textContent !== '当前无处理中故障') list.replaceChildren(createTextElement(
       'div',
       'dashboard-v2-info-state',
       '当前无处理中故障',
@@ -204,6 +281,23 @@ export function showDashboardV2InfoDrawerError({ preserveData = false } = {}) {
   }
 }
 
+export function updateDashboardV2Elapsed(now = Date.now()) {
+  const list = document.getElementById('dashboard-v2-info-fault-list');
+  const state = list && carouselStates.get(list);
+  state?.cards.forEach(({ fault, node }) => {
+    const start = Date.parse(fault.occurrence_time);
+    if (!Number.isFinite(start)) return;
+    const totalMinutes = Math.max(0, Math.floor((now - start) / 60000));
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor(totalMinutes / 60) % 24;
+    const minutes = totalMinutes % 60;
+    const duration = `${days ? `${days}天` : ''}${days || hours ? `${hours}小时` : ''}${minutes}分`;
+    const value = node.children[1].children[1].children[1];
+    setText(value, `${textValue(fault.occurrence_time_display)} · ${duration}`);
+    if (value.title !== value.textContent) value.title = value.textContent;
+  });
+}
+
 export function initializeDashboardV2InfoDrawer({ onActiveFaultChange } = {}) {
   const drawer = document.getElementById('dashboard-v2-info-drawer');
   const toggle = document.getElementById('dashboard-v2-info-drawer-toggle');
@@ -220,16 +314,23 @@ export function initializeDashboardV2InfoDrawer({ onActiveFaultChange } = {}) {
     content.setAttribute('aria-hidden', String(!expanded));
   };
 
-  toggle.addEventListener('click', () => {
+  const onToggle = () => {
     expanded = !expanded;
     applyState();
-  });
+  };
+  toggle.addEventListener('click', onToggle);
   applyState();
 
   return {
     isExpanded: () => expanded,
     render: (data) => renderDashboardV2InfoDrawer(data, { onActiveFaultChange }),
     showError: showDashboardV2InfoDrawerError,
+    updateElapsed: updateDashboardV2Elapsed,
+    destroy() {
+      toggle.removeEventListener?.('click', onToggle);
+      const list = document.getElementById('dashboard-v2-info-fault-list');
+      if (list) { carouselStates.delete(list); list.onkeydown = null; }
+    },
     setExpanded(value) {
       expanded = Boolean(value);
       applyState();

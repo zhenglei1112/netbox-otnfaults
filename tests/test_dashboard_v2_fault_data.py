@@ -5,7 +5,8 @@ from pathlib import Path
 VIEW_PATH = (
     Path(__file__).resolve().parents[1]
     / "netbox_otnfaults"
-    / "dashboard_v2_views.py"
+    / "services"
+    / "dashboard_v2.py"
 )
 
 
@@ -61,10 +62,10 @@ class DashboardV2FaultDataTestCase(unittest.TestCase):
 
     def test_processing_faults_reuse_shared_coordinate_resolution(self) -> None:
         self.assertIn(
-            "from .services.fault_coordinates import resolve_fault_coordinates",
+            "from .fault_coordinates import load_fault_path_midpoints, resolve_fault_coordinates",
             self.source,
         )
-        self.assertIn("resolved_coordinates = resolve_fault_coordinates(fault)", self.source)
+        self.assertIn("resolved_coordinates = resolve_fault_coordinates(fault, path_midpoints=path_midpoints)", self.source)
         self.assertIn("resolved_coordinates.lng", self.source)
         self.assertIn("resolved_coordinates.lat", self.source)
         self.assertIn("resolved_coordinates.source", self.source)

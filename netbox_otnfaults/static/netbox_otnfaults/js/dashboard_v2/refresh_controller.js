@@ -2,27 +2,34 @@ export function createDashboardMapRefresher({
   load,
   onData,
   onError,
+  onSuccess = () => {},
   getDataSignature = null,
 }) {
   let inFlight = null;
   let hasAppliedData = false;
   let lastDataSignature;
+  let disposed = false;
+  let controller = null;
 
-  return function refreshDashboardMapData() {
+  function refreshDashboardMapData() {
+    if (disposed) return Promise.resolve(null);
     if (inFlight) {
       return inFlight;
     }
 
     let request;
     try {
-      request = Promise.resolve(load());
+      controller = new AbortController();
+      request = Promise.resolve(load({ signal: controller.signal }));
     } catch (error) {
       request = Promise.reject(error);
     }
 
     const handled = request
       .then((data) => {
+        if (disposed || controller?.signal.aborted) return null;
         const nextDataSignature = getDataSignature?.(data);
+        onSuccess(data);
         if (
           hasAppliedData
           && getDataSignature
@@ -36,7 +43,7 @@ export function createDashboardMapRefresher({
         return data;
       })
       .catch((error) => {
-        onError(error);
+        if (!disposed && !controller?.signal.aborted) onError(error);
         return null;
       });
     const guarded = handled.finally(() => {
@@ -46,7 +53,13 @@ export function createDashboardMapRefresher({
     });
     inFlight = guarded;
     return guarded;
+  }
+  refreshDashboardMapData.cancel = () => controller?.abort();
+  refreshDashboardMapData.destroy = () => {
+    disposed = true;
+    controller?.abort();
   };
+  return refreshDashboardMapData;
 }
 
 export function startDashboardAutoRefresh({
@@ -57,14 +70,26 @@ export function startDashboardAutoRefresh({
   clearIntervalFn = globalThis.clearInterval,
 }) {
   refresh();
-  const timer = setIntervalFn(refresh, intervalMs);
+  let timer = setIntervalFn(refresh, intervalMs);
   let stopped = false;
+  const pause = () => {
+    clearIntervalFn(timer);
+    timer = null;
+    refresh.cancel?.();
+  };
+  const resume = () => {
+    if (stopped || timer !== null) return;
+    refresh();
+    timer = setIntervalFn(refresh, intervalMs);
+  };
   const stop = () => {
     if (stopped) return;
     stopped = true;
-    clearIntervalFn(timer);
-    eventTarget?.removeEventListener?.('pagehide', stop);
+    if (timer !== null) pause();
+    eventTarget?.removeEventListener?.('pagehide', pause);
+    eventTarget?.removeEventListener?.('pageshow', resume);
   };
-  eventTarget?.addEventListener?.('pagehide', stop, { once: true });
+  eventTarget?.addEventListener?.('pagehide', pause);
+  eventTarget?.addEventListener?.('pageshow', resume);
   return stop;
 }

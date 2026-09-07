@@ -42,6 +42,27 @@ function createNativeFrameTarget() {
   };
 }
 
+test('a failing callback cannot discard other callbacks and same-frame cancellation works', async () => {
+  const { installDashboardV2FrameRateLimit } = await loadFrameRateLimiter('isolate-errors');
+  const native = createNativeFrameTarget();
+  const errors = [];
+  native.target.reportError = (error) => errors.push(error.message);
+  installDashboardV2FrameRateLimit(60, native.target);
+  const calls = [];
+  native.target.requestAnimationFrame(() => { throw Error('boom'); });
+  let cancelled;
+  native.target.requestAnimationFrame(() => {
+    calls.push('second');
+    native.target.cancelAnimationFrame(cancelled);
+    native.target.requestAnimationFrame(() => calls.push('next-frame'));
+  });
+  cancelled = native.target.requestAnimationFrame(() => calls.push('cancelled'));
+  native.runFrame(0);
+  native.runFrame(17);
+  assert.deepEqual(calls, ['second', 'next-frame']);
+  assert.deepEqual(errors, ['boom']);
+});
+
 
 test('page frame scheduler caps a 120 Hz source at 60 FPS', async () => {
   const { installDashboardV2FrameRateLimit } = await loadFrameRateLimiter('60-fps');
