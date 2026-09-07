@@ -12,7 +12,7 @@ const MODULE_SOURCE = await readFile(MODULE_PATH, 'utf8');
 
 async function loadMapModule(tag) {
   const layout = new URL('../netbox_otnfaults/static/netbox_otnfaults/js/dashboard_v2/fault_overlays.js', import.meta.url).href;
-  const encoded = Buffer.from(MODULE_SOURCE.replace('./fault_overlays.js?v=20260907-callout-content-v1', layout + '?test=' + tag)).toString('base64');
+  const encoded = Buffer.from(MODULE_SOURCE.replace('./fault_overlays.js?v=20260907-callout-polish-v1', layout + '?test=' + tag)).toString('base64');
   return import(`data:text/javascript;base64,${encoded}#${tag}`);
 }
 

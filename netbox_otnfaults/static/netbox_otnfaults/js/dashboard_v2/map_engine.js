@@ -1,4 +1,4 @@
-import { createFaultOverlayController } from './fault_overlays.js?v=20260907-callout-content-v1';
+import { createFaultOverlayController } from './fault_overlays.js?v=20260907-callout-polish-v1';
 let dashboardMap = null;
 let hasRuntimeMapError = false;
 let pmtilesProtocolRegistered = false;

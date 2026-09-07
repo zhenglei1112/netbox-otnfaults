@@ -12,6 +12,33 @@ export function expandRect(rect, gap) {
   };
 }
 
+export function leaderSegment(point, rect) {
+  const end = {
+    x: Math.max(rect.left, Math.min(point.x, rect.right)),
+    y: Math.max(rect.top, Math.min(point.y, rect.bottom)),
+  };
+  const length = Math.hypot(end.x - point.x, end.y - point.y);
+  const ratio = length > 14 ? 14 / length : 1;
+  return { start: { x: point.x + (end.x - point.x) * ratio, y: point.y + (end.y - point.y) * ratio }, end };
+}
+
+export function segmentsIntersect(a, b) {
+  const cross = (p, q, r) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  const on = (p, q, r) => Math.abs(cross(p, q, r)) < 1e-6
+    && r.x >= Math.min(p.x, q.x) - 1e-6 && r.x <= Math.max(p.x, q.x) + 1e-6
+    && r.y >= Math.min(p.y, q.y) - 1e-6 && r.y <= Math.max(p.y, q.y) + 1e-6;
+  return (cross(a.start, a.end, b.start) * cross(a.start, a.end, b.end) < 0
+    && cross(b.start, b.end, a.start) * cross(b.start, b.end, a.end) < 0)
+    || on(a.start, a.end, b.start) || on(a.start, a.end, b.end)
+    || on(b.start, b.end, a.start) || on(b.start, b.end, a.end);
+}
+
+function crossesRect(segment, rect) {
+  const corners = [{ x: rect.left, y: rect.top }, { x: rect.right, y: rect.top },
+    { x: rect.right, y: rect.bottom }, { x: rect.left, y: rect.bottom }];
+  return corners.some((start, i) => segmentsIntersect(segment, { start, end: corners[(i + 1) % 4] }));
+}
+
 function overlapArea(first, second) {
   const width = Math.max(0, Math.min(first.right, second.right) - Math.max(first.left, second.left));
   const height = Math.max(0, Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top));
@@ -83,6 +110,16 @@ export function scorePlacement(candidate, context, previous) {
     + Math.max(0, rect.right - width + PROCESSING_FAULT_LAYOUT_PADDING)
     + Math.max(0, rect.bottom - height + PROCESSING_FAULT_LAYOUT_PADDING);
   let score = overflow * 1000000;
+  if (candidate.leader) {
+    // Crossings outweigh network-density and direction preferences, but not severe overflow.
+    for (const leader of context.placedLeaders || []) {
+      if (segmentsIntersect(candidate.leader, leader)) score += 50000000;
+      if (crossesRect(leader, rect)) score += 50000000;
+    }
+    for (const placed of [...placedRects, ...reservedRects]) {
+      if (crossesRect(candidate.leader, placed)) score += 50000000;
+    }
+  }
   placedRects.forEach((placed) => {
     score += overlapArea(expandRect(rect, PROCESSING_FAULT_LAYOUT_GAP), placed) * 10000;
   });
@@ -100,4 +137,3 @@ export function scorePlacement(candidate, context, previous) {
   }
   return score;
 }
-

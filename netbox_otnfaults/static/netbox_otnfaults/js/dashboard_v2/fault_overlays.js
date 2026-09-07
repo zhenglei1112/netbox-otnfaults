@@ -1,4 +1,4 @@
-import { PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260907-callout-content-v1';
+import { leaderSegment, PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260907-callout-polish-v1';
 const PROCESSING_FAULTS_SOURCE_ID = 'dashboard-v2-processing-faults';
 const SITES_SOURCE_ID = 'dashboard-v2-sites';
 const OTN_PATHS_SOURCE_ID = 'dashboard-v2-otn-paths';
@@ -141,13 +141,13 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       fault?.category_display || '处理中故障',
     ));
     callout.appendChild(alertRow);
-    callout.appendChild(createFaultFocusNode(
-      'div',
+    alertRow.appendChild(createFaultFocusNode(
+      'span',
       'dashboard-v2-fault-callout-number',
       fault?.fault_number || '未编号故障',
     ));
-    callout.appendChild(createFaultFocusNode('div', 'dashboard-v2-fault-callout-meta'));
     callout.appendChild(createFaultFocusNode('div', 'dashboard-v2-fault-callout-route'));
+    callout.appendChild(createFaultFocusNode('div', 'dashboard-v2-fault-callout-meta'));
     callout.appendChild(createFaultFocusNode('div', 'dashboard-v2-fault-callout-business'));
     root.appendChild(callout);
     updateFaultFocusElement(root, fault, index);
@@ -352,6 +352,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       width,
       height,
       placedRects: [],
+      placedLeaders: [],
       radarRects,
       reservedRects: reservedInterfaceRects(containerRect),
       networkScoreCache: new Map(),
@@ -359,7 +360,9 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
     };
     projected.forEach((entry) => {
       const previous = processingFaultFocusPlacements.get(entry.faultId);
-      const candidates = buildPlacementCandidates(entry.point, width, height);
+      const candidates = buildPlacementCandidates(entry.point, width, height).map((candidate) => ({
+        ...candidate, leader: leaderSegment(entry.point, candidate.rect),
+      }));
       const shortlist = candidates
         .map((candidate) => ({
           ...candidate,
@@ -376,6 +379,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       if (!candidate) return;
       applyProcessingFaultPlacement(entry, candidate);
       context.placedRects.push(expandRect(candidate.rect, PROCESSING_FAULT_LAYOUT_GAP));
+      context.placedLeaders.push(candidate.leader);
       processingFaultFocusPlacements.set(entry.faultId, {
         direction: candidate.direction,
         tier: candidate.tier,

@@ -2,29 +2,29 @@ import * as maplibreglModule from '../../lib/maplibre-gl-v6.js?v=20260907-worker
 import {
   initializeDashboardV2DebugPanel,
   isDashboardV2DebugEnabled,
-} from './debug_panel.js?v=20260907-callout-content-v1';
+} from './debug_panel.js?v=20260907-callout-polish-v1';
 import {
   reconcileDashboardData,
   fetchDashboardV2Data,
-} from './data_service.js?v=20260907-callout-content-v1';
-import { installDashboardV2FrameRateLimit } from './frame_rate_limiter.js?v=20260907-callout-content-v1';
-import { initializeDashboardV2InfoDrawer } from './info_drawer.js?v=20260907-callout-content-v1';
-import { createDashboardV2MockFaultData } from './mock_fault_data.js?v=20260907-callout-content-v1';
+} from './data_service.js?v=20260907-callout-polish-v1';
+import { installDashboardV2FrameRateLimit } from './frame_rate_limiter.js?v=20260907-callout-polish-v1';
+import { initializeDashboardV2InfoDrawer } from './info_drawer.js?v=20260907-callout-polish-v1';
+import { createDashboardV2MockFaultData } from './mock_fault_data.js?v=20260907-callout-polish-v1';
 import {
   createDashboardMapRefresher,
   startDashboardAutoRefresh,
-} from './refresh_controller.js?v=20260907-callout-content-v1';
-import { initializeDashboardV2DayNightControl } from './day_night_control.js?v=20260907-callout-content-v1';
-import { initializeDashboardV2DayNight } from './day_night_layer.js?v=20260907-callout-content-v1';
+} from './refresh_controller.js?v=20260907-callout-polish-v1';
+import { initializeDashboardV2DayNightControl } from './day_night_control.js?v=20260907-callout-polish-v1';
+import { initializeDashboardV2DayNight } from './day_night_layer.js?v=20260907-callout-polish-v1';
 import {
   initializeDashboardV2Map,
   destroyDashboardV2Map,
   renderDashboardV2ProcessingFaults,
   renderDashboardV2Sites,
-} from './map_engine.js?v=20260907-callout-content-v1';
-import { initializeDashboardV2Galaxy } from './galaxy.js?v=20260907-callout-content-v1';
-import { initializeDashboardV2SkyControl } from './sky_control.js?v=20260907-callout-content-v1';
-import { initializeDashboardV2Starfield } from './starfield.js?v=20260907-callout-content-v1';
+} from './map_engine.js?v=20260907-callout-polish-v1';
+import { initializeDashboardV2Galaxy } from './galaxy.js?v=20260907-callout-polish-v1';
+import { initializeDashboardV2SkyControl } from './sky_control.js?v=20260907-callout-polish-v1';
+import { initializeDashboardV2Starfield } from './starfield.js?v=20260907-callout-polish-v1';
 
 globalThis.maplibregl = maplibreglModule;
 
