@@ -118,6 +118,29 @@ const MOCK_FAULT_DEFINITIONS = [
   },
 ];
 
+function createMockCutovers(now) {
+  const definitions = [
+    ['applying', '申请中', 'blue', '浙江省', '杭州核心站', '宁波站', 120.15, 30.28],
+    ['pending_implementation', '待实施', 'orange', '湖北省', '武汉核心站', '宜昌站', 114.30, 30.59],
+    ['completed', '已完成', 'green', '山东省', '济南核心站', '青岛站', 117.12, 36.65],
+    ['cancelled', '被取消', 'red', '福建省', '福州核心站', '厦门站', 119.30, 26.08],
+  ];
+  return definitions.map(([status, status_display, status_color, province, site_a, site_z, lng, lat], index) => {
+    const planned = new Date(now);
+    const tomorrow = index % 2 === 1;
+    planned.setDate(planned.getDate() + Number(tomorrow));
+    planned.setHours(2 + index, 30, 0, 0);
+    const pad = (value) => String(value).padStart(2, '0');
+    return {
+      id: `debug-cutover-${index + 1}`, url: '', cutover_no: `DEBUG-CUT-${index + 1}`,
+      day: tomorrow ? 'tomorrow' : 'today', planned_time: planned.toISOString(),
+      planned_time_display: `${pad(planned.getMonth() + 1)}-${pad(planned.getDate())} ${pad(planned.getHours())}:30`,
+      type_display: '光缆割接', status, status_display, status_color, province, site_a,
+      sites_z: [site_z], lng, lat, location: '模拟线路迁改段', supervisor: '模拟主管', is_my_task: false,
+    };
+  });
+}
+
 export function createDashboardV2MockFaultData(realData = {}, now = new Date()) {
   const faults = MOCK_FAULT_DEFINITIONS.map((definition, index) => {
     const occurrence = occurrenceTime(now, definition.minutes_ago);
@@ -133,6 +156,8 @@ export function createDashboardV2MockFaultData(realData = {}, now = new Date()) 
   return {
     timestamp: now.toISOString(),
     simulated: true,
+    cutovers: createMockCutovers(now),
+    cutover_summary: { today: 2, tomorrow: 2, total: 4 },
     summary: {
       total_faults: Math.max(Number(realSummary.total_faults) || 0, faults.length),
       processing_faults: faults.length,

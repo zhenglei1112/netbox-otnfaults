@@ -5,6 +5,7 @@ function setText(element, text) {
 }
 
 function cardSignature(fault) {
+  if (fault.kind === 'cutover') return JSON.stringify(fault);
   return JSON.stringify([
     fault.url, fault.severity, fault.fault_number, fault.category_display, fault.urgency_display,
     fault.province, fault.site_a, fault.sites_z, fault.occurrence_time_display, fault.duration,
@@ -74,6 +75,7 @@ function faultBusiness(fault) {
 }
 
 function createFaultCard(fault) {
+  if (fault.kind === 'cutover') return createCutoverCard(fault);
   const card = document.createElement(fault.url ? 'a' : 'article');
   card.className = 'dashboard-v2-fault-card';
   card.dataset.severity = textValue(fault.severity, 'minor');
@@ -114,6 +116,49 @@ function createFaultCard(fault) {
   details.appendChild(createDetailRow('原因', fault.reason, 'is-wide'));
   card.appendChild(details);
   return card;
+}
+
+function createCutoverCard(task) {
+  const card = document.createElement(task.url ? 'a' : 'article');
+  card.className = 'dashboard-v2-fault-card dashboard-v2-cutover-card';
+  card.dataset.severity = task.status_color || 'gray';
+  if (task.url) { card.href = task.url; card.target = '_blank'; card.rel = 'noopener'; }
+  const header = createTextElement('div', 'dashboard-v2-fault-card-title', `⇄ ${task.type_display || '割接'} · ${task.status_display || '未知状态'}`);
+  card.appendChild(header);
+  const details = document.createElement('div');
+  details.className = 'dashboard-v2-fault-card-details';
+  details.appendChild(createDetailRow('计划时间', `${task.day === 'today' ? '今日' : '明日'} ${task.planned_time_display}`, 'is-wide'));
+  details.appendChild(createDetailRow('站点', faultLocation(task), 'is-wide'));
+  details.appendChild(createDetailRow('位置', task.location, 'is-wide'));
+  details.appendChild(createDetailRow('线路主管', `${task.supervisor || '—'}${task.is_my_task ? '（本人）' : ''}`));
+  details.appendChild(createDetailRow('编号', task.cutover_no));
+  card.appendChild(details);
+  return card;
+}
+
+export function renderDashboardV2Cutovers(data) {
+  const list = document.getElementById('dashboard-v2-info-cutover-list');
+  if (!list) return;
+  const tasks = (data.cutovers || []).map((task) => ({ ...task, kind: 'cutover' }));
+  const count = document.getElementById('dashboard-v2-info-cutover-count');
+  const summary = data.cutover_summary || {};
+  setText(document.getElementById('dashboard-v2-info-cutover-summary'), `今日 ${summary.today || 0} · 明日 ${summary.tomorrow || 0}`);
+  if (!tasks.length) {
+    if (list.dataset.empty !== 'true') {
+      list.replaceChildren(createTextElement('div', 'dashboard-v2-info-state', '今明无割接任务'));
+      carouselStates.delete(list);
+      list.onkeydown = null;
+      list.dataset.empty = 'true';
+    }
+    setText(count, '0/0');
+    return;
+  }
+  list.dataset.empty = 'false';
+  renderFaultCarousel(list, tasks, count);
+  list.setAttribute('aria-label', '今明割接轮播');
+  const state = carouselStates.get(list);
+  state.previous?.setAttribute('aria-label', '上一条割接');
+  state.next?.setAttribute('aria-label', '下一条割接');
 }
 
 function setMetric(id, value) {
@@ -327,6 +372,8 @@ export function initializeDashboardV2InfoDrawer({ onActiveFaultChange } = {}) {
     showError: showDashboardV2InfoDrawerError,
     updateElapsed: updateDashboardV2Elapsed,
     destroy() {
+      const cutoverList = document.getElementById('dashboard-v2-info-cutover-list');
+      if (cutoverList) { carouselStates.delete(cutoverList); cutoverList.onkeydown = null; }
       toggle.removeEventListener?.('click', onToggle);
       const list = document.getElementById('dashboard-v2-info-fault-list');
       if (list) { carouselStates.delete(list); list.onkeydown = null; }

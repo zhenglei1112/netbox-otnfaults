@@ -222,7 +222,7 @@ export function initializeDashboardV2DebugPanel(map, config = {}) {
   const applySimulationState = (enabled) => {
     simulationToggle.checked = Boolean(enabled);
     config.onDataSimulationChange?.(enabled);
-    showMessage(enabled ? '已开启故障数据模拟' : '已恢复实时故障数据');
+    showMessage(enabled ? '已开启故障及割接数据模拟' : '已恢复实时数据');
   };
   simulationToggle.checked = false;
   const onSimulation = () => {

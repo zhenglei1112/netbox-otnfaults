@@ -208,7 +208,7 @@ test('debug panel applies camera options while keeping pitch and fixed bearing l
   simulationToggle.checked = false;
   simulationToggle.listeners.change();
   assert.deepEqual(initialConfig.simulationChanges, [true, false]);
-  assert.match(elements.get('dashboard-v2-debug-message').textContent, /实时故障数据/);
+  assert.match(elements.get('dashboard-v2-debug-message').textContent, /已恢复实时数据/);
 
   elements.get('dashboard-v2-debug-toggle').listeners.click();
   assert.equal(elements.get('dashboard-v2-debug-content').hidden, true);

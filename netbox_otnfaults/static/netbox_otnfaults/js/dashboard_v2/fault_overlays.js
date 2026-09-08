@@ -1,5 +1,6 @@
-import { leaderSegment, PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260907-callout-polish-v1';
+import { leaderSegment, PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260908-callout-compact-v1';
 const PROCESSING_FAULTS_SOURCE_ID = 'dashboard-v2-processing-faults';
+import { CUTOVER_COLORS } from './cutovers.js?v=20260908-callout-compact-v1';
 const SITES_SOURCE_ID = 'dashboard-v2-sites';
 const OTN_PATHS_SOURCE_ID = 'dashboard-v2-otn-paths';
 const SITES_CORE_LAYER_ID = 'dashboard-v2-sites-core';
@@ -53,7 +54,8 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
         geometry: { type: 'Point', coordinates: [longitude, latitude] },
         properties: {
           fault_number: String(fault.fault_number ?? ''),
-          index_label: processingFaultLabel(index),
+          index_label: fault.kind === 'cutover' ? '⇄' : processingFaultLabel(index),
+          color: fault.kind === 'cutover' ? CUTOVER_COLORS[fault.status_color] || CUTOVER_COLORS.gray : '#ff334f',
           severity: String(fault.severity || 'minor'),
         },
       }];
@@ -72,7 +74,8 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
 
   function updateFaultFocusElement(element, fault, index) {
     const values = {
-      'dashboard-v2-fault-focus-core': processingFaultLabel(index),
+      'dashboard-v2-fault-focus-core': fault.kind === 'cutover' ? '⇄' : processingFaultLabel(index),
+      'dashboard-v2-fault-callout-identity': fault.kind === 'cutover' ? '⇄\n割\n接' : '⚠\n故\n障',
       'dashboard-v2-fault-focus-location': faultFocusLocation(fault),
       'dashboard-v2-fault-callout-route': faultFocusRoute(fault),
       'dashboard-v2-fault-callout-category': fault.category_display || '处理中故障',
@@ -80,13 +83,18 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       'dashboard-v2-fault-callout-meta': `${fault.province || '省份未设置'} · ${fault.duration || '历时未知'}`,
       'dashboard-v2-fault-callout-business': `影响业务 ${Number(fault.affected_business_count ?? fault.interrupted_business_count) || 0} 项${(fault.affected_business_names || fault.interrupted_business_names)?.length ? ` · ${(fault.affected_business_names || fault.interrupted_business_names).join('、')}` : ''}`,
     };
+    if (fault.kind === 'cutover') {
+      values['dashboard-v2-fault-callout-business'] = `主管 ${fault.supervisor || '—'}${fault.location ? ` · ${fault.location}` : ''}`;
+      element.classList?.toggle('is-cutover', true);
+      setFaultFocusStyle(element, '--cutover-color', CUTOVER_COLORS[fault.status_color] || CUTOVER_COLORS.gray);
+    }
     const visit = (node) => {
       if (Object.hasOwn(values, node.className) && node.textContent !== values[node.className]) {
         node.textContent = values[node.className];
         node.title = values[node.className];
       }
       if (node.className === 'dashboard-v2-fault-callout-category') {
-        const color = ['purple', 'teal', 'orange', 'cyan', 'pink', 'indigo'].includes(fault.category_color) ? fault.category_color : 'gray';
+        const color = ['purple', 'teal', 'orange', 'cyan', 'pink', 'indigo', 'blue', 'green', 'red'].includes(fault.category_color) ? fault.category_color : 'gray';
         if (node.dataset.color !== color) node.dataset.color = color;
       }
       if (node.className === 'dashboard-v2-fault-callout-route') {
@@ -135,12 +143,13 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
 
     const callout = createFaultFocusNode('section', 'dashboard-v2-fault-callout');
     const alertRow = createFaultFocusNode('div', 'dashboard-v2-fault-callout-alert');
+    alertRow.appendChild(createFaultFocusNode('strong', 'dashboard-v2-fault-callout-identity'));
+    callout.appendChild(alertRow);
     alertRow.appendChild(createFaultFocusNode(
       'strong',
       'dashboard-v2-fault-callout-category',
       fault?.category_display || '处理中故障',
     ));
-    callout.appendChild(alertRow);
     alertRow.appendChild(createFaultFocusNode(
       'span',
       'dashboard-v2-fault-callout-number',
@@ -428,7 +437,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       if (fault.lng == null || fault.lat == null || fault.lng === '' || fault.lat === ''
           || !coordinates.every(Number.isFinite) || Math.abs(coordinates[0]) > 180 || Math.abs(coordinates[1]) > 90) return;
       const entry = previous.get(id);
-      const signature = JSON.stringify([index, coordinates, fault.site_a, fault.province, fault.sites_z, fault.fault_number, fault.category_display, fault.category_color, fault.duration, fault.interrupted_business_count, fault.interrupted_business_names, fault.affected_business_count, fault.affected_business_names]);
+      const signature = JSON.stringify([index, coordinates, fault.site_a, fault.province, fault.sites_z, fault.fault_number, fault.category_display, fault.category_color, fault.duration, fault.interrupted_business_count, fault.interrupted_business_names, fault.affected_business_count, fault.affected_business_names, fault.kind, fault.status_color, fault.supervisor, fault.location]);
       if (entry) {
         previous.delete(id);
         if (entry.signature !== signature) {

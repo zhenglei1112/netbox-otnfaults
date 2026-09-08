@@ -55,6 +55,6 @@ class DashboardV2DataView(PermissionRequiredMixin, View):
 
     def get(self, request: HttpRequest) -> JsonResponse:
         return JsonResponse(
-            build_dashboard_v2_data(sites_version=request.GET.get("sites_version")),
+            build_dashboard_v2_data(sites_version=request.GET.get("sites_version"), user=request.user),
             json_dumps_params={"ensure_ascii": False},
         )

@@ -12,7 +12,7 @@ const MODULE_SOURCE = await readFile(MODULE_PATH, 'utf8');
 
 async function loadMapModule(tag) {
   const layout = new URL('../netbox_otnfaults/static/netbox_otnfaults/js/dashboard_v2/fault_overlays.js', import.meta.url).href;
-  const encoded = Buffer.from(MODULE_SOURCE.replace('./fault_overlays.js?v=20260907-callout-polish-v1', layout + '?test=' + tag)).toString('base64');
+  const encoded = Buffer.from(MODULE_SOURCE.replace('./fault_overlays.js?v=20260908-callout-compact-v1', layout + '?test=' + tag)).toString('base64');
   return import(`data:text/javascript;base64,${encoded}#${tag}`);
 }
 
@@ -524,7 +524,7 @@ test('initializes the Protomaps globe with HarmonyOS Sans site labels', async ()
     (layer) => layer.id === 'dashboard-v2-processing-faults-core',
   );
   assert.deepEqual(faultGlow.paint['circle-radius'].slice(-2), [7, ['case', ['boolean', ['feature-state', 'active'], false], 13, 10]]);
-  assert.equal(faultGlow.paint['circle-color'], '#ff334f');
+  assert.deepEqual(faultGlow.paint['circle-color'], ['coalesce', ['get', 'color'], '#ff334f']);
   assert.equal(faultRing.paint['circle-color'], '#210912');
   assert.equal(faultCore.paint['circle-color'], '#3a0b17');
   assert.deepEqual(faultLabel.layout['text-size'].slice(-2), [7, 13]);
@@ -723,11 +723,28 @@ test('renders numbered processing faults without card-selected feature state', a
     type: 'Feature',
     id: '9',
     geometry: { type: 'Point', coordinates: [116.4, 39.9] },
-    properties: { fault_number: 'F009', index_label: '①', severity: 'critical' },
+    properties: { fault_number: 'F009', index_label: '①', severity: 'critical', color: '#ff334f' },
   });
   assert.equal(maplibreState.markers.length, 2);
 });
 
+
+test('cutovers use a distinct arrow and status color in the shared map source', async () => {
+  installDom();
+  const state = installMapLibre();
+  const updates = [];
+  const { renderDashboardV2ProcessingFaults } = await loadMapModule('cutover-render');
+  const map = { getSource: () => ({ setData: (value) => updates.push(value) }) };
+  renderDashboardV2ProcessingFaults(map, [{ id: 'cutover-1', kind: 'cutover', lng: 116, lat: 39,
+    status_color: 'green', category_display: '光缆割接 · 已完成', fault_number: 'C1', category_color: 'green' }]);
+  assert.equal(updates[0].features[0].properties.index_label, '⇄');
+  assert.equal(updates[0].features[0].properties.color, '#198754');
+  assert.equal(state.markers.length, 1);
+  const callout = state.markers[0].element.children.find((node) => node.className === 'dashboard-v2-fault-callout');
+  assert.equal(callout.children[0].children[0].textContent, '⇄\n割\n接');
+  assert.equal(callout.children[0].children[1].textContent, '光缆割接 · 已完成');
+  assert.equal(callout.children[0].children[2].textContent, 'C1');
+});
 
 test('shows every fault callout together from zoom 3.9 without carousel selection', async () => {
   installDom();
@@ -805,6 +822,7 @@ test('shows every fault callout together from zoom 3.9 without carousel selectio
   assert.ok(renderedText.includes('北京站-济南站等2站 OTN'));
   assert.ok(renderedText.includes('光缆故障'));
   assert.ok(renderedText.includes('F009'));
+  assert.ok(renderedText.includes('⚠\n故\n障'));
   assert.ok(!renderedText.includes('!'));
   assert.ok(renderedText.includes('影响业务 0 项'));
 

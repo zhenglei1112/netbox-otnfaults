@@ -16,8 +16,9 @@ from ..models import (
     OtnFault,
     OtnFaultImpact,
     ServiceTypeChoices,
+    CutoverTask,
 )
-from .fault_coordinates import load_fault_path_midpoints, resolve_fault_coordinates
+from .fault_coordinates import load_fault_path_midpoints, resolve_fault_coordinates, resolve_cutover_coordinates
 
 
 FAULT_CATEGORY_SEVERITY: dict[str, str] = {
@@ -63,7 +64,7 @@ def _fault_priority_score(fault: OtnFault, now: datetime, impact_count: int) -> 
     return round(severity_weight * urgency_weight * max(impact_count, 1) * freshness, 2)
 
 
-def build_dashboard_v2_data(sites_version: str | None = None) -> dict[str, Any]:
+def build_dashboard_v2_data(sites_version: str | None = None, user: Any = None) -> dict[str, Any]:
     now = timezone.localtime()
     year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     next_year_start = year_start.replace(year=year_start.year + 1)
@@ -203,6 +204,7 @@ def build_dashboard_v2_data(sites_version: str | None = None) -> dict[str, Any]:
         cache.set("otnfaults:dashboard-v2:sites:v1", sites_snapshot, timeout=30)
     version, sites = sites_snapshot
     result = {
+        **build_dashboard_cutovers(user),
         "timestamp": now.isoformat(),
         "summary": {
             "total_faults": fault_counts["total_faults"],
@@ -216,6 +218,46 @@ def build_dashboard_v2_data(sites_version: str | None = None) -> dict[str, Any]:
     if sites_version != version:
         result["sites"] = sites
     return result
+
+
+def build_dashboard_cutovers(user: Any) -> dict[str, Any]:
+    """Match OtnTodayTomorrowCutoverWidget, including object-level permissions."""
+    today = timezone.localdate()
+    tomorrow = today + timedelta(days=1)
+    tasks = []
+    if user is not None:
+        tasks = (CutoverTask.objects.restrict(user, 'view')
+                 .filter(planned_cutover_time__date__in=[today, tomorrow])
+                 .select_related('province', 'line_supervisor', 'interruption_location_a')
+                 .prefetch_related('interruption_location')
+                 .order_by('planned_cutover_time', 'pk'))
+    records = []
+    for task in tasks:
+        planned = timezone.localtime(task.planned_cutover_time)
+        position = resolve_cutover_coordinates(task)
+        records.append({
+            'id': task.pk, 'url': task.get_absolute_url(),
+            'cutover_no': task.cutover_no,
+            'day': 'today' if planned.date() == today else 'tomorrow',
+            'planned_time': planned.isoformat(),
+            'planned_time_display': planned.strftime('%m-%d %H:%M'),
+            'type_display': task.get_cutover_type_display(),
+            'status': task.status, 'status_display': task.get_status_display(),
+            'status_color': task.get_status_color() or 'gray',
+            'province': task.province.name if task.province else '',
+            'site_a': task.interruption_location_a.name if task.interruption_location_a else '',
+            'sites_z': [site.name for site in task.interruption_location.all()],
+            'location': task.cutover_location or '',
+            'supervisor': str(task.line_supervisor) if task.line_supervisor else '',
+            'is_my_task': task.line_supervisor_id == user.pk,
+            'lat': position.lat if position else None,
+            'lng': position.lng if position else None,
+        })
+    return {'cutovers': records, 'cutover_summary': {
+        'today': sum(item['day'] == 'today' for item in records),
+        'tomorrow': sum(item['day'] == 'tomorrow' for item in records),
+        'total': len(records),
+    }}
 
 
 def load_dashboard_sites() -> tuple[str, list[dict[str, Any]]]:

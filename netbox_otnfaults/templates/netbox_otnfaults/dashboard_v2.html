@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}" rel="stylesheet">
   <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
-  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260907-callout-polish-v1" rel="stylesheet">
+  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260908-callout-compact-v1" rel="stylesheet">
 </head>
 <body>
   <header id="dashboard-v2-header">
@@ -168,6 +168,14 @@
           <div id="dashboard-v2-info-fault-list" class="dashboard-v2-info-fault-list">
             <div class="dashboard-v2-info-state">数据加载中</div>
           </div>
+          <div class="dashboard-v2-info-list-heading">
+            <h3>今明割接</h3>
+            <span id="dashboard-v2-info-cutover-count">--</span>
+          </div>
+          <div id="dashboard-v2-info-cutover-summary" class="dashboard-v2-cutover-summary">今日 -- · 明日 --</div>
+          <div id="dashboard-v2-info-cutover-list" class="dashboard-v2-info-fault-list">
+            <div class="dashboard-v2-info-state">数据加载中</div>
+          </div>
         </section>
         <button
           id="dashboard-v2-info-drawer-toggle"
@@ -221,9 +229,9 @@
           <label class="dashboard-v2-debug-simulation" for="dashboard-v2-debug-data-simulation">
             <span>
               <strong>数据模拟</strong>
-              <small>显示 5 条处理中故障</small>
+              <small>显示 5 条故障及 4 条今明割接</small>
             </span>
-            <input id="dashboard-v2-debug-data-simulation" type="checkbox" role="switch" aria-label="启用故障数据模拟">
+            <input id="dashboard-v2-debug-data-simulation" type="checkbox" role="switch" aria-label="启用故障及割接数据模拟">
             <i aria-hidden="true"></i>
           </label>
           <div class="dashboard-v2-debug-actions">
@@ -238,6 +246,6 @@
   </main>
 
   {{ dashboard_v2_config|json_script:"dashboard-v2-config" }}
-  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260907-callout-polish-v1"></script>
+  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260908-callout-compact-v1"></script>
 </body>
 </html>

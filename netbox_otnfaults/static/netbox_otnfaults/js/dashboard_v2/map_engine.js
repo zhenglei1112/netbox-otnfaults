@@ -1,4 +1,4 @@
-import { createFaultOverlayController } from './fault_overlays.js?v=20260907-callout-polish-v1';
+import { createFaultOverlayController } from './fault_overlays.js?v=20260908-callout-compact-v1';
 let dashboardMap = null;
 let hasRuntimeMapError = false;
 let pmtilesProtocolRegistered = false;
@@ -397,7 +397,7 @@ function addSitesToStyle(style) {
 }
 
 function processingFaultColorExpression() {
-  return '#ff334f';
+  return ['coalesce', ['get', 'color'], '#ff334f'];
 }
 
 function processingFaultRadiusExpression(inactiveNear, activeNear, inactiveFar, activeFar) {

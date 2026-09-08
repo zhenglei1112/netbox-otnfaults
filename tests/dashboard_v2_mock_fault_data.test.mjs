@@ -22,6 +22,16 @@ test('mock data builds five complete processing faults while preserving map site
   assert.equal(data.summary.today_faults, 5);
   assert.equal(data.summary.active_business_interruptions, 4);
   assert.equal(data.sites, sites);
+  assert.equal(data.cutovers.length, 4);
+  assert.deepEqual(data.cutover_summary, { today: 2, tomorrow: 2, total: 4 });
+  assert.deepEqual(data.cutovers.map((task) => task.status_color), ['blue', 'orange', 'green', 'red']);
+  for (const task of data.cutovers) {
+    assert.equal(task.url, '');
+    assert.ok(Number.isFinite(task.lng) && Number.isFinite(task.lat));
+    const expected = new Date(now);
+    expected.setDate(expected.getDate() + Number(task.day === 'tomorrow'));
+    assert.equal(new Date(task.planned_time).toDateString(), expected.toDateString());
+  }
   assert.deepEqual(
     new Set(data.processing_faults.map((fault) => fault.severity)),
     new Set(['critical', 'major', 'minor']),

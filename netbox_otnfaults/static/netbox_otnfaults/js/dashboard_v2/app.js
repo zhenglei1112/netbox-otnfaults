@@ -2,29 +2,30 @@ import * as maplibreglModule from '../../lib/maplibre-gl-v6.js?v=20260907-worker
 import {
   initializeDashboardV2DebugPanel,
   isDashboardV2DebugEnabled,
-} from './debug_panel.js?v=20260907-callout-polish-v1';
+} from './debug_panel.js?v=20260908-callout-compact-v1';
 import {
   reconcileDashboardData,
   fetchDashboardV2Data,
-} from './data_service.js?v=20260907-callout-polish-v1';
-import { installDashboardV2FrameRateLimit } from './frame_rate_limiter.js?v=20260907-callout-polish-v1';
-import { initializeDashboardV2InfoDrawer } from './info_drawer.js?v=20260907-callout-polish-v1';
-import { createDashboardV2MockFaultData } from './mock_fault_data.js?v=20260907-callout-polish-v1';
+} from './data_service.js?v=20260908-callout-compact-v1';
+import { installDashboardV2FrameRateLimit } from './frame_rate_limiter.js?v=20260908-callout-compact-v1';
+import { initializeDashboardV2InfoDrawer, renderDashboardV2Cutovers } from './info_drawer.js?v=20260908-callout-compact-v1';
+import { cutoverMapItems } from './cutovers.js?v=20260908-callout-compact-v1';
+import { createDashboardV2MockFaultData } from './mock_fault_data.js?v=20260908-callout-compact-v1';
 import {
   createDashboardMapRefresher,
   startDashboardAutoRefresh,
-} from './refresh_controller.js?v=20260907-callout-polish-v1';
-import { initializeDashboardV2DayNightControl } from './day_night_control.js?v=20260907-callout-polish-v1';
-import { initializeDashboardV2DayNight } from './day_night_layer.js?v=20260907-callout-polish-v1';
+} from './refresh_controller.js?v=20260908-callout-compact-v1';
+import { initializeDashboardV2DayNightControl } from './day_night_control.js?v=20260908-callout-compact-v1';
+import { initializeDashboardV2DayNight } from './day_night_layer.js?v=20260908-callout-compact-v1';
 import {
   initializeDashboardV2Map,
   destroyDashboardV2Map,
   renderDashboardV2ProcessingFaults,
   renderDashboardV2Sites,
-} from './map_engine.js?v=20260907-callout-polish-v1';
-import { initializeDashboardV2Galaxy } from './galaxy.js?v=20260907-callout-polish-v1';
-import { initializeDashboardV2SkyControl } from './sky_control.js?v=20260907-callout-polish-v1';
-import { initializeDashboardV2Starfield } from './starfield.js?v=20260907-callout-polish-v1';
+} from './map_engine.js?v=20260908-callout-compact-v1';
+import { initializeDashboardV2Galaxy } from './galaxy.js?v=20260908-callout-compact-v1';
+import { initializeDashboardV2SkyControl } from './sky_control.js?v=20260908-callout-compact-v1';
+import { initializeDashboardV2Starfield } from './starfield.js?v=20260908-callout-compact-v1';
 
 globalThis.maplibregl = maplibreglModule;
 
@@ -89,11 +90,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   let simulatedData = null;
   let serverTimeOffset = 0;
   const renderFaultData = () => {
+    const displayData = dataSimulationEnabled ? simulatedData : latestDashboardData;
+    const cutovers = cutoverMapItems(displayData?.cutovers || []);
+    renderDashboardV2Cutovers(displayData || { cutovers: [] });
+    if (!displayData) renderDashboardV2ProcessingFaults(map, []);
     if (dataSimulationEnabled) {
-      renderDashboardV2ProcessingFaults(map, simulatedData.processing_faults);
+      renderDashboardV2ProcessingFaults(map, [...simulatedData.processing_faults, ...cutovers]);
       infoDrawer?.render(simulatedData);
     } else if (latestDashboardData) {
-      renderDashboardV2ProcessingFaults(map, latestDashboardData.processing_faults);
+      renderDashboardV2ProcessingFaults(map, [...latestDashboardData.processing_faults, ...cutovers]);
       infoDrawer?.render(latestDashboardData);
     }
   };
@@ -112,6 +117,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('[Dashboard V2] 态势数据加载失败:', error);
       if (!dataSimulationEnabled) {
         infoDrawer?.showError({ preserveData: hasDashboardData });
+      }
+      if (!hasDashboardData && !dataSimulationEnabled) {
+        const cutoverList = document.getElementById('dashboard-v2-info-cutover-list');
+        if (cutoverList) cutoverList.textContent = '割接数据加载失败';
       }
     },
   });

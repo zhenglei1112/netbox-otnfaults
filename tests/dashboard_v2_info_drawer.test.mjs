@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   initializeDashboardV2InfoDrawer,
+  renderDashboardV2Cutovers,
   renderDashboardV2InfoDrawer,
   showDashboardV2InfoDrawerError,
   updateDashboardV2Elapsed,
@@ -268,6 +269,36 @@ test('information drawer shows empty and error states while preserving valid dat
   assert.match(allText(list), /故障数据加载失败/);
 });
 
+
+test('cutovers have an independent carousel with stable selection and state colors', () => {
+  const list = new FakeElement();
+  const count = new FakeElement();
+  const summary = new FakeElement();
+  const elements = { 'dashboard-v2-info-cutover-list': list, 'dashboard-v2-info-cutover-count': count,
+    'dashboard-v2-info-cutover-summary': summary };
+  globalThis.document = { getElementById: (id) => elements[id], createElement: (tag) => new FakeElement(tag) };
+  const tasks = [1, 2].map((id) => ({ id, cutover_no: `C${id}`, status_color: 'blue',
+    status_display: '申请中', day: id === 1 ? 'today' : 'tomorrow', planned_time_display: '09-08 23:00',
+    site_a: '<script>站点</script>', sites_z: ['Z'], url: '/cutovers/' + id }));
+  const data = { cutovers: tasks, cutover_summary: { today: 1, tomorrow: 1 } };
+  renderDashboardV2Cutovers(data);
+  assert.equal(summary.textContent, '今日 1 · 明日 1');
+  const [track, previous, next] = list.children;
+  next.listeners.click({});
+  assert.equal(count.textContent, '2/2');
+  renderDashboardV2Cutovers(data);
+  assert.equal(list.children[0], track);
+  assert.equal(count.textContent, '2/2');
+  tasks[1] = { ...tasks[1], status_color: 'green', status_display: '已完成' };
+  renderDashboardV2Cutovers(data);
+  assert.equal(track.children[1].dataset.severity, 'green');
+  assert.match(allText(track), /已完成/);
+  assert.match(allText(track), /<script>站点<\/script>/);
+  assert.equal(track.children[0].rel, 'noopener');
+  renderDashboardV2Cutovers({ cutovers: [] });
+  assert.equal(count.textContent, '0/0');
+  assert.match(allText(list), /今明无割接任务/);
+});
 
 test('information drawer identifies simulated fault data', () => {
   const status = new FakeElement();
