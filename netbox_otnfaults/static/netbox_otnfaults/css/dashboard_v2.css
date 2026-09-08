@@ -553,7 +553,9 @@ body {
 .dashboard-v2-cutover-card[data-severity="red"] .dashboard-v2-fault-card-title { color: #dc3545; }
 .dashboard-v2-fault-focus.is-cutover { filter: drop-shadow(0 0 5px var(--cutover-color)); }
 .is-cutover .dashboard-v2-fault-focus-core { border-radius: 5px; background: var(--cutover-color); box-shadow: 0 0 8px var(--cutover-color); }
-.is-cutover .dashboard-v2-fault-focus-ring { border-color: var(--cutover-color); box-shadow: none; animation: none; }
+.is-cutover .dashboard-v2-fault-focus-ring { border-color: var(--cutover-color); box-shadow: none; }
+.is-points-only .dashboard-v2-fault-callout,
+.is-points-only .dashboard-v2-fault-focus-leader { display: none; }
 .is-cutover .dashboard-v2-fault-focus-leader,
 .is-cutover .dashboard-v2-fault-focus-leader::after,
 .is-cutover .dashboard-v2-fault-callout::before,

@@ -1,6 +1,6 @@
-import { leaderSegment, PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260908-toolbar-icons-v1';
+import { leaderSegment, PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260908-points-pulse-v1';
 const PROCESSING_FAULTS_SOURCE_ID = 'dashboard-v2-processing-faults';
-import { CUTOVER_COLORS } from './cutovers.js?v=20260908-toolbar-icons-v1';
+import { CUTOVER_COLORS } from './cutovers.js?v=20260908-points-pulse-v1';
 const SITES_SOURCE_ID = 'dashboard-v2-sites';
 const OTN_PATHS_SOURCE_ID = 'dashboard-v2-otn-paths';
 const SITES_CORE_LAYER_ID = 'dashboard-v2-sites-core';
@@ -74,6 +74,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
   }
 
   function updateFaultFocusElement(element, fault, index) {
+    element.classList?.toggle('is-points-only', fault.mapDisplayMode === 'points');
     const values = {
       'dashboard-v2-fault-focus-core': fault.kind === 'cutover' ? '⇄' : processingFaultLabel(index),
       'dashboard-v2-fault-callout-identity': fault.kind === 'cutover' ? '⇄\n割\n接' : '⚠\n故\n障',
@@ -333,7 +334,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
     const width = container?.clientWidth || containerRect.width || 0;
     const height = container?.clientHeight || containerRect.height || 0;
     const projected = processingFaultFocusMarkers.flatMap((entry) => {
-      if (!visible || !isCoordinateFrontFacing(map, entry.coordinates)) {
+      if ((!visible && entry.mapDisplayMode !== 'points') || !isCoordinateFrontFacing(map, entry.coordinates)) {
         entry.element.hidden = true;
         return [];
       }
@@ -369,6 +370,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       evaluateNetwork: processingFaultNetworkLayoutDirty,
     };
     projected.forEach((entry) => {
+      if (entry.mapDisplayMode === 'points') return;
       const previous = processingFaultFocusPlacements.get(entry.faultId);
       const candidates = buildPlacementCandidates(entry.point, width, height).map((candidate) => ({
         ...candidate, leader: leaderSegment(entry.point, candidate.rect),
@@ -433,14 +435,15 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
     processingFaultFocusMarkers = [];
     let changed = false;
     faults.forEach((fault, index) => {
-      if (fault.mapDisplayMode === 'hidden' || fault.mapDisplayMode === 'points') return;
+      if (fault.mapDisplayMode === 'hidden') return;
       const id = String(fault.id ?? index);
       const coordinates = [Number(fault.lng), Number(fault.lat)];
       if (fault.lng == null || fault.lat == null || fault.lng === '' || fault.lat === ''
           || !coordinates.every(Number.isFinite) || Math.abs(coordinates[0]) > 180 || Math.abs(coordinates[1]) > 90) return;
       const entry = previous.get(id);
-      const signature = JSON.stringify([index, coordinates, fault.site_a, fault.province, fault.sites_z, fault.fault_number, fault.category_display, fault.category_color, fault.duration, fault.interrupted_business_count, fault.interrupted_business_names, fault.affected_business_count, fault.affected_business_names, fault.kind, fault.status_color, fault.supervisor, fault.location]);
+      const signature = JSON.stringify([index, coordinates, fault.site_a, fault.province, fault.sites_z, fault.fault_number, fault.category_display, fault.category_color, fault.duration, fault.interrupted_business_count, fault.interrupted_business_names, fault.affected_business_count, fault.affected_business_names, fault.kind, fault.status_color, fault.supervisor, fault.location, fault.mapDisplayMode]);
       if (entry) {
+        entry.mapDisplayMode = fault.mapDisplayMode;
         previous.delete(id);
         if (entry.signature !== signature) {
           updateFaultFocusElement(entry.element, fault, index);
@@ -452,6 +455,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
         processingFaultFocusMarkers.push(entry);
       } else if (createProcessingFaultFocus(map, fault, index)) {
         processingFaultFocusMarkers.at(-1).signature = signature;
+        processingFaultFocusMarkers.at(-1).mapDisplayMode = fault.mapDisplayMode;
         changed = true;
       }
     });
