@@ -1,6 +1,6 @@
-import { leaderSegment, PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260908-callout-compact-v1';
+import { leaderSegment, PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260908-toolbar-icons-v1';
 const PROCESSING_FAULTS_SOURCE_ID = 'dashboard-v2-processing-faults';
-import { CUTOVER_COLORS } from './cutovers.js?v=20260908-callout-compact-v1';
+import { CUTOVER_COLORS } from './cutovers.js?v=20260908-toolbar-icons-v1';
 const SITES_SOURCE_ID = 'dashboard-v2-sites';
 const OTN_PATHS_SOURCE_ID = 'dashboard-v2-otn-paths';
 const SITES_CORE_LAYER_ID = 'dashboard-v2-sites-core';
@@ -43,6 +43,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       return 0;
     }
     const features = faults.flatMap((fault, index) => {
+      if (fault.mapDisplayMode === 'hidden') return [];
       if (fault?.lng == null || fault?.lat == null || fault.lng === '' || fault.lat === '') return [];
       const longitude = Number(fault.lng);
       const latitude = Number(fault.lat);
@@ -432,6 +433,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
     processingFaultFocusMarkers = [];
     let changed = false;
     faults.forEach((fault, index) => {
+      if (fault.mapDisplayMode === 'hidden' || fault.mapDisplayMode === 'points') return;
       const id = String(fault.id ?? index);
       const coordinates = [Number(fault.lng), Number(fault.lat)];
       if (fault.lng == null || fault.lat == null || fault.lng === '' || fault.lat === ''

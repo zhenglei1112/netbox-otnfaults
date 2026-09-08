@@ -2,7 +2,7 @@ import {
   celestialFieldOfView,
   createCelestialView,
   greenwichMeanSiderealDegrees,
-} from './starfield.js?v=20260908-callout-compact-v1';
+} from './starfield.js?v=20260908-toolbar-icons-v1';
 
 const DEG_TO_RAD = Math.PI / 180;
 const GALAXY_TEXTURE_URL = new URL('../../img/dashboard-v2-milky-way-8k.jpg', import.meta.url);

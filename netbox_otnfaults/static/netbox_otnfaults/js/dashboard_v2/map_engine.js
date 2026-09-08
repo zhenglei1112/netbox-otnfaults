@@ -1,4 +1,4 @@
-import { createFaultOverlayController } from './fault_overlays.js?v=20260908-callout-compact-v1';
+import { createFaultOverlayController } from './fault_overlays.js?v=20260908-toolbar-icons-v1';
 let dashboardMap = null;
 let hasRuntimeMapError = false;
 let pmtilesProtocolRegistered = false;

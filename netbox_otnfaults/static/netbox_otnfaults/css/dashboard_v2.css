@@ -666,6 +666,28 @@ body {
 
 .dashboard-v2-info-drawer-content > * { flex-shrink: 0; }
 
+.dashboard-v2-display-tool { position: relative; }
+.dashboard-v2-display-tool .dashboard-v2-map-tool-status { left: 50%; }
+.dashboard-v2-display-tool button:hover + .dashboard-v2-map-tool-status,
+.dashboard-v2-display-tool button:focus-visible + .dashboard-v2-map-tool-status {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 120ms ease, visibility 0s;
+}
+.dashboard-v2-display-tool button:not([data-mode="hidden"])::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 7px;
+  height: 7px;
+  box-sizing: border-box;
+  border: 1px solid #0a1722;
+  border-radius: 50%;
+  background: #19d978;
+}
+.dashboard-v2-display-tool button[data-mode="points"]::after { background: #f4ba4d; }
+
 .dashboard-v2-info-drawer.is-open .dashboard-v2-info-drawer-content {
   opacity: 1;
   visibility: visible;

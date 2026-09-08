@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}" rel="stylesheet">
   <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
-  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260908-callout-compact-v1" rel="stylesheet">
+  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260908-toolbar-icons-v1" rel="stylesheet">
 </head>
 <body>
   <header id="dashboard-v2-header">
@@ -38,6 +38,7 @@
       <canvas id="dashboard-v2-galaxy" aria-hidden="true"></canvas>
       <canvas id="dashboard-v2-starfield" aria-hidden="true"></canvas>
       <div id="dashboard-v2-map"></div>
+
       <nav class="dashboard-v2-map-tools" aria-label="地图工具">
         <button
           id="dashboard-v2-map-home"
@@ -127,6 +128,19 @@
           class="dashboard-v2-map-tool-status"
           aria-live="polite"
         >基础网络 开启</output>
+      
+        <div class="dashboard-v2-display-tool">
+          <button id="dashboard-v2-fault-display" class="dashboard-v2-map-tool-button is-stroke-icon" type="button" aria-label="故障 显示，点击切换">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 22 21H2Z M12 9v5 M12 17v1"/></svg>
+          </button>
+          <output id="dashboard-v2-fault-display-status" class="dashboard-v2-map-tool-status">故障 显示</output>
+        </div>
+        <div class="dashboard-v2-display-tool">
+          <button id="dashboard-v2-cutover-display" class="dashboard-v2-map-tool-button is-stroke-icon" type="button" aria-label="割接 显示，点击切换">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h17l-5-5 M21 17H4l5 5 M20 7l-5 5 M4 17l5-5"/></svg>
+          </button>
+          <output id="dashboard-v2-cutover-display-status" class="dashboard-v2-map-tool-status">割接 显示</output>
+        </div>
       </nav>
       <aside
         id="dashboard-v2-info-drawer"
@@ -246,6 +260,6 @@
   </main>
 
   {{ dashboard_v2_config|json_script:"dashboard-v2-config" }}
-  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260908-callout-compact-v1"></script>
+  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260908-toolbar-icons-v1"></script>
 </body>
 </html>
