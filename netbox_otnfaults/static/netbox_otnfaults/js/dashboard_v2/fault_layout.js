@@ -12,13 +12,13 @@ export function expandRect(rect, gap) {
   };
 }
 
-export function leaderSegment(point, rect) {
+export function leaderSegment(point, rect, startRadius = 14) {
   const end = {
     x: Math.max(rect.left, Math.min(point.x, rect.right)),
     y: Math.max(rect.top, Math.min(point.y, rect.bottom)),
   };
   const length = Math.hypot(end.x - point.x, end.y - point.y);
-  const ratio = length > 14 ? 14 / length : 1;
+  const ratio = length > startRadius ? startRadius / length : 1;
   return { start: { x: point.x + (end.x - point.x) * ratio, y: point.y + (end.y - point.y) * ratio }, end };
 }
 
@@ -45,22 +45,22 @@ function overlapArea(first, second) {
   return width * height;
 }
 
-function candidateOffset(direction, tier) {
+function candidateOffset(direction, tier, boxWidth, boxHeight, scale) {
   const sideGap = tier === 0 ? 88 : 168;
   const verticalGap = tier === 0 ? 56 : 126;
   const diagonalX = tier === 0 ? 76 : 138;
   const diagonalY = tier === 0 ? 34 : 96;
-  const halfWidth = PROCESSING_FAULT_CALLOUT_WIDTH / 2;
-  const halfHeight = PROCESSING_FAULT_CALLOUT_HEIGHT / 2;
+  const halfWidth = boxWidth / 2;
+  const halfHeight = boxHeight / 2;
   const offsets = {
-    e: [sideGap, -halfHeight],
-    w: [-sideGap - PROCESSING_FAULT_CALLOUT_WIDTH, -halfHeight],
-    ne: [diagonalX, -PROCESSING_FAULT_CALLOUT_HEIGHT - diagonalY],
-    nw: [-diagonalX - PROCESSING_FAULT_CALLOUT_WIDTH, -PROCESSING_FAULT_CALLOUT_HEIGHT - diagonalY],
-    se: [diagonalX, diagonalY],
-    sw: [-diagonalX - PROCESSING_FAULT_CALLOUT_WIDTH, diagonalY],
-    n: [-halfWidth, -PROCESSING_FAULT_CALLOUT_HEIGHT - verticalGap],
-    s: [-halfWidth, verticalGap],
+    e: [sideGap * scale, -halfHeight],
+    w: [-sideGap * scale - boxWidth, -halfHeight],
+    ne: [diagonalX * scale, -boxHeight - diagonalY * scale],
+    nw: [-diagonalX * scale - boxWidth, -boxHeight - diagonalY * scale],
+    se: [diagonalX * scale, diagonalY * scale],
+    sw: [-diagonalX * scale - boxWidth, diagonalY * scale],
+    n: [-halfWidth, -boxHeight - verticalGap * scale],
+    s: [-halfWidth, verticalGap * scale],
   };
   return offsets[direction];
 }
@@ -81,10 +81,12 @@ function placementDirections(point, width, height) {
   ];
 }
 
-export function buildPlacementCandidates(point, width, height) {
+export function buildPlacementCandidates(point, width, height, box = {}) {
+  const boxWidth = box.width || PROCESSING_FAULT_CALLOUT_WIDTH;
+  const boxHeight = box.height || PROCESSING_FAULT_CALLOUT_HEIGHT;
   const directions = placementDirections(point, width, height);
   return [0, 1].flatMap((tier) => directions.map((direction, rank) => {
-    const [x, y] = candidateOffset(direction, tier);
+    const [x, y] = candidateOffset(direction, tier, boxWidth, boxHeight, box.scale || 1);
     return {
       direction,
       tier,
@@ -94,8 +96,8 @@ export function buildPlacementCandidates(point, width, height) {
       rect: {
         left: point.x + x,
         top: point.y + y,
-        right: point.x + x + PROCESSING_FAULT_CALLOUT_WIDTH,
-        bottom: point.y + y + PROCESSING_FAULT_CALLOUT_HEIGHT,
+        right: point.x + x + boxWidth,
+        bottom: point.y + y + boxHeight,
       },
     };
   }));

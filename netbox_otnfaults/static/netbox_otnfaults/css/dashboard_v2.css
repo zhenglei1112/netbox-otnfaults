@@ -786,7 +786,31 @@ body {
 }
 
 .dashboard-v2-info-list-heading {
-  margin: 8px 1px 5px;
+  --section-color: #ff687f;
+  margin: 0 0 8px;
+}
+.dashboard-v2-info-section {
+  padding: 10px; border-radius: 8px;
+  background: rgba(17, 33, 52, .65);
+  min-width: 0;
+}
+.dashboard-v2-info-section + .dashboard-v2-info-section { margin-top: 10px; }
+.dashboard-v2-info-section .dashboard-v2-info-heading { margin-bottom: 10px; }
+.dashboard-v2-info-list-heading.is-cutover-section { --section-color: #68b6ff; }
+.dashboard-v2-info-list-heading h3 { display: flex; align-items: center; gap: 7px; }
+.dashboard-v2-section-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; flex: 0 0 18px;
+  border: 1px solid var(--section-color); border-radius: 5px;
+  color: var(--section-color); background: rgba(115, 147, 179, .08);
+  font: 700 12px/1 var(--font-data);
+}
+.dashboard-v2-info-heading { --section-color: #59d5ec; }
+.dashboard-v2-info-section .dashboard-v2-info-heading h2,
+.dashboard-v2-info-section .dashboard-v2-info-list-heading h3 {
+  display: flex; align-items: center; gap: 7px; margin: 0;
+  font: 600 12px var(--font-title); letter-spacing: .6px;
+  color: #dbe6f2; text-shadow: none;
 }
 
 .dashboard-v2-info-list-heading h3 {

@@ -74,10 +74,35 @@ function faultBusiness(fault) {
   return names.length ? `${count}项 · ${names.join('、')}` : `${count}项`;
 }
 
-function createFaultCard(fault) {
+function createCompactCard(item, index) {
+  const cutover = item.kind === 'cutover';
+  const box = document.createElement('div');
+  box.className = 'dashboard-v2-compact-card';
+  const header = document.createElement('div');
+  header.className = 'dashboard-v2-compact-header';
+  header.appendChild(createTextElement('span', 'dashboard-v2-compact-ordinal', cutover ? '⇄' : String(index + 1)));
+  header.appendChild(createTextElement('span', 'dashboard-v2-compact-type', cutover
+    ? `${item.type_display || '割接'} · ${item.status_display || '未知状态'}` : item.category_display));
+  header.appendChild(createTextElement('span', 'dashboard-v2-compact-serial', cutover ? item.cutover_no : item.fault_number));
+  box.appendChild(header);
+  const rows = [
+    faultLocation({ ...item, province: '' }),
+    `${textValue(item.province)} · ${cutover ? `${item.day === 'today' ? '今日' : '明日'} ${textValue(item.planned_time_display)}` : textValue(item.duration)}`,
+    cutover ? `主管 ${textValue(item.supervisor)} · ${textValue(item.description || item.location)}` : `影响业务 ${Number(item.interrupted_business_count) || 0}项${item.interrupted_business_names?.length ? ` · ${item.interrupted_business_names.join('、')}` : ''}`,
+  ];
+  rows.forEach((text, i) => {
+    const row = createTextElement('div', `dashboard-v2-compact-line is-line-${i}`, text);
+    row.title = row.textContent;
+    box.appendChild(row);
+  });
+  return box;
+}
+
+function createFaultCard(fault, index = 0) {
   if (fault.kind === 'cutover') return createCutoverCard(fault);
   const card = document.createElement(fault.url ? 'a' : 'article');
   card.className = 'dashboard-v2-fault-card';
+  card.dataset.eventId = String(fault.id);
   card.dataset.severity = textValue(fault.severity, 'minor');
   if (fault.url) {
     card.href = fault.url;
@@ -115,12 +140,14 @@ function createFaultCard(fault) {
   details.appendChild(createDetailRow('中断业务', faultBusiness(fault), 'is-wide'));
   details.appendChild(createDetailRow('原因', fault.reason, 'is-wide'));
   card.appendChild(details);
+  card.appendChild(createCompactCard(fault, index));
   return card;
 }
 
 function createCutoverCard(task) {
   const card = document.createElement(task.url ? 'a' : 'article');
   card.className = 'dashboard-v2-fault-card dashboard-v2-cutover-card';
+  card.dataset.eventId = `cutover-${task.id}`;
   card.dataset.severity = task.status_color || 'gray';
   if (task.url) { card.href = task.url; card.target = '_blank'; card.rel = 'noopener'; }
   const header = createTextElement('div', 'dashboard-v2-fault-card-title', `⇄ ${task.type_display || '割接'} · ${task.status_display || '未知状态'}`);
@@ -133,6 +160,7 @@ function createCutoverCard(task) {
   details.appendChild(createDetailRow('线路主管', `${task.supervisor || '—'}${task.is_my_task ? '（本人）' : ''}`));
   details.appendChild(createDetailRow('编号', task.cutover_no));
   card.appendChild(details);
+  card.appendChild(createCompactCard(task, 0));
   return card;
 }
 
@@ -186,12 +214,12 @@ function renderFaultCarousel(list, faults, count, onActiveFaultChange) {
     const nextCards = new Map();
     faults.forEach((fault, index) => {
       const key = String(fault.id ?? index);
-      const signature = cardSignature(fault);
+      const signature = `${index}:${cardSignature(fault)}`;
       let entry = existing.cards.get(key);
       if (!entry || Boolean(entry.fault.url) !== Boolean(fault.url)) {
-        entry = { node: createFaultCard(fault), signature, fault };
+        entry = { node: createFaultCard(fault, index), signature, fault };
       } else if (entry.signature !== signature) {
-        patchCard(entry.node, createFaultCard(fault));
+        patchCard(entry.node, createFaultCard(fault, index));
       }
       entry.signature = signature;
       entry.fault = fault;
@@ -217,9 +245,9 @@ function renderFaultCarousel(list, faults, count, onActiveFaultChange) {
   track.className = 'dashboard-v2-fault-carousel-track';
   const cards = new Map();
   faults.forEach((fault, index) => {
-    const node = createFaultCard(fault || {});
+    const node = createFaultCard(fault || {}, index);
     track.appendChild(node);
-    cards.set(String(fault.id ?? index), { node, signature: cardSignature(fault), fault });
+    cards.set(String(fault.id ?? index), { node, signature: `${index}:${cardSignature(fault)}`, fault });
   });
   list.replaceChildren(track);
   list.tabIndex = 0;
@@ -354,8 +382,8 @@ export function initializeDashboardV2InfoDrawer({ onActiveFaultChange } = {}) {
   const applyState = () => {
     drawer.classList.toggle('is-open', expanded);
     toggle.setAttribute('aria-expanded', String(expanded));
-    toggle.setAttribute('aria-label', expanded ? '收起网络信息' : '展开网络信息');
-    toggle.title = expanded ? '收起网络信息' : '展开网络信息';
+    toggle.setAttribute('aria-label', expanded ? '收起总体情况' : '展开总体情况');
+    toggle.title = expanded ? '收起总体情况' : '展开总体情况';
     content.setAttribute('aria-hidden', String(!expanded));
   };
 

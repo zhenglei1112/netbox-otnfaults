@@ -1,6 +1,6 @@
-import { leaderSegment, PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260910-callout-width-v1';
+import { leaderSegment, PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260910-presentation-v1';
 const PROCESSING_FAULTS_SOURCE_ID = 'dashboard-v2-processing-faults';
-import { CUTOVER_COLORS } from './cutovers.js?v=20260910-callout-width-v1';
+import { CUTOVER_COLORS } from './cutovers.js?v=20260910-presentation-v1';
 const SITES_SOURCE_ID = 'dashboard-v2-sites';
 const OTN_PATHS_SOURCE_ID = 'dashboard-v2-otn-paths';
 const SITES_CORE_LAYER_ID = 'dashboard-v2-sites-core';
@@ -243,29 +243,31 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
 
   function applyProcessingFaultPlacement(entry, candidate) {
     const { element } = entry;
+    const boxWidth = candidate.rect.right - candidate.rect.left;
+    const boxHeight = candidate.rect.bottom - candidate.rect.top;
     setFaultFocusStyle(element, '--fault-callout-x', `${candidate.x}px`);
     setFaultFocusStyle(element, '--fault-callout-y', `${candidate.y}px`);
     const targetX = candidate.x > 0
       ? candidate.x
-      : (candidate.x + PROCESSING_FAULT_CALLOUT_WIDTH < 0
-        ? candidate.x + PROCESSING_FAULT_CALLOUT_WIDTH
+      : (candidate.x + boxWidth < 0
+        ? candidate.x + boxWidth
         : 0);
     const targetY = candidate.y > 0
       ? candidate.y
-      : (candidate.y + PROCESSING_FAULT_CALLOUT_HEIGHT < 0
-        ? candidate.y + PROCESSING_FAULT_CALLOUT_HEIGHT
+      : (candidate.y + boxHeight < 0
+        ? candidate.y + boxHeight
         : 0);
     const distance = Math.max(Math.hypot(targetX, targetY), 1);
     const unitX = targetX / distance;
     const unitY = targetY / distance;
-    const leaderStart = 14;
+    const leaderStart = candidate.leaderRadius || 14;
     setFaultFocusStyle(element, '--fault-leader-x', `${unitX * leaderStart}px`);
     setFaultFocusStyle(element, '--fault-leader-y', `${unitY * leaderStart}px`);
     setFaultFocusStyle(element, '--fault-leader-length', `${Math.max(distance - leaderStart, 0)}px`);
     setFaultFocusStyle(element, '--fault-leader-angle', `${Math.atan2(targetY, targetX)}rad`);
     element.dataset.placement = candidate.direction;
     element.classList?.toggle('is-left', targetX < 0);
-    element.classList?.toggle('is-location-below', candidate.y + PROCESSING_FAULT_CALLOUT_HEIGHT < 0);
+    element.classList?.toggle('is-location-below', candidate.y + boxHeight < 0);
   }
 
   function removeProcessingFaultFocuses() {
@@ -323,7 +325,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
 
   function updateProcessingFaultFocuses(map) {
     const zoom = Number(map?.getZoom?.());
-    const visible = !Number.isFinite(zoom) || zoom >= PROCESSING_FAULT_INFO_MIN_ZOOM;
+    const visible = Boolean(map.__dashboardPresentationScale) || !Number.isFinite(zoom) || zoom >= PROCESSING_FAULT_INFO_MIN_ZOOM;
     const container = map?.getContainer?.();
     const containerRect = container?.getBoundingClientRect?.() || {
       left: 0,
@@ -334,6 +336,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
     const width = container?.clientWidth || containerRect.width || 0;
     const height = container?.clientHeight || containerRect.height || 0;
     const projected = processingFaultFocusMarkers.flatMap((entry) => {
+      entry.element.classList?.toggle('is-presentation-active', entry.faultId === map.__dashboardPresentationFocus);
       if ((!visible && entry.mapDisplayMode !== 'points') || !isCoordinateFrontFacing(map, entry.coordinates)) {
         entry.element.hidden = true;
         return [];
@@ -352,11 +355,12 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
         return [];
       }
     });
+    const radius = PROCESSING_FAULT_RADAR_RADIUS * (map.__dashboardPresentationScale ? map.__dashboardPresentationScale * 1.6 : 1);
     const radarRects = projected.map(({ point }) => ({
-      left: point.x - PROCESSING_FAULT_RADAR_RADIUS,
-      top: point.y - PROCESSING_FAULT_RADAR_RADIUS,
-      right: point.x + PROCESSING_FAULT_RADAR_RADIUS,
-      bottom: point.y + PROCESSING_FAULT_RADAR_RADIUS,
+      left: point.x - radius,
+      top: point.y - radius,
+      right: point.x + radius,
+      bottom: point.y + radius,
     }));
     const context = {
       map,
@@ -372,8 +376,14 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
     projected.forEach((entry) => {
       if (entry.mapDisplayMode === 'points') return;
       const previous = processingFaultFocusPlacements.get(entry.faultId);
-      const candidates = buildPlacementCandidates(entry.point, width, height).map((candidate) => ({
-        ...candidate, leader: leaderSegment(entry.point, candidate.rect),
+      const callout = entry.element.querySelector?.('.dashboard-v2-fault-callout');
+      const box = map.__dashboardPresentationScale ? {
+        width: callout?.offsetWidth || 352 * map.__dashboardPresentationScale,
+        height: callout?.offsetHeight || 141 * map.__dashboardPresentationScale,
+        scale: map.__dashboardPresentationScale * 1.6,
+      } : {};
+      const candidates = buildPlacementCandidates(entry.point, width, height, box).map((candidate) => ({
+        ...candidate, leaderRadius: 14 * (box.scale || 1), leader: leaderSegment(entry.point, candidate.rect, 14 * (box.scale || 1)),
       }));
       const shortlist = candidates
         .map((candidate) => ({

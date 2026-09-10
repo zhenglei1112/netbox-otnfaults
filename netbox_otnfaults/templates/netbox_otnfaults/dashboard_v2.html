@@ -10,7 +10,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}" rel="stylesheet">
   <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
-  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260910-callout-width-v1" rel="stylesheet">
+  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260910-sections-v2" rel="stylesheet">
+  <link href="{% static 'netbox_otnfaults/css/dashboard_v2_presentation.css' %}?v=20260910-borderless-v1" rel="stylesheet">
 </head>
 <body>
   <header id="dashboard-v2-header">
@@ -40,6 +41,12 @@
       <div id="dashboard-v2-map"></div>
 
       <nav class="dashboard-v2-map-tools" aria-label="地图工具">
+        <div class="dashboard-v2-display-tool">
+          <button id="dashboard-v2-presentation-mode" class="dashboard-v2-map-tool-button is-stroke-icon" type="button" aria-label="电脑模式，点击切换">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M12 17v4M7 21h10"/></svg>
+          </button>
+          <output id="dashboard-v2-presentation-status" class="dashboard-v2-map-tool-status">电脑模式</output>
+        </div>
         <button
           id="dashboard-v2-map-home"
           class="dashboard-v2-map-tool-button"
@@ -145,18 +152,18 @@
       <aside
         id="dashboard-v2-info-drawer"
         class="dashboard-v2-info-drawer"
-        aria-label="网络信息"
+        aria-label="总体情况"
       >
         <section
           id="dashboard-v2-info-drawer-content"
           class="dashboard-v2-info-drawer-content"
           aria-hidden="true"
         >
+          <section class="dashboard-v2-info-section" aria-label="总体统计">
           <div class="dashboard-v2-info-heading">
-            <h2>网络信息</h2>
+            <h2><span class="dashboard-v2-section-icon" aria-hidden="true">▦</span>总体情况</h2>
             <span id="dashboard-v2-info-update-status">数据加载中</span>
           </div>
-          <div class="dashboard-v2-info-drawer-divider"></div>
           <div class="dashboard-v2-info-metrics" aria-label="故障统计">
             <div class="dashboard-v2-info-metric is-total">
               <span>故障总量</span>
@@ -175,21 +182,26 @@
               <strong id="dashboard-v2-info-business-interruptions">--</strong>
             </div>
           </div>
-          <div class="dashboard-v2-info-list-heading">
-            <h3>处理中故障</h3>
+          </section>
+          <section class="dashboard-v2-info-section" aria-label="处理中故障">
+          <div class="dashboard-v2-info-list-heading is-fault-section">
+            <h3><span class="dashboard-v2-section-icon" aria-hidden="true">!</span>处理中故障</h3>
             <span id="dashboard-v2-info-fault-count">--</span>
           </div>
           <div id="dashboard-v2-info-fault-list" class="dashboard-v2-info-fault-list">
             <div class="dashboard-v2-info-state">数据加载中</div>
           </div>
-          <div class="dashboard-v2-info-list-heading">
-            <h3>今明割接</h3>
+          </section>
+          <section class="dashboard-v2-info-section" aria-label="今明割接">
+          <div class="dashboard-v2-info-list-heading is-cutover-section">
+            <h3><span class="dashboard-v2-section-icon" aria-hidden="true">⇄</span>今明割接</h3>
             <span id="dashboard-v2-info-cutover-count">--</span>
           </div>
           <div id="dashboard-v2-info-cutover-summary" class="dashboard-v2-cutover-summary">今日 -- · 明日 --</div>
           <div id="dashboard-v2-info-cutover-list" class="dashboard-v2-info-fault-list">
             <div class="dashboard-v2-info-state">数据加载中</div>
           </div>
+          </section>
         </section>
         <button
           id="dashboard-v2-info-drawer-toggle"
@@ -197,8 +209,8 @@
           type="button"
           aria-controls="dashboard-v2-info-drawer-content"
           aria-expanded="false"
-          aria-label="展开网络信息"
-          title="展开网络信息"
+          aria-label="展开总体情况"
+          title="展开总体情况"
         >
           <svg class="dashboard-v2-info-drawer-grip" viewBox="0 0 20 20" aria-hidden="true">
             <path d="M5 7h10M7 10h8M9 13h6"/>
@@ -260,6 +272,6 @@
   </main>
 
   {{ dashboard_v2_config|json_script:"dashboard-v2-config" }}
-  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260910-callout-width-v1"></script>
+  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260910-sections-v2"></script>
 </body>
 </html>

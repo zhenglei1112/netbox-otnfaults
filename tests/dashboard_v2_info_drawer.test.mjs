@@ -99,14 +99,14 @@ test('information drawer starts collapsed and toggles its visible and accessible
   assert.equal(controller.isExpanded(), false);
   assert.equal(drawer.classList.contains('is-open'), false);
   assert.equal(content.attributes['aria-hidden'], 'true');
-  assert.equal(toggle.attributes['aria-label'], '展开网络信息');
+  assert.equal(toggle.attributes['aria-label'], '展开总体情况');
 
   toggle.listeners.click();
   assert.equal(controller.isExpanded(), true);
   assert.equal(drawer.classList.contains('is-open'), true);
   assert.equal(content.attributes['aria-hidden'], 'false');
   assert.equal(toggle.attributes['aria-expanded'], 'true');
-  assert.equal(toggle.attributes['aria-label'], '收起网络信息');
+  assert.equal(toggle.attributes['aria-label'], '收起总体情况');
 
   toggle.listeners.click();
   assert.equal(controller.isExpanded(), false);
@@ -235,6 +235,10 @@ test('information drawer cycles fault cards with hover arrows and keyboard contr
   renderDashboardV2InfoDrawer({ summary: {}, processing_faults: [faults[2], faults[0], faults[1]] });
   assert.equal(count.textContent, '1/3');
   assert.equal(track.children[0], originalCards[2]);
+  track.children.forEach((card, index) => {
+    const compact = card.children.find((node) => node.className === 'dashboard-v2-compact-card');
+    assert.equal(compact.children[0].children[0].textContent, String(index + 1));
+  });
 });
 
 

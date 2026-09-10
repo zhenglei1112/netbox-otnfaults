@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { leaderSegment, segmentsIntersect, scorePlacement } from '../netbox_otnfaults/static/netbox_otnfaults/js/dashboard_v2/fault_layout.js';
+import { leaderSegment, segmentsIntersect, scorePlacement, buildPlacementCandidates } from '../netbox_otnfaults/static/netbox_otnfaults/js/dashboard_v2/fault_layout.js';
+
+test('presentation layout uses measured box dimensions rather than desktop constants', () => {
+  const candidates = buildPlacementCandidates({ x: 1600, y: 1000 }, 3840, 2160, { width: 704, height: 310, scale: 3.2 });
+  for (const candidate of candidates) {
+    assert.equal(Math.round(candidate.rect.right - candidate.rect.left), 704);
+    assert.equal(Math.round(candidate.rect.bottom - candidate.rect.top), 310);
+  }
+});
 
 test('detects crossing, collinear overlap and separated leaders', () => {
   const a = { start: { x: 0, y: 0 }, end: { x: 100, y: 100 } };

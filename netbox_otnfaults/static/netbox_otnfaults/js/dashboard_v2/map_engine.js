@@ -1,4 +1,4 @@
-import { createFaultOverlayController } from './fault_overlays.js?v=20260910-callout-width-v1';
+import { createFaultOverlayController } from './fault_overlays.js?v=20260910-presentation-v1';
 let dashboardMap = null;
 let hasRuntimeMapError = false;
 let pmtilesProtocolRegistered = false;
