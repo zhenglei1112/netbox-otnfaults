@@ -398,9 +398,9 @@ body {
   top: var(--fault-callout-y, -44px);
   left: var(--fault-callout-x, 88px);
   box-sizing: border-box;
-  width: 250px;
+  width: 220px;
   min-height: 88px;
-  padding: 10px 14px 10px 44px;
+  padding: 10px 10px 10px 40px;
   background: linear-gradient(110deg, rgba(20, 3, 9, 0.95), rgba(4, 8, 14, 0.94) 58%, rgba(18, 3, 8, 0.95));
   border: 1px solid rgba(255, 49, 69, 0.9);
   clip-path: none;
@@ -538,8 +538,8 @@ body {
 }
 
 .dashboard-v2-fault-focus.is-left .dashboard-v2-fault-callout {
-  padding-right: 14px;
-  padding-left: 44px;
+  padding-right: 10px;
+  padding-left: 40px;
 }
 
 .dashboard-v2-cutover-summary { color: #9db1c8; font-size: 11px; margin: 0 0 6px; }
