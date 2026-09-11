@@ -1,4 +1,5 @@
-import { createFaultOverlayController } from './fault_overlays.js?v=20260910-presentation-v1';
+import { createFaultOverlayController } from './fault_overlays.js?v=20260911-peripheral-v2';
+import { updateDashboardStatus } from './status.js?v=20260911-status-v1';
 let dashboardMap = null;
 let hasRuntimeMapError = false;
 let pmtilesProtocolRegistered = false;
@@ -81,19 +82,12 @@ const GLOBE_SKY_CONFIG = {
 
 function setMapStatus(message, state) {
   const status = document.getElementById('dashboard-v2-map-status');
-  const dot = document.getElementById('dashboard-v2-status-dot');
-  const text = document.getElementById('dashboard-v2-status-text');
 
   if (status) {
     status.textContent = message;
     status.className = state ? `is-${state}` : '';
   }
-  if (text) {
-    text.textContent = message;
-  }
-  if (dot) {
-    dot.classList.toggle('is-error', state === 'error');
-  }
+  updateDashboardStatus({ mapState: state || 'loading', mapMessage: message });
 }
 
 function resolveUrl(url) {
@@ -239,7 +233,7 @@ function addGraticuleToStyle(style) {
     id: GRATICULE_LAYER_ID,
     type: 'line',
     source: GRATICULE_SOURCE_ID,
-    layout: { visibility: 'none' },
+    layout: { visibility: 'visible' },
     paint: {
       'line-color': '#463d4c',
       'line-opacity': 0.62,
@@ -513,7 +507,7 @@ function initializeGraticuleControl(map) {
   const status = document.getElementById('dashboard-v2-graticule-status');
   if (!button) return;
 
-  let visible = false;
+  let visible = true;
   listenForMap(map, button, 'click', () => {
     if (!map.getLayer?.(GRATICULE_LAYER_ID)) return;
     visible = !visible;

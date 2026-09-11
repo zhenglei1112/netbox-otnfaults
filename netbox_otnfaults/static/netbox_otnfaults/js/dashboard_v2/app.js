@@ -22,13 +22,14 @@ import {
   destroyDashboardV2Map,
   renderDashboardV2ProcessingFaults,
   renderDashboardV2Sites,
-} from './map_engine.js?v=20260910-presentation-v1';
+} from './map_engine.js?v=20260911-peripheral-v2';
 import { initializeDashboardV2Galaxy } from './galaxy.js?v=20260910-presentation-v1';
 import { initializeDashboardV2SkyControl } from './sky_control.js?v=20260910-presentation-v1';
 import { initializeDashboardV2Starfield } from './starfield.js?v=20260910-presentation-v1';
 
 globalThis.maplibregl = maplibreglModule;
-import { initializePresentationMode } from './presentation_mode.js?v=20260910-sections-v2';
+import { initializePresentationMode } from './presentation_mode.js?v=20260911-peripheral-v2';
+import { updateDashboardStatus } from './status.js?v=20260911-status-v1';
 import { applyDisplayModes, initializeDisplaySettings } from './display_settings.js?v=20260910-presentation-v1';
 
 function updateClock() {
@@ -116,6 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const refreshDashboardData = createDashboardMapRefresher({
     load: (options) => fetchDashboardV2Data(config.dataUrl, options),
     onSuccess: (data) => {
+      updateDashboardStatus({ dataState: 'online', dataError: '' });
       hasDashboardData = true;
       latestDashboardData = reconcileDashboardData(latestDashboardData, data);
       const serverTime = Date.parse(data.timestamp);
@@ -125,6 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     },
     onData() {},
     onError: (error) => {
+      updateDashboardStatus({ dataState: 'error', dataError: error?.message || '' });
       console.error('[Dashboard V2] 态势数据加载失败:', error);
       if (!dataSimulationEnabled) {
         infoDrawer?.showError({ preserveData: hasDashboardData });
@@ -148,6 +151,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   own(initializeDashboardV2DebugPanel(map, {
     ...config,
     onDataSimulationChange(enabled) {
+      updateDashboardStatus({ simulated: enabled });
       dataSimulationEnabled = enabled;
       simulatedData = enabled ? createDashboardV2MockFaultData(latestDashboardData || {}) : null;
       if (enabled) infoDrawer?.setExpanded(true);

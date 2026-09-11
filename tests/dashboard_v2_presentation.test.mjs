@@ -26,6 +26,21 @@ function harness() {
   return { tour, events, timer: () => timer, async tick() { const next = timer; timer = null; next.fn(); await Promise.resolve(); } };
 }
 
+test('each completed overview starts its effect again, including restart after resize', async () => {
+  let timer;
+  let starts = 0;
+  const tour = createPresentationTour({ overview() {}, focus() {}, clearFocus() {},
+    overviewReady: () => starts++, setTimer: (fn) => { timer = fn; return fn; }, clearTimer() {} });
+  tour.setItems([{ id: 'f1' }]); tour.start(); await Promise.resolve();
+  assert.equal(starts, 1);
+  timer(); await Promise.resolve();
+  timer(); await Promise.resolve();
+  assert.equal(starts, 2);
+  tour.restart(); await Promise.resolve();
+  assert.equal(starts, 3);
+  tour.stop();
+});
+
 test('overview 45 seconds, each event 12 seconds, then repeat; refresh does not reset', async () => {
   const h = harness();
   h.tour.setItems([{ id: 'f1' }, { id: 'cutover-1' }]);
@@ -85,7 +100,7 @@ test('4K mode persists, disables tools, and restores desktop camera and interact
   let expanded = false;
   const handler = () => ({ enabled: true, isEnabled() { return this.enabled; }, disable() { this.enabled = false; }, enable() { this.enabled = true; } });
   const map = { getCenter: () => ({ lng: 120, lat: 30 }), getZoom: () => 4.2, getBearing: () => 0, getPitch: () => 0,
-    getStyle: () => ({ layers: [] }), fire() {}, resize() {}, stop() {}, on() {}, off() {}, jumpTo: (camera) => jumps.push(camera),
+    getStyle: () => ({ layers: [] }), fire() {}, resize() {}, stop() {}, on() {}, off() {}, jumpTo: (camera) => jumps.push(camera), flyTo: (camera) => jumps.push(camera),
     dragPan: handler(), scrollZoom: handler() };
   try {
     globalThis.document = { ...surface(), hidden: false,
@@ -109,7 +124,11 @@ test('4K mode persists, disables tools, and restores desktop camera and interact
     button.listeners.click();
     assert.equal(expanded, false); assert.equal(other.disabled, false); assert.equal(map.dragPan.enabled, true);
     assert.equal(jumps.at(-1).zoom, 4.2); assert.equal(intervals.size, 0);
+    assert.equal(jumps.at(-1).duration, 1200);
     assert.deepEqual(changes, [true, false]);
+    globalThis.matchMedia = () => ({ matches: true });
+    button.listeners.click(); button.listeners.click();
+    assert.equal(jumps.at(-1).duration, undefined, 'reduced motion restores immediately');
     controller.destroy(); assert.equal(button.listeners.click, undefined);
   } finally {
     for (const [key, value] of Object.entries(originals)) { if (value === undefined) delete globalThis[key]; else globalThis[key] = value; }

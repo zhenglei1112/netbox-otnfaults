@@ -10,8 +10,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}" rel="stylesheet">
   <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
-  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260910-sections-v2" rel="stylesheet">
-  <link href="{% static 'netbox_otnfaults/css/dashboard_v2_presentation.css' %}?v=20260910-borderless-v1" rel="stylesheet">
+  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260911-tooltip-v1" rel="stylesheet">
+  <link href="{% static 'netbox_otnfaults/css/dashboard_v2_presentation.css' %}?v=20260911-header-v1" rel="stylesheet">
 </head>
 <body>
   <header id="dashboard-v2-header">
@@ -42,10 +42,11 @@
 
       <nav class="dashboard-v2-map-tools" aria-label="地图工具">
         <div class="dashboard-v2-display-tool">
-          <button id="dashboard-v2-presentation-mode" class="dashboard-v2-map-tool-button is-stroke-icon" type="button" aria-label="电脑模式，点击切换">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M12 17v4M7 21h10"/></svg>
+          <button id="dashboard-v2-presentation-mode" class="dashboard-v2-map-tool-button is-stroke-icon" type="button" data-mode="desktop" aria-label="当前：电脑模式 · 点击切换大屏">
+            <svg class="is-desktop-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M12 17v4M7 21h10"/></svg>
+            <svg class="is-screen-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h20M4 3v13h16V3M12 16v5M8 21l4-3 4 3M7 7h3M7 7v3M17 12h-3M17 12V9"/></svg>
           </button>
-          <output id="dashboard-v2-presentation-status" class="dashboard-v2-map-tool-status">电脑模式</output>
+          <output id="dashboard-v2-presentation-status" class="dashboard-v2-map-tool-status">当前：电脑模式 · 点击切换大屏</output>
         </div>
         <button
           id="dashboard-v2-map-home"
@@ -63,9 +64,9 @@
           id="dashboard-v2-map-graticule"
           class="dashboard-v2-map-tool-button is-stroke-icon"
           type="button"
-          title="显示经纬网"
-          aria-label="显示经纬网"
-          aria-pressed="false"
+          title="隐藏经纬网"
+          aria-label="隐藏经纬网"
+          aria-pressed="true"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="9"/>
@@ -76,7 +77,7 @@
           id="dashboard-v2-graticule-status"
           class="dashboard-v2-map-tool-status"
           aria-live="polite"
-        >经纬度 关闭</output>
+        >经纬度 开启</output>
         <button
           id="dashboard-v2-map-sky"
           class="dashboard-v2-map-tool-button"
@@ -162,7 +163,6 @@
           <section class="dashboard-v2-info-section" aria-label="总体统计">
           <div class="dashboard-v2-info-heading">
             <h2><span class="dashboard-v2-section-icon" aria-hidden="true">▦</span>总体情况</h2>
-            <span id="dashboard-v2-info-update-status">数据加载中</span>
           </div>
           <div class="dashboard-v2-info-metrics" aria-label="故障统计">
             <div class="dashboard-v2-info-metric is-total">
@@ -272,6 +272,6 @@
   </main>
 
   {{ dashboard_v2_config|json_script:"dashboard-v2-config" }}
-  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260910-sections-v2"></script>
+  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260911-peripheral-v2"></script>
 </body>
 </html>

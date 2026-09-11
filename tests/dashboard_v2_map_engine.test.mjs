@@ -12,7 +12,9 @@ const MODULE_SOURCE = await readFile(MODULE_PATH, 'utf8');
 
 async function loadMapModule(tag) {
   const layout = new URL('../netbox_otnfaults/static/netbox_otnfaults/js/dashboard_v2/fault_overlays.js', import.meta.url).href;
-  const encoded = Buffer.from(MODULE_SOURCE.replace('./fault_overlays.js?v=20260910-presentation-v1', layout + '?test=' + tag)).toString('base64');
+  const status = new URL('../netbox_otnfaults/static/netbox_otnfaults/js/dashboard_v2/status.js', import.meta.url).href;
+  const encoded = Buffer.from(MODULE_SOURCE.replace('./fault_overlays.js?v=20260911-peripheral-v2', layout + '?test=' + tag)
+    .replace('./status.js?v=20260911-status-v1', status)).toString('base64');
   return import(`data:text/javascript;base64,${encoded}#${tag}`);
 }
 
@@ -359,7 +361,7 @@ test('initializes a globe with remote dark style by default (aligning with unifi
   assert.deepEqual(placeLabel.layout['text-font'], ['HarmonyOS Sans SC Regular']);
 
   map.handlers.load();
-  assert.equal(elements.get('dashboard-v2-status-text').textContent, '地球模式就绪');
+  assert.equal(elements.get('dashboard-v2-status-text').textContent, '数据加载中...');
   assert.equal(elements.get('dashboard-v2-map-status').className, 'is-ready');
 });
 
@@ -396,7 +398,7 @@ test('initializes a globe with local PMTiles basemap when useLocalBasemap is tru
   )), false);
 
   map.handlers.load();
-  assert.equal(elements.get('dashboard-v2-status-text').textContent, '地球模式就绪');
+  assert.equal(elements.get('dashboard-v2-status-text').textContent, '数据加载中...');
 });
 
 
@@ -531,7 +533,7 @@ test('initializes the Protomaps globe with HarmonyOS Sans site labels', async ()
   assert.equal(faultLabel.paint['text-color'], '#f4f9ff');
 
   map.handlers.load();
-  assert.equal(elements.get('dashboard-v2-status-text').textContent, '地球模式就绪');
+  assert.equal(elements.get('dashboard-v2-status-text').textContent, '数据加载中...');
 });
 
 
@@ -650,25 +652,25 @@ test('graticule control toggles 24 longitude lines and 17 latitude lines', async
   assert.ok(latitudeLines.every((feature) => feature.geometry.coordinates.every(
     (segment) => segment.length === 46,
   )));
-  assert.equal(layer.layout.visibility, 'none');
+  assert.equal(layer.layout.visibility, 'visible');
   assert.deepEqual(new Set(source.data.features.map((feature) => feature.properties.kind)), new Set([
     'longitude', 'latitude',
   ]));
 
   button.listeners.click();
   assert.deepEqual(map.layoutValues.at(-1), [
-    'dashboard-v2-graticule', 'visibility', 'visible',
-  ]);
-  assert.equal(button.attributes['aria-pressed'], 'true');
-  assert.equal(button.title, '隐藏经纬网');
-  assert.equal(elements.get('dashboard-v2-graticule-status').textContent, '经纬度 开启');
-
-  button.listeners.click();
-  assert.deepEqual(map.layoutValues.at(-1), [
     'dashboard-v2-graticule', 'visibility', 'none',
   ]);
   assert.equal(button.attributes['aria-pressed'], 'false');
+  assert.equal(button.title, '显示经纬网');
   assert.equal(elements.get('dashboard-v2-graticule-status').textContent, '经纬度 关闭');
+
+  button.listeners.click();
+  assert.deepEqual(map.layoutValues.at(-1), [
+    'dashboard-v2-graticule', 'visibility', 'visible',
+  ]);
+  assert.equal(button.attributes['aria-pressed'], 'true');
+  assert.equal(elements.get('dashboard-v2-graticule-status').textContent, '经纬度 开启');
 });
 
 
@@ -804,7 +806,7 @@ test('shows every fault callout together from zoom 3.9 without carousel selectio
   handlers.zoom();
   assert.equal(marker.element.hidden, false);
   assert.equal(maplibreState.markers[1].element.hidden, false);
-  assert.match(marker.element.className, /is-left/);
+  assert.ok(['w', 'e', 'n', 's', 'ne', 'nw', 'se', 'sw'].includes(marker.element.dataset.placement));
   const collectText = (node) => [
     node.textContent,
     ...(node.children || []).flatMap((child) => collectText(child)),
@@ -978,8 +980,17 @@ test('prefers the seaward side when inland candidates cover sites and OTN paths'
   assert.ok(queryBounds.length > 1);
   assert.ok(queryBounds.length <= 8);
   const initialQueryCount = queryBounds.length;
-  handlers.move();
+  const lockedStyle = { ...maplibreState.markers[0].element.style };
+  map.__dashboardOverviewLayoutLocked = true;
+  handlers.moveend();
   assert.equal(queryBounds.length, initialQueryCount);
+  assert.deepEqual(maplibreState.markers[0].element.style, lockedStyle);
+  delete map.__dashboardOverviewLayoutLocked;
+  handlers.move();
+  assert.ok(queryBounds.length > initialQueryCount, 'deferred layout resumes after unlocking');
+  const resumedQueryCount = queryBounds.length;
+  handlers.move();
+  assert.equal(queryBounds.length, resumedQueryCount);
   handlers.moveend();
   assert.ok(queryBounds.length > initialQueryCount);
 });

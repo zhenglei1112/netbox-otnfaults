@@ -6,7 +6,7 @@ export function validPosition(item) {
 }
 
 // One timer owns the tour; refreshing identical data never restarts it.
-export function createPresentationTour({ overview, focus, clearFocus, cancelMotion,
+export function createPresentationTour({ overview, focus, clearFocus, cancelMotion, overviewReady = () => {},
   setTimer = setTimeout, clearTimer = clearTimeout, reducedMotion = () => false }) {
   let items = [];
   let running = false;
@@ -16,12 +16,15 @@ export function createPresentationTour({ overview, focus, clearFocus, cancelMoti
   let epoch = 0;
   const cancel = () => { epoch += 1; clearTimer(timer); timer = null; cancelMotion?.(); };
   const schedule = (fn, ms) => { timer = setTimer(fn, ms); };
-  const afterMotion = (result, seconds, next) => {
+  const afterMotion = (result, seconds, next, ready = () => {}) => {
     const token = epoch;
     Promise.resolve(result).then(() => {
-      if (running && token === epoch) schedule(next, seconds * 1000);
+      if (running && token === epoch) {
+        ready();
+        if (next) schedule(next, seconds * 1000);
+      }
     }).catch(() => {
-      if (running && token === epoch) schedule(next, seconds * 1000);
+      if (running && token === epoch && next) schedule(next, seconds * 1000);
     });
   };
   const next = () => {
@@ -39,7 +42,7 @@ export function createPresentationTour({ overview, focus, clearFocus, cancelMoti
     currentId = null;
     clearFocus();
     const result = overview(items, reducedMotion() ? 0 : 2000);
-    if (items.length) afterMotion(result, 45, next);
+    afterMotion(result, 45, items.length ? next : null, overviewReady);
   };
   return {
     setItems(nextItems) {

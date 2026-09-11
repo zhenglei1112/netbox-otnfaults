@@ -1,4 +1,5 @@
 import { leaderSegment, PROCESSING_FAULT_CALLOUT_WIDTH, PROCESSING_FAULT_CALLOUT_HEIGHT, expandRect, buildPlacementCandidates, scorePlacement, PROCESSING_FAULT_LAYOUT_GAP } from './fault_layout.js?v=20260910-presentation-v1';
+import { solvePeripheralLayout } from './peripheral_layout.js?v=20260911-peripheral-v2';
 const PROCESSING_FAULTS_SOURCE_ID = 'dashboard-v2-processing-faults';
 import { CUTOVER_COLORS } from './cutovers.js?v=20260910-presentation-v1';
 const SITES_SOURCE_ID = 'dashboard-v2-sites';
@@ -310,6 +311,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
         rotationAlignment: 'viewport',
         pitchAlignment: 'viewport',
         opacityWhenCovered: 0,
+        subpixelPositioning: true,
       }).setLngLat(coordinates).addTo(map);
       processingFaultFocusMarkers.push({
         marker,
@@ -324,6 +326,11 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
   }
 
   function updateProcessingFaultFocuses(map) {
+    if (map.__dashboardResetOverviewLayout && !map.__dashboardOverviewLayoutLocked) {
+      processingFaultFocusPlacements.clear();
+      processingFaultNetworkLayoutDirty = true;
+      delete map.__dashboardResetOverviewLayout;
+    }
     const zoom = Number(map?.getZoom?.());
     const visible = Boolean(map.__dashboardPresentationScale) || !Number.isFinite(zoom) || zoom >= PROCESSING_FAULT_INFO_MIN_ZOOM;
     const container = map?.getContainer?.();
@@ -355,6 +362,15 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
         return [];
       }
     });
+    if (map.__dashboardOverviewLayoutLocked) {
+      // Markers move geographically, but retain their existing CSS offsets/leader geometry.
+      // New entries wait until the next unlocked layout instead of disturbing the overview.
+      projected.forEach((entry) => {
+        if (!processingFaultFocusPlacements.has(entry.faultId)) entry.element.hidden = true;
+      });
+      return;
+    }
+    let overviewMargin = Infinity;
     const radius = PROCESSING_FAULT_RADAR_RADIUS * (map.__dashboardPresentationScale ? map.__dashboardPresentationScale * 1.6 : 1);
     const radarRects = projected.map(({ point }) => ({
       left: point.x - radius,
@@ -372,7 +388,17 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       reservedRects: reservedInterfaceRects(containerRect),
       networkScoreCache: new Map(),
       evaluateNetwork: processingFaultNetworkLayoutDirty,
+      presentationScale: map.__dashboardPresentationScale || 0,
     };
+    const peripheralEntries = projected.filter((entry) => entry.mapDisplayMode !== 'points');
+    const peripheral = peripheralEntries.length > 1 ? solvePeripheralLayout(peripheralEntries.map((entry) => {
+      const callout = entry.element.querySelector?.('.dashboard-v2-fault-callout');
+      const scale = map.__dashboardPresentationScale;
+      return { ...entry, boxWidth: scale ? callout?.offsetWidth || 352 * scale : PROCESSING_FAULT_CALLOUT_WIDTH,
+        boxHeight: scale ? callout?.offsetHeight || 141 * scale : PROCESSING_FAULT_CALLOUT_HEIGHT,
+        radius: 14 * (scale ? scale * 1.6 : 1) };
+    }), context) : null;
+    map.__dashboardPeripheralLayout = peripheral ? 'non-crossing' : peripheralEntries.length <= 1 ? 'single-label' : 'space-limited-fallback';
     projected.forEach((entry) => {
       if (entry.mapDisplayMode === 'points') return;
       const previous = processingFaultFocusPlacements.get(entry.faultId);
@@ -392,13 +418,22 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
         }))
         .sort((first, second) => first.baseScore - second.baseScore)
         .slice(0, PROCESSING_FAULT_NETWORK_CANDIDATE_LIMIT);
-      const candidate = shortlist.reduce((best, current) => {
+      const candidate = peripheral?.get(entry.faultId) || shortlist.reduce((best, current) => {
         const score = current.baseScore + (context.evaluateNetwork
           ? networkObstructionScore(map, current.rect, context.networkScoreCache)
           : 0);
         return !best || score < best.score ? { ...current, score } : best;
       }, null);
       if (!candidate) return;
+      overviewMargin = Math.min(overviewMargin, candidate.rect.left, width - candidate.rect.right,
+        candidate.rect.top, height - candidate.rect.bottom);
+      context.reservedRects.forEach((rect) => {
+        if (candidate.rect.bottom > rect.top && candidate.rect.top < rect.bottom) {
+          const clearance = candidate.rect.left >= rect.right ? candidate.rect.left - rect.right
+            : rect.left >= candidate.rect.right ? rect.left - candidate.rect.right : 0;
+          overviewMargin = Math.min(overviewMargin, clearance);
+        }
+      });
       applyProcessingFaultPlacement(entry, candidate);
       context.placedRects.push(expandRect(candidate.rect, PROCESSING_FAULT_LAYOUT_GAP));
       context.placedLeaders.push(candidate.leader);
@@ -408,6 +443,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       });
     });
     processingFaultNetworkLayoutDirty = false;
+    map.__dashboardOverviewMargin = overviewMargin;
   }
 
   function scheduleProcessingFaultFocusLayout(map) {

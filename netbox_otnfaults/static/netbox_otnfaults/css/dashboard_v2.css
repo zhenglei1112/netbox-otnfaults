@@ -670,13 +670,22 @@ body {
 
 .dashboard-v2-display-tool { position: relative; }
 .dashboard-v2-display-tool .dashboard-v2-map-tool-status { left: 50%; }
+#dashboard-v2-presentation-status {
+  left: 0;
+  transform: none;
+  min-width: 0;
+  width: max-content;
+  max-width: calc(100vw - 40px);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .dashboard-v2-display-tool button:hover + .dashboard-v2-map-tool-status,
 .dashboard-v2-display-tool button:focus-visible + .dashboard-v2-map-tool-status {
   opacity: 1;
   visibility: visible;
   transition: opacity 120ms ease, visibility 0s;
 }
-.dashboard-v2-display-tool button:not([data-mode="hidden"])::after {
+.dashboard-v2-display-tool button:not(#dashboard-v2-presentation-mode):not([data-mode="hidden"])::after {
   content: '';
   position: absolute;
   top: -4px;
@@ -689,6 +698,8 @@ body {
   background: #19d978;
 }
 .dashboard-v2-display-tool button[data-mode="points"]::after { background: #f4ba4d; }
+#dashboard-v2-presentation-mode[data-mode="desktop"] .is-screen-icon,
+#dashboard-v2-presentation-mode[data-mode="screen"] .is-desktop-icon { display: none; }
 
 .dashboard-v2-info-drawer.is-open .dashboard-v2-info-drawer-content {
   opacity: 1;
@@ -1323,6 +1334,7 @@ body {
 }
 
 #dashboard-v2-map-status {
+  display: none;
   position: absolute;
   inset: auto 16px 68px;
   z-index: 2;
