@@ -59,6 +59,34 @@ class CurrentContractDynamicModelChoiceField(DynamicModelChoiceField):
             raise
 
 class OtnFaultForm(NetBoxModelForm):
+    interruption_latitude = forms.DecimalField(
+        required=False,
+        max_digits=8,
+        decimal_places=6,
+        min_value=18,
+        max_value=54,
+        label='故障位置纬度',
+        help_text='北纬范围 18～54，最多 6 位小数。例如：34；请勿与经度填反。',
+        error_messages={
+            'min_value': '纬度必须在 18～54 之间，请检查是否与经度填反。',
+            'max_value': '纬度必须在 18～54 之间，请检查是否与经度填反。',
+            'max_whole_digits': '纬度必须在 18～54 之间，请检查是否与经度填反。',
+        },
+    )
+    interruption_longitude = forms.DecimalField(
+        required=False,
+        max_digits=9,
+        decimal_places=6,
+        min_value=73,
+        max_value=135,
+        label='故障位置经度',
+        help_text='东经范围 73～135，最多 6 位小数。例如：114；请勿与纬度填反。',
+        error_messages={
+            'min_value': '经度必须在 73～135 之间，请检查是否与纬度填反。',
+            'max_value': '经度必须在 73～135 之间，请检查是否与纬度填反。',
+            'max_whole_digits': '经度必须在 73～135 之间，请检查是否与纬度填反。',
+        },
+    )
     duty_officer = DynamicModelChoiceField(
         queryset=get_user_model().objects.all(),
         label='值守人员'

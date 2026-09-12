@@ -7,6 +7,16 @@ TEMPLATE_PATH = REPO_ROOT / "netbox_otnfaults" / "templates" / "netbox_otnfaults
 
 
 class OtnFaultOperationsManagerDefaultsSourceTestCase(unittest.TestCase):
+    def test_review_permissions_guard_unsaved_fault_relations(self) -> None:
+        template_text = TEMPLATE_PATH.read_text(encoding="utf-8-sig")
+
+        self.assertIn(
+            'const faultOpsManagerIds = [{% if form.instance.pk %}'
+            '{% for u in form.instance.operations_manager.all %}'
+            '"{{ u.id }}",{% endfor %}{% endif %}];',
+            template_text,
+        )
+
     def test_initial_load_applies_defaults_for_current_fault_category(self) -> None:
         template_text = TEMPLATE_PATH.read_text(encoding="utf-8-sig")
 

@@ -835,7 +835,7 @@
         const currentUserId = "{{ request.user.id|default:'' }}";
         const isSuperUser = {% if request.user.is_superuser %}true{% else %}false{% endif %};
         const faultLineManagerId = "{{ form.instance.line_manager.id|default:'' }}";
-        const faultOpsManagerIds = [{% for u in form.instance.operations_manager.all %}"{{ u.id }}",{% endfor %}];
+        const faultOpsManagerIds = [{% if form.instance.pk %}{% for u in form.instance.operations_manager.all %}"{{ u.id }}",{% endfor %}{% endif %}];
 
         const currentUser = "{{ request.user.first_name }}{{ request.user.last_name }}" || "{{ request.user.username }}";
         const ongoingImpactCountAttr = 'data-ongoing-impact-count';
