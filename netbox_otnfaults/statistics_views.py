@@ -228,6 +228,50 @@ def _is_branch_company_fault(fault) -> bool:
     return _branch_province_for_fault(fault) in BRANCH_PROVINCE_NAMES and not _should_exclude_for_branch(fault)
 
 
+LINE_SUPERVISOR_PROVINCES: dict[str, tuple[str, ...]] = {
+    '冯鑫源': ('甘肃', '宁夏', '青海', '新疆', '山东', '陕西', '内蒙', '浙江', '四川', '江西'),
+    '姜川': ('广东', '湖南', '福建', '重庆', '贵州', '云南', '海南'),
+    '李立彬': ('北京', '天津', '河北', '河南', '山西', '广西'),
+    '孙振伟': ('湖北', '安徽', '江苏', '上海'),
+    '李小涛': ('黑龙江', '吉林', '辽宁'),
+}
+# 线路主管维护总里程（单位：公里，2026-09-16 业务提供）。
+LINE_SUPERVISOR_PATH_LENGTHS: dict[str, float] = {
+    '冯鑫源': 3972.0,
+    '姜川': 11660.0,
+    '李立彬': 10162.0,
+    '孙振伟': 11724.0,
+    '李小涛': 3811.0,
+}
+
+
+def _line_supervisor_for_fault(fault: OtnFault) -> str | None:
+    """按省份分工归属，六省仅接收被子公司维护单位规则排除的故障。"""
+    province = getattr(fault, 'province', None)
+    name = str(province.name).strip() if province else ''
+    for supervisor, provinces in LINE_SUPERVISOR_PROVINCES.items():
+        for short_name in provinces:
+            if name.startswith(short_name):
+                if short_name in BRANCH_PROVINCE_NAMES and not _should_exclude_for_branch(fault):
+                    return None
+                return supervisor
+    return None
+
+
+def _is_line_supervisor_fault(fault: OtnFault) -> bool:
+    return _line_supervisor_for_fault(fault) is not None
+
+
+def _filter_line_supervisor_faults(
+    faults: list[OtnFault], supervisor: str | None = None,
+) -> list[OtnFault]:
+    return [
+        fault for fault in faults
+        if (name := _line_supervisor_for_fault(fault)) is not None
+        and (not supervisor or name == supervisor)
+    ]
+
+
 def truncate_sla(value: float) -> float:
     return math.trunc(value * 100.0) / 100.0
 
@@ -744,7 +788,7 @@ def _build_branch_week_ranges(year_start, year_end) -> list[dict[str, str]]:
     return ranges
 
 
-def _count_repeat_fiber_faults(faults: list, end_date, now) -> int:
+def _count_repeat_fiber_faults(faults: list, end_date: datetime, now: datetime, line_supervisor_scope: bool = False) -> int:
     fiber_faults = [
         fault for fault in faults
         if getattr(fault, 'is_fiber_fault', False) and fault.fault_occurrence_time
@@ -765,9 +809,11 @@ def _count_repeat_fiber_faults(faults: list, end_date, now) -> int:
                 FaultCategoryChoices.FIBER_JITTER,
             ],
         )
-        .select_related('interruption_location_a')
+        .select_related('interruption_location_a', 'province', 'handling_unit')
         .prefetch_related('interruption_location')
     )
+    if line_supervisor_scope:
+        comparison_faults = [fault for fault in comparison_faults if _is_line_supervisor_fault(fault)]
     z_sites_cache = {
         fault.id: set(site.id for site in fault.interruption_location.all())
         for fault in comparison_faults
@@ -1262,28 +1308,37 @@ def _build_branch_company_performance_cards(
 
 
 def _build_branch_company_statistics(
-    all_faults: list,
-    cable_break_faults: list,
+    all_faults: list[OtnFault],
+    cable_break_faults: list[OtnFault],
     suspended_faults_count: int,
-    start_date,
-    end_date,
-    now,
+    start_date: datetime,
+    end_date: datetime,
+    now: datetime,
     calendar_year: int | None = None,
     calendar_month: int | None = None,
+    line_supervisor_scope: bool = False,
 ) -> dict[str, object]:
     path_lengths = BRANCH_PROVINCE_PATH_LENGTHS.copy()
+    group_names = BRANCH_PROVINCE_NAMES
+    include_fault = _is_branch_company_fault
+    group_for_fault = _branch_province_for_fault
+    if line_supervisor_scope:
+        path_lengths = LINE_SUPERVISOR_PATH_LENGTHS.copy()
+        group_names = list(LINE_SUPERVISOR_PROVINCES)
+        include_fault = _is_line_supervisor_fault
+        group_for_fault = _line_supervisor_for_fault
     branch_all_faults = [
         fault for fault in all_faults
-        if _is_branch_company_fault(fault)
+        if include_fault(fault)
     ]
     branch_cable_break_faults = [
         fault for fault in cable_break_faults
-        if _is_branch_company_fault(fault)
+        if include_fault(fault)
     ]
     branch_suspended_faults_count = sum(
         1
         for fault in OtnFault.objects.select_related('province', 'handling_unit').filter(_suspended_fault_q())
-        if _is_branch_company_fault(fault)
+        if include_fault(fault)
     )
 
     overview_faults = [
@@ -1292,12 +1347,12 @@ def _build_branch_company_statistics(
     ]
     province_stats: dict[str, dict[str, float | int]] = {
         province: {'count': 0, 'duration': 0.0, 'valid_duration': 0.0, 'valid_count': 0}
-        for province in BRANCH_PROVINCE_NAMES
+        for province in group_names
     }
-    province_samples: dict[str, list[float]] = {province: [] for province in BRANCH_PROVINCE_NAMES}
+    province_samples: dict[str, list[float]] = {province: [] for province in group_names}
 
     for fault in branch_cable_break_faults:
-        province = _branch_province_for_fault(fault)
+        province = group_for_fault(fault)
         if province not in province_stats:
             continue
         duration_hours = _duration_hours_for_fault(fault, now)
@@ -1311,7 +1366,7 @@ def _build_branch_company_statistics(
     province_bars = []
     duration_boxplot = []
     valid_duration_bars = []
-    for province in BRANCH_PROVINCE_NAMES:
+    for province in group_names:
         length_km = path_lengths.get(province, 0.0)
         count = int(province_stats[province]['count'])
         duration = float(province_stats[province]['duration'])
@@ -1361,31 +1416,31 @@ def _build_branch_company_statistics(
             week['key']: {'count': 0, 'duration': 0.0, 'valid_duration': 0.0}
             for week in week_ranges
         }
-        for province in BRANCH_PROVINCE_NAMES
+        for province in group_names
     }
     monthly_by_province = {
         province: {
             month['key']: {'count': 0, 'duration': 0.0, 'valid_duration': 0.0}
             for month in month_ranges
         }
-        for province in BRANCH_PROVINCE_NAMES
+        for province in group_names
     }
 
-    year_all_faults = [
+    year_all_faults = [] if line_supervisor_scope else [
         fault for fault in OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit')
         .prefetch_related('interruption_location')
         .filter(
             fault_occurrence_time__gte=year_start,
             fault_occurrence_time__lt=year_end,
         )
-        if _is_branch_company_fault(fault)
+        if include_fault(fault)
     ]
     year_faults = [
         fault for fault in get_cable_break_base_queryset(year_start, year_end)
-        if _is_branch_company_fault(fault)
+        if include_fault(fault)
     ]
     for fault in year_faults:
-        province = _branch_province_for_fault(fault)
+        province = group_for_fault(fault)
         if not province or not fault.fault_occurrence_time:
             continue
         local_day = timezone.localtime(fault.fault_occurrence_time).date().isoformat()
@@ -1418,7 +1473,7 @@ def _build_branch_company_statistics(
     selected_calendar_month = calendar_month or timezone.localtime(start_date).month
     calendar_months = _build_recent_calendar_months(selected_calendar_year, selected_calendar_month, tz)
     calendar_full_months = _build_year_to_month_calendar_months(selected_calendar_year, selected_calendar_month, tz)
-    for province in BRANCH_PROVINCE_NAMES:
+    for province in group_names:
         length_km = path_lengths.get(province, 0.0)
         weekly_trends['series'].append({
             'name': province,
@@ -1440,21 +1495,21 @@ def _build_branch_company_statistics(
         })
 
     branch_cable_break_overview = _compute_cable_break_overview(branch_cable_break_faults, now)
-
-    branch_cable_break_overview = _compute_cable_break_overview(branch_cable_break_faults, now)
     branch_bare_fiber_interruption = _compute_bare_fiber_interruption_overview(
         start_date,
         end_date,
         [],
         now,
-        branch_company_scope=True,
+        branch_company_scope=not line_supervisor_scope,
+        line_supervisor_scope=line_supervisor_scope,
     )
     branch_cable_break_overview['repeat_faults_count'] = _count_repeat_fiber_faults(
         branch_cable_break_faults,
         end_date,
         now,
+        line_supervisor_scope=line_supervisor_scope,
     )
-    performance_cards = _build_branch_company_performance_cards(
+    performance_cards = [] if line_supervisor_scope else _build_branch_company_performance_cards(
         branch_cable_break_faults,
         year_faults,
         year_all_faults,
@@ -1467,7 +1522,11 @@ def _build_branch_company_statistics(
     )
 
     return {
-        'provinces': BRANCH_PROVINCE_NAMES,
+        'groups': [
+            {'name': name, 'provinces': [province for province in LINE_SUPERVISOR_PROVINCES[name] if province not in BRANCH_PROVINCE_NAMES]}
+            for name in group_names
+        ] if line_supervisor_scope else [],
+        'provinces': group_names,
         'path_lengths': path_lengths,
         'overview': {
             'total_count': len(overview_faults),
@@ -1733,6 +1792,17 @@ def _compute_comparison_period_data(
         calendar_year,
         calendar_month,
     )
+    line_supervisor_stats = _build_branch_company_statistics(
+        unfiltered_all_faults,
+        global_cable_break_faults,
+        unfiltered_open_suspended_faults_count,
+        start_date,
+        end_date,
+        now,
+        calendar_year,
+        calendar_month,
+        line_supervisor_scope=True,
+    )
 
     return {
         'kpis': {
@@ -1764,6 +1834,7 @@ def _compute_comparison_period_data(
         'cable_break_overview': cable_break_overview,
         'bare_fiber_interruption': bare_fiber_interruption,
         'branch_company': branch_company_stats,
+        'line_supervisor': line_supervisor_stats,
         'other_overview': other_overview,
     }
 
@@ -1838,6 +1909,7 @@ def _get_filtered_bare_fiber_interruption_impacts(
     end_date: datetime,
     selected_provinces: list[str],
     branch_company_scope: bool = False,
+    line_supervisor_scope: bool = False,
 ) -> list[OtnFaultImpact]:
     """筛选统计周期内符合概览和故障下钻口径的裸纤业务中断记录。"""
     impacts = OtnFaultImpact.objects.select_related(
@@ -1864,6 +1936,8 @@ def _get_filtered_bare_fiber_interruption_impacts(
             continue
 
         fault = imp.otn_fault
+        if line_supervisor_scope and not _is_line_supervisor_fault(fault):
+            continue
         if branch_company_scope:
             if (
                 _branch_province_for_fault(fault) not in BRANCH_PROVINCE_NAMES
@@ -1891,6 +1965,7 @@ def _compute_bare_fiber_interruption_overview(
     selected_provinces: list[str],
     now: datetime,
     branch_company_scope: bool = False,
+    line_supervisor_scope: bool = False,
 ) -> dict[str, float | int]:
     """计算统计周期内裸纤业务的中断概览指标。"""
     filtered_impacts = _get_filtered_bare_fiber_interruption_impacts(
@@ -1898,6 +1973,7 @@ def _compute_bare_fiber_interruption_overview(
         end_date=end_date,
         selected_provinces=selected_provinces,
         branch_company_scope=branch_company_scope,
+        line_supervisor_scope=line_supervisor_scope,
     )
 
     total_count = len(filtered_impacts)
@@ -2020,7 +2096,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         provinces_str = ",".join(sorted(selected_provinces))
         provinces_hash = hashlib.md5(provinces_str.encode('utf-8')).hexdigest() if provinces_str else "all"
         
-        cache_key = f"otnfaults:stats:v{cache_version}:fault-summary:v2:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{provinces_hash}:{calendar_year}:{calendar_month}"
+        cache_key = f"otnfaults:stats:v{cache_version}:fault-summary:v3:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{provinces_hash}:{calendar_year}:{calendar_month}"
         
         if is_ended:
             cached_data = cache.get(cache_key)
@@ -2182,6 +2258,17 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             now,
             calendar_year,
             calendar_month,
+        )
+        line_supervisor_stats = _build_branch_company_statistics(
+            unfiltered_current_faults,
+            global_cable_break_faults,
+            unfiltered_open_suspended_faults_count,
+            start_date,
+            end_date,
+            now,
+            calendar_year,
+            calendar_month,
+            line_supervisor_scope=True,
         )
         
         # 兼容静态测试断言
@@ -2378,6 +2465,9 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             'prev_bare_fiber_interruption': prev_bare_fiber_interruption,
             'yoy_bare_fiber_interruption': yoy_data.get('bare_fiber_interruption', {}),
             'branch_company': branch_company_stats,
+            'line_supervisor': line_supervisor_stats,
+            'prev_line_supervisor': (prev_data or {}).get('line_supervisor', {}),
+            'yoy_line_supervisor': (yoy_data or {}).get('line_supervisor', {}),
             'prev_branch_company': prev_branch_company_stats,
             'yoy_branch_company': yoy_branch_company_stats,
             'other_overview': other_overview,
@@ -2839,6 +2929,9 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
         selected_provinces = _parse_selected_provinces(request)
         bare_fiber_interruption = request.GET.get('bare_fiber_interruption')
         scope = request.GET.get('scope')
+        supervisor = request.GET.get('line_supervisor')
+        if scope == 'line_supervisor':
+            selected_provinces = []
 
         qs = OtnFault.objects.select_related('province', 'interruption_location_a', 'handling_unit').prefetch_related('interruption_location')
         if bare_fiber_interruption != 'true':
@@ -2915,6 +3008,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                     end_date=end_date,
                     selected_provinces=selected_provinces,
                     branch_company_scope=scope == 'branch_company',
+                    line_supervisor_scope=scope == 'line_supervisor',
                 )
                 bare_fiber_fault_ids = {
                     impact.otn_fault_id
@@ -3055,6 +3149,8 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                     fault for fault in current_faults
                     if _branch_province_for_fault(fault) == normalized_province
                 ]
+        if scope == 'line_supervisor':
+            current_faults = _filter_line_supervisor_faults(current_faults, supervisor)
         kpi_repeat_ids: set[int] = set()
         ui_repeat_ids: set[int] = set()
         matched_preceding_faults: list[OtnFault] = []
@@ -3087,6 +3183,8 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                             fault for fault in preceding_faults
                             if _branch_province_for_fault(fault) == normalized_province
                         ]
+                if scope == 'line_supervisor':
+                    preceding_faults = _filter_line_supervisor_faults(preceding_faults, supervisor)
                 repeat_result = detect_repeat_faults(
                     current_faults,
                     preceding_faults,

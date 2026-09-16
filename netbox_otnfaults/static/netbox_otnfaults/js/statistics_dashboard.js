@@ -2,6 +2,31 @@
  * 故障统计交互脚本
  */
 document.addEventListener("DOMContentLoaded", function() {
+    const chartLineSupervisorCountElement = document.getElementById('chart-line-supervisor-count');
+    let chartLineSupervisorCount = chartLineSupervisorCountElement ? echarts.init(chartLineSupervisorCountElement) : null;
+    const chartLineSupervisorDurationElement = document.getElementById('chart-line-supervisor-duration');
+    let chartLineSupervisorDuration = chartLineSupervisorDurationElement ? echarts.init(chartLineSupervisorDurationElement) : null;
+    const chartLineSupervisorBoxplotElement = document.getElementById('chart-line-supervisor-boxplot');
+    let chartLineSupervisorBoxplot = chartLineSupervisorBoxplotElement ? echarts.init(chartLineSupervisorBoxplotElement) : null;
+    const chartLineSupervisorValidDurationElement = document.getElementById('chart-line-supervisor-valid-duration');
+    let chartLineSupervisorValidDuration = chartLineSupervisorValidDurationElement ? echarts.init(chartLineSupervisorValidDurationElement) : null;
+    const chartLineSupervisorWeeklyElement = document.getElementById('chart-line-supervisor-weekly');
+    let chartLineSupervisorWeekly = chartLineSupervisorWeeklyElement ? echarts.init(chartLineSupervisorWeeklyElement) : null;
+    const chartLineSupervisorMonthlyElement = document.getElementById('chart-line-supervisor-monthly');
+    let chartLineSupervisorMonthly = chartLineSupervisorMonthlyElement ? echarts.init(chartLineSupervisorMonthlyElement) : null;
+    let currentLineSupervisorData = null;
+    let currentPrevLineSupervisorData = null;
+    let currentYoyLineSupervisorData = null;
+    let currentLineSupervisorDetails = [];
+    let activeLineSupervisorFilterField = null;
+    let activeLineSupervisorFilterValue = null;
+    let activeLineSupervisorFilterExtraField = null;
+    let activeLineSupervisorFilterExtraValue = null;
+    let activeLineSupervisorFilterLabel = null;
+    let activeLineSupervisorDetailScope = null;
+    let supervisorDetailsRequest = 0;
+    let supervisorOrdering = '-fault_occurrence_time';
+
     // ---------------- 图表实例初始化 ----------------
     let chartResource = echarts.init(document.getElementById('chart-resource'));
     let chartProvince = echarts.init(document.getElementById('chart-province'));
@@ -45,6 +70,7 @@ document.addEventListener("DOMContentLoaded", function() {
         'tab-physical-btn': 'statistics-help-tab-physical',
         'tab-service-btn': 'statistics-help-tab-bare-fiber',
         'tab-circuit-service-btn': 'statistics-help-tab-circuit',
+        'tab-line-supervisor-btn': 'statistics-help-tab-line-supervisor',
         'tab-branch-company-btn': 'statistics-help-tab-branch-company',
         'tab-branch-performance-btn': 'statistics-help-tab-branch-performance',
     };
@@ -107,6 +133,10 @@ document.addEventListener("DOMContentLoaded", function() {
     branchCompanyDetailSortModeInputs.forEach(input => input.addEventListener('change', () => {
         renderBranchCompanyDetailsTable();
     }));
+    const lineSupervisorDetailSortModeInputs = Array.from(document.querySelectorAll('input[name="lineSupervisorDetailSortMode"]'));
+    lineSupervisorDetailSortModeInputs.forEach(input => input.addEventListener('change', () => {
+        renderLineSupervisorDetailsTable();
+    }));
 
     let excludedCategories = {
         resource_type: new Set(),
@@ -143,11 +173,17 @@ document.addEventListener("DOMContentLoaded", function() {
         if (chartPhysicalDaily) chartPhysicalDaily.resize();
         if (chartPhysicalDurationBoxplot) chartPhysicalDurationBoxplot.resize();
         if (chartBranchCompanyCount) chartBranchCompanyCount.resize();
+        if (chartLineSupervisorCount) chartLineSupervisorCount.resize();
         if (chartBranchCompanyDuration) chartBranchCompanyDuration.resize();
+        if (chartLineSupervisorDuration) chartLineSupervisorDuration.resize();
         if (chartBranchCompanyBoxplot) chartBranchCompanyBoxplot.resize();
+        if (chartLineSupervisorBoxplot) chartLineSupervisorBoxplot.resize();
         if (chartBranchCompanyValidDuration) chartBranchCompanyValidDuration.resize();
+        if (chartLineSupervisorValidDuration) chartLineSupervisorValidDuration.resize();
         if (chartBranchCompanyWeekly) chartBranchCompanyWeekly.resize();
+        if (chartLineSupervisorWeekly) chartLineSupervisorWeekly.resize();
         if (chartBranchCompanyMonthly) chartBranchCompanyMonthly.resize();
+        if (chartLineSupervisorMonthly) chartLineSupervisorMonthly.resize();
         resizeBranchPerformanceCalendarCharts();
         resizeServiceCalendarCharts();
     }
@@ -203,11 +239,18 @@ document.addEventListener("DOMContentLoaded", function() {
     chartRingEnvironment.getZr().on('click', event => handleImpactRingCenterClick(chartRingEnvironment, 'environment', event));
     if (chartHistogram) chartHistogram.on('click', params => handleChartClick(params, 'duration_histogram_bucket', 'cable_break', 'count'));
     if (chartBranchCompanyCount) chartBranchCompanyCount.on('click', params => handleBranchCompanyChartClick(params, 'province'));
+    if (chartLineSupervisorCount) chartLineSupervisorCount.on('click', params => handleLineSupervisorChartClick(params, 'province'));
     if (chartBranchCompanyDuration) chartBranchCompanyDuration.on('click', params => handleBranchCompanyChartClick(params, 'province'));
+    if (chartLineSupervisorDuration) chartLineSupervisorDuration.on('click', params => handleLineSupervisorChartClick(params, 'province'));
     if (chartBranchCompanyBoxplot) chartBranchCompanyBoxplot.on('click', params => handleBranchCompanyChartClick(params, 'province'));
+    if (chartLineSupervisorBoxplot) chartLineSupervisorBoxplot.on('click', params => handleLineSupervisorChartClick(params, 'province'));
     if (chartBranchCompanyValidDuration) chartBranchCompanyValidDuration.on('click', params => handleBranchCompanyChartClick(params, 'province'));
+    if (chartLineSupervisorValidDuration) chartLineSupervisorValidDuration.on('click', params => handleLineSupervisorChartClick(params, 'province'));
     if (chartBranchCompanyWeekly) chartBranchCompanyWeekly.on('click', params => handleBranchCompanyChartClick({ name: params.seriesName }, 'province'));
+    if (chartLineSupervisorWeekly) chartLineSupervisorWeekly.on('click', params => handleLineSupervisorChartClick({ name: params.seriesName }, 'province'));
     
+    if (chartLineSupervisorMonthly) chartLineSupervisorMonthly.on('click', params => handleLineSupervisorChartClick({ name: params.seriesName }, 'line_supervisor'));
+
     // 图例切换（过滤剔除）
     chartResource.on('legendselectchanged', params => { updateExcludedSet('resource_type', params.selected); renderDetailsTable(); });
     chartProvince.on('legendselectchanged', params => { updateExcludedSet('province', params.selected); renderDetailsTable(); });
@@ -216,6 +259,10 @@ document.addEventListener("DOMContentLoaded", function() {
     document.addEventListener('click', function(event) {
         const metric = event.target.closest('.statistics-drill-metric');
         if (!metric) return;
+        if (metric.closest('#tab-line-supervisor')) {
+            handleLineSupervisorMetricFilterClick(metric);
+            return;
+        }
         if (metric.closest('#tab-branch-company')) {
             handleBranchCompanyMetricFilterClick(metric);
             return;
@@ -278,6 +325,13 @@ document.addEventListener("DOMContentLoaded", function() {
         syncBranchCompanyWeeklyScaleAvailability();
         renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData);
     }));
+    const lineSupervisorMetricInputs = Array.from(document.querySelectorAll(
+        'input[name="lineSupervisorCountMetric"], input[name="lineSupervisorDurationMetric"], input[name="lineSupervisorWeeklyMetric"], input[name="lineSupervisorWeeklyScale"]'
+    ));
+    lineSupervisorMetricInputs.forEach(input => input.addEventListener('change', () => {
+        syncLineSupervisorWeeklyScaleAvailability();
+        renderLineSupervisorSection(currentLineSupervisorData, currentPrevLineSupervisorData);
+    }));
     branchPerformanceRuntimeScaleInputs.forEach(input => input.addEventListener('change', () => {
         if (input.checked && currentBranchCompanyData) {
             renderBranchCompanyPerformanceCards(currentBranchCompanyData.performance_cards || []);
@@ -314,6 +368,9 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         if (currentBranchCompanyData) {
             renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData, currentYoyBranchCompanyData);
+        }
+        if (currentLineSupervisorData) {
+            renderLineSupervisorSection(currentLineSupervisorData, currentPrevLineSupervisorData, currentYoyLineSupervisorData);
         }
     }
 
@@ -433,6 +490,9 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         if (currentBranchCompanyData) {
             renderBranchCompanySection(currentBranchCompanyData, currentPrevBranchCompanyData, currentYoyBranchCompanyData);
+        }
+        if (currentLineSupervisorData) {
+            renderLineSupervisorSection(currentLineSupervisorData, currentPrevLineSupervisorData, currentYoyLineSupervisorData);
         }
     }
 
@@ -944,6 +1004,10 @@ document.addEventListener("DOMContentLoaded", function() {
             branchCompanyProvinceSet = new Set(((currentBranchCompanyData && currentBranchCompanyData.provinces) || []).map(normalizeBranchCompanyProvince));
             renderCableBreakOverview(data.cable_break_overview, data.prev_cable_break_overview, data.yoy_cable_break_overview);
             renderBranchCompanySection(data.branch_company, data.prev_branch_company, data.yoy_branch_company);
+            currentLineSupervisorData = data.line_supervisor || null;
+            currentPrevLineSupervisorData = data.prev_line_supervisor || null;
+            currentYoyLineSupervisorData = data.yoy_line_supervisor || null;
+            renderLineSupervisorSection(currentLineSupervisorData, currentPrevLineSupervisorData, currentYoyLineSupervisorData);
             renderCharts(data.charts);
             renderRingCharts(data.charts);
             renderBareFiberInterruption(data.bare_fiber_interruption, data.prev_bare_fiber_interruption, data.yoy_bare_fiber_interruption);
@@ -951,6 +1015,7 @@ document.addEventListener("DOMContentLoaded", function() {
             // 异步加载明细分页
             loadFaultDetails();
             loadBranchDetails();
+            loadSupervisorDetails();
         } catch (error) {
             console.error('Fetch error:', error);
             document.getElementById('details-tbody').innerHTML = '<tr><td colspan="12" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
@@ -2920,7 +2985,10 @@ document.addEventListener("DOMContentLoaded", function() {
         renderTrendBesideMetric(repeatEl, cableBreak.repeat_faults_count || 0, prevCableBreak.repeat_faults_count, yoyCableBreak.repeat_faults_count, true);
     }
 
+    const supervisorNames = ['冯鑫源', '姜川', '李立彬', '孙振伟', '李小涛'];
+
     function getSortedBranchBars(data, metric) {
+        if ((data || []).some(item => supervisorNames.includes(item.name))) return (data || []).slice();
         return (data || []).slice().sort((a, b) => Number(b[metric] || 0) - Number(a[metric] || 0));
     }
 
@@ -2952,6 +3020,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function getBranchCompanyProvinceColor(name, chartTheme) {
         const colors = {
+            '冯鑫源': '#4E79A7', '姜川': '#F28E2B', '李立彬': '#59A14F', '孙振伟': '#B07AA1', '李小涛': '#EDC948',
             '浙江': '#4E79A7',
             '山东': '#F28E2B',
             '内蒙': '#59A14F',
@@ -3219,6 +3288,434 @@ document.addEventListener("DOMContentLoaded", function() {
                 };
             })
         });
+    }
+
+    function renderLineSupervisorSection(branchData, prevBranchData = currentPrevLineSupervisorData, yoyBranchData = currentYoyLineSupervisorData) {
+        if (!branchData) return;
+        renderLineSupervisorOverview(branchData, prevBranchData, yoyBranchData);
+        renderLineSupervisorBarCharts(branchData);
+        renderLineSupervisorBoxplot(branchData);
+        renderLineSupervisorValidDurationChart(branchData);
+        renderLineSupervisorWeeklyChart(branchData);
+        renderLineSupervisorMonthlyChart(branchData);
+    }
+
+    function renderLineSupervisorOverview(branchData, prevBranchData = currentPrevLineSupervisorData, yoyBranchData = currentYoyLineSupervisorData) {
+        const overview = branchData.overview || {};
+        const bareFiber = branchData.bare_fiber_interruption || {};
+        const cableBreak = branchData.cable_break_overview || {};
+
+        const prevOverview = (prevBranchData && prevBranchData.overview) || {};
+        const prevBareFiber = (prevBranchData && prevBranchData.bare_fiber_interruption) || {};
+        const prevCableBreak = (prevBranchData && prevBranchData.cable_break_overview) || {};
+
+        const yoyOverview = (yoyBranchData && yoyBranchData.overview) || {};
+        const yoyBareFiber = (yoyBranchData && yoyBranchData.bare_fiber_interruption) || {};
+        const yoyCableBreak = (yoyBranchData && yoyBranchData.cable_break_overview) || {};
+
+        const totalEl = document.getElementById('line-supervisor-overall-total');
+        if (totalEl) totalEl.textContent = formatCardCountValue(overview.total_count || 0);
+        renderTrendBesideMetric(totalEl, overview.total_count || 0, prevOverview.total_count, yoyOverview.total_count, true);
+        renderBareFiberInterruption(bareFiber, prevBareFiber, yoyBareFiber, 'supervisor-barefiber');
+
+        const categoryEl = document.getElementById('line-supervisor-overall-categories-flex-list');
+        if (categoryEl) {
+            const categories = (overview.categories || []).map(item => ({
+                id: `line-supervisor-overall-${item.name}`,
+                name: item.name,
+                value: item.value || 0,
+                filterField: 'category',
+                filterValue: item.name,
+                filterLabel: item.name,
+            }));
+            categoryEl.innerHTML = buildFlexGroup(categories, '起', '', 'text-indigo', prevOverview.categories || [], null, null, yoyOverview.categories || []);
+        }
+
+        const otherEl = document.getElementById('line-supervisor-overall-other-flex-list');
+        if (otherEl) {
+            const other = overview.other || {};
+            const prevOther = prevOverview.other || {};
+            const yoyOther = yoyOverview.other || {};
+            const otherItems = [
+                { id: 'line-supervisor-fiber-degradation', name: '光缆劣化', value: other.fiber_degradation || 0, filterField: 'category', filterValue: '光缆劣化', filterLabel: '光缆劣化' },
+                { id: 'line-supervisor-fiber-jitter', name: '光缆抖动', value: other.fiber_jitter || 0, filterField: 'category', filterValue: '光缆抖动', filterLabel: '光缆抖动' },
+                { id: 'line-supervisor-suspended', name: '挂起', value: other.suspended_faults || 0 },
+            ];
+            const prevOtherItems = [
+                { name: '光缆劣化', value: prevOther.fiber_degradation || 0 },
+                { name: '光缆抖动', value: prevOther.fiber_jitter || 0 },
+                { name: '挂起', value: prevOther.suspended_faults || 0 },
+            ];
+            const yoyOtherItems = [
+                { name: '光缆劣化', value: yoyOther.fiber_degradation || 0 },
+                { name: '光缆抖动', value: yoyOther.fiber_jitter || 0 },
+                { name: '挂起', value: yoyOther.suspended_faults || 0 },
+            ];
+            otherEl.innerHTML = buildFlexGroup(otherItems, '起', '', 'text-indigo', prevOtherItems, null, null, yoyOtherItems);
+        }
+
+        const cableBreakTotalEl = document.getElementById('line-supervisor-cable-break-total-count');
+        if (cableBreakTotalEl) cableBreakTotalEl.textContent = formatCardCountValue(cableBreak.total_count || 0);
+        renderTrendBesideMetric(cableBreakTotalEl, cableBreak.total_count || 0, prevCableBreak.total_count, yoyCableBreak.total_count, true);
+
+        const reasonEl = document.getElementById('line-supervisor-cable-break-reason-top3-flex-list');
+        if (reasonEl) {
+            reasonEl.innerHTML = buildFlexGroup((cableBreak.reason_top3 || []).map(item => ({
+                ...item,
+                filterField: 'reason',
+                filterValue: item.name,
+                filterLabel: item.name,
+            })), '起', '', 'text-indigo', prevCableBreak.reason_top3 || [], null, null, yoyCableBreak.reason_top3 || []);
+        }
+
+        const durationEl = document.getElementById('line-supervisor-cable-break-duration-total-list');
+        if (durationEl) {
+            const metrics = cableBreak.avg_metrics || {};
+            const prevMetrics = prevCableBreak.avg_metrics || {};
+            const yoyMetrics = yoyCableBreak.avg_metrics || {};
+            const durationItems = [
+                { id: 'line-supervisor-total-duration', name: '总历时', value: cableBreak.total_duration || 0, prevValue: prevCableBreak.total_duration, yoyValue: yoyCableBreak.total_duration, unit: '小时', filterField: 'category', filterValue: '光缆中断', filterLabel: '中断历时' },
+                { id: 'line-supervisor-overall-avg', name: '全口径平均', value: metrics.overall_avg || 0, prevValue: prevMetrics.overall_avg, yoyValue: yoyMetrics.overall_avg, unit: '小时', filterField: 'category', filterValue: '光缆中断', filterLabel: '全口径平均' },
+                { id: 'line-supervisor-valid-avg', name: '有效平均', value: metrics.valid_avg || 0, prevValue: prevMetrics.valid_avg, yoyValue: yoyMetrics.valid_avg, unit: '小时', filterField: 'is_valid_duration', filterValue: 'true', filterLabel: '有效平均' },
+                { id: 'line-supervisor-timeout-rate', name: '超时率', value: metrics.timeout_rate || 0, prevValue: prevMetrics.timeout_rate, yoyValue: yoyMetrics.timeout_rate, unit: '%', filterField: 'duration_min', filterValue: '4', filterLabel: '超时率' },
+            ];
+            const prevDurationItems = durationItems.map(item => ({ name: item.name, value: item.prevValue }));
+            const yoyDurationItems = durationItems.map(item => ({ name: item.name, value: item.yoyValue }));
+            durationEl.innerHTML = buildFlexGroup(durationItems, '', '', 'text-indigo', prevDurationItems, undefined, undefined, yoyDurationItems);
+        }
+
+        const repeatEl = document.getElementById('line-supervisor-kpi-repeat-faults');
+        if (repeatEl) repeatEl.textContent = formatCardCountValue(cableBreak.repeat_faults_count || 0);
+        renderTrendBesideMetric(repeatEl, cableBreak.repeat_faults_count || 0, prevCableBreak.repeat_faults_count, yoyCableBreak.repeat_faults_count, true);
+    }
+
+    function renderLineSupervisorBarCharts(branchData) {
+        const countMetric = getCheckedValue('lineSupervisorCountMetric', 'count');
+        const durationMetric = getCheckedValue('lineSupervisorDurationMetric', 'duration');
+        renderBranchBarChart(
+            chartLineSupervisorCount,
+            branchData.province_bars || [],
+            countMetric,
+            countMetric === 'count' ? '故障起数' : '千公里故障起数',
+            countMetric === 'count' ? '起' : '起/千公里'
+        );
+        renderBranchBarChart(
+            chartLineSupervisorDuration,
+            branchData.province_bars || [],
+            durationMetric,
+            durationMetric === 'duration' ? '故障历时' : '千公里故障历时',
+            durationMetric === 'duration' ? '小时' : '小时/千公里'
+        );
+    }
+
+    function renderLineSupervisorBoxplot(branchData) {
+        if (!chartLineSupervisorBoxplot) return;
+        const chartTheme = getChartTheme();
+        const metric = 'duration';
+        const boxplotData = (branchData.duration_boxplot || []).map(item => ({
+            name: item.name,
+            value: item.value || [],
+        }));
+        chartLineSupervisorBoxplot.setOption({
+            textStyle: { color: chartTheme.text },
+            tooltip: {
+                ...buildTooltipTheme(chartTheme),
+                trigger: 'axis',
+                axisPointer: { type: 'shadow', shadowStyle: { color: chartTheme.dark ? 'rgba(110, 168, 254, 0.14)' : 'rgba(32, 107, 196, 0.1)' } },
+                formatter: params => {
+                    const p = Array.isArray(params) ? params[0] : params;
+                    const value = Array.isArray(p.data) ? p.data : (p.data && p.data.value) || [];
+                    return `${p.name}<br/>最小: ${formatCardMetricValue(value[0] || 0)}<br/>Q1: ${formatCardMetricValue(value[1] || 0)}<br/>中位: ${formatCardMetricValue(value[2] || 0)}<br/>Q3: ${formatCardMetricValue(value[3] || 0)}<br/>上须: ${formatCardMetricValue(value[4] || 0)}`;
+                }
+            },
+            grid: buildBranchCompanyGrid(),
+            xAxis: {
+                type: 'category',
+                data: boxplotData.map(item => item.name),
+                ...buildAxisTheme(chartTheme, { interval: 0 })
+            },
+            yAxis: buildBranchCompanyYAxis('小时', chartTheme),
+            series: [{
+                name: '中断时长分布',
+                type: 'boxplot',
+                boxWidth: ['22%', '58%'],
+                itemStyle: { color: chartTheme.surface, borderColor: chartTheme.primary },
+                data: boxplotData.map(item => item.value)
+            }]
+        });
+    }
+
+    function renderLineSupervisorValidDurationChart(branchData) {
+        const metric = 'valid_duration';
+        renderBranchBarChart(
+            chartLineSupervisorValidDuration,
+            branchData.valid_duration_bars || [],
+            metric,
+            '有效平均历时',
+            '小时',
+            (p, raw) => `${p.marker || ''}${p.name}<br/>有效平均历时: ${formatCardMetricValue(p.value || 0)} 小时<br/>有效故障数: ${raw._validCount || 0} 起<br/>有效总历时: ${formatCardMetricValue(raw._validDurationTotal || 0)} 小时<br/>光缆长度: ${formatCardMetricValue(raw._pathLength || 0)} 公里`
+        );
+    }
+
+    function syncLineSupervisorWeeklyScaleAvailability() {
+        const weeklyScaleRaw = document.getElementById('line-supervisor-weekly-scale-raw');
+        const weeklyScaleNormalized = document.getElementById('line-supervisor-weekly-scale-normalized');
+        const weeklyScaleNormalizedLabel = document.querySelector('label[for="line-supervisor-weekly-scale-normalized"]');
+        if (!weeklyScaleRaw || !weeklyScaleNormalized) return;
+
+        const isValidDuration = getCheckedValue('lineSupervisorWeeklyMetric', 'count') === 'valid_duration';
+        if (isValidDuration && weeklyScaleNormalized.checked) {
+            weeklyScaleRaw.checked = true;
+        }
+        weeklyScaleNormalized.disabled = isValidDuration;
+        weeklyScaleNormalized.setAttribute('aria-disabled', isValidDuration ? 'true' : 'false');
+        if (weeklyScaleNormalizedLabel) {
+            weeklyScaleNormalizedLabel.classList.toggle('disabled', isValidDuration);
+            weeklyScaleNormalizedLabel.setAttribute(
+                'title',
+                isValidDuration ? '有效时长不支持千公里统计' : ''
+            );
+        }
+    }
+
+    function renderLineSupervisorWeeklyChart(branchData) {
+        if (!chartLineSupervisorWeekly) return;
+        const chartTheme = getChartTheme();
+        syncLineSupervisorWeeklyScaleAvailability();
+        const metric = getCheckedValue('lineSupervisorWeeklyMetric', 'count');
+        const scale = getCheckedValue('lineSupervisorWeeklyScale', 'raw');
+        const weeklyData = branchData.weekly_trends || {};
+        const labels = weeklyData.labels || [];
+        const metricKey = scale === 'per_1000km'
+            ? (metric === 'count' ? 'week_count_per_1000km' : metric === 'duration' ? 'week_duration_per_1000km' : 'week_valid_duration_per_1000km')
+            : (metric === 'count' ? 'counts' : metric === 'duration' ? 'durations' : 'valid_durations');
+        const unit = scale === 'per_1000km'
+            ? (metric === 'count' ? '起/千公里' : '小时/千公里')
+            : (metric === 'count' ? '起' : '小时');
+        chartLineSupervisorWeekly.setOption({
+            textStyle: { color: chartTheme.text },
+            tooltip: {
+                ...buildTooltipTheme(chartTheme),
+                trigger: 'axis'
+            },
+            legend: {
+                top: 8,
+                left: 'center',
+                ...buildLegendTheme(chartTheme)
+            },
+            grid: buildBranchCompanyGrid(true),
+            xAxis: {
+                type: 'category',
+                data: labels,
+                boundaryGap: false,
+                ...buildAxisTheme(chartTheme, {
+                    interval: 0,
+                    rotate: 0,
+                    formatter: (value, index) => formatBranchCompanyWeekMonthTick(value, index, labels)
+                })
+            },
+            yAxis: buildBranchCompanyYAxis(unit, chartTheme),
+            series: (weeklyData.series || []).map(item => {
+                const lineColor = getBranchCompanyProvinceColor(item.name, chartTheme);
+                return {
+                    name: item.name,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    itemStyle: { color: lineColor },
+                    lineStyle: { width: 2, color: lineColor },
+                    data: item[metricKey] || []
+                };
+            })
+        });
+    }
+
+    function renderLineSupervisorMonthlyChart(branchData) {
+        if (!chartLineSupervisorMonthly) return;
+        const chartTheme = getChartTheme();
+        syncLineSupervisorWeeklyScaleAvailability();
+        const metric = getCheckedValue('lineSupervisorWeeklyMetric', 'count');
+        const scale = getCheckedValue('lineSupervisorWeeklyScale', 'raw');
+        const monthlyData = branchData.monthly_trends || {};
+        const labels = monthlyData.labels || [];
+        const metricKey = scale === 'per_1000km'
+            ? (metric === 'count' ? 'month_count_per_1000km' : metric === 'duration' ? 'month_duration_per_1000km' : 'month_valid_duration_per_1000km')
+            : (metric === 'count' ? 'counts' : metric === 'duration' ? 'durations' : 'valid_durations');
+        const unit = scale === 'per_1000km'
+            ? (metric === 'count' ? '起/千公里' : '小时/千公里')
+            : (metric === 'count' ? '起' : '小时');
+        chartLineSupervisorMonthly.setOption({
+            textStyle: { color: chartTheme.text },
+            tooltip: {
+                ...buildTooltipTheme(chartTheme),
+                trigger: 'axis',
+                axisPointer: { type: 'shadow', shadowStyle: { color: chartTheme.dark ? 'rgba(110, 168, 254, 0.14)' : 'rgba(32, 107, 196, 0.1)' } }
+            },
+            legend: {
+                top: 8,
+                left: 'center',
+                ...buildLegendTheme(chartTheme)
+            },
+            grid: buildBranchCompanyGrid(true),
+            xAxis: {
+                type: 'category',
+                data: labels,
+                ...buildAxisTheme(chartTheme, {
+                    interval: 0,
+                    rotate: 0
+                })
+            },
+            yAxis: buildBranchCompanyYAxis(unit, chartTheme),
+            series: (monthlyData.series || []).map(item => {
+                const barColor = getBranchCompanyProvinceColor(item.name, chartTheme);
+                return {
+                    name: item.name,
+                    type: 'bar',
+                    barMaxWidth: 18,
+                    itemStyle: { color: barColor, borderRadius: [3, 3, 0, 0] },
+                    data: item[metricKey] || []
+                };
+            })
+        });
+    }
+
+    async function loadSupervisorDetails() {
+        let url = `${window.STATISTICS_DETAILS_API}?${buildTimeParams()}&ordering=${supervisorOrdering}&scope=line_supervisor`;
+        const requestId = ++supervisorDetailsRequest;
+        if (activeLineSupervisorDetailScope) url += `&detail_scope=${activeLineSupervisorDetailScope}`;
+
+        if (activeLineSupervisorFilterField && activeLineSupervisorFilterValue !== null) {
+            url += `&${activeLineSupervisorFilterField}=${encodeURIComponent(activeLineSupervisorFilterValue)}`;
+            if (activeLineSupervisorFilterExtraField && activeLineSupervisorFilterExtraValue !== null) {
+                url += `&${activeLineSupervisorFilterExtraField}=${encodeURIComponent(activeLineSupervisorFilterExtraValue)}`;
+            }
+        }
+
+        const tbody = document.getElementById('line-supervisor-details-tbody');
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4"><i class="mdi mdi-loading mdi-spin" style="font-size: 1.5rem; display: inline-block;"></i></td></tr>';
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Network response error');
+            const data = await response.json();
+            if (requestId !== supervisorDetailsRequest) return;
+            currentLineSupervisorDetails = data.results || [];
+            renderLineSupervisorDetailsTable();
+        } catch (error) {
+            if (requestId !== supervisorDetailsRequest) return;
+            console.error('Fetch branch details error:', error);
+            tbody.innerHTML = '<tr><td colspan="12" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
+        }
+    }
+
+    function updateSupervisorFilterBadgeAndSummary(filteredDetails) {
+        let activeConditions = [];
+        const badge = document.getElementById('line-supervisor-drill-down-filter-badge');
+        const clearButton = document.getElementById('line-supervisor-btn-clear-filter');
+        const summaryDiv = document.getElementById('line-supervisor-filtered-kpi-summary');
+
+        if (activeLineSupervisorFilterField && activeLineSupervisorFilterValue !== null) {
+            let filterName = '';
+            let filterValueDisp = activeLineSupervisorFilterLabel || activeLineSupervisorFilterValue;
+            if (activeLineSupervisorFilterField === 'line_supervisor') filterName = '线路主管';
+            else if (activeLineSupervisorFilterField === 'category') filterName = '分类';
+            else if (activeLineSupervisorFilterField === 'bare_fiber_interruption') filterName = '业务影响';
+            else if (activeLineSupervisorFilterField === 'reason') filterName = '原因';
+            else if (activeLineSupervisorFilterField === 'is_valid_duration') { filterName = '特殊标签'; filterValueDisp = '有效平均'; }
+            else if (activeLineSupervisorFilterField === 'is_long') { filterName = '特殊标签'; filterValueDisp = '长时故障(≥6h)'; }
+            else filterName = activeLineSupervisorFilterField;
+            activeConditions.push(`下钻：${filterName}=${filterValueDisp}`);
+        }
+
+        if (activeConditions.length > 0) {
+            const conditionsText = activeConditions.join(' | ');
+            if (badge) {
+                badge.textContent = conditionsText;
+                badge.className = 'badge bg-primary text-white ms-2';
+                badge.style.display = 'inline-block';
+            }
+            if (clearButton) clearButton.style.display = 'inline-block';
+            if (summaryDiv) {
+                const inPeriodDetails = filteredDetails.filter(item => item.in_period !== false);
+                const totalDuration = inPeriodDetails.reduce((sum, item) => sum + Number(item.duration || 0), 0);
+                const averageDuration = inPeriodDetails.length > 0 ? totalDuration / inPeriodDetails.length : 0;
+                const longCount = inPeriodDetails.filter(item => item.is_long).length;
+                const repeatCount = inPeriodDetails.filter(item => item.is_repeat).length;
+                summaryDiv.innerHTML = `<div><i class="mdi mdi-filter-outline me-1"></i> <strong>当前过滤条件：${conditionsText}</strong> 的局部统计：共发生故障 <strong class="text-primary">${inPeriodDetails.length}</strong> 次，累计时长 <strong class="text-primary">${totalDuration.toFixed(2)}</strong> 小时，平均故障时长 <strong class="text-primary">${averageDuration.toFixed(2)}</strong> 小时。其中长时故障（≥6h） <strong class="text-warning text-dark">${longCount}</strong> 条，涉及历史重复故障 <strong class="text-purple">${repeatCount}</strong> 条。</div>`;
+                summaryDiv.classList.remove('d-none');
+            }
+        } else {
+            if (badge) badge.style.display = 'none';
+            if (clearButton) clearButton.style.display = 'none';
+            if (summaryDiv) summaryDiv.classList.add('d-none');
+        }
+    }
+
+    function renderSupervisorDetailsTableHtml(results) {
+        const tbody = document.getElementById('line-supervisor-details-tbody');
+        tbody.innerHTML = renderDetailRows(results, '当前线路主管范围及过滤条件下，无可展示的故障数据');
+
+        tbody.querySelectorAll('.show-repeats-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showFaultRepeatsModal(btn.dataset.faultId);
+            });
+        });
+    }
+
+    function renderLineSupervisorDetailsTable() {
+        let filteredDetails = currentLineSupervisorDetails.slice();
+        const sortMode = document.querySelector('input[name="lineSupervisorDetailSortMode"]:checked')?.value || 'time';
+        assignRepeatGroupColors(filteredDetails);
+        filteredDetails = sortDetailRows(filteredDetails, sortMode);
+        updateSupervisorFilterBadgeAndSummary(filteredDetails);
+        renderSupervisorDetailsTableHtml(filteredDetails);
+    }
+
+    function handleLineSupervisorChartClick(params, fieldName) {
+        const name = params && params.name ? params.name : null;
+        if (!name) return;
+        activeLineSupervisorFilterField = 'line_supervisor';
+        activeLineSupervisorDetailScope = 'cable_break';
+        activeLineSupervisorFilterValue = name;
+        activeLineSupervisorFilterExtraField = null;
+        activeLineSupervisorFilterExtraValue = null;
+        activeLineSupervisorFilterLabel = null;
+        const timeRadio = document.getElementById('line-supervisor-detail-sort-time');
+        if (timeRadio) {
+            timeRadio.checked = true;
+        }
+        const tbl = document.getElementById('line-supervisor-details-tbody');
+        if (tbl) {
+            tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        loadSupervisorDetails();
+    }
+
+    function handleLineSupervisorMetricFilterClick(metric) {
+        const fieldName = metric.dataset.filterField;
+        if (!fieldName) return;
+        activeLineSupervisorDetailScope = metric.closest('#line-supervisor-cable-break-section') ? 'cable_break' : null;
+
+        activeLineSupervisorFilterField = fieldName;
+        activeLineSupervisorFilterValue = normalizeFilterValue(fieldName, metric.dataset.filterValue);
+        activeLineSupervisorFilterExtraField = metric.dataset.filterExtraField || null;
+        activeLineSupervisorFilterExtraValue = activeLineSupervisorFilterExtraField
+            ? normalizeFilterValue(activeLineSupervisorFilterExtraField, metric.dataset.filterExtraValue)
+            : null;
+        activeLineSupervisorFilterLabel = metric.dataset.filterLabel || metric.dataset.filterValue;
+        const timeRadio = document.getElementById('line-supervisor-detail-sort-time');
+        if (timeRadio) {
+            timeRadio.checked = true;
+        }
+
+        const tbl = document.getElementById('line-supervisor-details-tbody');
+        if (tbl) {
+            tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        loadSupervisorDetails();
     }
 
     // ---------------- 渲染下钻表格 ----------------
@@ -3901,6 +4398,18 @@ document.addEventListener("DOMContentLoaded", function() {
             activeBranchCompanyFilterExtraValue = null;
             activeBranchCompanyFilterLabel = null;
             loadBranchDetails();
+        });
+    }
+    const btnClearLineSupervisorFilter = document.getElementById('line-supervisor-btn-clear-filter');
+    if (btnClearLineSupervisorFilter) {
+        btnClearLineSupervisorFilter.addEventListener('click', () => {
+            activeLineSupervisorFilterField = null;
+            activeLineSupervisorFilterValue = null;
+            activeLineSupervisorFilterExtraField = null;
+            activeLineSupervisorFilterExtraValue = null;
+            activeLineSupervisorFilterLabel = null;
+            activeLineSupervisorDetailScope = null;
+            loadSupervisorDetails();
         });
     }
 
@@ -4676,7 +5185,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 loadServiceData({
                     includeAllBareFiber: event.target.id === 'tab-service-btn' && bareFiberServiceCardScope === 'all',
                 });
-            } else if (event.target.id === 'tab-branch-company-btn' || event.target.id === 'tab-branch-performance-btn') {
+            } else if (event.target.id === 'tab-line-supervisor-btn' || event.target.id === 'tab-branch-company-btn' || event.target.id === 'tab-branch-performance-btn') {
                 loadData();
                 setTimeout(() => {
                     resizeStatisticsCharts();

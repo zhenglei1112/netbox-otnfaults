@@ -74,7 +74,7 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("_calculate_boxplot_values(province_samples[province])", branch_source)
         self.assertIn("branch_cable_break_overview['repeat_faults_count']", branch_source)
         self.assertIn("branch_bare_fiber_interruption = _compute_bare_fiber_interruption_overview(", branch_source)
-        self.assertIn("branch_company_scope=True", branch_source)
+        self.assertIn("branch_company_scope=not line_supervisor_scope", branch_source)
         self.assertIn("'performance_cards'", branch_source)
 
     def test_backend_bare_fiber_interruption_supports_branch_company_scope(self) -> None:
@@ -93,7 +93,7 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("def _classify_branch_fault_responsibility(fault) -> dict[str, object]:", source)
         self.assertIn("def _calculate_branch_performance_score(metrics: dict[str, float]) -> dict[str, object]:", source)
         self.assertIn("def _build_branch_company_performance_cards(", source)
-        self.assertIn("performance_cards = _build_branch_company_performance_cards(", source)
+        self.assertIn("performance_cards = [] if line_supervisor_scope else _build_branch_company_performance_cards(", source)
         self.assertIn("'performance_cards': performance_cards", source)
 
         performance_source = source.split("def _build_branch_company_performance_cards(", 1)[1].split("\n\n\ndef _build_branch_company_statistics", 1)[0]
@@ -120,7 +120,7 @@ class StatisticsBranchCompanyTestCase(unittest.TestCase):
         self.assertIn("'count_per_1000km': _per_1000km(", performance_source)
         self.assertIn("'duration_per_1000km': _per_1000km(", performance_source)
         self.assertIn("def _build_branch_performance_bare_fiber_annual_stats(", source)
-        self.assertIn("year_all_faults = [", source)
+        self.assertIn("year_all_faults = [] if line_supervisor_scope else [", source)
         self.assertIn("PowerFaultImpactChoices.HOSTED", source)
         self.assertIn("'bare_fiber': bare_fiber_annual_stats.get(province", performance_source)
         self.assertIn("'cable_break': {", performance_source)

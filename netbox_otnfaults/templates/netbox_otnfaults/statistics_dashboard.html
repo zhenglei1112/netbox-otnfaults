@@ -179,6 +179,13 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-line-supervisor-btn" data-bs-toggle="tab"
+                    data-bs-target="#tab-line-supervisor" type="button" role="tab" aria-controls="tab-line-supervisor"
+                    aria-selected="false">
+                    <i class="mdi mdi-office-building-marker me-1"></i>按线路主管统计故障
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-branch-company-btn" data-bs-toggle="tab"
                     data-bs-target="#tab-branch-company" type="button" role="tab" aria-controls="tab-branch-company"
                     aria-selected="false">
@@ -859,6 +866,340 @@
             </div>
         </div>
 
+        <!-- ===== 线路主管故障统计 Tab ===== -->
+        <div class="tab-pane fade" id="tab-line-supervisor" role="tabpanel" aria-labelledby="tab-line-supervisor-btn">
+            <section class="statistics-overall-overview mb-4">
+                <div class="statistics-cable-break-heading-row mb-3">
+                    <h3 class="statistics-cable-break-heading mb-0">
+                        <span>总体情况</span>
+                        <span class="badge bg-info text-dark statistics-scope-badge">含报备割接</span>
+                        <span class="badge bg-info text-dark statistics-scope-badge">含挂起</span>
+                    </h3>
+                </div>
+                <div class="statistics-cable-break-summary-grid statistics-overall-card-grid mb-3">
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-card">
+                        <div class="statistics-strip-card-body">
+                            <div
+                                class="statistics-overall-metrics d-flex flex-row align-items-center w-100 py-1 statistics-strip-card-metrics">
+                                <div
+                                    class="statistics-overall-main statistics-overall-metric-slot d-flex flex-column align-items-center flex-shrink-0 px-2 text-center">
+                                    <div class="statistics-overall-value-row d-flex align-items-baseline justify-content-center">
+                                        <span
+                                            class="statistics-overall-value statistics-overall-kpi-value fs-3 fw-bold text-indigo lh-1"
+                                            id="line-supervisor-overall-total">--</span>
+                                        <span class="statistics-overall-unit statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
+                                    </div>
+                                    <div class="statistics-overall-label statistics-overall-kpi-label text-muted mt-1"
+                                        style="font-size: 12px;">故障总数</div>
+                                </div>
+                                <div id="line-supervisor-overall-categories-flex-list"
+                                    class="statistics-overall-categories-list statistics-kpi-grouped-list px-4 py-1 flex-grow-1">
+                                    <div class="text-muted small">数据加载中...</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">线路主管辖区（含六省例外故障）</div>
+                    </div>
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-overall-other-card">
+                        <div class="statistics-strip-card-body">
+                            <div id="line-supervisor-overall-other-flex-list"
+                                class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                <div class="text-muted small">数据加载中...</div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">其他</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="statistics-barefiber-overview mb-4">
+                <div class="statistics-cable-break-heading-row mb-3">
+                    <h3 class="statistics-cable-break-heading mb-0">
+                        <span>裸纤业务中断情况</span>
+                    </h3>
+                </div>
+                <div class="statistics-barefiber-grid mb-3" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem;">
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card statistics-barefiber-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="supervisor-barefiber-total-count">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">次</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap d-none">总起数</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">总起数</div>
+                    </div>
+
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card statistics-barefiber-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="supervisor-barefiber-distinct-count">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">次</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap d-none">去除同源起数</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">去除同源起数</div>
+                    </div>
+
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card statistics-barefiber-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="supervisor-barefiber-total-duration">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">小时</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap d-none">总历时</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">总历时</div>
+                    </div>
+
+                    <div class="card p-0 shadow-sm statistics-strip-card statistics-cable-break-overview-card statistics-barefiber-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1" id="supervisor-barefiber-distinct-duration">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">小时</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap d-none">去除同源历时</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">去除同源历时</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="statistics-cable-break-overview mb-4" id="line-supervisor-cable-break-section">
+                <div class="statistics-cable-break-heading-row mb-3">
+                    <h3 class="statistics-cable-break-heading mb-0">
+                        <span>光缆中断情况</span>
+                        <span class="badge bg-warning text-dark statistics-scope-badge">不含报备割接</span>
+                        <span class="badge bg-warning text-dark statistics-scope-badge">不含挂起</span>
+                    </h3>
+                </div>
+                <div class="statistics-cable-break-summary-grid statistics-cable-break-primary-grid">
+                    <div
+                        class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-count-card statistics-cable-break-single-card statistics-strip-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center" data-filter-field="category"
+                                    data-filter-value="光缆中断" data-filter-label="总起数">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1"
+                                            id="line-supervisor-cable-break-total-count">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">总起数</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">中断起数</div>
+                    </div>
+                    <div
+                        class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-triple-card statistics-strip-card">
+                        <div class="statistics-strip-card-body">
+                            <div id="line-supervisor-cable-break-reason-top3-flex-list"
+                                class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                <div class="text-muted small">数据加载中...</div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">原因TOP3</div>
+                    </div>
+                    <div
+                        class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-summary-card-primary statistics-cable-break-overview-card statistics-cable-break-four-card statistics-strip-card">
+                        <div class="statistics-strip-card-body">
+                            <div id="line-supervisor-cable-break-duration-total-list"
+                                class="statistics-kpi-grouped-list px-4 py-1 h-100">
+                                <div class="text-muted small">数据加载中...</div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">中断历时</div>
+                    </div>
+                    <div
+                        class="card p-0 shadow-sm statistics-cable-break-summary-card statistics-cable-break-overview-card statistics-cable-break-repeat-card statistics-cable-break-single-card statistics-strip-card">
+                        <div class="statistics-strip-card-body">
+                            <div class="statistics-cable-break-static-metrics statistics-cable-break-metrics statistics-strip-card-metrics">
+                                <div class="statistics-drill-metric text-center" data-filter-field="is_repeat"
+                                    data-filter-value="true" data-filter-label="重复起数"
+                                    title="点击过滤出重复故障">
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="statistics-overall-kpi-value fw-bold text-indigo lh-1"
+                                            id="line-supervisor-kpi-repeat-faults">--</span>
+                                        <span class="statistics-overall-kpi-unit ms-1 text-muted fw-normal">起</span>
+                                    </div>
+                                    <div class="statistics-overall-kpi-label text-muted mt-1 text-nowrap">重复起数</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="statistics-strip-card-footer">重复中断</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="statistics-branch-company-section mb-4">
+                <div class="statistics-branch-company-chart-grid">
+                    <div class="card shadow-sm">
+                        <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0" style="font-size: 1rem;">故障起数</h3>
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="线路主管故障数指标切换">
+                                <input type="radio" class="btn-check" name="lineSupervisorCountMetric"
+                                    id="line-supervisor-count-raw" value="count" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="line-supervisor-count-raw">起数</label>
+                                <input type="radio" class="btn-check" name="lineSupervisorCountMetric"
+                                    id="line-supervisor-count-normalized" value="count_per_1000km" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="line-supervisor-count-normalized">千公里起数</label>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="chart-line-supervisor-count" class="statistics-branch-company-chart"></div>
+                        </div>
+                    </div>
+                    <div class="card shadow-sm">
+                        <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0" style="font-size: 1rem;">故障历时</h3>
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="线路主管故障历时指标切换">
+                                <input type="radio" class="btn-check" name="lineSupervisorDurationMetric"
+                                    id="line-supervisor-duration-raw" value="duration" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="line-supervisor-duration-raw">时长</label>
+                                <input type="radio" class="btn-check" name="lineSupervisorDurationMetric"
+                                    id="line-supervisor-duration-normalized" value="duration_per_1000km" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="line-supervisor-duration-normalized">千公里时长</label>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="chart-line-supervisor-duration" class="statistics-branch-company-chart"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="statistics-branch-company-section mb-4">
+                <div class="statistics-branch-company-chart-grid">
+                    <div class="card shadow-sm">
+                        <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0" style="font-size: 1rem;">中断时长箱线图</h3>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="chart-line-supervisor-boxplot" class="statistics-branch-company-chart"></div>
+                        </div>
+                    </div>
+                    <div class="card shadow-sm">
+                        <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0" style="font-size: 1rem;">有效平均历时</h3>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="chart-line-supervisor-valid-duration" class="statistics-branch-company-chart"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="statistics-branch-company-section mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0" style="font-size: 1rem;">年初至今周趋势</h3>
+                        <div class="d-flex gap-2 flex-wrap justify-content-end">
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="线路主管周趋势指标切换">
+                                <input type="radio" class="btn-check" name="lineSupervisorWeeklyMetric"
+                                    id="line-supervisor-weekly-count" value="count" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="line-supervisor-weekly-count">故障起数</label>
+                                <input type="radio" class="btn-check" name="lineSupervisorWeeklyMetric"
+                                    id="line-supervisor-weekly-duration" value="duration" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="line-supervisor-weekly-duration">故障时长</label>
+                                <input type="radio" class="btn-check" name="lineSupervisorWeeklyMetric"
+                                    id="line-supervisor-weekly-valid" value="valid_duration" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="line-supervisor-weekly-valid">有效时长</label>
+                            </div>
+                            <div class="btn-group btn-group-sm statistics-chart-toggle-group" role="group" aria-label="线路主管周趋势百公里切换">
+                                <input type="radio" class="btn-check" name="lineSupervisorWeeklyScale"
+                                    id="line-supervisor-weekly-scale-raw" value="raw" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="line-supervisor-weekly-scale-raw">原始值</label>
+                                <input type="radio" class="btn-check" name="lineSupervisorWeeklyScale"
+                                    id="line-supervisor-weekly-scale-normalized" value="per_1000km" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="line-supervisor-weekly-scale-normalized">千公里</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="chart-line-supervisor-weekly" class="statistics-branch-company-weekly-chart"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="statistics-branch-company-section mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-header border-bottom-0 py-2 d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0" style="font-size: 1rem;">年初至今月趋势</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="chart-line-supervisor-monthly" class="statistics-branch-company-monthly-chart"></div>
+                    </div>
+                </div>
+            </section>
+
+            <div id="line-supervisor-filtered-kpi-summary" class="alert alert-info d-none shadow-sm mb-4" role="alert"
+                style="font-size: 15px;">
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">
+                        故障明细
+                        <span class="badge bg-primary ms-2" id="line-supervisor-drill-down-filter-badge" style="display:none"></span>
+                    </h3>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="线路主管故障明细排序方式">
+                            <input type="radio" class="btn-check" name="lineSupervisorDetailSortMode"
+                                id="line-supervisor-detail-sort-time" value="time" autocomplete="off" checked>
+                            <label class="btn btn-outline-primary" for="line-supervisor-detail-sort-time">按时间排序</label>
+                            <input type="radio" class="btn-check" name="lineSupervisorDetailSortMode"
+                                id="line-supervisor-detail-sort-repeat" value="repeat" autocomplete="off">
+                            <label class="btn btn-outline-primary" for="line-supervisor-detail-sort-repeat">按重复排序</label>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="line-supervisor-btn-clear-filter"
+                            style="display:none">清除图表过滤</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-vcenter card-table">
+                        <thead>
+                            <tr>
+                                <th>故障编号</th>
+                                <th>发生时间</th>
+                                <th>恢复时间</th>
+                                <th>历时(小时)</th>
+                                <th>分类</th>
+                                <th>故障等级</th>
+                                <th>光缆属性</th>
+                                <th>省份</th>
+                                <th>一级原因</th>
+                                <th>站点 (A -> Z)</th>
+                                <th>裸纤业务中断</th>
+                                <th>标签</th>
+                            </tr>
+                        </thead>
+                        <tbody id="line-supervisor-details-tbody">
+                            <tr>
+                                <td colspan="12" class="text-center text-muted py-4">数据加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- ===== 子公司故障统计 Tab ===== -->
         <div class="tab-pane fade" id="tab-branch-company" role="tabpanel" aria-labelledby="tab-branch-company-btn">
             <section class="statistics-overall-overview mb-4">
@@ -1233,6 +1574,7 @@
                     <li class="nav-item" role="presentation"><button class="nav-link active" id="statistics-help-tab-physical" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-physical" type="button" role="tab" aria-controls="statistics-help-pane-physical" aria-selected="true">物理故障</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="statistics-help-tab-bare-fiber" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-bare-fiber" type="button" role="tab" aria-controls="statistics-help-pane-bare-fiber" aria-selected="false">裸纤业务故障</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="statistics-help-tab-circuit" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-circuit" type="button" role="tab" aria-controls="statistics-help-pane-circuit" aria-selected="false">电路业务故障</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="statistics-help-tab-line-supervisor" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-line-supervisor" type="button" role="tab" aria-controls="statistics-help-pane-line-supervisor" aria-selected="false">按线路主管统计故障</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="statistics-help-tab-branch-company" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-branch-company" type="button" role="tab" aria-controls="statistics-help-pane-branch-company" aria-selected="false">子公司（省份）故障</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="statistics-help-tab-branch-performance" data-bs-toggle="tab" data-bs-target="#statistics-help-pane-branch-performance" type="button" role="tab" aria-controls="statistics-help-pane-branch-performance" aria-selected="false">子公司绩效</button></li>
                 </ul>
@@ -1321,7 +1663,17 @@
                             </ul></div></section>
                         </div>
                     </div>
-                    <div class="tab-pane fade" id="statistics-help-pane-branch-company" role="tabpanel" aria-labelledby="statistics-help-tab-branch-company" tabindex="0">
+                    <div class="tab-pane fade" id="statistics-help-pane-line-supervisor" role="tabpanel" aria-labelledby="statistics-help-tab-line-supervisor">
+                            <ul>
+                                <li>按故障省份与现有线路主管分工归组，不按故障记录填写的主管归组；无省份或未配置分工的省份不纳入。</li>
+                                <li>六省以外辖区纳入全部维护单位；浙江、山东、内蒙古、陕西、四川、江西仅纳入被子公司指定维护单位规则排除的故障，归入冯鑫源。</li>
+                                <li>维护里程：冯鑫源 3972、姜川 11660、李立彬 10162、孙振伟 11724、李小涛 3811 公里；千公里起数/时长按各主管维护总里程折算。</li>
+                                <li>总体、裸纤中断、光缆中断、历时和同期对比口径与子公司页一致；有效平均历时按大于半小时的故障样本计算。</li>
+                                <li>周/月趋势展示所选年份年初至今数据；顶部省份筛选仅作用于物理故障页。</li>
+                                <li>点击主管图表或指标过滤本页明细，支持清除过滤、按时间和按重复排序。</li>
+                            </ul>
+                        </div>
+                        <div class="tab-pane fade" id="statistics-help-pane-branch-company" role="tabpanel" aria-labelledby="statistics-help-tab-branch-company" tabindex="0">
                         <div class="statistics-metric-help-grid">
                             <section class="statistics-metric-help-card"><h6 class="statistics-metric-help-card-title">统计范围</h6><div class="statistics-metric-help-card-body"><ul class="mb-0">
                                 <li>子公司范围固定为浙江、山东、内蒙、陕西、四川、江西，并排除系统配置的指定维护单位故障。</li>
@@ -1451,5 +1803,5 @@
     window.FAULT_REPEATS_API = "{% url 'plugins:netbox_otnfaults:statistics_fault_repeats' %}";
     window.SERVICE_STATISTICS_DETAILS_API = "{% url 'plugins:netbox_otnfaults:statistics_service_details' %}";
 </script>
-<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=46"></script>
+<script src="{% static 'netbox_otnfaults/js/statistics_dashboard.js' %}?v=47"></script>
 {% endblock %}

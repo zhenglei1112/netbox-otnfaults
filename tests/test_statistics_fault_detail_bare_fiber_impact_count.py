@@ -54,8 +54,8 @@ class StatisticsFaultDetailBareFiberImpactCountTestCase(unittest.TestCase):
     def test_physical_detail_tables_include_bare_fiber_impact_column(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertEqual(template.count("<th>裸纤业务中断</th>"), 2)
-        self.assertEqual(template.count('colspan="12"'), 2)
+        self.assertEqual(template.count("<th>裸纤业务中断</th>"), 3)
+        self.assertEqual(template.count('colspan="12"'), 3)
         self.assertEqual(
             len(
                 re.findall(
@@ -64,7 +64,7 @@ class StatisticsFaultDetailBareFiberImpactCountTestCase(unittest.TestCase):
                     template,
                 )
             ),
-            2,
+            3,
         )
 
     def test_frontend_formats_bare_fiber_impact_count(self) -> None:
