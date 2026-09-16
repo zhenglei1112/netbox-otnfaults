@@ -110,8 +110,7 @@
 .is-presentation #dashboard-v2-map { pointer-events: none; }
 .is-presentation .dashboard-v2-map-tools > :not(:has(#dashboard-v2-presentation-mode)) { visibility: hidden; }
 .is-presentation #dashboard-v2-debug-panel { display: none; }
-.is-presentation .dashboard-v2-fault-callout,
-.is-presentation .is-left .dashboard-v2-fault-callout {
+.is-presentation .dashboard-v2-fault-focus:not(.is-compact-callout) .dashboard-v2-fault-callout {
   width: calc(352px * var(--presentation-scale)); min-height: calc(141px * var(--presentation-scale));
   padding: calc(16px * var(--presentation-scale)) calc(16px * var(--presentation-scale)) calc(16px * var(--presentation-scale)) calc(64px * var(--presentation-scale));
   pointer-events: none;

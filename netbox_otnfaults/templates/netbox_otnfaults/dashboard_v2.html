@@ -11,7 +11,7 @@
   <link href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}" rel="stylesheet">
   <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
   <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260916-compact-near" rel="stylesheet">
-  <link href="{% static 'netbox_otnfaults/css/dashboard_v2_presentation.css' %}?v=20260911-header-v1" rel="stylesheet">
+  <link href="{% static 'netbox_otnfaults/css/dashboard_v2_presentation.css' %}?v=20260916-compact-size" rel="stylesheet">
 </head>
 <body>
   <header id="dashboard-v2-header">
@@ -293,6 +293,6 @@
   </main>
 
   {{ dashboard_v2_config|json_script:"dashboard-v2-config" }}
-  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260916-compact-near"></script>
+  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260916-province-weather"></script>
 </body>
 </html>

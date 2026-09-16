@@ -30,7 +30,7 @@ import { initializeDashboardV2Starfield } from './starfield.js?v=20260910-presen
 globalThis.maplibregl = maplibreglModule;
 import { initializePresentationMode } from './presentation_mode.js?v=20260913-heavy-v1';
 import { updateDashboardStatus } from './status.js?v=20260914-weather-v1';
-import { initializeWeatherLayers } from './weather_layers.js?v=20260915-weather-unclustered';
+import { initializeWeatherLayers } from './weather_layers.js?v=20260916-province-weather';
 import { applyDisplayModes, initializeDisplaySettings } from './display_settings.js?v=20260910-presentation-v1';
 
 function updateClock() {

@@ -27,7 +27,23 @@ def configuration() -> dict[str, Any]:
 def site_rows(user: Any = None, *, sync: bool = False) -> Any:
     query = Site.objects.all() if sync else Site.objects.restrict(user, 'view')
     return query.exclude(latitude__isnull=True).exclude(longitude__isnull=True).order_by('pk').values(
-        'id', 'name', 'latitude', 'longitude')
+        'id', 'name', 'latitude', 'longitude', 'region_id', 'region__name')
+
+
+def province_samples(rows: Any) -> dict[str, str]:
+    """One existing, central coordinate per configured province (Site.region)."""
+    groups: dict[str, set[str]] = {}
+    for row in rows:
+        key = sample_key(row['latitude'], row['longitude'])
+        if row.get('region_id') is not None and key is not None:
+            groups.setdefault(str(row['region_id']), set()).add(key)
+    result: dict[str, str] = {}
+    for province, keys in groups.items():
+        points = [(key, *map(float, key.split(','))) for key in sorted(keys)]
+        lat = sum(point[1] for point in points) / len(points)
+        lng = sum(point[2] for point in points) / len(points)
+        result[province] = min(points, key=lambda point: ((point[1] - lat) ** 2 + (point[2] - lng) ** 2, point[0]))[0]
+    return result
 
 
 def fetch_resource(session: requests.Session, url: str, key: str,
@@ -100,8 +116,9 @@ def sync_weather() -> dict[str, Any]:
         with requests.Session() as session:
             agent = options.get('dashboard_v2_weather_user_agent', '')
             session.headers['User-Agent'] = agent or 'NetBox-OTNFaults/1.0'
-            keys = sorted({key for row in site_rows(sync=True)
-                           if (key := sample_key(row['latitude'], row['longitude'])) is not None})
+            samples = province_samples(site_rows(sync=True))
+            cache.set(PREFIX + 'province-samples', samples, TTL)
+            keys = sorted(set(samples.values()))
             cursor = cache.get(PREFIX + 'met-cursor')
             if cursor in keys:
                 offset = keys.index(cursor) + 1
@@ -181,9 +198,11 @@ def read_weather(user: Any) -> dict[str, Any]:
     weather = []
     missing = False
     forecasts: dict[str, Any] = {}
+    samples = cache.get(PREFIX + 'province-samples') or {}
     for row in site_rows(user):
-        key = sample_key(row['latitude'], row['longitude'])
+        key = samples.get(str(row.get('region_id')))
         if key is None:
+            missing = True
             continue
         if key not in forecasts:
             forecasts[key] = cache.get(PREFIX + 'met:' + key)
@@ -205,7 +224,9 @@ def read_weather(user: Any) -> dict[str, Any]:
             weather.append(feature({'type': 'Point', 'coordinates': [float(row['longitude']), float(row['latitude'])]},
                                    {'site_id': row['id'], 'name': row['name'], 'risks': risks,
                                     'icon': '-'.join(risk['kind'] for risk in risks),
-                                    'updated_at': updated, 'source': 'MET Norway'}))
+                                    'updated_at': updated, 'source': 'MET Norway',
+                                    'sampling': 'province', 'province': row.get('region__name') or '',
+                                    'sample_coordinates': key}))
     met_status = dict(cache.get(PREFIX + 'met-status') or {'state': 'loading'})
     met_status = {key: value for key, value in met_status.items() if key in ('state', 'updated_at', 'checked_at')}
     if missing and met_status['state'] == 'ready':

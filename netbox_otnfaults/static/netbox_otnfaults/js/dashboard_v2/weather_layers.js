@@ -18,7 +18,7 @@ export function weatherDetails(properties) {
   if (properties.source === 'MET Norway') {
     let risks = properties.risks;
     if (typeof risks === 'string') { try { risks = JSON.parse(risks); } catch { risks = []; } }
-    return [properties.name, '未来24小时模型预测风险（非官方预警）', ...(risks || []).map((risk) => {
+    return [properties.name, ...(properties.sampling === 'province' ? [`${properties.province}省级代表点预测（非本站点精确预报）`, `采样坐标（纬度,经度）：${properties.sample_coordinates}`] : []), '未来24小时模型预测风险（非官方预警）', ...(risks || []).map((risk) => {
       const style = RISK_STYLES[risk.kind];
       return `${style?.label || risk.kind}：${risk.value} ${style?.unit || ''} · ${dateText(risk.time)}`;
     }), `模型更新：${dateText(properties.updated_at)}`, '来源：MET Norway'].join('\n');

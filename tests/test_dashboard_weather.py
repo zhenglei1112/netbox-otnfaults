@@ -82,7 +82,7 @@ class ServiceTests(unittest.TestCase):
         self.cache = MemoryCache()
         source = (ROOT / 'netbox_otnfaults/services/dashboard_weather.py').read_text(encoding='utf-8')
         tree = ast.parse(source)
-        functions = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in ('read_weather', 'site_rows', 'fetch_resource', 'sync_weather')]
+        functions = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in ('read_weather', 'site_rows', 'province_samples', 'fetch_resource', 'sync_weather')]
         self.scope = {**vars(geometry), 'cache': self.cache, 'PREFIX': 'test:', 'TTL': 172800, 'MET_URL': 'met',
                       'requests': SimpleNamespace(Session=object), 'time': SimpleNamespace(sleep=lambda _: None),
                       'parsedate_to_datetime': parsedate_to_datetime, 'timezone': SimpleNamespace(now=lambda: NOW),
@@ -114,18 +114,29 @@ class ServiceTests(unittest.TestCase):
             def restrict(self, user: Any, permission: str) -> Any: calls.append((user, permission)); return self
             def exclude(self, **kwargs: Any) -> Any: return self
             def order_by(self, *args: Any) -> Any: return self
-            def values(self, *args: Any) -> list[Any]: return [{'id': 1, 'name': 'allowed', 'latitude': 30, 'longitude': 114}]
+            def values(self, *args: Any) -> list[Any]: return [{'id': 1, 'name': 'allowed', 'latitude': 31, 'longitude': 115, 'region_id': 7, 'region__name': '湖北'}]
         self.scope['Site'] = SimpleNamespace(objects=Query())
+        self.cache.set('test:province-samples', {'7': '30.00,114.00'})
         self.cache.set('test:met:30.00,114.00', forecast())
         self.cache.set('test:met-status', {'state': 'ready', 'samples': 999, 'checked_at': NOW.isoformat()})
         result = self.scope['read_weather']('viewer')
         self.assertEqual(calls, [('viewer', 'view')])
         self.assertEqual(result['weather']['features'][0]['properties']['site_id'], 1)
         self.assertNotIn('samples', result['sources']['weather'])
+        self.assertEqual(result['weather']['features'][0]['properties']['sampling'], 'province')
         self.cache.set('test:met:30.00,114.00', forecast(10, NOW - timedelta(hours=1)))
         result = self.scope['read_weather']('viewer')
         self.assertEqual(result['weather']['features'], [])
         self.assertEqual(result['sources']['weather']['state'], 'stale')
+
+    def test_province_sampling_is_stable_and_skips_unassigned_sites(self) -> None:
+        rows = [{'region_id': 1, 'latitude': lat, 'longitude': 114} for lat in [29, 30, 31, 30]]
+        rows += [{'region_id': 2, 'latitude': 40, 'longitude': 116},
+                 {'region_id': None, 'latitude': 35, 'longitude': 110},
+                 {'region_id': 3, 'latitude': None, 'longitude': 110}]
+        expected = {'1': '30.00,114.00', '2': '40.00,116.00'}
+        self.assertEqual(self.scope['province_samples'](rows), expected)
+        self.assertEqual(self.scope['province_samples'](reversed(rows)), expected)
 
     def test_conditional_request_and_cache_hit(self) -> None:
         calls = []
