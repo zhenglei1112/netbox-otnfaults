@@ -2,7 +2,7 @@ import { createPresentationTour, validPosition } from './presentation_tour.js?v=
 import { createOverviewOrbit } from './overview_orbit.js?v=20260911-orbit-v3';
 import { createPresentationPages } from './presentation_pages.js?v=20260910-sections-v2';
 
-const LIST_IDS = ['dashboard-v2-info-fault-list', 'dashboard-v2-info-cutover-list'];
+const LIST_IDS = ['dashboard-v2-info-fault-list', 'dashboard-v2-info-cutover-list', 'dashboard-v2-info-heavy-list'];
 const HANDLERS = ['dragPan', 'scrollZoom', 'boxZoom', 'doubleClickZoom', 'touchZoomRotate', 'keyboard'];
 
 // Preserve the local geographic extent as presentation pixels scale (not devicePixelRatio).
@@ -123,6 +123,13 @@ export function initializePresentationMode({ map, config, drawer, onModeChange }
       overviewActive = false;
       orbit.stop();
       focusCard(item.id);
+      if (item.kind === 'heavy_duty') {
+        const points = (items || []).filter(validPosition);
+        if (!points.length) return move({ center: config.mapCenter || [103, 34.3], zoom: config.mapZoom ?? 4 }, duration);
+        const lng = points.map((point) => Number(point.lng));
+        const lat = points.map((point) => Number(point.lat));
+        return move([[Math.min(...lng), Math.min(...lat)], [Math.max(...lng), Math.max(...lat)]], duration, true);
+      }
       if (validPosition(item)) return move({ center: [Number(item.lng), Number(item.lat)], zoom: presentationFocusZoom(scale) }, duration);
     },
     overviewReady: () => orbit.start(),

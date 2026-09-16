@@ -17,6 +17,8 @@ license = {text = "MIT"}
 
 dependencies = [
     'Django>=4.2',
+    'requests>=2.31',
+    'defusedxml>=0.7.1',
 ]
 
 classifiers = [

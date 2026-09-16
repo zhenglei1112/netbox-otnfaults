@@ -25,14 +25,8 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
     SITES_CORE_LAYER_ID,
     SITES_LABEL_LAYER_ID,
   ];
-  const CIRCLED_NUMBERS = [
-    '', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩',
-    '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳',
-  ];
-
   function processingFaultLabel(index) {
-    const number = index + 1;
-    return CIRCLED_NUMBERS[number] || `[${number}]`;
+    return String(index + 1);
   }
 
   function renderDashboardV2ProcessingFaults(map, faults = []) {
@@ -343,6 +337,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
     const width = container?.clientWidth || containerRect.width || 0;
     const height = container?.clientHeight || containerRect.height || 0;
     const projected = processingFaultFocusMarkers.flatMap((entry) => {
+      entry.element.classList?.toggle('is-compact-callout', !map.__dashboardPresentationScale || !map.__dashboardPresentationFocus);
       entry.element.classList?.toggle('is-presentation-active', entry.faultId === map.__dashboardPresentationFocus);
       if ((!visible && entry.mapDisplayMode !== 'points') || !isCoordinateFrontFacing(map, entry.coordinates)) {
         entry.element.hidden = true;
@@ -371,7 +366,8 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       return;
     }
     let overviewMargin = Infinity;
-    const radius = PROCESSING_FAULT_RADAR_RADIUS * (map.__dashboardPresentationScale ? map.__dashboardPresentationScale * 1.6 : 1);
+    const compact = !map.__dashboardPresentationScale || !map.__dashboardPresentationFocus;
+    const radius = (compact ? 18 : PROCESSING_FAULT_RADAR_RADIUS) * (map.__dashboardPresentationScale ? map.__dashboardPresentationScale * 1.6 : 1);
     const radarRects = projected.map(({ point }) => ({
       left: point.x - radius,
       top: point.y - radius,
@@ -391,7 +387,7 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       presentationScale: map.__dashboardPresentationScale || 0,
     };
     const peripheralEntries = projected.filter((entry) => entry.mapDisplayMode !== 'points');
-    const peripheral = peripheralEntries.length > 1 ? solvePeripheralLayout(peripheralEntries.map((entry) => {
+    const peripheral = !compact && peripheralEntries.length > 1 ? solvePeripheralLayout(peripheralEntries.map((entry) => {
       const callout = entry.element.querySelector?.('.dashboard-v2-fault-callout');
       const scale = map.__dashboardPresentationScale;
       return { ...entry, boxWidth: scale ? callout?.offsetWidth || 352 * scale : PROCESSING_FAULT_CALLOUT_WIDTH,
@@ -403,23 +399,29 @@ export function createFaultOverlayController(setSourceDataIfChanged) {
       if (entry.mapDisplayMode === 'points') return;
       const previous = processingFaultFocusPlacements.get(entry.faultId);
       const callout = entry.element.querySelector?.('.dashboard-v2-fault-callout');
-      const box = map.__dashboardPresentationScale ? {
+      const box = compact ? {
+        width: callout?.offsetWidth || 90 * (map.__dashboardPresentationScale || 1),
+        height: callout?.offsetHeight || 28 * (map.__dashboardPresentationScale || 1),
+        scale: .32 * (map.__dashboardPresentationScale || 1),
+      } : map.__dashboardPresentationScale ? {
         width: callout?.offsetWidth || 352 * map.__dashboardPresentationScale,
         height: callout?.offsetHeight || 141 * map.__dashboardPresentationScale,
         scale: map.__dashboardPresentationScale * 1.6,
       } : {};
       const candidates = buildPlacementCandidates(entry.point, width, height, box).map((candidate) => ({
-        ...candidate, leaderRadius: 14 * (box.scale || 1), leader: leaderSegment(entry.point, candidate.rect, 14 * (box.scale || 1)),
+        ...candidate, leaderRadius: compact ? 14 * (map.__dashboardPresentationScale || 1) : 14 * (box.scale || 1),
+        leader: leaderSegment(entry.point, candidate.rect, compact ? 14 * (map.__dashboardPresentationScale || 1) : 14 * (box.scale || 1)),
       }));
       const shortlist = candidates
         .map((candidate) => ({
           ...candidate,
-          baseScore: scorePlacement(candidate, context, previous),
+          baseScore: scorePlacement(candidate, context, compact ? null : previous)
+            + (compact ? Math.hypot(candidate.leader.end.x - entry.point.x, candidate.leader.end.y - entry.point.y) * 100 : 0),
         }))
         .sort((first, second) => first.baseScore - second.baseScore)
         .slice(0, PROCESSING_FAULT_NETWORK_CANDIDATE_LIMIT);
       const candidate = peripheral?.get(entry.faultId) || shortlist.reduce((best, current) => {
-        const score = current.baseScore + (context.evaluateNetwork
+        const score = current.baseScore + (!compact && context.evaluateNetwork
           ? networkObstructionScore(map, current.rect, context.networkScoreCache)
           : 0);
         return !best || score < best.score ? { ...current, score } : best;

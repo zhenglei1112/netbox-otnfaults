@@ -151,6 +151,7 @@ urlpatterns = [
     path('dashboard/', dashboard_views.DashboardPageView.as_view(), name='dashboard'),
     path('dashboard/data/', dashboard_views.DashboardDataAPI.as_view(), name='dashboard_data'),
     path('dashboard-v2/data/', dashboard_v2_views.DashboardV2DataView.as_view(), name='dashboard_v2_data'),
+    path('dashboard-v2/weather/', dashboard_v2_views.DashboardV2WeatherView.as_view(), name='dashboard_v2_weather'),
     path('dashboard-v2/', dashboard_v2_views.DashboardV2PageView.as_view(), name='dashboard_v2'),
 
     # 每周通报大屏

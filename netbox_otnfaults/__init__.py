@@ -20,6 +20,9 @@ class OtnFaultsConfig(PluginConfig):
         'dashboard_v2_map_center': [103.0, 34.3],
         'dashboard_v2_map_zoom': 4.0,
         'dashboard_v2_map_bearing': 0.0,
+        # Required by MET Norway: supply an application name and real contact URL/email.
+        'dashboard_v2_weather_user_agent': '',
+        'dashboard_v2_weather_thresholds': {'rain': 10.0, 'wind': 10.0, 'heat': 35.0, 'cold': 0.0},
         # 新版态势大屏默认使用服务器 /maps 下的全球 Protomaps z0-z6 原型。
         'dashboard_v2_basemap_mode': 'protomaps',
         'dashboard_v2_protomaps_tiles_url': '/maps/protomaps-z0-z6.pmtiles',

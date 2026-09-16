@@ -13,8 +13,8 @@ const MODULE_SOURCE = await readFile(MODULE_PATH, 'utf8');
 async function loadMapModule(tag) {
   const layout = new URL('../netbox_otnfaults/static/netbox_otnfaults/js/dashboard_v2/fault_overlays.js', import.meta.url).href;
   const status = new URL('../netbox_otnfaults/static/netbox_otnfaults/js/dashboard_v2/status.js', import.meta.url).href;
-  const encoded = Buffer.from(MODULE_SOURCE.replace('./fault_overlays.js?v=20260911-peripheral-v2', layout + '?test=' + tag)
-    .replace('./status.js?v=20260911-status-v1', status)).toString('base64');
+  const encoded = Buffer.from(MODULE_SOURCE.replace('./fault_overlays.js?v=20260916-compact-near', layout + '?test=' + tag)
+    .replace('./status.js?v=20260914-weather-v1', status)).toString('base64');
   return import(`data:text/javascript;base64,${encoded}#${tag}`);
 }
 
@@ -720,12 +720,12 @@ test('renders numbered processing faults without card-selected feature state', a
   ]);
 
   assert.equal(count, 2);
-  assert.deepEqual(updates[0].features.map((feature) => feature.properties.index_label), ['①', '②']);
+  assert.deepEqual(updates[0].features.map((feature) => feature.properties.index_label), ['1', '2']);
   assert.deepEqual(updates[0].features[0], {
     type: 'Feature',
     id: '9',
     geometry: { type: 'Point', coordinates: [116.4, 39.9] },
-    properties: { fault_number: 'F009', index_label: '①', severity: 'critical', color: '#ff334f' },
+    properties: { fault_number: 'F009', index_label: '1', severity: 'critical', color: '#ff334f' },
   });
   assert.equal(maplibreState.markers.length, 2);
   const pointOnly = { id: 9, fault_number: 'F009', lng: 116.4, lat: 39.9, mapDisplayMode: 'points' };
@@ -812,14 +812,14 @@ test('shows every fault callout together from zoom 3.9 without carousel selectio
     ...(node.children || []).flatMap((child) => collectText(child)),
   ].filter(Boolean);
   const renderedText = collectText(marker.element);
-  assert.ok(renderedText.includes('①'));
+  assert.ok(renderedText.includes('1'));
   const radar = marker.element.children.find(
     (child) => child.className === 'dashboard-v2-fault-focus-radar',
   );
   const core = radar.children.find(
     (child) => child.className === 'dashboard-v2-fault-focus-core',
   );
-  assert.equal(core.textContent, '①');
+  assert.equal(core.textContent, '1');
   assert.equal(
     radar.children.some(
       (child) => child.className === 'dashboard-v2-fault-focus-index',
@@ -892,7 +892,7 @@ test('lays out clustered fault callouts inside the viewport without overlap or U
     const point = projectedPoints.get(marker.coordinates[0]);
     const left = point.x + Number.parseFloat(marker.element.style['--fault-callout-x']);
     const top = point.y + Number.parseFloat(marker.element.style['--fault-callout-y']);
-    return { left, top, right: left + 220, bottom: top + 88 };
+    return { left, top, right: left + 90, bottom: top + 28 };
   });
   for (const rect of calloutRects) {
     assert.ok(rect.left >= 12);
@@ -964,6 +964,9 @@ test('prefers the seaward side when inland candidates cover sites and OTN paths'
     },
   };
 
+  // Full tour callouts retain network-aware placement; compact labels prioritize proximity.
+  map.__dashboardPresentationScale = 1;
+  map.__dashboardPresentationFocus = '21';
   renderDashboardV2ProcessingFaults(map, [{
     id: 21,
     fault_number: 'F021',

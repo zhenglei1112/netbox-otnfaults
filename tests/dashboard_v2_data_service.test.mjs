@@ -21,6 +21,15 @@ test('site version reuses snapshot and rejects unmatched omitted payload', async
   await assert.rejects(fetchDashboardV2Data('/data'), /版本不匹配/);
 });
 
+test('heavy duties pass through the aggregate service and default to empty', async () => {
+  const { fetchDashboardV2Data } = await loadDataService('heavy');
+  const heavy_duties = [{ id: 1, type: 'notice', description: '<b>通知</b>' }];
+  installFetch({ data: { heavy_duties } });
+  assert.deepEqual((await fetchDashboardV2Data('/data')).heavy_duties, heavy_duties);
+  installFetch();
+  assert.deepEqual((await fetchDashboardV2Data('/data')).heavy_duties, []);
+});
+
 test('elapsed-only changes preserve accepted fault order but fresh duration', async () => {
   const { reconcileDashboardData } = await loadDataService('reconcile');
   const previous = { processing_faults: [{ id: 1 }, { id: 2 }] };

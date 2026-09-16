@@ -5,7 +5,7 @@ function setText(element, text) {
 }
 
 function cardSignature(fault) {
-  if (fault.kind === 'cutover') return JSON.stringify(fault);
+  if (fault.kind === 'cutover' || fault.kind === 'heavy_duty') return JSON.stringify(fault);
   return JSON.stringify([
     fault.url, fault.severity, fault.fault_number, fault.category_display, fault.urgency_display,
     fault.province, fault.site_a, fault.sites_z, fault.occurrence_time_display, fault.duration,
@@ -99,6 +99,7 @@ function createCompactCard(item, index) {
 }
 
 function createFaultCard(fault, index = 0) {
+  if (fault.kind === 'heavy_duty') return createHeavyDutyCard(fault);
   if (fault.kind === 'cutover') return createCutoverCard(fault);
   const card = document.createElement(fault.url ? 'a' : 'article');
   card.className = 'dashboard-v2-fault-card';
@@ -162,6 +163,48 @@ function createCutoverCard(task) {
   card.appendChild(details);
   card.appendChild(createCompactCard(task, 0));
   return card;
+}
+
+function createHeavyDutyCard(task) {
+  const card = document.createElement(task.url ? 'a' : 'article');
+  const color = ['blue', 'green', 'orange'].includes(task.type_color) ? task.type_color : 'gray';
+  card.className = `dashboard-v2-fault-card dashboard-v2-heavy-card is-heavy-${color}`;
+  card.dataset.eventId = `heavy-duty-${task.id}`;
+  if (task.url) { card.href = task.url; card.target = '_blank'; card.rel = 'noopener'; }
+  const box = createTextElement('div', 'dashboard-v2-heavy-content dashboard-v2-compact-card', '');
+  box.textContent = '';
+  const badge = createTextElement('span', 'dashboard-v2-heavy-badge', task.type_display);
+  box.appendChild(badge);
+  [task.name, `${textValue(task.start_time_display)} 至 ${textValue(task.end_time_display)}`, task.description].forEach((text, i) => {
+    const row = createTextElement('div', `dashboard-v2-heavy-line is-line-${i}`, text);
+    row.title = row.textContent;
+    box.appendChild(row);
+  });
+  card.appendChild(box);
+  return card;
+}
+
+export function renderDashboardV2HeavyDuties(data) {
+  const list = document.getElementById('dashboard-v2-info-heavy-list');
+  if (!list) return;
+  const tasks = (data.heavy_duties || []).map((task) => ({ ...task, kind: 'heavy_duty' }));
+  const count = document.getElementById('dashboard-v2-info-heavy-count');
+  if (!tasks.length) {
+    if (list.dataset.empty !== 'true') {
+      list.replaceChildren(createTextElement('div', 'dashboard-v2-info-state', '当前无进行中的保障信息'));
+      carouselStates.delete(list);
+      list.onkeydown = null;
+      list.dataset.empty = 'true';
+    }
+    setText(count, '0/0');
+    return;
+  }
+  list.dataset.empty = 'false';
+  renderFaultCarousel(list, tasks, count);
+  list.setAttribute('aria-label', '重要保障轮播');
+  const state = carouselStates.get(list);
+  state.previous?.setAttribute('aria-label', '上一条保障信息');
+  state.next?.setAttribute('aria-label', '下一条保障信息');
 }
 
 export function renderDashboardV2Cutovers(data) {
@@ -329,7 +372,7 @@ export function renderDashboardV2InfoDrawer(data = {}, { onActiveFaultChange } =
       'dashboard-v2-info-state',
       '当前无处理中故障',
     ));
-    if (count) count.textContent = '0起';
+    if (count) count.textContent = '0/0';
     onActiveFaultChange?.(null, -1);
     return 0;
   }
@@ -400,6 +443,8 @@ export function initializeDashboardV2InfoDrawer({ onActiveFaultChange } = {}) {
     showError: showDashboardV2InfoDrawerError,
     updateElapsed: updateDashboardV2Elapsed,
     destroy() {
+      const heavyList = document.getElementById('dashboard-v2-info-heavy-list');
+      if (heavyList) { carouselStates.delete(heavyList); heavyList.onkeydown = null; }
       const cutoverList = document.getElementById('dashboard-v2-info-cutover-list');
       if (cutoverList) { carouselStates.delete(cutoverList); cutoverList.onkeydown = null; }
       toggle.removeEventListener?.('click', onToggle);

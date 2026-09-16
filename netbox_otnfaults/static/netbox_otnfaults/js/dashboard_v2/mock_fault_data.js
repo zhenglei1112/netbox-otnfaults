@@ -156,6 +156,17 @@ export function createDashboardV2MockFaultData(realData = {}, now = new Date()) 
   return {
     timestamp: now.toISOString(),
     simulated: true,
+    heavy_duties: [
+      ['important', '重要保障', 'blue', '重大活动通信保障', '加强重要客户电路监测，保障期间保持值班联络畅通。'],
+      ['notice', '公司通知', 'green', '网络运行安全通知', '落实机房巡检与风险排查，发现异常及时上报。'],
+      ['memo', '值班备忘', 'orange', '夜间值班交接提醒', '核对备用路由及应急联系人，做好交接记录。'],
+    ].map(([type, type_display, type_color, name, description], index) => ({
+      id: `debug-heavy-${index + 1}`, url: '', type, type_display, type_color, name, description,
+      start_time: new Date(now.getTime() - 3600000).toISOString(),
+      end_time: new Date(now.getTime() + 86400000).toISOString(),
+      start_time_display: new Date(now.getTime() - 3600000).toLocaleString('zh-CN', { hour12: false }),
+      end_time_display: new Date(now.getTime() + 86400000).toLocaleString('zh-CN', { hour12: false }),
+    })),
     cutovers: createMockCutovers(now),
     cutover_summary: { today: 2, tomorrow: 2, total: 4 },
     summary: {

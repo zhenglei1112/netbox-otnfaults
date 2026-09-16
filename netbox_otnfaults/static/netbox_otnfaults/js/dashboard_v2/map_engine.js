@@ -1,5 +1,5 @@
-import { createFaultOverlayController } from './fault_overlays.js?v=20260911-peripheral-v2';
-import { updateDashboardStatus } from './status.js?v=20260911-status-v1';
+import { createFaultOverlayController } from './fault_overlays.js?v=20260916-compact-near';
+import { updateDashboardStatus } from './status.js?v=20260914-weather-v1';
 let dashboardMap = null;
 let hasRuntimeMapError = false;
 let pmtilesProtocolRegistered = false;

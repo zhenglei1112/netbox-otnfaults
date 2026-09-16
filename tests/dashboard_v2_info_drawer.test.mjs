@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   initializeDashboardV2InfoDrawer,
   renderDashboardV2Cutovers,
+  renderDashboardV2HeavyDuties,
   renderDashboardV2InfoDrawer,
   showDashboardV2InfoDrawerError,
   updateDashboardV2Elapsed,
@@ -74,6 +75,29 @@ class FakeElement {
 function allText(element) {
   return [element.textContent, ...element.children.map(allText)].join(' ');
 }
+
+test('heavy duties render safe text, reuse cards, update colors and clear expired entries', () => {
+  const list = new FakeElement();
+  const count = new FakeElement();
+  globalThis.document = {
+    getElementById: (id) => id === 'dashboard-v2-info-heavy-list' ? list : count,
+    createElement: (tag) => new FakeElement(tag),
+  };
+  const task = { id: 1, name: '<img onerror=alert(1)>', type_display: '公司通知', type_color: 'green', description: '正文', url: '/heavy/1' };
+  renderDashboardV2HeavyDuties({ heavy_duties: [task] });
+  const card = list.children[0].children[0];
+  assert.equal(card.dataset.eventId, 'heavy-duty-1');
+  assert.equal(card.rel, 'noopener');
+  assert.match(allText(card), /<img onerror=alert\(1\)>/);
+  renderDashboardV2HeavyDuties({ heavy_duties: [task] });
+  assert.equal(list.children[0].children[0], card);
+  renderDashboardV2HeavyDuties({ heavy_duties: [{ ...task, description: '已更新', type_color: 'blue' }] });
+  assert.equal(list.children[0].children[0], card);
+  assert.match(card.className, /is-heavy-blue/);
+  assert.match(allText(card), /已更新/);
+  renderDashboardV2HeavyDuties({ heavy_duties: [] });
+  assert.match(allText(list), /当前无进行中/);
+});
 
 
 test('information drawer starts collapsed and toggles its visible and accessible state', () => {

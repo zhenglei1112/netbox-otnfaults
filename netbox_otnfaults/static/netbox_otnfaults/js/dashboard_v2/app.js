@@ -6,11 +6,11 @@ import {
 import {
   reconcileDashboardData,
   fetchDashboardV2Data,
-} from './data_service.js?v=20260910-presentation-v1';
+} from './data_service.js?v=20260913-heavy-v1';
 import { installDashboardV2FrameRateLimit } from './frame_rate_limiter.js?v=20260910-presentation-v1';
-import { initializeDashboardV2InfoDrawer, renderDashboardV2Cutovers } from './info_drawer.js?v=20260910-pages-v1';
+import { initializeDashboardV2InfoDrawer, renderDashboardV2Cutovers, renderDashboardV2HeavyDuties } from './info_drawer.js?v=20260915-unified-counts';
 import { cutoverMapItems, presentationCutoverData } from './cutovers.js?v=20260910-pending-v1';
-import { createDashboardV2MockFaultData } from './mock_fault_data.js?v=20260910-presentation-v1';
+import { createDashboardV2MockFaultData } from './mock_fault_data.js?v=20260913-heavy-v1';
 import {
   createDashboardMapRefresher,
   startDashboardAutoRefresh,
@@ -22,14 +22,15 @@ import {
   destroyDashboardV2Map,
   renderDashboardV2ProcessingFaults,
   renderDashboardV2Sites,
-} from './map_engine.js?v=20260911-peripheral-v2';
+} from './map_engine.js?v=20260916-compact-near';
 import { initializeDashboardV2Galaxy } from './galaxy.js?v=20260910-presentation-v1';
 import { initializeDashboardV2SkyControl } from './sky_control.js?v=20260910-presentation-v1';
 import { initializeDashboardV2Starfield } from './starfield.js?v=20260910-presentation-v1';
 
 globalThis.maplibregl = maplibreglModule;
-import { initializePresentationMode } from './presentation_mode.js?v=20260911-peripheral-v2';
-import { updateDashboardStatus } from './status.js?v=20260911-status-v1';
+import { initializePresentationMode } from './presentation_mode.js?v=20260913-heavy-v1';
+import { updateDashboardStatus } from './status.js?v=20260914-weather-v1';
+import { initializeWeatherLayers } from './weather_layers.js?v=20260915-weather-unclustered';
 import { applyDisplayModes, initializeDisplaySettings } from './display_settings.js?v=20260910-presentation-v1';
 
 function updateClock() {
@@ -84,6 +85,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const map = await initializeDashboardV2Map(config);
   own({ destroy: () => destroyDashboardV2Map(map) });
   if (disposed) return;
+  const weather = own(initializeWeatherLayers(map, { url: config.weatherUrl,
+    onStatus: (weatherMessage) => updateDashboardStatus({ weatherMessage }),
+  }));
   const infoDrawer = own(initializeDashboardV2InfoDrawer());
   const dayNight = own(initializeDashboardV2DayNight(map));
   own(initializeDashboardV2DayNightControl(dayNight));
@@ -100,6 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const displayData = presentationActive ? presentationCutoverData(rawData) : rawData;
     const cutovers = cutoverMapItems(displayData?.cutovers || []);
     renderDashboardV2Cutovers(displayData || { cutovers: [] });
+    if (displayData) renderDashboardV2HeavyDuties(displayData);
     if (!displayData) renderDashboardV2ProcessingFaults(map, []);
     if (dataSimulationEnabled) {
       renderDashboardV2ProcessingFaults(map, applyDisplayModes([...simulatedData.processing_faults, ...cutovers], presentationActive ? { fault: 'full', cutover: 'full' } : displayModes));
@@ -108,7 +113,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderDashboardV2ProcessingFaults(map, applyDisplayModes([...latestDashboardData.processing_faults, ...cutovers], presentationActive ? { fault: 'full', cutover: 'full' } : displayModes));
       infoDrawer?.render(latestDashboardData);
     }
-    if (displayData) presentation?.setItems([...displayData.processing_faults, ...cutovers]);
+    if (displayData) presentation?.setItems([...displayData.processing_faults, ...cutovers,
+      ...(displayData.heavy_duties || []).map((task) => ({ ...task, id: `heavy-duty-${task.id}`, kind: 'heavy_duty', lng: null, lat: null })),
+    ]);
   };
   own(initializeDisplaySettings((modes) => { displayModes = modes; renderFaultData(); }));
   presentation = own(initializePresentationMode({ map, config, drawer: infoDrawer,
@@ -135,6 +142,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!hasDashboardData && !dataSimulationEnabled) {
         const cutoverList = document.getElementById('dashboard-v2-info-cutover-list');
         if (cutoverList) cutoverList.textContent = '割接数据加载失败';
+        const heavyList = document.getElementById('dashboard-v2-info-heavy-list');
+        if (heavyList) heavyList.textContent = '保障数据加载失败';
       }
     },
   });
@@ -153,6 +162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     onDataSimulationChange(enabled) {
       updateDashboardStatus({ simulated: enabled });
       dataSimulationEnabled = enabled;
+      weather?.setSimulation(enabled);
       simulatedData = enabled ? createDashboardV2MockFaultData(latestDashboardData || {}) : null;
       if (enabled) infoDrawer?.setExpanded(true);
       renderFaultData();

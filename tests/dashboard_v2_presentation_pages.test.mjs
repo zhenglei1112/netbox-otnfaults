@@ -19,6 +19,9 @@ test('six slots are shared fairly and donated; short screens retain both section
 });
 
 test('page follows selected ID, remains stable otherwise, and clamps after removal', () => {
+  assert.deepEqual(allocatePageSlots([5, 4, 3], 720, 114, 6), [2, 2, 2]);
+  assert.deepEqual(allocatePageSlots([0, 0, 7], 720, 114, 6), [0, 0, 6]);
+  assert.equal(eventPage(['heavy-duty-1', 'heavy-duty-2', 'heavy-duty-3'], 2, 0, 'heavy-duty-3'), 1);
   assert.equal(eventPage(['a', 'b', 'c', 'd'], 3, 0, 'd'), 1);
   assert.equal(eventPage(['a', 'b', 'c', 'd'], 3, 1, 'cutover-1'), 1);
   assert.equal(eventPage(['a', 'b'], 3, 1, null), 0);

@@ -36,6 +36,7 @@ def _get_dashboard_v2_config() -> dict[str, Any]:
             "local_glyphs_url", "/maps/fonts/{fontstack}/{range}.pbf"
         ),
         "dataUrl": reverse("plugins:netbox_otnfaults:dashboard_v2_data"),
+        "weatherUrl": reverse("plugins:netbox_otnfaults:dashboard_v2_weather"),
     }
 
 
@@ -58,3 +59,13 @@ class DashboardV2DataView(PermissionRequiredMixin, View):
             build_dashboard_v2_data(sites_version=request.GET.get("sites_version"), user=request.user),
             json_dumps_params={"ensure_ascii": False},
         )
+
+
+class DashboardV2WeatherView(PermissionRequiredMixin, View):
+    permission_required = "netbox_otnfaults.view_otnfault"
+
+    def get(self, request: HttpRequest) -> JsonResponse:
+        from .services.dashboard_weather import read_weather
+        response = JsonResponse(read_weather(request.user), json_dumps_params={'ensure_ascii': False})
+        response['Cache-Control'] = 'private, no-store'
+        return response

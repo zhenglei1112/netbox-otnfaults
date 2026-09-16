@@ -17,6 +17,7 @@ from ..models import (
     OtnFaultImpact,
     ServiceTypeChoices,
     CutoverTask,
+    HeavyDuty,
 )
 from .fault_coordinates import load_fault_path_midpoints, resolve_fault_coordinates, resolve_cutover_coordinates
 
@@ -205,6 +206,7 @@ def build_dashboard_v2_data(sites_version: str | None = None, user: Any = None) 
     version, sites = sites_snapshot
     result = {
         **build_dashboard_cutovers(user),
+        **build_dashboard_heavy_duties(user, now),
         "timestamp": now.isoformat(),
         "summary": {
             "total_faults": fault_counts["total_faults"],
@@ -218,6 +220,25 @@ def build_dashboard_v2_data(sites_version: str | None = None, user: Any = None) 
     if sites_version != version:
         result["sites"] = sites
     return result
+
+
+def build_dashboard_heavy_duties(user: Any, now: datetime) -> dict[str, Any]:
+    """V1 active window, including notices and memos, with view permissions."""
+    if user is None:
+        return {'heavy_duties': []}
+    tasks = HeavyDuty.objects.restrict(user, 'view').filter(
+        start_time__lte=now, end_time__gte=now,
+    ).order_by('-start_time', '-pk')
+    records = [{
+        'id': task.pk, 'url': task.get_absolute_url(), 'name': task.name,
+        'type': task.type, 'type_display': task.get_type_display(),
+        'type_color': task.get_type_color() or 'gray',
+        'description': task.description or '',
+        'start_time': task.start_time.isoformat(), 'end_time': task.end_time.isoformat(),
+        'start_time_display': timezone.localtime(task.start_time).strftime('%m-%d %H:%M'),
+        'end_time_display': timezone.localtime(task.end_time).strftime('%m-%d %H:%M'),
+    } for task in tasks]
+    return {'heavy_duties': records}
 
 
 def build_dashboard_cutovers(user: Any) -> dict[str, Any]:

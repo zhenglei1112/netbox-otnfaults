@@ -95,6 +95,7 @@ export async function fetchDashboardV2Data(dataUrl, { signal, timeoutMs = 15000 
       },
       processing_faults: Array.isArray(data.processing_faults) ? data.processing_faults : [],
       cutovers: Array.isArray(data.cutovers) ? data.cutovers : [],
+      heavy_duties: Array.isArray(data.heavy_duties) ? data.heavy_duties : [],
       cutover_summary: data.cutover_summary || { today: 0, tomorrow: 0, total: 0 },
       sites,
     };

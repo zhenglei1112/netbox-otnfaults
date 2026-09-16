@@ -70,6 +70,18 @@ test('removed current event advances, added event is visited, empty queue stays 
   await h.tick(); assert.equal(h.tour.currentId(), 'c');
 });
 
+test('text-only protection entries join the same tour after faults and cutovers', async () => {
+  const h = harness();
+  h.tour.setItems([{ id: 'f1' }, { id: 'cutover-1' }, { id: 'heavy-duty-1', kind: 'heavy_duty' }]);
+  h.tour.start(); await Promise.resolve();
+  await h.tick(); await h.tick(); await h.tick();
+  assert.equal(h.tour.currentId(), 'heavy-duty-1');
+  assert.equal(h.timer().ms, 12000);
+  await h.tick();
+  assert.equal(h.events.at(-1)[0], 'overview');
+  h.tour.stop();
+});
+
 test('stopping during flight cancels the pending dwell; reduced motion uses zero duration', async () => {
   let finish;
   let scheduled = 0;

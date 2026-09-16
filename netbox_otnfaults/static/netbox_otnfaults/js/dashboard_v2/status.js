@@ -10,6 +10,7 @@ export function updateDashboardStatus(patch) {
   else if (state.dataState === 'online') messages.push('数据在线');
   else if (state.mapState === 'ready') messages.push('数据加载中...');
   if (state.simulated) messages.push('模拟数据');
+  if (state.weatherMessage && !state.simulated) messages.push(state.weatherMessage);
   const text = document.getElementById('dashboard-v2-status-text');
   const dot = document.getElementById('dashboard-v2-status-dot');
   const message = messages.join(' · ');
@@ -17,5 +18,5 @@ export function updateDashboardStatus(patch) {
     if (text.textContent !== message) text.textContent = message;
     text.title = state.dataState === 'error' ? `${message}${state.dataError ? `：${state.dataError}` : ''}` : message;
   }
-  dot?.classList.toggle('is-error', state.mapState === 'error' || state.dataState === 'error');
+  dot?.classList.toggle('is-error', state.mapState === 'error' || state.dataState === 'error' || Boolean(state.weatherMessage?.includes('失败')));
 }

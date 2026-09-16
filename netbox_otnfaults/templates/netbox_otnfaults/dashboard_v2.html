@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="{% static 'netbox_otnfaults/lib/maplibre-gl.css' %}" rel="stylesheet">
   <script src="{% static 'netbox_otnfaults/lib/pmtiles.js' %}"></script>
-  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260911-tooltip-v1" rel="stylesheet">
+  <link href="{% static 'netbox_otnfaults/css/dashboard_v2.css' %}?v=20260916-compact-near" rel="stylesheet">
   <link href="{% static 'netbox_otnfaults/css/dashboard_v2_presentation.css' %}?v=20260911-header-v1" rel="stylesheet">
 </head>
 <body>
@@ -149,7 +149,19 @@
           </button>
           <output id="dashboard-v2-cutover-display-status" class="dashboard-v2-map-tool-status">割接 显示</output>
         </div>
-      </nav>
+          <div class="dashboard-v2-display-tool">
+            <button id="dashboard-v2-weather-toggle" class="dashboard-v2-map-tool-button is-stroke-icon" type="button" aria-label="天气风险 开启" aria-pressed="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14a4 4 0 0 1 0-8 6 6 0 0 1 11-1 4.5 4.5 0 0 1 2 9H5M6 17l-2 4M12 17l-2 4M18 17l-2 4"/></svg>
+            </button>
+            <output id="dashboard-v2-weather-status" class="dashboard-v2-map-tool-status">天气风险 开启</output>
+          </div>
+          <div class="dashboard-v2-display-tool">
+            <button id="dashboard-v2-typhoon-toggle" class="dashboard-v2-map-tool-button is-stroke-icon" type="button" aria-label="台风 开启" aria-pressed="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4C6-2 1 11 7 17c5 5 13 1 11-6-2-6-10-5-10 1 0 4 5 5 7 2M4 20c8 6 17-2 15-9"/></svg>
+            </button>
+            <output id="dashboard-v2-typhoon-status" class="dashboard-v2-map-tool-status">台风 开启</output>
+          </div>
+        </nav>
       <aside
         id="dashboard-v2-info-drawer"
         class="dashboard-v2-info-drawer"
@@ -202,8 +214,17 @@
             <div class="dashboard-v2-info-state">数据加载中</div>
           </div>
           </section>
-        </section>
-        <button
+            <section class="dashboard-v2-info-section" aria-label="重要保障">
+              <div class="dashboard-v2-info-list-heading is-heavy-section">
+                <h3><span class="dashboard-v2-section-icon" aria-hidden="true">▣</span>重要保障</h3>
+                <span id="dashboard-v2-info-heavy-count">--</span>
+              </div>
+              <div id="dashboard-v2-info-heavy-list" class="dashboard-v2-info-fault-list">
+                <div class="dashboard-v2-info-state">数据加载中</div>
+              </div>
+            </section>
+          </section>
+          <button
           id="dashboard-v2-info-drawer-toggle"
           class="dashboard-v2-info-drawer-toggle"
           type="button"
@@ -255,9 +276,9 @@
           <label class="dashboard-v2-debug-simulation" for="dashboard-v2-debug-data-simulation">
             <span>
               <strong>数据模拟</strong>
-              <small>显示 5 条故障及 4 条今明割接</small>
+              <small>模拟故障、割接、重保及天气风险／台风图层</small>
             </span>
-            <input id="dashboard-v2-debug-data-simulation" type="checkbox" role="switch" aria-label="启用故障及割接数据模拟">
+            <input id="dashboard-v2-debug-data-simulation" type="checkbox" role="switch" aria-label="启用故障、割接及保障数据模拟">
             <i aria-hidden="true"></i>
           </label>
           <div class="dashboard-v2-debug-actions">
@@ -272,6 +293,6 @@
   </main>
 
   {{ dashboard_v2_config|json_script:"dashboard-v2-config" }}
-  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260911-peripheral-v2"></script>
+  <script type="module" src="{% static 'netbox_otnfaults/js/dashboard_v2/app.js' %}?v=20260916-compact-near"></script>
 </body>
 </html>
