@@ -885,7 +885,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             overview_source,
         )
         self.assertNotIn("withCableRectificationDisplayName", branch_source)
-        self.assertIn("statistics_dashboard.js' %}?v=47", template)
+        self.assertIn("statistics_dashboard.js' %}?v=48", template)
 
     def test_main_reason_chart_uses_rectification_display_alias_without_changing_filter_name(self) -> None:
         source = JS_PATH.read_text(encoding="utf-8")
@@ -919,7 +919,7 @@ class StatisticsCableBreakOverviewTestCase(unittest.TestCase):
             "chartReason.on('legendselectchanged', params => { updateExcludedSet('reason', params.selected);",
             source,
         )
-        self.assertIn("statistics_dashboard.js' %}?v=47", template)
+        self.assertIn("statistics_dashboard.js' %}?v=48", template)
 
     def test_physical_fault_summary_always_returns_all_categories_in_required_order(self) -> None:
         source = VIEWS_PATH.read_text(encoding="utf-8")

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone as dt_timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -60,8 +61,10 @@ def load_calculators() -> dict:
     for node in ast.parse(SOURCE).body:
         name = node.name if isinstance(node, ast.FunctionDef) else node.target.id if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) else None
         if name in names:
+            if isinstance(node, ast.FunctionDef):
+                node.decorator_list = []
             nodes.append(node)
-    env = {'datetime': datetime, 'timedelta': timedelta}
+    env = {'datetime': datetime, 'timedelta': timedelta, 'statistics_span': lambda name: nullcontext()}
     exec(compile('from __future__ import annotations\n' + ast.unparse(ast.Module(body=nodes, type_ignores=[])), '<statistics calculators>', 'exec'), env)
     return env
 

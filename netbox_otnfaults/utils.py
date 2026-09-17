@@ -68,19 +68,30 @@ def detect_repeat_faults(faults, past_faults, preceding_faults=None) -> RepeatFa
     past_list = list(past_faults)
     preceding_list = list(preceding_faults) if preceding_faults else []
 
-    all_faults = faults_list + past_list + preceding_list
+    fault_ids_set = {f.id for f in faults_list if getattr(f, 'id', None)}
+
+    # 去重合并候选故障，防止因上层传参重复导致候选集翻倍
+    all_faults_map = {}
+    for f in faults_list + past_list + preceding_list:
+        if getattr(f, 'id', None) is not None:
+            all_faults_map[f.id] = f
+    all_faults = list(all_faults_map.values())
     
     z_cache = {}
     for f in all_faults:
-        if f.id not in z_cache:
-            z_cache[f.id] = set(s.id for s in f.interruption_location.all())
+        f_id = f.id
+        if f_id not in z_cache:
+            try:
+                z_cache[f_id] = set(s.id for s in f.interruption_location.all())
+            except Exception:
+                z_cache[f_id] = set()
 
     buckets = {}
     
     def add_to_bucket(f):
-        if not f.is_fiber_fault or not f.fault_occurrence_time:
+        if not getattr(f, 'is_fiber_fault', False) or not getattr(f, 'fault_occurrence_time', None):
             return
-        a_id = f.interruption_location_a_id
+        a_id = getattr(f, 'interruption_location_a_id', None)
         if not a_id:
             return
         z_ids = z_cache.get(f.id, set())
@@ -103,15 +114,18 @@ def detect_repeat_faults(faults, past_faults, preceding_faults=None) -> RepeatFa
     ui_repeat_ids = set()
     matched_preceding_faults = []
 
+    SIXTY_DAYS_SECONDS = 60 * 86400
+
     for f in faults_list:
-        if not f.is_fiber_fault or not f.fault_occurrence_time:
+        if not getattr(f, 'is_fiber_fault', False) or not getattr(f, 'fault_occurrence_time', None):
             continue
         
-        a_id = f.interruption_location_a_id
+        a_id = getattr(f, 'interruption_location_a_id', None)
         z_ids = z_cache.get(f.id, set())
         
         is_kpi = False
         is_ui = False
+        f_time = f.fault_occurrence_time
         
         for z_id in z_ids:
             key = (a_id, z_id)
@@ -119,19 +133,21 @@ def detect_repeat_faults(faults, past_faults, preceding_faults=None) -> RepeatFa
                 continue
             
             bucket_faults = buckets[key]
-            f_time = f.fault_occurrence_time
-            
             for pf in bucket_faults:
                 if pf.id == f.id:
                     continue
                 
                 pf_time = pf.fault_occurrence_time
-                time_diff = f_time - pf_time
+                diff_sec = (f_time - pf_time).total_seconds()
                 
-                if 0 < time_diff.total_seconds() <= 60 * 86400:
+                # 若 pf_time 超过 f_time 60 天以上，后续的 pf_time 只会更晚，已不可能满足 <= 60 天
+                if diff_sec < -SIXTY_DAYS_SECONDS:
+                    break
+                
+                if 0 < diff_sec <= SIXTY_DAYS_SECONDS:
                     is_kpi = True
                 
-                if abs(time_diff.total_seconds()) <= 60 * 86400:
+                if abs(diff_sec) <= SIXTY_DAYS_SECONDS:
                     is_ui = True
                     
                 if is_kpi and is_ui:
@@ -141,28 +157,32 @@ def detect_repeat_faults(faults, past_faults, preceding_faults=None) -> RepeatFa
                 kpi_repeat_ids.add(f.id)
             if is_ui:
                 ui_repeat_ids.add(f.id)
+            if is_kpi and is_ui:
+                break
 
     matched_preceding_set = set()
     for pf in preceding_list:
-        if not pf.is_fiber_fault or not pf.fault_occurrence_time:
+        if not getattr(pf, 'is_fiber_fault', False) or not getattr(pf, 'fault_occurrence_time', None):
             continue
         
-        a_id = pf.interruption_location_a_id
+        a_id = getattr(pf, 'interruption_location_a_id', None)
         z_ids = z_cache.get(pf.id, set())
         
         matched = False
+        pf_time = pf.fault_occurrence_time
         for z_id in z_ids:
             key = (a_id, z_id)
             if key not in buckets:
                 continue
             
             bucket_faults = buckets[key]
-            pf_time = pf.fault_occurrence_time
-            
             for cf in bucket_faults:
-                if cf.id != pf.id and cf in faults_list:
-                    time_diff = cf.fault_occurrence_time - pf_time
-                    if 0 < time_diff.total_seconds() <= 60 * 86400:
+                # 使用 fault_ids_set O(1) 替代原本的 cf in faults_list O(N) 扫描
+                if cf.id != pf.id and cf.id in fault_ids_set:
+                    diff_sec = (cf.fault_occurrence_time - pf_time).total_seconds()
+                    if diff_sec < -SIXTY_DAYS_SECONDS:
+                        continue
+                    if 0 < diff_sec <= SIXTY_DAYS_SECONDS:
                         matched = True
                         break
             if matched:
@@ -177,3 +197,4 @@ def detect_repeat_faults(faults, past_faults, preceding_faults=None) -> RepeatFa
         ui_repeat_ids=ui_repeat_ids,
         matched_preceding_faults=matched_preceding_faults
     )
+

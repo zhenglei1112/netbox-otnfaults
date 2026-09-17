@@ -2,6 +2,8 @@
  * 故障统计交互脚本
  */
 document.addEventListener("DOMContentLoaded", function() {
+    const diagnostics = window.StatisticsDiagnostics;
+    const fetch = diagnostics ? diagnostics.fetch : window.fetch.bind(window);
     const chartLineSupervisorCountElement = document.getElementById('chart-line-supervisor-count');
     let chartLineSupervisorCount = chartLineSupervisorCountElement ? echarts.init(chartLineSupervisorCountElement) : null;
     const chartLineSupervisorDurationElement = document.getElementById('chart-line-supervisor-duration');
@@ -24,8 +26,64 @@ document.addEventListener("DOMContentLoaded", function() {
     let activeLineSupervisorFilterExtraValue = null;
     let activeLineSupervisorFilterLabel = null;
     let activeLineSupervisorDetailScope = null;
+    let loadDataRequest = 0;
     let supervisorDetailsRequest = 0;
+    let faultDetailsRequest = 0;
+    let branchDetailsRequest = 0;
+    let dataLoadState = 'idle';
+    let activeDataSnapshotKey = null;
+    let loadedDetailSnapshots = {
+        physical: null,
+        branch: null,
+        supervisor: null,
+    };
+    let loadedDetailTabs = new Set();
+    let currentDataSnapshotKey = '';
     let supervisorOrdering = '-fault_occurrence_time';
+
+    function getFilterSnapshot() {
+        const type = selFilterType ? selFilterType.value : 'year';
+        const selectedDate = inputDate ? inputDate.value : '';
+        const provinces = typeof getSelectedPhysicalProvinces === 'function' ? getSelectedPhysicalProvinces() : [];
+        const provincesSorted = provinces.slice().sort();
+        const key = `${type}|${selectedDate}|${provincesSorted.join(',')}`;
+        const selectedDateParts = selectedDate.split('-').map(Number);
+        return {
+            key,
+            type,
+            date: selectedDate,
+            year: selectedDateParts[0],
+            month: selectedDateParts[1],
+            provinces: provincesSorted,
+            timeParams: buildTimeParams(selectedDate),
+            provinceParams: buildPhysicalProvinceParams(),
+        };
+    }
+
+    function getFilterSnapshotKey() {
+        return getFilterSnapshot().key;
+    }
+
+    function getActiveTabType() {
+        const activeTab = document.querySelector('#statisticsTab .nav-link.active');
+        if (!activeTab) return 'physical';
+        if (activeTab.id === 'tab-line-supervisor-btn') return 'supervisor';
+        if (activeTab.id === 'tab-branch-company-btn' || activeTab.id === 'tab-branch-performance-btn') return 'branch';
+        if (activeTab.id === 'tab-service-btn' || activeTab.id === 'tab-circuit-service-btn') return 'service';
+        return 'physical';
+    }
+
+    function loadActiveTabDetails(snapshot) {
+        snapshot = snapshot || getFilterSnapshot();
+        const tabType = getActiveTabType();
+        if (tabType === 'physical') {
+            loadFaultDetails(snapshot);
+        } else if (tabType === 'branch') {
+            loadBranchDetails(snapshot);
+        } else if (tabType === 'supervisor') {
+            loadSupervisorDetails(snapshot);
+        }
+    }
 
     // ---------------- 图表实例初始化 ----------------
     let chartResource = echarts.init(document.getElementById('chart-resource'));
@@ -957,8 +1015,19 @@ document.addEventListener("DOMContentLoaded", function() {
     // ---------------- 获取物理故障数据 ----------------
     async function loadData() {
         showGlobalLoading();
-        const selectedDateParts = inputDate.value.split('-').map(Number);
-        let url = `${window.STATISTICS_DATA_API}?${buildTimeParams()}&calendar_year=${selectedDateParts[0]}&calendar_month=${selectedDateParts[1]}`;
+        const requestId = ++loadDataRequest;
+        const snapshot = getFilterSnapshot();
+        dataLoadState = 'loading';
+        // 周期切换或刷新时，使所有明细在途请求立即失效，并重置加载状态
+        ++faultDetailsRequest;
+        ++branchDetailsRequest;
+        ++supervisorDetailsRequest;
+        loadedDetailTabs.clear();
+        loadedDetailSnapshots.physical = null;
+        loadedDetailSnapshots.branch = null;
+        loadedDetailSnapshots.supervisor = null;
+
+        let url = `${window.STATISTICS_DATA_API}?${snapshot.timeParams}&calendar_year=${snapshot.year}&calendar_month=${snapshot.month}`;
         url += buildPhysicalProvinceParams();
 
         try {
@@ -966,6 +1035,16 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!response.ok) throw new Error('Network response error');
             const data = await response.json();
             
+            // [P1] 乱序竞争保护：若已有更新的汇总请求发出，直接丢弃旧响应
+            if (requestId !== loadDataRequest) {
+                return;
+            }
+
+            dataLoadState = 'success';
+            activeDataSnapshotKey = snapshot.key;
+            currentDataSnapshotKey = snapshot.key;
+            loadedDetailTabs.clear();
+
             if (data.period && data.period.start) {
                 const periodEl = document.getElementById('period-display');
                 periodEl.innerHTML = formatStatisticsPeriodLabel(selFilterType.value, inputDate.value, data.period);
@@ -1012,15 +1091,22 @@ document.addEventListener("DOMContentLoaded", function() {
             renderRingCharts(data.charts);
             renderBareFiberInterruption(data.bare_fiber_interruption, data.prev_bare_fiber_interruption, data.yoy_bare_fiber_interruption);
 
-            // 异步加载明细分页
-            loadFaultDetails();
-            loadBranchDetails();
-            loadSupervisorDetails();
+            // [P1] 透传当前生效快照给激活 Tab 明细
+            loadActiveTabDetails(snapshot);
         } catch (error) {
+            if (requestId !== loadDataRequest) {
+                return;
+            }
+            // [P2] 失败时置为 failed 并清除快照，切 Tab 时允许重试
+            dataLoadState = 'failed';
+            activeDataSnapshotKey = null;
+            currentDataSnapshotKey = '';
             console.error('Fetch error:', error);
             document.getElementById('details-tbody').innerHTML = '<tr><td colspan="12" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         } finally {
-            hideGlobalLoading();
+            if (requestId === loadDataRequest) {
+                hideGlobalLoading();
+            }
         }
     }
 
@@ -1596,6 +1682,14 @@ document.addEventListener("DOMContentLoaded", function() {
         const isInline = isBareFiber || simpleDiffOnly;
 
         let trendEl = metricTrendContainer.parentElement.querySelector('.statistics-metric-trend');
+        const unit = metricTrendContainer.querySelector('.statistics-overall-kpi-unit')?.textContent.trim() || '';
+        const effectiveShortFormat = isInline ? true : shortFormat;
+        const trendHtml = buildComparisonTrendHtml(currentValue, previousValue, yoyValue, integer, effectiveShortFormat, unit, simpleDiffOnly);
+        // 未展示同比/环比时移除趋势行，避免最小高度和外边距形成空白。
+        if (!trendHtml) {
+            if (trendEl) trendEl.remove();
+            return;
+        }
         if (!trendEl) {
             if (isInline) {
                 // 行内展示（裸纤卡片或故障等级彩卡），挂在指标行内右侧，作为 span
@@ -1609,15 +1703,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 metricTrendContainer.parentElement.insertBefore(trendEl, metricTrendContainer.nextSibling);
             }
         }
-        let unit = "";
-        if (metricTrendContainer) {
-            const unitEl = metricTrendContainer.querySelector('.statistics-overall-kpi-unit');
-            if (unitEl) {
-                unit = unitEl.textContent.trim();
-            }
-        }
-        const effectiveShortFormat = isInline ? true : shortFormat;
-        trendEl.innerHTML = buildComparisonTrendHtml(currentValue, previousValue, yoyValue, integer, effectiveShortFormat, unit, simpleDiffOnly);
+        trendEl.innerHTML = trendHtml;
     }
 
     function inferMetricType(unit, title) {
@@ -3580,8 +3666,10 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    async function loadSupervisorDetails() {
-        let url = `${window.STATISTICS_DETAILS_API}?${buildTimeParams()}&ordering=${supervisorOrdering}&scope=line_supervisor`;
+    async function loadSupervisorDetails(snapshot) {
+        snapshot = snapshot || getFilterSnapshot();
+        const snapshotKey = snapshot.key;
+        let url = `${window.STATISTICS_DETAILS_API}?${snapshot.timeParams}&ordering=${supervisorOrdering}&scope=line_supervisor`;
         const requestId = ++supervisorDetailsRequest;
         if (activeLineSupervisorDetailScope) url += `&detail_scope=${activeLineSupervisorDetailScope}`;
 
@@ -3599,11 +3687,14 @@ document.addEventListener("DOMContentLoaded", function() {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response error');
             const data = await response.json();
-            if (requestId !== supervisorDetailsRequest) return;
+            // [P1 & P2] 校验序号与快照一致性：若周期已改变、汇总未就绪或有新请求，丢弃旧响应
+            if (requestId !== supervisorDetailsRequest || dataLoadState !== 'success' || snapshotKey !== activeDataSnapshotKey) return;
             currentLineSupervisorDetails = data.results || [];
+            loadedDetailSnapshots.supervisor = snapshotKey;
+            loadedDetailTabs.add('supervisor');
             renderLineSupervisorDetailsTable();
         } catch (error) {
-            if (requestId !== supervisorDetailsRequest) return;
+            if (requestId !== supervisorDetailsRequest || dataLoadState !== 'success' || snapshotKey !== activeDataSnapshotKey) return;
             console.error('Fetch branch details error:', error);
             tbody.innerHTML = '<tr><td colspan="12" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         }
@@ -3834,8 +3925,11 @@ document.addEventListener("DOMContentLoaded", function() {
         return groups.flat();
     }
 
-    async function loadFaultDetails() {
-        let url = `${window.STATISTICS_DETAILS_API}?${buildTimeParams()}&ordering=${faultOrdering}`;
+    async function loadFaultDetails(snapshot) {
+        snapshot = snapshot || getFilterSnapshot();
+        const snapshotKey = snapshot.key;
+        let url = `${window.STATISTICS_DETAILS_API}?${snapshot.timeParams}&ordering=${faultOrdering}`;
+        const requestId = ++faultDetailsRequest;
         url += buildPhysicalProvinceParams();
         if (activeFilterScope) {
             url += `&detail_scope=${encodeURIComponent(activeFilterScope)}`;
@@ -3854,10 +3948,15 @@ document.addEventListener("DOMContentLoaded", function() {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response error');
             const data = await response.json();
+            // [P1 & P2] 校验序号与快照一致性
+            if (requestId !== faultDetailsRequest || dataLoadState !== 'success' || snapshotKey !== activeDataSnapshotKey) return;
             currentAllDetails = data.results || [];
             currentFaultDetailsSummary = data.summary || null;
+            loadedDetailSnapshots.physical = snapshotKey;
+            loadedDetailTabs.add('physical');
             renderDetailsTable();
         } catch (error) {
+            if (requestId !== faultDetailsRequest || dataLoadState !== 'success' || snapshotKey !== activeDataSnapshotKey) return;
             console.error('Fetch details error:', error);
             tbody.innerHTML = '<tr><td colspan="12" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         }
@@ -4117,8 +4216,11 @@ document.addEventListener("DOMContentLoaded", function() {
         }).join('');
     }
 
-    async function loadBranchDetails() {
-        let url = `${window.STATISTICS_DETAILS_API}?${buildTimeParams()}&ordering=${branchOrdering}&scope=branch_company`;
+    async function loadBranchDetails(snapshot) {
+        snapshot = snapshot || getFilterSnapshot();
+        const snapshotKey = snapshot.key;
+        let url = `${window.STATISTICS_DETAILS_API}?${snapshot.timeParams}&ordering=${branchOrdering}&scope=branch_company`;
+        const requestId = ++branchDetailsRequest;
 
         if (activeBranchCompanyFilterField && activeBranchCompanyFilterValue !== null) {
             url += `&${activeBranchCompanyFilterField}=${encodeURIComponent(activeBranchCompanyFilterValue)}`;
@@ -4134,9 +4236,14 @@ document.addEventListener("DOMContentLoaded", function() {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response error');
             const data = await response.json();
+            // [P1 & P2] 校验序号与快照一致性
+            if (requestId !== branchDetailsRequest || dataLoadState !== 'success' || snapshotKey !== activeDataSnapshotKey) return;
             currentBranchCompanyDetails = data.results || [];
+            loadedDetailSnapshots.branch = snapshotKey;
+            loadedDetailTabs.add('branch');
             renderBranchCompanyDetailsTable();
         } catch (error) {
+            if (requestId !== branchDetailsRequest || dataLoadState !== 'success' || snapshotKey !== activeDataSnapshotKey) return;
             console.error('Fetch branch details error:', error);
             tbody.innerHTML = '<tr><td colspan="12" class="text-danger text-center py-4">数据加载失败，请检查网络或刷新重试</td></tr>';
         }
@@ -5185,13 +5292,21 @@ document.addEventListener("DOMContentLoaded", function() {
                 loadServiceData({
                     includeAllBareFiber: event.target.id === 'tab-service-btn' && bareFiberServiceCardScope === 'all',
                 });
-            } else if (event.target.id === 'tab-line-supervisor-btn' || event.target.id === 'tab-branch-company-btn' || event.target.id === 'tab-branch-performance-btn') {
-                loadData();
-                setTimeout(() => {
-                    resizeStatisticsCharts();
-                }, 100);
-            } else if (event.target.id === 'tab-physical-btn') {
-                loadData();
+            } else {
+                const snapKey = getFilterSnapshotKey();
+                // [P3] 若汇总未成功或筛选快照不匹配，重新拉取汇总数据（切 Tab 允许重试失败请求）
+                if (dataLoadState !== 'success' || activeDataSnapshotKey !== snapKey || currentDataSnapshotKey !== snapKey) {
+                    loadData();
+                } else {
+                    // [P2] 汇总已就绪，仅按需拉取当前快照下尚未加载的明细
+                    if (event.target.id === 'tab-physical-btn') {
+                        if (loadedDetailSnapshots.physical !== activeDataSnapshotKey) loadFaultDetails();
+                    } else if (event.target.id === 'tab-branch-company-btn' || event.target.id === 'tab-branch-performance-btn') {
+                        if (loadedDetailSnapshots.branch !== activeDataSnapshotKey) loadBranchDetails();
+                    } else if (event.target.id === 'tab-line-supervisor-btn') {
+                        if (loadedDetailSnapshots.supervisor !== activeDataSnapshotKey) loadSupervisorDetails();
+                    }
+                }
                 setTimeout(() => {
                     resizeStatisticsCharts();
                 }, 100);
@@ -5203,6 +5318,31 @@ document.addEventListener("DOMContentLoaded", function() {
     syncBareFiberServiceCardScopeToggle();
     syncPhysicalProvinceFilterVisibility();
     updateDateSelectors();
+    // Debug-only wrappers retain the normal synchronous render behavior.
+    if (diagnostics && diagnostics.enabled) {
+        renderKPIs = diagnostics.wrap("renderKPIs", renderKPIs);
+        renderImpactLevelOverview = diagnostics.wrap("renderImpactLevelOverview", renderImpactLevelOverview);
+        renderOverallSummary = diagnostics.wrap("renderOverallSummary", renderOverallSummary);
+        renderOverallOtherSummary = diagnostics.wrap("renderOverallOtherSummary", renderOverallOtherSummary);
+        renderOverallDailyFaultChart = diagnostics.wrap("renderOverallDailyFaultChart", renderOverallDailyFaultChart);
+        renderPhysicalDurationBoxplot = diagnostics.wrap("renderPhysicalDurationBoxplot", renderPhysicalDurationBoxplot);
+        renderCableBreakOverview = diagnostics.wrap("renderCableBreakOverview", renderCableBreakOverview);
+        renderBareFiberInterruption = diagnostics.wrap("renderBareFiberInterruption", renderBareFiberInterruption);
+        renderCharts = diagnostics.wrap("renderCharts", renderCharts);
+        renderRingCharts = diagnostics.wrap("renderRingCharts", renderRingCharts);
+        renderBranchCompanySection = diagnostics.wrap("renderBranchCompanySection", renderBranchCompanySection);
+        renderBranchCompanyPerformanceCards = diagnostics.wrap("renderBranchCompanyPerformanceCards", renderBranchCompanyPerformanceCards);
+        renderLineSupervisorSection = diagnostics.wrap("renderLineSupervisorSection", renderLineSupervisorSection);
+        renderLineSupervisorDetailsTable = diagnostics.wrap("renderLineSupervisorDetailsTable", renderLineSupervisorDetailsTable);
+        assignRepeatGroupColors = diagnostics.wrap("assignRepeatGroupColors", assignRepeatGroupColors);
+        sortDetailRows = diagnostics.wrap("sortDetailRows", sortDetailRows);
+        renderDetailsTable = diagnostics.wrap("renderDetailsTable", renderDetailsTable);
+        renderBranchCompanyDetailsTable = diagnostics.wrap("renderBranchCompanyDetailsTable", renderBranchCompanyDetailsTable);
+        renderBareFiberServiceCards = diagnostics.wrap("renderBareFiberServiceCards", renderBareFiberServiceCards);
+        renderServiceCards = diagnostics.wrap("renderServiceCards", renderServiceCards);
+        renderServiceDetailsTableHtml = diagnostics.wrap("renderServiceDetailsTableHtml", renderServiceDetailsTableHtml);
+    }
+
     loadData();
 });
 

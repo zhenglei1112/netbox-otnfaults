@@ -12,6 +12,8 @@ class OtnFaultsConfig(PluginConfig):
     # 全局加载的CSS文件（所有页面都会引入）
     css = ['netbox_otnfaults/css/duration_bar.css']
     default_settings = {
+        # 管理员按请求启用故障统计性能诊断，常规请求不记录。
+        'statistics_diagnostics': False,
         # Stadia Maps API 密钥（请在 configuration.py 中配置实际值）
         'map_api_key': '',
         # 地图默认中心点 [经度, 纬度]
