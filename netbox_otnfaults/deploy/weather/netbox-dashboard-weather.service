@@ -1,0 +1,21 @@
+[Unit]
+Description=NetBox Dashboard V2 weather and typhoon cache sync
+Wants=network-online.target
+After=network-online.target redis-server.service
+
+[Service]
+Type=oneshot
+User=netbox
+Group=netbox
+WorkingDirectory=/opt/netbox
+EnvironmentFile=/etc/netbox-dashboard-weather.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/netbox/venv/bin/python /opt/netbox-weather/sync.py
+TimeoutStartSec=65min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+UMask=0077
+StandardOutput=journal
+StandardError=journal

@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh NetBox Dashboard V2 weather every 10 minutes
+
+[Timer]
+OnCalendar=*:0/10
+Persistent=true
+RandomizedDelaySec=20
+Unit=netbox-dashboard-weather.service
+
+[Install]
+WantedBy=timers.target
