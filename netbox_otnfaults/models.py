@@ -1555,7 +1555,7 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
         return None
 
     @property
-    def timeline_data(self):
+    def timeline_data(self) -> dict:
         """
         返回时间轴需要的数据
         """
@@ -1597,6 +1597,8 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
             times.append(self.closure_time)
             labels.append('封包完成时间')
         
+        current_year = timezone.localtime().year
+        previous_local = None
         steps = []
         for i in range(len(times)):
             t = times[i]
@@ -1608,11 +1610,16 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
             highlight_date = ''
             highlight_time = time_str
 
-            # 首尾高亮节点单独拆分日期行与时间行，避免依赖空白占位在宽屏下失效
-            if dt_local and self.fault_occurrence_time and i in (0, 4):
-                occur_local = timezone.localtime(self.fault_occurrence_time)
-                if i == 0 or dt_local.date() != occur_local.date():
+            # 各阶段与前一个有效时间比较，跨日显示日期，跨年始终显示年份。
+            if dt_local:
+                if previous_local is None or dt_local.date() != previous_local.date():
                     highlight_date = f"{dt_local.month}月{dt_local.day}日"
+                    if (
+                        (previous_local is None and dt_local.year != current_year)
+                        or (previous_local is not None and dt_local.year != previous_local.year)
+                    ):
+                        highlight_date = f"{dt_local.year}年{highlight_date}"
+                previous_local = dt_local
             
             # 历时计算仅限前 4 个间隔（即截止到“故障恢复”前）
             duration_to_next = ""

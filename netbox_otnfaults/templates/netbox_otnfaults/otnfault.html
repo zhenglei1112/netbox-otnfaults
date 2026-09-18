@@ -256,6 +256,7 @@
               <div class="timeline-label fw-semibold text-body mb-0" style="font-size: 0.75rem; line-height: 1.1; margin-top: 0; word-wrap: break-word; overflow-wrap: break-word; hyphens: auto; text-align: center;">{{ step.label }}</div>
               {% if not forloop.first and forloop.counter != 5 %}
               <div class="timeline-time text-muted" style="font-size: 0.7rem; font-family: var(--bs-font-monospace); line-height: 1.1; text-align: center;">
+                {% if step.highlight_date %}<div>{{ step.highlight_date }}</div>{% endif %}
                 {{ step.time|default:"—" }}
               </div>
               {% endif %}
