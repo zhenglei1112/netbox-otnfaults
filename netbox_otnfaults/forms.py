@@ -1172,10 +1172,14 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         required=False,
         label='处理状态'
     )
-    is_suspended = forms.BooleanField(
+    is_suspended = forms.NullBooleanField(
         required=False,
         label='挂起',
-        help_text='该故障为挂起故障，不计入故障时长统计'
+        widget=forms.Select(choices=[
+            ('', '不涉及'),
+            ('true', '挂起'),
+            ('false', '未挂起'),
+        ])
     )
     timeout = forms.BooleanField(
         required=False,
