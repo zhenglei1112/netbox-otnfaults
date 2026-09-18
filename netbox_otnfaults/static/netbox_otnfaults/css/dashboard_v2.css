@@ -360,7 +360,8 @@ body {
 
 .dashboard-v2-fault-focus-location {
   position: absolute;
-  bottom: 34px;
+  /* Keep the name close to the 22px marker core, inside the decorative rings. */
+  bottom: 18px;
   left: 50%;
   max-width: 130px;
   overflow: hidden;
@@ -608,7 +609,7 @@ body {
 }
 
 .dashboard-v2-fault-focus.is-location-below .dashboard-v2-fault-focus-location {
-  top: 34px;
+  top: 18px;
   bottom: auto;
 }
 

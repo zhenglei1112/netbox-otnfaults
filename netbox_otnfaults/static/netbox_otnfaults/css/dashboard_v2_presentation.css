@@ -121,8 +121,8 @@
 .is-presentation .dashboard-v2-fault-callout .dashboard-v2-fault-callout-route { font-size: calc(20px * var(--presentation-scale)); line-height: 1.4; }
 .is-presentation .dashboard-v2-fault-callout .dashboard-v2-fault-callout-meta,
 .is-presentation .dashboard-v2-fault-callout .dashboard-v2-fault-callout-business { font-size: calc(16px * var(--presentation-scale)); line-height: 1.4; }
-.is-presentation .dashboard-v2-fault-focus-location { font-size: calc(20px * var(--presentation-scale)); max-width: calc(260px * var(--presentation-scale)); bottom: calc(55px * var(--presentation-scale)); }
-.is-presentation .is-location-below .dashboard-v2-fault-focus-location { top: calc(55px * var(--presentation-scale)); bottom: auto; }
+.is-presentation .dashboard-v2-fault-focus-location { font-size: calc(20px * var(--presentation-scale)); max-width: calc(260px * var(--presentation-scale)); bottom: calc(25px * var(--presentation-scale)); }
+.is-presentation .is-location-below .dashboard-v2-fault-focus-location { top: calc(25px * var(--presentation-scale)); bottom: auto; }
 .is-presentation .dashboard-v2-fault-focus-core { width: calc(35px * var(--presentation-scale)); height: calc(35px * var(--presentation-scale)); font-size: calc(22px * var(--presentation-scale)); }
 .is-presentation .dashboard-v2-fault-focus-ring.is-1 { width: calc(51px * var(--presentation-scale)); height: calc(51px * var(--presentation-scale)); }
 .is-presentation .dashboard-v2-fault-focus-ring.is-2 { width: calc(70px * var(--presentation-scale)); height: calc(70px * var(--presentation-scale)); }
