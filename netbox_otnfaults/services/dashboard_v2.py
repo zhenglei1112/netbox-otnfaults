@@ -89,6 +89,7 @@ def build_dashboard_v2_data(sites_version: str | None = None, user: Any = None) 
         ),
     )
     active_business_interruptions = OtnFaultImpact.objects.filter(
+        otn_fault__fault_status=FaultStatusChoices.PROCESSING,
         business_impact=BusinessImpactChoices.INTERRUPTED,
         service_recovery_time__isnull=True,
     ).count()
