@@ -1599,6 +1599,7 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
         
         current_year = timezone.localtime().year
         previous_local = None
+        first_local = timezone.localtime(times[0]) if times[0] else None
         steps = []
         for i in range(len(times)):
             t = times[i]
@@ -1611,13 +1612,22 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
             highlight_time = time_str
 
             # 各阶段与前一个有效时间比较，跨日显示日期，跨年始终显示年份。
+            # 额外规则：故障恢复节点(index 4)若与故障起始节点不同日，也强制显示日期。
             if dt_local:
-                if previous_local is None or dt_local.date() != previous_local.date():
+                cross_day = (previous_local is None or dt_local.date() != previous_local.date())
+                recovery_cross_start = (
+                    i == 4
+                    and first_local is not None
+                    and dt_local.date() != first_local.date()
+                )
+                if cross_day or recovery_cross_start:
                     highlight_date = f"{dt_local.month}月{dt_local.day}日"
-                    if (
+                    show_year = (
                         (previous_local is None and dt_local.year != current_year)
                         or (previous_local is not None and dt_local.year != previous_local.year)
-                    ):
+                        or (recovery_cross_start and first_local is not None and dt_local.year != first_local.year)
+                    )
+                    if show_year:
                         highlight_date = f"{dt_local.year}年{highlight_date}"
                 previous_local = dt_local
             

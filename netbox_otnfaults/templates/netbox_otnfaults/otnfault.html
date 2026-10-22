@@ -1,5 +1,6 @@
 {% extends 'generic/object.html' %}
 {% load plugins %}
+{% load static %}
 {% load render_table from django_tables2 %}
 {% load i18n %}
 {% load l10n %}
@@ -660,6 +661,7 @@
       <div class="site-faults-table-container">
         {% render_table site_faults_table %}
       </div>
+      <script src="{% static 'netbox_otnfaults/js/site_history_location_pair.js' %}" defer></script>
 
       {% if site_faults_table.page %}
       <div class="card-footer d-flex justify-content-between align-items-center noprint">

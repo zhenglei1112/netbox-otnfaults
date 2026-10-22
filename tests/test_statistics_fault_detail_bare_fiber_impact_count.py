@@ -87,7 +87,7 @@ class StatisticsFaultDetailBareFiberImpactCountTestCase(unittest.TestCase):
         )[1].split("async function loadBranchDetails()", 1)[0]
         for rows_source in (physical_rows, branch_rows):
             station_position = rows_source.index(
-                "<td><small>${item.site_a}${item.site_z ? "
+                "<td><small>${formatFaultSites(item)}"
             )
             impact_position = rows_source.index(
                 "<td>${formatBareFiberImpactCount(item.bare_fiber_impact_count)}</td>"

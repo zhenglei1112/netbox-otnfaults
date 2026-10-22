@@ -5,13 +5,8 @@ menu = PluginMenu(
     groups=(
         ('运行态势', (
             PluginMenuItem(
-                link='plugins:netbox_otnfaults:dashboard',
-                link_text='态势大屏',
-                permissions=['netbox_otnfaults.view_otnfault'],
-            ),
-            PluginMenuItem(
                 link='plugins:netbox_otnfaults:dashboard_v2',
-                link_text='态势大屏（新版）',
+                link_text='态势大屏',
                 permissions=['netbox_otnfaults.view_otnfault'],
             ),
             PluginMenuItem(

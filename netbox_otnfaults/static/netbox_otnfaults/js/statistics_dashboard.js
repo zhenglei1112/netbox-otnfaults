@@ -2,6 +2,17 @@
  * 故障统计交互脚本
  */
 document.addEventListener("DOMContentLoaded", function() {
+    const siteNameCollator = new Intl.Collator('zh-CN-u-co-pinyin', { sensitivity: 'base' });
+
+    function formatFaultSites(item) {
+        let a = item.site_a || '';
+        let z = item.site_z || '';
+        if (a && z && item.site_z_count === 1 && siteNameCollator.compare(a.trim(), z.trim()) > 0) {
+            [a, z] = [z, a];
+        }
+        return escapeHtml(a) + (z ? ' &rarr; ' + escapeHtml(z) : '');
+    }
+
     const diagnostics = window.StatisticsDiagnostics;
     const fetch = diagnostics ? diagnostics.fetch : window.fetch.bind(window);
     const chartLineSupervisorCountElement = document.getElementById('chart-line-supervisor-count');
@@ -1002,7 +1013,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     <td>${item.category}</td>
                     <td>${item.province}</td>
                     <td>${item.reason}</td>
-                    <td><small>${item.site_a}${item.site_z ? ' &rarr; ' + item.site_z : ''}</small></td>
+                    <td><small>${formatFaultSites(item)}</small></td>
                     <td>${note}</td>
                 </tr>`;
             }).join('');
@@ -4146,7 +4157,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <td>${item.resource_type}</td>
                 <td>${item.province}</td>
                 <td>${item.reason}</td>
-                <td><small>${item.site_a}${item.site_z ? ' &rarr; ' + item.site_z : ''}</small></td>
+                <td><small>${formatFaultSites(item)}</small></td>
                 <td>${formatBareFiberImpactCount(item.bare_fiber_impact_count)}</td>
                 <td>${badges}</td>
             </tr>`;
@@ -4209,7 +4220,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <td>${item.resource_type}</td>
                 <td>${item.province}</td>
                 <td>${item.reason}</td>
-                <td><small>${item.site_a}${item.site_z ? ' &rarr; ' + item.site_z : ''}</small></td>
+                <td><small>${formatFaultSites(item)}</small></td>
                 <td>${formatBareFiberImpactCount(item.bare_fiber_impact_count)}</td>
                 <td>${badges}</td>
             </tr>`;

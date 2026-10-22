@@ -43,7 +43,7 @@ class NavigationMenuTestCase(unittest.TestCase):
 
         expected_links_by_group = {
             "运行态势": [
-                "dashboard",
+                "dashboard_v2",
                 "otnfault_map_globe",
                 "statistics",
             ],

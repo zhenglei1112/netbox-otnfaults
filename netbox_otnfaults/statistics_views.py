@@ -3321,6 +3321,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 'reason': fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知',
                 'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
                 'site_z': ', '.join(z_site_names),
+                'site_z_count': len(z_site_names),
                 'is_repeat': fault.id in ui_repeat_ids,
                 'bare_fiber_impact_count': int(
                     getattr(fault, 'bare_fiber_impact_count', 0) or 0
@@ -3349,6 +3350,7 @@ class FaultStatisticsDetailsAPI(PermissionRequiredMixin, View):
                 'reason': fault.get_interruption_reason_display() if fault.interruption_reason else '未填/未知',
                 'site_a': fault.interruption_location_a.name if fault.interruption_location_a else '',
                 'site_z': ', '.join(z_site_names),
+                'site_z_count': len(z_site_names),
                 'is_repeat': True,
                 'bare_fiber_impact_count': int(
                     getattr(fault, 'bare_fiber_impact_count', 0) or 0
@@ -3421,6 +3423,7 @@ class FaultRepeatsAPI(PermissionRequiredMixin, View):
                 'reason': f.get_interruption_reason_display() if f.interruption_reason else '未填/未知',
                 'site_a': f.interruption_location_a.name if f.interruption_location_a else '',
                 'site_z': ', '.join(z_site_names),
+                'site_z_count': len(z_site_names),
                 'is_repeat': True,
                 'is_long': duration_hours >= 6.0,
                 'url': f.get_absolute_url(),

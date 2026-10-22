@@ -1295,13 +1295,10 @@ class CircuitServiceTable(NetBoxTable):
 
 class SiteHistoryFaultTable(ContractOtnFaultTable):
     """站点历史故障表格 - 用于故障详情页展示同站点发生的历史故障"""
-    interruption_location_a = tables.Column(
-        linkify=True,
-        verbose_name='故障位置A端'
-    )
-    interruption_location = columns.ManyToManyColumn(
-        linkify_item=True,
-        verbose_name='故障位置Z端'
+    location_pair = tables.TemplateColumn(
+        template_name='netbox_otnfaults/inc/site_history_location_pair.html',
+        verbose_name='故障位置（A/Z端站点）',
+        orderable=False,
     )
     progress = tables.Column(
         verbose_name='处理进度',
@@ -1310,12 +1307,13 @@ class SiteHistoryFaultTable(ContractOtnFaultTable):
     )
 
     class Meta(ContractOtnFaultTable.Meta):
+        exclude = ('id', 'interruption_location_a', 'interruption_location')
         fields = (
-            'pk', 'fault_number', 'fault_category', 'interruption_location_a', 'interruption_location',
+            'pk', 'fault_number', 'fault_category', 'location_pair',
             'fault_occurrence_time', 'fault_duration', 'fault_status', 'progress',
         )
         default_columns = (
-            'fault_number', 'fault_category', 'interruption_location_a', 'interruption_location',
+            'fault_number', 'fault_category', 'location_pair',
             'fault_occurrence_time', 'fault_duration', 'fault_status', 'progress',
         )
 
