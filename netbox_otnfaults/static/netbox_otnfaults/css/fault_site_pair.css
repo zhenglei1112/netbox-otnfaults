@@ -1,0 +1,38 @@
+  .otn-fault-sites {
+    font-size: 0.72rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .otn-fault-site-tag {
+    font-size: 0.68rem;
+    padding: 1px 5px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .otn-fault-site-tag-a {
+    color: #0284c7;
+    border: 1px solid rgba(14, 165, 233, 0.3);
+    background-color: rgba(14, 165, 233, 0.08);
+  }
+  html[data-bs-theme="dark"] .otn-fault-site-tag-a {
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.3);
+    background-color: rgba(56, 189, 248, 0.08);
+  }
+  .otn-fault-site-tag-z {
+    color: #15803d;
+    border: 1px solid rgba(22, 163, 74, 0.3);
+    background-color: rgba(22, 163, 74, 0.08);
+  }
+  html[data-bs-theme="dark"] .otn-fault-site-tag-z {
+    color: #4ade80;
+    border-color: rgba(74, 222, 128, 0.3);
+    background-color: rgba(74, 222, 128, 0.08);
+  }
+
+.otn-fault-site-tag a { color: inherit; }
+.otn-fault-site-arrow { font-size: 0.65rem; }

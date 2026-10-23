@@ -10,7 +10,11 @@ document.addEventListener("DOMContentLoaded", function() {
         if (a && z && item.site_z_count === 1 && siteNameCollator.compare(a.trim(), z.trim()) > 0) {
             [a, z] = [z, a];
         }
-        return escapeHtml(a) + (z ? ' &rarr; ' + escapeHtml(z) : '');
+        const aTag = `<span class="otn-fault-site-tag otn-fault-site-tag-a"><strong>A:</strong> ${escapeHtml(a || '—')}</span>`;
+        const zTag = z
+            ? `<span class="text-muted otn-fault-site-arrow"><i class="mdi mdi-arrow-right" aria-hidden="true"></i></span><span class="otn-fault-site-tag otn-fault-site-tag-z"><strong>Z:</strong> ${escapeHtml(z)}</span>`
+            : '';
+        return `<span class="otn-fault-sites">${aTag}${zTag}</span>`;
     }
 
     const diagnostics = window.StatisticsDiagnostics;

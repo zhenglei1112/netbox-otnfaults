@@ -1,7 +1,9 @@
 {% with a_site=record.interruption_location_a z_sites=record.interruption_location.all %}
-<span data-site-history-pair>
-  <span data-endpoint="a">{% if a_site %}<a href="{{ a_site.get_absolute_url }}">{{ a_site.name }}</a>{% else %}—{% endif %}</span>
-  <span class="text-muted mx-1">-&gt;</span>
-  <span data-endpoint="z">{% for site in z_sites %}<a href="{{ site.get_absolute_url }}">{{ site.name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</span>
+<span class="otn-fault-sites" data-site-history-pair>
+  <span class="otn-fault-site-tag otn-fault-site-tag-a" data-endpoint="a"><strong>A:</strong> {% if a_site %}<a href="{{ a_site.get_absolute_url }}">{{ a_site.name }}</a>{% else %}—{% endif %}</span>
+  {% if z_sites %}
+  <span class="text-muted otn-fault-site-arrow"><i class="mdi mdi-arrow-right" aria-hidden="true"></i></span>
+  <span class="otn-fault-site-tag otn-fault-site-tag-z" data-endpoint="z"><strong>Z:</strong> {% for site in z_sites %}<a href="{{ site.get_absolute_url }}">{{ site.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+  {% endif %}
 </span>
 {% endwith %}
