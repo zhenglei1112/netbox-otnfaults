@@ -421,11 +421,13 @@ class CableBreakLocationChoices(ChoiceSet):
     key = 'OtnFault.cable_break_location'
 
     PIGTAIL = 'pigtail'
+    ODF_PATCH_FIBER = 'odf_patch_fiber'
     LOCAL_CABLE = 'local_cable'
     LONG_HAUL_CABLE = 'long_haul_cable'
 
     CHOICES = [
-        (PIGTAIL, '尾纤', 'yellow'),
+        (PIGTAIL, 'ODF配线尾纤', 'yellow'),
+        (ODF_PATCH_FIBER, 'ODF跳纤（列间/架间/架内）', 'blue'),
         (LOCAL_CABLE, '出局缆', 'orange'),
         (LONG_HAUL_CABLE, '长途光缆', 'red'),
     ]
@@ -894,6 +896,7 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
         ('chassis_fault', '机框故障'),
         ('misoperation_device', '误操作'),
         ('device_relocation', '设备搬迁'),
+        ('intra_rack_pigtail', '跳纤故障'),
         ('other_device', '其他'),
         # 供电故障专用的一级原因
         ('ac_fault_power', '交流故障'),
@@ -938,6 +941,9 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
         # 线路整改二级原因
         ('planned_reporting', '计划报备'),
         ('unplanned_reporting', '非报备'),
+        # 跳纤故障二级原因
+        ('device_outgoing_patch_fiber', '设备出线跳纤'),
+        ('intra_rack_patch_fiber', '架内跳纤'),
         # 供电故障二级原因
         ('room_power_test', '机房供电测试'),
         ('grid_power_maintenance', '国网供电检修'),
@@ -976,7 +982,7 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
                          'line_card', 'main_control_card', 'cross_card', 
                          'auxiliary_card', 'power_card', 'optical_layer_card',
                          'chassis_fault', 'misoperation_device', 'device_relocation', 
-                         'other_device'],
+                         'intra_rack_pigtail', 'other_device'],
         'power_fault': ['ac_fault_power', 'power_equipment_fault',
                         'misoperation_power', 'natural_disaster_power',
                         'unknown_power', 'power_equipment_rectification'],
@@ -1000,7 +1006,7 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
         'ac_overload': [],
         'ac_outdoor_blocked': [],
         'ac_no_autostart': [],
-        # 设备故障的一级原因（无二级原因）
+        # 设备故障的一级原因
         'optical_module': [],
         'software_fault': [],
         'branch_card': [],
@@ -1013,6 +1019,7 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
         'chassis_fault': [],
         'misoperation_device': [],
         'device_relocation': [],
+        'intra_rack_pigtail': ['device_outgoing_patch_fiber', 'intra_rack_patch_fiber'],
         'other_device': [],
         # 供电故障的一级原因
         'ac_fault_power': ['room_power_test', 'grid_power_maintenance',
@@ -1280,7 +1287,7 @@ class OtnFault(OtnBaseModel, ImageAttachmentsMixin):
         help_text='仅设备故障时有效。标识该设备故障是否产生实际影响，不属于设备部件冗余配置未产生任何影响的情况。'
     )
     
-    # 19) 光缆中断部位，为选择型字段，分为尾纤、出局缆、长途光缆
+    # 19) 光缆中断部位：ODF配线尾纤、ODF跳纤（列间/架间/架内）、出局缆、长途光缆
     cable_break_location = models.CharField(
         max_length=20,
         choices=CableBreakLocationChoices,

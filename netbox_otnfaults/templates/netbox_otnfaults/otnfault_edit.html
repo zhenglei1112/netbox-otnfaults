@@ -140,7 +140,7 @@
                          'line_card', 'main_control_card', 'cross_card', 
                          'auxiliary_card', 'power_card', 'optical_layer_card',
                          'chassis_fault', 'misoperation_device', 'device_relocation', 
-                         'other_device'],
+                         'intra_rack_pigtail', 'other_device'],
         'power_fault': ['ac_fault_power', 'power_equipment_fault',
                         'misoperation_power', 'natural_disaster_power',
                         'unknown_power', 'power_equipment_rectification']
@@ -164,7 +164,7 @@
         'ac_overload': [],
         'ac_outdoor_blocked': [],
         'ac_no_autostart': [],
-        // 设备故障的一级原因（无二级原因）
+        // 设备故障的一级原因
         'optical_module': [],
         'software_fault': [],
         'branch_card': [],
@@ -177,6 +177,7 @@
         'chassis_fault': [],
         'misoperation_device': [],
         'device_relocation': [],
+        'intra_rack_pigtail': ['device_outgoing_patch_fiber', 'intra_rack_patch_fiber'],
         'other_device': [],
         // 供电故障的一级原因
         'ac_fault_power': ['room_power_test', 'grid_power_maintenance',
