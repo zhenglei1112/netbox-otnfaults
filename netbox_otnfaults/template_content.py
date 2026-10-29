@@ -1,5 +1,5 @@
 from netbox.plugins import PluginTemplateExtension
-from .models import OtnPath, OtnFault
+from .models import OtnPath, OtnFault, CutoverTask
 from django.http import HttpRequest
 from django.utils.dateparse import parse_date
 from django.db.models import Q
@@ -13,11 +13,12 @@ class SiteOtnPaths(PluginTemplateExtension):
     """
     models = ['dcim.site']  # NetBox 4.x: 使用 models (复数) 而非 model
     
-    def right_page(self):
+    def right_page(self) -> str:
         obj = self.context['object']
+        request = self.context['request']
         
         # 使用 Q 对象查询关联的光缆路径（A端或Z端）
-        paths_count = OtnPath.objects.filter(
+        paths_count = OtnPath.objects.restrict(request.user, 'view').filter(
             Q(site_a=obj) | Q(site_z=obj)
         ).count()
         
@@ -32,17 +33,35 @@ class SiteOtnFaults(PluginTemplateExtension):
     """
     models = ['dcim.site']  # NetBox 4.x: 使用 models (复数) 而非 model
     
-    def right_page(self):
+    def right_page(self) -> str:
         obj = self.context['object']
-        
-        # 统计涉及该站点的故障数量 (A端或Z端)
-        faults_count = OtnFault.objects.filter(
+        request = self.context['request']
+
+        # 统计当前用户可见且涉及该站点的故障数量 (A端或Z端)。
+        faults_count = OtnFault.objects.restrict(request.user, 'view').filter(
             Q(interruption_location_a=obj) | 
             Q(interruption_location=obj)
         ).distinct().count()
         
         return self.render('netbox_otnfaults/inc/site_otn_faults.html', extra_context={
             'faults_count': faults_count,
+            'site_id': obj.pk,
+        })
+
+
+class SiteCutoverTasks(PluginTemplateExtension):
+    """在站点相关对象中合并 A/Z 端关联的割接。"""
+
+    models = ['dcim.site']
+
+    def right_page(self) -> str:
+        obj = self.context['object']
+        request = self.context['request']
+        cutovers_count = CutoverTask.objects.restrict(request.user, 'view').filter(
+            Q(interruption_location_a=obj) | Q(interruption_location=obj)
+        ).distinct().count()
+        return self.render('netbox_otnfaults/inc/site_cutover_tasks.html', extra_context={
+            'cutovers_count': cutovers_count,
             'site_id': obj.pk,
         })
 
@@ -102,4 +121,4 @@ class ContractOtnFaults(PluginTemplateExtension):
             extra_context=context,
         )
 
-template_extensions = [SiteOtnPaths, SiteOtnFaults, ContractOtnFaults]
+template_extensions = [SiteOtnPaths, SiteOtnFaults, SiteCutoverTasks, ContractOtnFaults]

@@ -1,0 +1,41 @@
+<div id="otn-{{ related_key }}-injection" style="display: none;" data-related-list-url="{{ related_list_url }}">
+    {% if related_count > 0 %}
+    <a href="{{ related_list_url }}?site={{ site_id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+        {{ related_label }}
+        <span class="badge text-bg-primary rounded-pill">{{ related_count }}</span>
+    </a>
+    {% endif %}
+</div>
+<script>
+(function() {
+    const source = document.currentScript.previousElementSibling;
+    function injectRelatedEvents() {
+        const targetCard = Array.from(document.querySelectorAll('.card')).find(card => {
+            const header = card.querySelector('.card-header');
+            if (!header) return false;
+            const text = header.innerText.trim();
+            return text === '相关对象' || text.includes('Related Objects');
+        });
+        const listGroup = targetCard && targetCard.querySelector('.list-group');
+        if (!listGroup) return;
+
+        const listUrl = new URL(source.dataset.relatedListUrl, window.location.href);
+        // 合并原生 A/Z 端条目，也在数量为零时移除旧条目。
+        listGroup.querySelectorAll('a[href]').forEach(link => {
+            const url = new URL(link.getAttribute('href'), window.location.href);
+            if (url.origin === listUrl.origin && url.pathname === listUrl.pathname) {
+                const item = link.closest('.list-group-item');
+                (item || link).remove();
+            }
+        });
+        const unifiedLink = source.querySelector('a');
+        if (unifiedLink) listGroup.appendChild(unifiedLink);
+        source.remove();
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', injectRelatedEvents);
+    } else {
+        injectRelatedEvents();
+    }
+})();
+</script>

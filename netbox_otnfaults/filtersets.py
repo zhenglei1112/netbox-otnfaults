@@ -380,6 +380,20 @@ class BareFiberServiceFilterSet(NetBoxModelFilterSet):
 
 class CutoverTaskFilterSet(NetBoxModelFilterSet):
     """割接管理过滤器"""
+    site = django_filters.NumberFilter(
+        method='filter_site',
+        label='站点筛选 (A站或Z站)',
+    )
+    # NetBox 站点详情页的相关对象链接使用带 _id 后缀的参数。
+    interruption_location_a_id = django_filters.NumberFilter(
+        field_name='interruption_location_a',
+        label='割接位置A端站点',
+    )
+    interruption_location_id = django_filters.NumberFilter(
+        field_name='interruption_location',
+        distinct=True,
+        label='割接位置Z端站点',
+    )
     province = RegionMultipleChoiceFilter(
         field_name='province',
         queryset=Region.objects.all(),
@@ -417,6 +431,15 @@ class CutoverTaskFilterSet(NetBoxModelFilterSet):
             | Q(cutover_contact__icontains=value)
             | Q(comments__icontains=value)
         )
+
+
+    def filter_site(self, queryset: QuerySet, name: str, value: int | None) -> QuerySet:
+        if not value:
+            return queryset
+        return queryset.filter(
+            Q(interruption_location_a_id=value)
+            | Q(interruption_location__id=value)
+        ).distinct()
 
 
 class OtnPathGroupFilterSet(NetBoxModelFilterSet):

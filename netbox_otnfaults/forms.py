@@ -979,6 +979,7 @@ class OtnFaultImpactBulkEditForm(NetBoxModelBulkEditForm):
     )
 
 class OtnFaultFilterForm(NetBoxModelFilterSetForm):
+    site = DynamicModelChoiceField(queryset=Site.objects.all(), required=False, label='关联站点（A端或Z端）')
     tag = TagFilterField(OtnFault)
     model = OtnFault
     ac_fault_is_class_i = forms.NullBooleanField(
@@ -1002,7 +1003,7 @@ class OtnFaultFilterForm(NetBoxModelFilterSetForm):
         FieldSet(
             'source_cutover_task', 'fault_category', 'power_fault_phenomenon', 'power_fault_impact', 'fault_status', 'is_suspended',
             'ac_fault_is_class_i', 'device_fault_is_class_i', 'urgency', 'province',
-            'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
+            'site', 'interruption_location_a', 'interruption_location', 'interruption_latitude', 'interruption_longitude',
             'interruption_reason', 'interruption_reason_detail', 'cutover_report_status', 'cutover_report_time',
             'first_report_source', 'duty_officer',
             'fault_occurrence_time_after', 'fault_occurrence_time_before', 'caused_bare_fiber_interruption',
@@ -1499,6 +1500,7 @@ class OtnPathBulkEditForm(NetBoxModelBulkEditForm):
 
 class OtnPathFilterForm(NetBoxModelFilterSetForm):
     model = OtnPath
+    site = DynamicModelChoiceField(queryset=Site.objects.all(), required=False, label='关联站点（A端或Z端）')
     tag = TagFilterField(OtnPath)
     groups = DynamicModelMultipleChoiceField(
         queryset=OtnPathGroup.objects.all(),
@@ -2061,6 +2063,7 @@ class CutoverTaskForm(NetBoxModelForm):
 class CutoverTaskFilterForm(NetBoxModelFilterSetForm):
     """割接管理过滤表单"""
     model = CutoverTask
+    site = DynamicModelChoiceField(queryset=Site.objects.all(), required=False, label='关联站点（A端或Z端）')
     tag = TagFilterField(CutoverTask)
     registrant = DynamicModelChoiceField(queryset=get_user_model().objects.all(), required=False, label='登记人')
     line_supervisor = DynamicModelChoiceField(queryset=get_user_model().objects.all(), required=False, label='线路主管')
@@ -2079,7 +2082,7 @@ class CutoverTaskFilterForm(NetBoxModelFilterSetForm):
 
     fieldsets = (
         FieldSet('q', 'filter_id', 'tag'),
-        FieldSet('cutover_no', 'status', 'cutover_type', 'province', 'management_unit', 'is_timeout', 'cutover_result', 'registrant', 'line_supervisor', 'interruption_location_a', 're_cutover', name='割接信息'),
+        FieldSet('cutover_no', 'status', 'cutover_type', 'province', 'management_unit', 'is_timeout', 'cutover_result', 'registrant', 'line_supervisor', 'site', 'interruption_location_a', 're_cutover', name='割接信息'),
         FieldSet('planned_cutover_time_after', 'planned_cutover_time_before', name='计划时间'),
         FieldSet('started_at_after', 'started_at_before', name='实际开始时间'),
     )

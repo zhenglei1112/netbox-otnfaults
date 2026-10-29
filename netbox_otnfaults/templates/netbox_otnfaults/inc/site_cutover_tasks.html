@@ -1,0 +1,2 @@
+{% url 'plugins:netbox_otnfaults:cutovertask_list' as related_list_url %}
+{% include 'netbox_otnfaults/inc/site_related_events.html' with related_count=cutovers_count related_label='割接' related_key='cutover' %}
