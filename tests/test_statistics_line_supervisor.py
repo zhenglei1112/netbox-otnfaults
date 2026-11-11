@@ -94,7 +94,7 @@ class LineSupervisorStatisticsTests(unittest.TestCase):
                     self.assertEqual(self.env['_is_branch_company_fault'](fault(province)), expected is None)
 
     def test_aliases_unknown_and_recorded_supervisor_are_handled(self) -> None:
-        for province, expected in [('内蒙古自治区', '冯鑫源'), ('内蒙', '冯鑫源'), ('宁夏回族自治区', '冯鑫源'), ('广西壮族自治区', '李立彬'), ('新疆维吾尔自治区', '冯鑫源'), ('广东省', '姜川'), ('上海市', '孙振伟'), ('辽宁省', '李小涛'), (None, None), ('西藏自治区', None)]:
+        for province, expected in [('内蒙古自治区', '冯鑫源'), ('内蒙', '冯鑫源'), ('宁夏回族自治区', '冯鑫源'), ('广西壮族自治区', '李立彬'), ('山西省', '程安'), ('新疆维吾尔自治区', '冯鑫源'), ('广东省', '姜川'), ('上海市', '孙振伟'), ('辽宁省', '李小涛'), (None, None), ('西藏自治区', None)]:
             self.assertEqual(self.env['_line_supervisor_for_fault'](fault(province, excluded=True)), expected)
 
     def test_detail_scope_filters_manager_without_leaking_six_province_faults(self) -> None:
@@ -104,6 +104,20 @@ class LineSupervisorStatisticsTests(unittest.TestCase):
         self.assertEqual(filter_rows(rows, '冯鑫源'), [rows[1]])
         self.assertEqual(filter_rows(rows, '姜川'), [rows[2]])
         self.assertEqual(filter_rows(rows, '不存在'), [])
+
+    def test_shanxi_assignment_in_forms_and_statistics(self) -> None:
+        rows = [fault('山西省', pk=1), fault('河北省', pk=2)]
+        filter_rows = self.env['_filter_line_supervisor_faults']
+        self.assertEqual(filter_rows(rows, '程安'), rows[:1])
+        self.assertEqual(filter_rows(rows, '李立彬'), rows[1:])
+        result = self.calculate(rows)
+        bars = {item['name']: item for item in result['province_bars']}
+        self.assertEqual(bars['程安']['count'], 1)
+        self.assertEqual(bars['李立彬']['count'], 1)
+        for name in ('otnfault_edit.html', 'cutovertask_edit.html'):
+            template = (ROOT / 'netbox_otnfaults/templates/netbox_otnfaults' / name).read_text(encoding='utf-8')
+            manager_map = re.search(r'const MANAGER_MAP = (\{.*?\});', template, re.S).group(1)
+            self.assertEqual(ast.literal_eval(manager_map)['山西'], '程安')
 
     def configure_calculator(self, rows: list) -> None:
         tz = dt_timezone.utc
@@ -156,7 +170,7 @@ class LineSupervisorStatisticsTests(unittest.TestCase):
 
     def test_empty_groups_and_existing_branch_behavior(self) -> None:
         result = self.calculate([])
-        self.assertEqual(len(result['province_bars']), 5)
+        self.assertEqual(len(result['province_bars']), 6)
         self.assertTrue(all(item['count'] == 0 for item in result['province_bars']))
         branch = self.calculate([fault('浙江'), fault('浙江', excluded=True), fault('广东')], supervisor=False)
         self.assertEqual(branch['overview']['total_count'], 1)

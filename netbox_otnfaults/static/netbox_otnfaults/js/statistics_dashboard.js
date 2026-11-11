@@ -3086,7 +3086,7 @@ document.addEventListener("DOMContentLoaded", function() {
         renderTrendBesideMetric(repeatEl, cableBreak.repeat_faults_count || 0, prevCableBreak.repeat_faults_count, yoyCableBreak.repeat_faults_count, true);
     }
 
-    const supervisorNames = ['冯鑫源', '姜川', '李立彬', '孙振伟', '李小涛'];
+    const supervisorNames = ['冯鑫源', '姜川', '李立彬', '程安', '孙振伟', '李小涛'];
 
     function getSortedBranchBars(data, metric) {
         if ((data || []).some(item => supervisorNames.includes(item.name))) return (data || []).slice();
@@ -3121,7 +3121,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function getBranchCompanyProvinceColor(name, chartTheme) {
         const colors = {
-            '冯鑫源': '#4E79A7', '姜川': '#F28E2B', '李立彬': '#59A14F', '孙振伟': '#B07AA1', '李小涛': '#EDC948',
+            '冯鑫源': '#4E79A7', '姜川': '#F28E2B', '李立彬': '#59A14F', '程安': '#76B7B2', '孙振伟': '#B07AA1', '李小涛': '#EDC948',
             '浙江': '#4E79A7',
             '山东': '#F28E2B',
             '内蒙': '#59A14F',

@@ -45,6 +45,7 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.urls import reverse
 from urllib.parse import urlencode
+from secrets import token_urlsafe
 import logging
 from .map_modes import get_mode_config
 from .statistics_period import build_period_display
@@ -617,6 +618,25 @@ class OtnFaultImpactEditView(generic.ObjectEditView):
     form = OtnFaultImpactForm
     template_name = 'netbox_otnfaults/otnfaultimpact_edit.html'
 
+    repeat_session_key = 'otnfaultimpact_addanother'
+
+    def get_repeat_initial(self, request: HttpRequest) -> dict[str, Any]:
+        """保留表单原始值（包括空值和多选），仅传递当前业务类型适用的字段。"""
+        fields = [
+            'otn_fault', 'secondary_faults', 'service_type', 'business_impact',
+            'service_interruption_time', 'service_recovery_time',
+            'coordination_status', 'comments', 'tags', 'service_site_a', 'service_site_z',
+        ]
+        if request.POST.get('service_type') == ServiceTypeChoices.CIRCUIT:
+            fields.extend(['circuit_business_category', 'circuit_service_group'])
+        elif request.POST.get('service_type') == ServiceTypeChoices.BARE_FIBER:
+            fields.append('bare_fiber_service')
+        multiple_fields = {'secondary_faults', 'service_site_z', 'tags'}
+        return {
+            name: request.POST.getlist(name) if name in multiple_fields else request.POST.get(name, '')
+            for name in fields
+        }
+
     def get_extra_context(self, request, obj):
         return super().get_extra_context(request, obj) or {}
 
@@ -660,6 +680,13 @@ class OtnFaultImpactEditView(generic.ObjectEditView):
             except (OtnFault.DoesNotExist, ValueError):
                 pass
 
+        # 会话中的初值只用于下一次新增；普通新增、编辑和切换直接故障不受影响。
+        if not obj.pk:
+            token = request.GET.get('_repeat')
+            repeated = request.session.get(self.repeat_session_key, {}).get(token, {})
+            if repeated and repeated.get('otn_fault') == otn_fault_id:
+                initial_data.update(repeated)
+
         form = self.form(instance=obj, initial=initial_data)
 
         return render(
@@ -679,11 +706,14 @@ class OtnFaultImpactEditView(generic.ObjectEditView):
         
         if response.status_code == 302:
             if '_addanother' in request.POST:
-                otn_fault_id = request.POST.get('otn_fault')
-                if otn_fault_id:
-                    location = response['Location']
-                    delimiter = '&' if '?' in location else '?'
-                    response['Location'] = f"{location}{delimiter}otn_fault={otn_fault_id}"
+                token = token_urlsafe(16)
+                # 每次新增独立标识，避免多标签页串值；限制保留数量，防止会话持续增长。
+                pending = request.session.get(self.repeat_session_key, {})
+                pending[token] = self.get_repeat_initial(request)
+                request.session[self.repeat_session_key] = dict(list(pending.items())[-10:])
+                query = urlencode({'otn_fault': request.POST.get('otn_fault', ''), '_repeat': token})
+                add_url = reverse('plugins:netbox_otnfaults:otnfaultimpact_add')
+                response['Location'] = f"{add_url}?{query}"
             else:
                 if hasattr(self, 'object') and getattr(self.object, 'pk', None):
                     response['Location'] = self.object.get_absolute_url()

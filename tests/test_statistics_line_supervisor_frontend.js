@@ -29,6 +29,11 @@ function context(names, additions = {}) {
         activeLineSupervisorFilterExtraField: null, activeLineSupervisorFilterExtraValue: null,
         activeLineSupervisorFilterLabel: null, activeLineSupervisorDetailScope: null,
         currentLineSupervisorDetails: [], supervisorDetailsRequest: 0,
+        // Model a dashboard whose summary has loaded for the current filter.
+        getFilterSnapshot: () => ({ key: 'year|2026-01-01|', timeParams: 'year=2026' }),
+        dataLoadState: 'success', activeDataSnapshotKey: 'year|2026-01-01|',
+        loadedDetailSnapshots: { physical: null, branch: null, supervisor: null },
+        loadedDetailTabs: new Set(),
         supervisorOrdering: '-fault_occurrence_time',
         currentPrevLineSupervisorData: null, currentYoyLineSupervisorData: null,
         window: { STATISTICS_DETAILS_API: '/statistics/details/' },
@@ -52,6 +57,8 @@ test('chart and metric drilldowns keep manager scope separate from physical filt
     assert.equal(url.searchParams.get('detail_scope'), 'cable_break');
     assert.equal(url.searchParams.has('province'), false);
     assert.equal(ctx.currentLineSupervisorDetails[0].province, '广东省');
+    assert.equal(ctx.loadedDetailSnapshots.supervisor, ctx.activeDataSnapshotKey);
+    assert.deepEqual([...ctx.loadedDetailTabs], ['supervisor']);
     ctx.handleLineSupervisorMetricFilterClick({ dataset: { filterField: 'bare_fiber_interruption', filterValue: 'true' }, closest: () => null });
     await new Promise(resolve => setImmediate(resolve));
     url = new URL(urls[1], 'http://localhost');
@@ -62,15 +69,73 @@ test('chart and metric drilldowns keep manager scope separate from physical filt
 
 test('late detail responses cannot overwrite a newer selection', async () => {
     const pending = [];
-    const ctx = context(['loadSupervisorDetails'], { fetch: () => new Promise(resolve => pending.push(resolve)) });
+    let renders = 0;
+    const ctx = context(['loadSupervisorDetails'], {
+        fetch: () => new Promise(resolve => pending.push(resolve)),
+        renderLineSupervisorDetailsTable() { renders++; },
+    });
     const older = ctx.loadSupervisorDetails();
     const newer = ctx.loadSupervisorDetails();
     pending[1]({ ok: true, json: async () => ({ results: [{ id: 2 }] }) });
     await newer;
+    assert.equal(ctx.currentLineSupervisorDetails[0].id, 2);
+    assert.equal(ctx.loadedDetailSnapshots.supervisor, ctx.activeDataSnapshotKey);
+    assert.deepEqual([...ctx.loadedDetailTabs], ['supervisor']);
     pending[0]({ ok: true, json: async () => ({ results: [{ id: 1 }] }) });
     await older;
     assert.equal(ctx.currentLineSupervisorDetails[0].id, 2);
+    assert.equal(renders, 1);
 });
+
+for (const scenario of ['loading', 'failed', 'different snapshot', 'stale error', 'current error']) {
+    test(`production supervisor loader handles ${scenario}`, async () => {
+        let resolveFetch;
+        let rejectFetch;
+        let renders = 0;
+        const errors = [];
+        const previousRows = [{ id: 'previous' }];
+        const ctx = context(['loadSupervisorDetails'], {
+            fetch: () => new Promise((resolve, reject) => {
+                resolveFetch = resolve;
+                rejectFetch = reject;
+            }),
+            currentLineSupervisorDetails: previousRows,
+            renderLineSupervisorDetailsTable() { renders++; },
+            console: { error: (...args) => errors.push(args) },
+        });
+        const request = ctx.loadSupervisorDetails();
+        const tbody = ctx.document.getElementById('line-supervisor-details-tbody');
+        assert.ok(tbody.innerHTML.includes('mdi-loading'));
+
+        if (scenario === 'loading' || scenario === 'failed') ctx.dataLoadState = scenario;
+        if (scenario === 'different snapshot') ctx.activeDataSnapshotKey = 'year|2025-01-01|';
+        if (scenario === 'stale error') {
+            // A newer request has already rendered. An old failure must preserve it.
+            ++ctx.supervisorDetailsRequest;
+            tbody.innerHTML = 'newer request rows';
+            ctx.loadedDetailSnapshots.supervisor = ctx.activeDataSnapshotKey;
+            ctx.loadedDetailTabs.add('supervisor');
+        }
+        const htmlBeforeResponse = tbody.innerHTML;
+        const snapshotBeforeResponse = ctx.loadedDetailSnapshots.supervisor;
+        const tabsBeforeResponse = [...ctx.loadedDetailTabs];
+        if (scenario.endsWith('error')) rejectFetch(new Error('network failure'));
+        else resolveFetch({ ok: true, json: async () => ({ results: [{ id: 'outdated' }] }) });
+        await request;
+
+        assert.equal(renders, 0);
+        assert.strictEqual(ctx.currentLineSupervisorDetails, previousRows);
+        assert.equal(ctx.loadedDetailSnapshots.supervisor, snapshotBeforeResponse);
+        assert.deepEqual([...ctx.loadedDetailTabs], tabsBeforeResponse);
+        if (scenario === 'current error') {
+            assert.ok(tbody.innerHTML.includes('数据加载失败'));
+            assert.equal(errors.length, 1);
+        } else {
+            assert.equal(tbody.innerHTML, htmlBeforeResponse);
+            assert.equal(errors.length, 0);
+        }
+    });
+}
 
 test('time and repeat sorting use independent supervisor inputs and original provinces', () => {
     let rendered;
@@ -123,7 +188,7 @@ test('clearing supervisor filters resets only its own state', () => {
 test('all six charts render with shared helpers and independent supervisor instances', () => {
     const options = {};
     const mocks = {
-        supervisorNames: ['冯鑫源', '姜川', '李立彬', '孙振伟', '李小涛'],
+        supervisorNames: ['冯鑫源', '姜川', '李立彬', '程安', '孙振伟', '李小涛'],
         getChartTheme: () => ({}), buildTooltipTheme: () => ({}), buildAxisTheme: () => ({}), buildLegendTheme: () => ({}),
         getCheckedValue: (name, fallback) => fallback,
         formatCardMetricValue: String, formatCardCountValue: String,
@@ -150,6 +215,6 @@ test('all six charts render with shared helpers and independent supervisor insta
     });
     assert.equal(Object.keys(options).length, 6);
     assert.deepEqual(Array.from(options.Count.xAxis.data), names);
-    assert.equal(options.Weekly.series.length, 5);
-    assert.equal(options.Monthly.series.length, 5);
+    assert.equal(options.Weekly.series.length, 6);
+    assert.equal(options.Monthly.series.length, 6);
 });

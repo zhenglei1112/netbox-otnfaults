@@ -236,7 +236,8 @@ def _is_branch_company_fault(fault) -> bool:
 LINE_SUPERVISOR_PROVINCES: dict[str, tuple[str, ...]] = {
     '冯鑫源': ('甘肃', '宁夏', '青海', '新疆', '山东', '陕西', '内蒙', '浙江', '四川', '江西'),
     '姜川': ('广东', '湖南', '福建', '重庆', '贵州', '云南', '海南'),
-    '李立彬': ('北京', '天津', '河北', '河南', '山西', '广西'),
+    '李立彬': ('北京', '天津', '河北', '河南', '广西'),
+    '程安': ('山西',),
     '孙振伟': ('湖北', '安徽', '江苏', '上海'),
     '李小涛': ('黑龙江', '吉林', '辽宁'),
 }
@@ -2118,7 +2119,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
         provinces_str = ",".join(sorted(selected_provinces))
         provinces_hash = hashlib.md5(provinces_str.encode('utf-8')).hexdigest() if provinces_str else "all"
         
-        cache_key = f"otnfaults:stats:v{cache_version}:fault-summary:v3:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{provinces_hash}:{calendar_year}:{calendar_month}"
+        cache_key = f"otnfaults:stats:v{cache_version}:fault-summary:v4:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{provinces_hash}:{calendar_year}:{calendar_month}"
         
         bypass_cache = statistics_cache_bypass(request)
         if not bypass_cache:
@@ -2282,7 +2283,7 @@ class FaultStatisticsDataAPI(PermissionRequiredMixin, View):
             ))
         physical_duration_boxplot_stats = _build_physical_daily_fault_series(start_date, end_date, physical_duration_boxplot_faults, now)
         faults = physical_duration_boxplot_faults
-        bc_cache_key = f"otnfaults:stats:v{cache_version}:branch_supervisor:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{calendar_year}:{calendar_month}"
+        bc_cache_key = f"otnfaults:stats:v{cache_version}:branch_supervisor:v2:{filter_type}:{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}:{calendar_year}:{calendar_month}"
         bc_cached = cache.get(bc_cache_key) if not bypass_cache else None
         if bc_cached and 'branch_company' in bc_cached and 'line_supervisor' in bc_cached:
             branch_company_stats = bc_cached['branch_company']
