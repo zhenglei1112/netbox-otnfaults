@@ -23,6 +23,7 @@ import json
 from typing import Any
 
 from django import forms
+from django.db.models import QuerySet
 from django.contrib.postgres.forms import SimpleArrayField
 from django.core.exceptions import ValidationError
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField, CommentField, CSVModelChoiceField, CSVModelMultipleChoiceField, TagFilterField
@@ -553,23 +554,9 @@ class OtnFaultImpactForm(NetBoxModelForm):
         initial_data = kwargs.get('initial') or {}
         super().__init__(*args, **kwargs)
 
-        circuit_services = list(
-            CircuitService.objects.order_by('business_category', 'service_group', 'special_line_name', 'name').values(
-                'pk', 'business_category', 'service_group', 'special_line_name', 'name'
-            )
-        )
-        business_category_label_map = {value: label for value, label, *_ in BusinessCategoryChoices.CHOICES}
-        service_group_label_map = {value: label for value, label, *_ in ServiceGroupChoices.CHOICES}
-        for service in circuit_services:
-            service['business_category_label'] = business_category_label_map.get(service['business_category'], service['business_category'])
-            service['service_group_label'] = service_group_label_map.get(service['service_group'], service['service_group'])
-        service_catalog = json.dumps(circuit_services, ensure_ascii=False)
-        special_line_choices = [('', '---------')]
-        for service in circuit_services:
-            label = service['special_line_name']
-            if service['name']:
-                label = f"{label} ({service['name']})"
-            special_line_choices.append((str(service['pk']), label))
+        circuit_queryset = _get_impact_circuit_service_queryset(self.instance)
+        self.fields['circuit_service'].queryset = circuit_queryset
+        _circuit_services, service_catalog, special_line_choices = _build_circuit_service_catalog(circuit_queryset)
         self.fields['circuit_special_line_name'].choices = special_line_choices
         self.fields['circuit_special_line_name'].widget.attrs['data-circuit-services'] = service_catalog
         self.fields['circuit_service'].widget.attrs['data-circuit-services'] = service_catalog
@@ -627,7 +614,7 @@ class OtnFaultImpactForm(NetBoxModelForm):
             return cleaned_data
 
         try:
-            cleaned_data['circuit_service'] = CircuitService.objects.get(pk=selected_special_line)
+            cleaned_data['circuit_service'] = self.fields['circuit_service'].queryset.get(pk=selected_special_line)
         except CircuitService.DoesNotExist as exc:
             raise ValidationError({'circuit_special_line_name': '所选专线名称对应的电路业务不存在。'}) from exc
 
@@ -2130,9 +2117,21 @@ class CutoverTaskBulkEditForm(NetBoxModelBulkEditForm):
     nullable_fields = ('planned_cutover_time', 'line_supervisor', 're_cutover', 'comments')
 
 
-def _build_circuit_service_catalog() -> tuple[list[dict[str, Any]], str, list[tuple[str, str]]]:
+def _get_impact_circuit_service_queryset(instance: OtnFaultImpact | CutoverImpact) -> QuerySet[CircuitService]:
+    queryset = CircuitService.objects.all()
+    if not instance.pk:
+        queryset = queryset.exclude(operation_status__in=(
+            CircuitOperationStatusChoices.PENDING,
+            CircuitOperationStatusChoices.CLOSED,
+        ))
+    return queryset
+
+
+def _build_circuit_service_catalog(
+    queryset: QuerySet[CircuitService],
+) -> tuple[list[dict[str, Any]], str, list[tuple[str, str]]]:
     circuit_services = list(
-        CircuitService.objects.order_by('business_category', 'service_group', 'special_line_name', 'name').values(
+        queryset.order_by('business_category', 'service_group', 'special_line_name', 'name').values(
             'pk', 'business_category', 'service_group', 'special_line_name', 'name'
         )
     )
@@ -2205,7 +2204,9 @@ class CutoverImpactForm(NetBoxModelForm):
         initial_data = kwargs.get('initial') or {}
         super().__init__(*args, **kwargs)
 
-        _circuit_services, service_catalog, special_line_choices = _build_circuit_service_catalog()
+        circuit_queryset = _get_impact_circuit_service_queryset(self.instance)
+        self.fields['circuit_service'].queryset = circuit_queryset
+        _circuit_services, service_catalog, special_line_choices = _build_circuit_service_catalog(circuit_queryset)
         self.fields['circuit_special_line_name'].choices = special_line_choices
         self.fields['circuit_special_line_name'].widget.attrs['data-circuit-services'] = service_catalog
         self.fields['circuit_service'].widget.attrs['data-circuit-services'] = service_catalog
@@ -2244,7 +2245,7 @@ class CutoverImpactForm(NetBoxModelForm):
         if selected_service or not selected_special_line:
             return cleaned_data
         try:
-            cleaned_data['circuit_service'] = CircuitService.objects.get(pk=selected_special_line)
+            cleaned_data['circuit_service'] = self.fields['circuit_service'].queryset.get(pk=selected_special_line)
         except CircuitService.DoesNotExist as exc:
             raise ValidationError({'circuit_special_line_name': '所选专线名称对应的电路业务不存在。'}) from exc
         return cleaned_data
