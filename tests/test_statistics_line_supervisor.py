@@ -94,7 +94,7 @@ class LineSupervisorStatisticsTests(unittest.TestCase):
                     self.assertEqual(self.env['_is_branch_company_fault'](fault(province)), expected is None)
 
     def test_aliases_unknown_and_recorded_supervisor_are_handled(self) -> None:
-        for province, expected in [('内蒙古自治区', '冯鑫源'), ('内蒙', '冯鑫源'), ('宁夏回族自治区', '冯鑫源'), ('广西壮族自治区', '李立彬'), ('山西省', '程安'), ('新疆维吾尔自治区', '冯鑫源'), ('广东省', '姜川'), ('上海市', '孙振伟'), ('辽宁省', '李小涛'), (None, None), ('西藏自治区', None)]:
+        for province, expected in [('内蒙古自治区', '冯鑫源'), ('内蒙', '冯鑫源'), ('宁夏回族自治区', '冯鑫源'), ('广西壮族自治区', '程安'), ('海南省', '程安'), ('山西省', '程安'), ('新疆维吾尔自治区', '冯鑫源'), ('广东省', '姜川'), ('上海市', '孙振伟'), ('辽宁省', '李小涛'), (None, None), ('西藏自治区', None)]:
             self.assertEqual(self.env['_line_supervisor_for_fault'](fault(province, excluded=True)), expected)
 
     def test_detail_scope_filters_manager_without_leaking_six_province_faults(self) -> None:
@@ -105,19 +105,24 @@ class LineSupervisorStatisticsTests(unittest.TestCase):
         self.assertEqual(filter_rows(rows, '姜川'), [rows[2]])
         self.assertEqual(filter_rows(rows, '不存在'), [])
 
-    def test_shanxi_assignment_in_forms_and_statistics(self) -> None:
-        rows = [fault('山西省', pk=1), fault('河北省', pk=2)]
+    def test_transferred_provinces_assignment_in_forms_and_statistics(self) -> None:
+        rows = [fault('海南省', pk=1), fault('山西省', pk=2), fault('广西壮族自治区', pk=3), fault('河北省', pk=4), fault('广东省', pk=5)]
         filter_rows = self.env['_filter_line_supervisor_faults']
-        self.assertEqual(filter_rows(rows, '程安'), rows[:1])
-        self.assertEqual(filter_rows(rows, '李立彬'), rows[1:])
+        self.assertEqual(filter_rows(rows, '程安'), rows[:3])
+        self.assertEqual(filter_rows(rows, '李立彬'), rows[3:4])
         result = self.calculate(rows)
         bars = {item['name']: item for item in result['province_bars']}
-        self.assertEqual(bars['程安']['count'], 1)
+        self.assertEqual(bars['程安']['count'], 3)
+        self.assertEqual(bars['程安']['count_per_1000km'], round(3 * 1000 / 2611, 2))
+        self.assertEqual(bars['程安']['duration_per_1000km'], round(3 * 1000 / 2611, 2))
+        self.assertEqual(bars['李立彬']['count_per_1000km'], round(1000 / 7551, 2))
+        self.assertEqual(filter_rows(rows, '姜川'), rows[4:])
         self.assertEqual(bars['李立彬']['count'], 1)
         for name in ('otnfault_edit.html', 'cutovertask_edit.html'):
             template = (ROOT / 'netbox_otnfaults/templates/netbox_otnfaults' / name).read_text(encoding='utf-8')
             manager_map = re.search(r'const MANAGER_MAP = (\{.*?\});', template, re.S).group(1)
-            self.assertEqual(ast.literal_eval(manager_map)['山西'], '程安')
+            for province in ('海南', '山西', '广西'):
+                self.assertEqual(ast.literal_eval(manager_map)[province], '程安')
 
     def configure_calculator(self, rows: list) -> None:
         tz = dt_timezone.utc
@@ -151,9 +156,9 @@ class LineSupervisorStatisticsTests(unittest.TestCase):
         self.assertEqual(result['overview']['total_count'], 5)
         self.assertEqual(bars['姜川']['count'], 4)
         self.assertEqual(bars['姜川']['duration'], 12.5)
-        self.assertEqual(bars['姜川']['count_per_1000km'], round(4 * 1000 / 11660, 2))
-        self.assertEqual(bars['姜川']['duration_per_1000km'], round(12.5 * 1000 / 11660, 2))
-        self.assertEqual(result['path_lengths'], {'冯鑫源': 3972, '姜川': 11660, '李立彬': 10162, '孙振伟': 11724, '李小涛': 3811})
+        self.assertEqual(bars['姜川']['count_per_1000km'], round(4 * 1000 / 11569, 2))
+        self.assertEqual(bars['姜川']['duration_per_1000km'], round(12.5 * 1000 / 11569, 2))
+        self.assertEqual(result['path_lengths'], {'冯鑫源': 3972, '姜川': 11569, '李立彬': 7551, '程安': 2611, '孙振伟': 11724, '李小涛': 3811})
         self.assertEqual(bars['冯鑫源']['count'], 1)
         self.assertEqual(bars['李小涛']['count'], 0)
         average = next(item for item in result['valid_duration_bars'] if item['name'] == '姜川')
