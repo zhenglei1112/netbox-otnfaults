@@ -44,3 +44,6 @@ class CutoverDataTests(unittest.TestCase):
         self.assertEqual([item['status_color'] for item in result['cutovers']], ['green', 'red'])
         self.assertTrue(all(item['lat'] is None for item in result['cutovers']))
         self.assertEqual(namespace['build_dashboard_cutovers'](None)['cutovers'], [])
+        public = namespace['build_dashboard_cutovers'](None, public=True)
+        self.assertEqual(public['cutover_summary']['total'], 2)
+        self.assertFalse(any(item['is_my_task'] for item in public['cutovers']))

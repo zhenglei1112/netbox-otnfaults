@@ -65,7 +65,7 @@ def _fault_priority_score(fault: OtnFault, now: datetime, impact_count: int) -> 
     return round(severity_weight * urgency_weight * max(impact_count, 1) * freshness, 2)
 
 
-def build_dashboard_v2_data(sites_version: str | None = None, user: Any = None) -> dict[str, Any]:
+def build_dashboard_v2_data(sites_version: str | None = None, user: Any = None, *, public: bool = False) -> dict[str, Any]:
     now = timezone.localtime()
     year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     next_year_start = year_start.replace(year=year_start.year + 1)
@@ -206,8 +206,8 @@ def build_dashboard_v2_data(sites_version: str | None = None, user: Any = None) 
         cache.set("otnfaults:dashboard-v2:sites:v1", sites_snapshot, timeout=30)
     version, sites = sites_snapshot
     result = {
-        **build_dashboard_cutovers(user),
-        **build_dashboard_heavy_duties(user, now),
+        **build_dashboard_cutovers(user, public=public),
+        **build_dashboard_heavy_duties(user, now, public=public),
         "timestamp": now.isoformat(),
         "summary": {
             "total_faults": fault_counts["total_faults"],
@@ -223,11 +223,12 @@ def build_dashboard_v2_data(sites_version: str | None = None, user: Any = None) 
     return result
 
 
-def build_dashboard_heavy_duties(user: Any, now: datetime) -> dict[str, Any]:
+def build_dashboard_heavy_duties(user: Any, now: datetime, *, public: bool = False) -> dict[str, Any]:
     """V1 active window, including notices and memos, with view permissions."""
-    if user is None:
+    if user is None and not public:
         return {'heavy_duties': []}
-    tasks = HeavyDuty.objects.restrict(user, 'view').filter(
+    query = HeavyDuty.objects if public else HeavyDuty.objects.restrict(user, 'view')
+    tasks = query.filter(
         start_time__lte=now, end_time__gte=now,
     ).order_by('-start_time', '-pk')
     records = [{
@@ -242,13 +243,14 @@ def build_dashboard_heavy_duties(user: Any, now: datetime) -> dict[str, Any]:
     return {'heavy_duties': records}
 
 
-def build_dashboard_cutovers(user: Any) -> dict[str, Any]:
+def build_dashboard_cutovers(user: Any, *, public: bool = False) -> dict[str, Any]:
     """Match OtnTodayTomorrowCutoverWidget, including object-level permissions."""
     today = timezone.localdate()
     tomorrow = today + timedelta(days=1)
     tasks = []
-    if user is not None:
-        tasks = (CutoverTask.objects.restrict(user, 'view')
+    if public or user is not None:
+        query = CutoverTask.objects if public else CutoverTask.objects.restrict(user, 'view')
+        tasks = (query
                  .filter(planned_cutover_time__date__in=[today, tomorrow])
                  .select_related('province', 'line_supervisor', 'interruption_location_a')
                  .prefetch_related('interruption_location')
@@ -271,7 +273,7 @@ def build_dashboard_cutovers(user: Any) -> dict[str, Any]:
             'sites_z': [site.name for site in task.interruption_location.all()],
             'location': task.cutover_location or '',
             'supervisor': str(task.line_supervisor) if task.line_supervisor else '',
-            'is_my_task': task.line_supervisor_id == user.pk,
+            'is_my_task': not public and task.line_supervisor_id == user.pk,
             'lat': position.lat if position else None,
             'lng': position.lng if position else None,
         })

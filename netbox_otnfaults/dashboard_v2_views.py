@@ -1,7 +1,6 @@
 from typing import Any
 
 from django.conf import settings
-from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
@@ -40,8 +39,7 @@ def _get_dashboard_v2_config() -> dict[str, Any]:
     }
 
 
-class DashboardV2PageView(PermissionRequiredMixin, View):
-    permission_required = "netbox_otnfaults.view_otnfault"
+class DashboardV2PageView(View):
 
     def get(self, request: HttpRequest) -> HttpResponse:
         return render(
@@ -51,21 +49,22 @@ class DashboardV2PageView(PermissionRequiredMixin, View):
         )
 
 
-class DashboardV2DataView(PermissionRequiredMixin, View):
-    permission_required = "netbox_otnfaults.view_otnfault"
+class DashboardV2DataView(View):
 
     def get(self, request: HttpRequest) -> JsonResponse:
         return JsonResponse(
-            build_dashboard_v2_data(sites_version=request.GET.get("sites_version"), user=request.user),
+            build_dashboard_v2_data(
+                sites_version=request.GET.get("sites_version"), user=request.user,
+                public=not request.user.is_authenticated,
+            ),
             json_dumps_params={"ensure_ascii": False},
         )
 
 
-class DashboardV2WeatherView(PermissionRequiredMixin, View):
-    permission_required = "netbox_otnfaults.view_otnfault"
+class DashboardV2WeatherView(View):
 
     def get(self, request: HttpRequest) -> JsonResponse:
         from .services.dashboard_weather import read_weather
-        response = JsonResponse(read_weather(request.user), json_dumps_params={'ensure_ascii': False})
+        response = JsonResponse(read_weather(request.user, public=not request.user.is_authenticated), json_dumps_params={'ensure_ascii': False})
         response['Cache-Control'] = 'private, no-store'
         return response

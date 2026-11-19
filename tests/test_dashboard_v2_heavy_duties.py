@@ -46,3 +46,4 @@ class HeavyDutyDataTests(unittest.TestCase):
         self.assertEqual(result[0]['url'], '/heavy/1/')
         self.assertNotIn('lng', result[0])
         self.assertEqual(build(None, now), {'heavy_duties': []})
+        self.assertEqual(build(None, now, public=True)['heavy_duties'], result)

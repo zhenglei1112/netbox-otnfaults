@@ -24,8 +24,8 @@ def configuration() -> dict[str, Any]:
     return settings.PLUGINS_CONFIG.get('netbox_otnfaults', {})
 
 
-def site_rows(user: Any = None, *, sync: bool = False) -> Any:
-    query = Site.objects.all() if sync else Site.objects.restrict(user, 'view')
+def site_rows(user: Any = None, *, sync: bool = False, public: bool = False) -> Any:
+    query = Site.objects.all() if sync or public else Site.objects.restrict(user, 'view')
     return query.exclude(latitude__isnull=True).exclude(longitude__isnull=True).order_by('pk').values(
         'id', 'name', 'latitude', 'longitude', 'region_id', 'region__name')
 
@@ -192,14 +192,14 @@ def sync_weather() -> dict[str, Any]:
             cache.delete(lock)
 
 
-def read_weather(user: Any) -> dict[str, Any]:
+def read_weather(user: Any, *, public: bool = False) -> dict[str, Any]:
     now = timezone.now()
     limits = {**DEFAULT_THRESHOLDS, **configuration().get('dashboard_v2_weather_thresholds', {})}
     weather = []
     missing = False
     forecasts: dict[str, Any] = {}
     samples = cache.get(PREFIX + 'province-samples') or {}
-    for row in site_rows(user):
+    for row in site_rows(user, public=public):
         key = samples.get(str(row.get('region_id')))
         if key is None:
             missing = True

@@ -111,6 +111,7 @@ class ServiceTests(unittest.TestCase):
     def test_read_filters_permissions_and_expires_forecasts(self) -> None:
         calls = []
         class Query:
+            def all(self) -> Any: return self
             def restrict(self, user: Any, permission: str) -> Any: calls.append((user, permission)); return self
             def exclude(self, **kwargs: Any) -> Any: return self
             def order_by(self, *args: Any) -> Any: return self
@@ -120,6 +121,8 @@ class ServiceTests(unittest.TestCase):
         self.cache.set('test:met:30.00,114.00', forecast())
         self.cache.set('test:met-status', {'state': 'ready', 'samples': 999, 'checked_at': NOW.isoformat()})
         result = self.scope['read_weather']('viewer')
+        self.assertEqual(calls, [('viewer', 'view')])
+        self.assertEqual(self.scope['read_weather'](None, public=True), result)
         self.assertEqual(calls, [('viewer', 'view')])
         self.assertEqual(result['weather']['features'][0]['properties']['site_id'], 1)
         self.assertNotIn('samples', result['sources']['weather'])
